@@ -1,0 +1,299 @@
+// HVAC Auto-Estimation System - Database Schema
+// SQLite embedded database via Prisma ORM
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Project {
+  id                   String   @id @default(uuid())
+  name                 String
+  clientName           String   @default("")
+  location             String   @default("Manila")
+  city                 String   @default("Manila")
+  buildingType         String   @default("office")
+  status               String   @default("draft") // draft, active, archived, deleted
+  outputClassification String   @default("preliminary") // preliminary, ifc
+  totalFloorArea       Float    @default(0)
+  floorsAboveGrade     Int      @default(1)
+  floorsBelowGrade     Int      @default(0)
+  outdoorDB            Float    @default(35)
+  outdoorWB            Float    @default(28)
+  outdoorRH            Float    @default(65)
+  indoorDB             Float    @default(24)
+  indoorRH             Float    @default(50)
+  designConditions     String   @default("{}") // JSON
+  safetyFactor         Float    @default(1.1)
+  diversityFactor      Float    @default(0.85)
+  notes                String   @default("")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  floors            Floor[]
+  boqItems          BOQItem[]
+  pipeRoutes        PipeRoute[]
+  ductSegments      DuctSegment[]
+  electricalLoads   ElectricalLoad[]
+  auditLogs         AuditLog[]
+}
+
+model Floor {
+  id             String   @id @default(uuid())
+  projectId      String
+  floorNumber    Int      @default(1)
+  name           String   @default("Ground Floor")
+  floorPlanImage String?  // base64 or file path
+  scale          Float    @default(50) // pixels per meter
+  ceilingHeight  Float    @default(3.0) // meters
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  rooms    Room[]
+
+  @@index([projectId])
+}
+
+model Room {
+  id                String   @id @default(uuid())
+  floorId           String
+  name              String   @default("Room")
+  polygon           String   @default("[]") // JSON array of {x,y} points
+  area              Float    @default(0) // m²
+  perimeter         Float    @default(0) // m
+  spaceType         String   @default("office")
+  occupantCount     Int      @default(2)
+  lightingDensity   Float    @default(15) // W/m²
+  equipmentLoad     Float    @default(10) // W/m²
+  wallConstruction  String   @default("concrete_150mm")
+  windowArea        Float    @default(0) // m²
+  windowOrientation String   @default("N")
+  windowType        String   @default("single_clear_6mm")
+  ceilingHeight     Float    @default(3.0)
+  hasRoofExposure   Boolean  @default(false)
+  notes             String   @default("")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  floor             Floor              @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  coolingLoad       CoolingLoad?
+  selectedEquipment SelectedEquipment[]
+
+  @@index([floorId])
+}
+
+model CoolingLoad {
+  id                       String   @id @default(uuid())
+  roomId                   String   @unique
+  wallLoad                 Float    @default(0)
+  roofLoad                 Float    @default(0)
+  glassSolarLoad           Float    @default(0)
+  glassConductionLoad      Float    @default(0)
+  lightingLoad             Float    @default(0)
+  peopleLoadSensible       Float    @default(0)
+  peopleLoadLatent         Float    @default(0)
+  equipmentLoadSensible    Float    @default(0)
+  infiltrationLoadSensible Float    @default(0)
+  infiltrationLoadLatent   Float    @default(0)
+  ventilationLoadSensible  Float    @default(0)
+  ventilationLoadLatent    Float    @default(0)
+  totalSensibleLoad        Float    @default(0)
+  totalLatentLoad          Float    @default(0)
+  totalLoad                Float    @default(0)
+  trValue                  Float    @default(0)
+  btuPerHour               Float    @default(0)
+  cfmSupply                Float    @default(0)
+  cfmFreshAir              Float    @default(0)
+  cfmReturn                Float    @default(0)
+  cfmExhaust               Float    @default(0)
+  safetyFactor             Float    @default(1.1)
+  diversityFactor          Float    @default(0.85)
+  calculationMethod        String   @default("CLTD_CLF")
+  inputSnapshot            String   @default("{}") // JSON
+  timestamp                DateTime @default(now())
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+}
+
+model Equipment {
+  id                String   @id @default(uuid())
+  manufacturer      String
+  model             String
+  type              String   // wall_split, ceiling_cassette, ducted_split, vrf_indoor, etc.
+  capacityTR        Float
+  capacityBTU       Float
+  capacityKW        Float
+  powerInputKW      Float
+  currentAmps       Float
+  phase             String   @default("1-phase")
+  voltage           Int      @default(220)
+  refrigerant       String   @default("R32")
+  eer               Float    @default(10)
+  cop               Float    @default(3.0)
+  indoorDimensions  String   @default("")
+  outdoorDimensions String   @default("")
+  indoorWeight      Float    @default(0)
+  outdoorWeight     Float    @default(0)
+  maxPipeLength     Float    @default(15)
+  maxElevation      Float    @default(10)
+  liquidPipeSize    String   @default("1/4")
+  gasPipeSize       String   @default("3/8")
+  unitPricePHP      Float    @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  selectedEquipment SelectedEquipment[]
+}
+
+model SelectedEquipment {
+  id          String @id @default(uuid())
+  roomId      String
+  equipmentId String
+  quantity    Int    @default(1)
+  positionX   Float  @default(0)
+  positionY   Float  @default(0)
+  derating    String @default("{}") // JSON: pipeLengthFactor, elevationFactor, etc.
+  createdAt   DateTime @default(now())
+
+  room      Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+
+  @@index([roomId])
+  @@index([equipmentId])
+}
+
+model Material {
+  id            String   @id @default(uuid())
+  category      String   // refrigerant_pipe, pipe_insulation, refrigerant, gi_sheet, etc.
+  name          String
+  specification String   @default("")
+  unit          String   @default("pc")
+  unitPricePHP  Float    @default(0)
+  supplierId    String?
+  lastUpdated   DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  supplier Supplier? @relation(fields: [supplierId], references: [id])
+  boqItems BOQItem[]
+
+  @@index([category])
+  @@index([supplierId])
+}
+
+model Supplier {
+  id           String   @id @default(uuid())
+  name         String
+  type         String   @default("national") // national, regional, local
+  website      String   @default("")
+  location     String   @default("")
+  contactInfo  String   @default("")
+  coverageArea String   @default("")
+  categories   String   @default("[]") // JSON array of category strings
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  materials Material[]
+}
+
+model BOQItem {
+  id            String   @id @default(uuid())
+  projectId     String
+  section       String   @default("")
+  category      String   @default("")
+  description   String
+  specification String   @default("")
+  quantity      Float    @default(0)
+  unit          String   @default("pc")
+  unitPrice     Float    @default(0) // PHP
+  totalPrice    Float    @default(0) // PHP
+  materialId    String?
+  notes         String   @default("")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  project  Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  material Material? @relation(fields: [materialId], references: [id])
+
+  @@index([projectId])
+  @@index([category])
+}
+
+model PipeRoute {
+  id               String   @id @default(uuid())
+  projectId        String
+  floorId          String
+  type             String   // liquid, gas, drain
+  points           String   @default("[]") // JSON array of {x,y}
+  length           Float    @default(0)
+  diameter         String   @default("")
+  insulation       String   @default("")
+  refrigerantCharge Float   @default(0)
+  createdAt        DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model DuctSegment {
+  id                  String   @id @default(uuid())
+  projectId           String
+  floorId             String
+  type                String   // supply, return, exhaust, fresh_air
+  points              String   @default("[]") // JSON
+  width               Float    @default(0) // mm
+  height              Float    @default(0) // mm
+  length              Float    @default(0) // m
+  material            String   @default("GI")
+  gaugeNumber         Int      @default(24)
+  insulationType      String   @default("PE Foam")
+  insulationThickness Float    @default(25) // mm
+  accessories         String   @default("[]") // JSON array
+  createdAt           DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model ElectricalLoad {
+  id             String   @id @default(uuid())
+  projectId      String
+  equipmentName  String
+  powerKW        Float    @default(0)
+  currentAmps    Float    @default(0)
+  voltage        Int      @default(220)
+  phase          String   @default("1-phase")
+  cableSize      String   @default("")
+  breakerRating  Int      @default(0)
+  disconnectType String   @default("")
+  createdAt      DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model AuditLog {
+  id            String   @id @default(uuid())
+  projectId     String
+  action        String   // created, updated, deleted, calculated, exported
+  entity        String   // project, room, equipment, boq, etc.
+  entityId      String   @default("")
+  previousValue String   @default("") // JSON
+  newValue      String   @default("") // JSON
+  details       String   @default("") // JSON
+  notes         String   @default("")
+  timestamp     DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([timestamp])
+}
