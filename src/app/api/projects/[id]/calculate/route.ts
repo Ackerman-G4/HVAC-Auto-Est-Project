@@ -26,7 +26,20 @@ export async function POST(request: NextRequest, context: RouteContext) {
     });
 
     if (!project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+      return NextResponse.json({
+        error: 'Project not found',
+        description: 'The project ID does not match any existing project.',
+        code: 'PROJECT_NOT_FOUND',
+      }, { status: 404 });
+    }
+
+    const allRooms = project.floors.flatMap((f) => f.rooms);
+    if (allRooms.length === 0) {
+      return NextResponse.json({
+        error: 'No rooms to calculate',
+        description: 'Add rooms to the project before running cooling load calculations.',
+        code: 'NO_ROOMS',
+      }, { status: 400 });
     }
 
     const results = [];
@@ -149,6 +162,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
     });
   } catch (error) {
     console.error('POST calculate error:', error);
-    return NextResponse.json({ error: 'Failed to calculate' }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({
+      error: 'Failed to calculate cooling loads',
+      description: `Server error during calculation: ${message}`,
+      code: 'CALC_ERROR',
+    }, { status: 500 });
   }
 }

@@ -224,12 +224,27 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const fetchProject = () => {
     setLoading(true);
     fetch(`/api/projects/${id}`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) {
+          return r.json().then((data) => {
+            showToast('error', data.error || 'Failed to load project', data.description || '');
+            setLoading(false);
+            return null;
+          });
+        }
+        return r.json();
+      })
       .then((data) => {
-        setProject(data.project);
+        if (data && data.project) {
+          setProject(data.project);
+        }
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((err) => {
+        console.error('Fetch project error:', err);
+        showToast('error', 'Failed to load project', 'Network error or server unreachable.');
+        setLoading(false);
+      });
   };
 
   useEffect(() => {
@@ -280,9 +295,13 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           hasRoofExposure: false,
         });
         fetchProject();
+      } else {
+        const data = await res.json();
+        showToast('error', data.error || 'Failed to add room', data.description || 'Check the room parameters and try again.');
       }
-    } catch {
-      showToast('error', 'Failed to add room');
+    } catch (err) {
+      console.error('Add room error:', err);
+      showToast('error', 'Failed to add room', 'Network error or server unreachable.');
     }
   };
 
@@ -294,9 +313,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       if (res.ok) {
         showToast('success', `Calculated ${data.summary.roomCount} rooms — Total: ${data.summary.totalTR} TR`);
         fetchProject();
+      } else {
+        showToast('error', data.error || 'Calculation failed', data.description || 'The server returned an error.');
       }
-    } catch {
-      showToast('error', 'Calculation failed');
+    } catch (err) {
+      console.error('Calculate error:', err);
+      showToast('error', 'Calculation failed', 'Network error or server unreachable.');
     } finally {
       setCalculating(false);
     }
@@ -314,9 +336,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       if (res.ok) {
         showToast('success', `Equipment sized for ${data.results.length} rooms`);
         fetchProject();
+      } else {
+        showToast('error', data.error || 'Equipment sizing failed', data.description || 'The server returned an error. Make sure rooms have cooling loads calculated first.');
       }
-    } catch {
-      showToast('error', 'Equipment sizing failed');
+    } catch (err) {
+      console.error('Auto-size error:', err);
+      showToast('error', 'Equipment sizing failed', 'Network error or server unreachable.');
     } finally {
       setAutoSizing(false);
     }
@@ -331,10 +356,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         showToast('success', `BOQ generated: ${formatPHP(data.boq.grandTotal)}`);
         fetchProject();
       } else {
-        showToast('error', data.error || 'BOQ generation failed');
+        showToast('error', data.error || 'BOQ generation failed', data.description || 'Make sure equipment is selected before generating BOQ.');
       }
-    } catch {
-      showToast('error', 'BOQ generation failed');
+    } catch (err) {
+      console.error('BOQ error:', err);
+      showToast('error', 'BOQ generation failed', 'Network error or server unreachable.');
     } finally {
       setGeneratingBOQ(false);
     }

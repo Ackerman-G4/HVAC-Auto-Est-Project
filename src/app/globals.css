@@ -1,29 +1,29 @@
 @import "tailwindcss";
 
 :root {
-  --background: #F7F8FA;
-  --foreground: #1A1D21;
+  --background: #F4F6F9;
+  --foreground: #141920;
   --card: #FFFFFF;
-  --card-foreground: #1A1D21;
-  --primary: #1A1D21;
+  --card-foreground: #141920;
+  --primary: #141920;
   --primary-foreground: #FFFFFF;
-  --secondary: #F0F2F5;
-  --secondary-foreground: #3D4550;
-  --muted: #DFE3E8;
-  --muted-foreground: #6B7280;
-  --accent: #1D4ED8;
+  --secondary: #EDEFF4;
+  --secondary-foreground: #2F3A46;
+  --muted: #D9DEE7;
+  --muted-foreground: #667287;
+  --accent: #224FC6;
   --accent-foreground: #FFFFFF;
-  --border: #E2E5EA;
-  --input: #D5D9E0;
-  --ring: #1D4ED8;
+  --border: #DCE2EB;
+  --input: #D3DAE6;
+  --ring: #224FC6;
   --destructive: #DC2626;
   --destructive-foreground: #FFFFFF;
-  --success: #059669;
-  --warning: #D97706;
-  --silver: #9CA3AF;
-  --silver-light: #E5E7EB;
-  --silver-dark: #6B7280;
-  --radius: 0.625rem;
+  --success: #0B8B63;
+  --warning: #C77812;
+  --silver: #95A0B2;
+  --silver-light: #E3E8F0;
+  --silver-dark: #5F6B7E;
+  --radius: 0.75rem;
   --sidebar-width: 252px;
   --sidebar-collapsed: 64px;
   --topbar-height: 56px;
@@ -63,7 +63,7 @@
 }
 
 body {
-  background: var(--background);
+  background: linear-gradient(180deg, #f7f9fc 0%, var(--background) 28%);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -71,6 +71,11 @@ body {
   font-feature-settings: 'cv11', 'ss01';
   letter-spacing: -0.011em;
   line-height: 1.5;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--accent) 22%, white);
+  color: var(--foreground);
 }
 
 /* Scrollbar styling */
@@ -107,6 +112,7 @@ body {
 /* Glass overlay mode for floor plans */
 .glass-overlay {
   background: rgba(255, 255, 255, 0.88);
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
 }
 

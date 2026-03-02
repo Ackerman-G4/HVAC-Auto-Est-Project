@@ -48,7 +48,12 @@ export async function GET(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ equipment });
   } catch (error) {
     console.error('GET equipment error:', error);
-    return NextResponse.json({ error: 'Failed to fetch equipment' }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({
+      error: 'Failed to fetch equipment',
+      description: `Server error: ${message}`,
+      code: 'EQUIP_FETCH_ERROR',
+    }, { status: 500 });
   }
 }
 
@@ -77,6 +82,25 @@ export async function POST(request: NextRequest, context: RouteContext) {
       }
 
       const results = [];
+      const allRooms = floors.flatMap((f) => f.rooms);
+      const roomsWithLoads = allRooms.filter((r) => r.coolingLoad);
+
+      if (allRooms.length === 0) {
+        return NextResponse.json({
+          error: 'No rooms found',
+          description: 'Add rooms to the project before auto-sizing equipment.',
+          code: 'NO_ROOMS',
+        }, { status: 400 });
+      }
+
+      if (roomsWithLoads.length === 0) {
+        return NextResponse.json({
+          error: 'No cooling loads calculated',
+          description: 'Run "Calculate" first to compute cooling loads for all rooms before auto-sizing equipment.',
+          code: 'NO_LOADS',
+        }, { status: 400 });
+      }
+
       for (const floor of floors) {
         for (const room of floor.rooms) {
           if (!room.coolingLoad) continue;
@@ -178,6 +202,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ equipment: sel }, { status: 201 });
   } catch (error) {
     console.error('POST equipment error:', error);
-    return NextResponse.json({ error: 'Failed to select equipment' }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({
+      error: 'Failed to select equipment',
+      description: `Server error during equipment sizing: ${message}`,
+      code: 'EQUIP_ERROR',
+    }, { status: 500 });
   }
 }

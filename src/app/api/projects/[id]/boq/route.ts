@@ -72,7 +72,12 @@ export async function GET(request: NextRequest, context: RouteContext) {
     });
   } catch (error) {
     console.error('GET BOQ error:', error);
-    return NextResponse.json({ error: 'Failed to fetch BOQ' }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({
+      error: 'Failed to fetch BOQ',
+      description: `Server error: ${message}`,
+      code: 'BOQ_FETCH_ERROR',
+    }, { status: 500 });
   }
 }
 
@@ -267,6 +272,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ boq: boqSummary }, { status: 201 });
   } catch (error) {
     console.error('POST BOQ error:', error);
-    return NextResponse.json({ error: 'Failed to generate BOQ' }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({
+      error: 'Failed to generate BOQ',
+      description: `Server error during BOQ generation: ${message}`,
+      code: 'BOQ_ERROR',
+    }, { status: 500 });
   }
 }

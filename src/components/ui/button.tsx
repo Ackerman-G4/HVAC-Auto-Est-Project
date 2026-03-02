@@ -11,20 +11,20 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', isLoading, children, disabled, ...props }, ref) => {
-    const baseStyles = 'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer select-none';
+    const baseStyles = 'inline-flex items-center justify-center font-medium rounded-[calc(var(--radius)-2px)] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer select-none';
     
     const variants = {
-      primary: 'bg-primary text-primary-foreground hover:bg-[#2d3139] active:bg-[#3d4550] shadow-sm',
-      secondary: 'bg-secondary text-secondary-foreground hover:bg-muted active:bg-silver-light border border-border/60',
+      primary: 'bg-primary text-primary-foreground hover:opacity-95 active:opacity-90 shadow-sm',
+      secondary: 'bg-secondary text-secondary-foreground hover:bg-muted active:bg-silver-light border border-border/70',
       ghost: 'hover:bg-secondary active:bg-muted text-muted-foreground hover:text-foreground',
-      destructive: 'bg-destructive text-destructive-foreground hover:bg-red-700 active:bg-red-800 shadow-sm',
-      accent: 'bg-accent text-accent-foreground hover:bg-blue-800 active:bg-blue-900 shadow-sm',
-      outline: 'border border-border/60 bg-transparent text-foreground hover:bg-secondary active:bg-muted',
+      destructive: 'bg-destructive text-destructive-foreground hover:opacity-90 active:opacity-85 shadow-sm',
+      accent: 'bg-accent text-accent-foreground hover:opacity-95 active:opacity-90 shadow-sm',
+      outline: 'border border-border/70 bg-transparent text-foreground hover:bg-secondary active:bg-muted',
     };
 
     const sizes = {
       sm: 'h-8 px-3 text-xs gap-1.5',
-      md: 'h-9 px-3.5 text-[13px] gap-2',
+      md: 'h-9 px-4 text-[13px] gap-2',
       lg: 'h-11 px-5 text-sm gap-2',
       icon: 'h-9 w-9 p-0',
     };

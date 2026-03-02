@@ -16,13 +16,13 @@ interface StatCardProps {
 export function StatCard({ title, value, subtitle, icon: Icon, trend, className }: StatCardProps) {
   return (
     <div className={cn(
-      'bg-card border border-border/60 rounded-xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]',
+      'bg-card border border-border/70 rounded-(--radius) p-4.5 shadow-sm',
       className
     )}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">{title}</p>
-          <p className="text-[22px] font-semibold text-foreground mt-1 tabular-nums truncate leading-tight">{value}</p>
+          <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-[0.08em]">{title}</p>
+          <p className="text-[24px] font-semibold text-foreground mt-1 tabular-nums truncate leading-tight">{value}</p>
           {subtitle && <p className="text-[11px] text-muted-foreground mt-1">{subtitle}</p>}
           {trend && (
             <p className={cn(
@@ -34,8 +34,8 @@ export function StatCard({ title, value, subtitle, icon: Icon, trend, className 
           )}
         </div>
         {Icon && (
-          <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
-            <Icon size={18} className="text-muted-foreground" />
+          <div className="w-10 h-10 rounded-[calc(var(--radius)-4px)] bg-secondary border border-border/70 flex items-center justify-center shrink-0">
+            <Icon size={18} className="text-silver-dark" />
           </div>
         )}
       </div>

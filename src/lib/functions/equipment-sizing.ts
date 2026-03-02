@@ -164,22 +164,41 @@ export function sizeEquipment(input: SizingInput): SizingResult {
     notes.push(`No ${input.preferredBrand} equipment found in capacity range. Showing all brands.`);
   }
 
-  // If still no matches, expand type search
+  // If still no matches, expand type search to all available types
   if (candidates.length === 0) {
     const allTypes: EquipmentType[] = ['wall_split', 'ceiling_cassette', 'ducted_split', 'floor_standing'];
     candidates = filterByCapacity(EQUIPMENT_CATALOG, minBTU, maxBTU, allTypes);
-    notes.push('Equipment type preference could not be matched. Showing all available types.');
+    if (candidates.length > 0) {
+      notes.push('Equipment type preference could not be matched. Showing all available types.');
+    }
   }
 
-  // If very large load, suggest multiple units of the largest capacity
-  if (candidates.length === 0 && neededBTU > 60000) {
+  // If very large load or still no matches, use multiple units of the largest available equipment
+  if (candidates.length === 0) {
+    const allTypes: EquipmentType[] = ['wall_split', 'ceiling_cassette', 'ducted_split', 'floor_standing'];
     const largestEquipment = [...EQUIPMENT_CATALOG]
-      .filter((eq) => recommendedTypes.includes(eq.type))
+      .filter((eq) => allTypes.includes(eq.type))
       .sort((a, b) => b.capacityBTU - a.capacityBTU);
     
     if (largestEquipment.length > 0) {
-      candidates = largestEquipment.slice(0, 5);
-      notes.push(`Load requires multiple units. Each unit: ${largestEquipment[0].capacityBTU.toLocaleString()} BTU/h`);
+      // Pick the top 5 largest unique units
+      const seen = new Set<string>();
+      const unique: typeof largestEquipment = [];
+      for (const eq of largestEquipment) {
+        const key = `${eq.manufacturer}-${eq.model}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          unique.push(eq);
+        }
+        if (unique.length >= 5) break;
+      }
+      candidates = unique;
+      const topUnit = largestEquipment[0];
+      const unitsNeeded = Math.ceil(neededBTU / topUnit.capacityBTU);
+      notes.push(`Load exceeds single-unit capacity. Recommending ${unitsNeeded}× ${topUnit.manufacturer} ${topUnit.model} (${topUnit.capacityBTU.toLocaleString()} BTU/h each).`);
+      if (input.trValue > 50) {
+        warnings.push('Very large cooling load (>50 TR). Consider central chiller system with AHUs for better efficiency.');
+      }
     }
   }
 

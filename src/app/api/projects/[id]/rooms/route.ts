@@ -28,7 +28,12 @@ export async function GET(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ floors });
   } catch (error) {
     console.error('GET rooms error:', error);
-    return NextResponse.json({ error: 'Failed to fetch rooms' }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({
+      error: 'Failed to fetch rooms',
+      description: `Server error: ${message}`,
+      code: 'ROOMS_FETCH_ERROR',
+    }, { status: 500 });
   }
 }
 
@@ -147,6 +152,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ room: createdRoom }, { status: 201 });
   } catch (error) {
     console.error('POST rooms error:', error);
-    return NextResponse.json({ error: 'Failed to create room' }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({
+      error: 'Failed to create room',
+      description: `Server error during room creation: ${message}`,
+      code: 'ROOM_ERROR',
+    }, { status: 500 });
   }
 }
