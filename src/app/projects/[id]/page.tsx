@@ -190,7 +190,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     windowOrientation: 'N',
     occupantCount: 0,
     lightingDensity: 15,
-    equipmentLoad: 10,
+    equipmentLoad: 500,
     hasRoofExposure: false,
   });
 
@@ -291,7 +291,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           windowOrientation: 'N',
           occupantCount: 0,
           lightingDensity: 15,
-          equipmentLoad: 10,
+          equipmentLoad: 500,
           hasRoofExposure: false,
         });
         fetchProject();
@@ -429,10 +429,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
         <StatCard title="Rooms" value={allRooms.length} icon={MapPin} />
         <StatCard title="Total TR" value={totalTR.toFixed(1)} icon={Thermometer} />
         <StatCard title="Total Area" value={`${totalArea.toFixed(0)} m²`} icon={Building2} />
+        <StatCard title="Equipment" value={formatPHP(equipmentCost)} icon={Package} />
         <StatCard title="BOQ Total" value={formatPHP(boqTotal)} icon={FileText} />
       </div>
 
@@ -606,7 +607,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                         <Select label="Window Orientation" value={strVal(roomForm.windowOrientation)} onChange={(e) => setRoomForm({ ...roomForm, windowOrientation: e.target.value })} options={ORIENTATIONS} />
                         <Input label="Occupants" type="number" min={0} value={numVal(roomForm.occupantCount) || ''} onChange={(e) => handleRoomNumChange('occupantCount', e.target.value)} onBlur={() => handleRoomNumBlur('occupantCount', 0)} />
                         <Input label="Lighting (W/m²)" type="number" step={0.1} value={numVal(roomForm.lightingDensity) || ''} onChange={(e) => handleRoomNumChange('lightingDensity', e.target.value)} onBlur={() => handleRoomNumBlur('lightingDensity', 15)} />
-                        <Input label="Equipment (W/m²)" type="number" step={0.1} value={numVal(roomForm.equipmentLoad) || ''} onChange={(e) => handleRoomNumChange('equipmentLoad', e.target.value)} onBlur={() => handleRoomNumBlur('equipmentLoad', 10)} />
+                        <Input label="Equipment Load (W)" type="number" step={1} value={numVal(roomForm.equipmentLoad) || ''} onChange={(e) => handleRoomNumChange('equipmentLoad', e.target.value)} onBlur={() => handleRoomNumBlur('equipmentLoad', 0)} />
                         <div className="flex items-end">
                           <label className="flex items-center gap-2 text-sm">
                             <input
@@ -690,11 +691,24 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                   project.indoorDB,
                                   project.indoorRH
                                 );
-                                // Find matching catalog units
-                                const matchedUnits = EQUIPMENT_CATALOG
-                                  .filter((eq) => eq.capacityTR >= rec.adjustedTR * 0.85 && eq.capacityTR <= rec.adjustedTR * 1.5)
-                                  .sort((a, b) => Math.abs(a.capacityTR - rec.adjustedTR) - Math.abs(b.capacityTR - rec.adjustedTR))
+
+                                // Find matching catalog units — if TR is large, find the best single
+                                // unit and show how many are needed to cover the load.
+                                const maxCatalogTR = Math.max(...EQUIPMENT_CATALOG.map((e) => e.capacityTR));
+                                const needsMultiple = rec.adjustedTR > maxCatalogTR;
+                                const targetTR = needsMultiple ? maxCatalogTR : rec.adjustedTR;
+
+                                let matchedUnits = EQUIPMENT_CATALOG
+                                  .filter((eq) => eq.capacityTR >= targetTR * 0.85 && eq.capacityTR <= targetTR * 1.5)
+                                  .sort((a, b) => Math.abs(a.capacityTR - targetTR) - Math.abs(b.capacityTR - targetTR))
                                   .slice(0, 4);
+
+                                // Fallback: if still no match, show the closest units by capacity
+                                if (matchedUnits.length === 0) {
+                                  matchedUnits = [...EQUIPMENT_CATALOG]
+                                    .sort((a, b) => Math.abs(a.capacityTR - rec.adjustedTR) - Math.abs(b.capacityTR - rec.adjustedTR))
+                                    .slice(0, 4);
+                                }
 
                                 return (
                                   <div className="mt-3 pt-3 border-t border-border/40">
@@ -720,22 +734,26 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                     </p>
                                     {matchedUnits.length > 0 && (
                                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                                        {matchedUnits.map((unit, idx) => (
-                                          <div
-                                            key={idx}
-                                            className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded bg-secondary/60 text-xs"
-                                          >
-                                            <div className="flex-1 min-w-0">
-                                              <span className="font-medium">{unit.manufacturer}</span>
-                                              <span className="text-muted-foreground ml-1">{unit.model}</span>
+                                        {matchedUnits.map((unit, idx) => {
+                                          const qty = needsMultiple ? Math.ceil(rec.adjustedTR / unit.capacityTR) : 1;
+                                          return (
+                                            <div
+                                              key={idx}
+                                              className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded bg-secondary/60 text-xs"
+                                            >
+                                              <div className="flex-1 min-w-0">
+                                                <span className="font-medium">{unit.manufacturer}</span>
+                                                <span className="text-muted-foreground ml-1">{unit.model}</span>
+                                              </div>
+                                              <div className="flex items-center gap-2 text-right shrink-0">
+                                                <span className="tabular-nums font-medium">{unit.capacityTR} TR</span>
+                                                {qty > 1 && <span className="tabular-nums text-accent font-semibold">×{qty}</span>}
+                                                <span className="tabular-nums text-muted-foreground">EER {unit.eer}</span>
+                                                <span className="tabular-nums text-muted-foreground">{formatPHP(unit.unitPricePHP * qty)}</span>
+                                              </div>
                                             </div>
-                                            <div className="flex items-center gap-2 text-right shrink-0">
-                                              <span className="tabular-nums font-medium">{unit.capacityTR} TR</span>
-                                              <span className="tabular-nums text-muted-foreground">EER {unit.eer}</span>
-                                              <span className="tabular-nums text-muted-foreground">{formatPHP(unit.unitPricePHP)}</span>
-                                            </div>
-                                          </div>
-                                        ))}
+                                          );
+                                        })}
                                       </div>
                                     )}
                                   </div>

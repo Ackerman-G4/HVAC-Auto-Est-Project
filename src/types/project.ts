@@ -48,7 +48,7 @@ export interface Room {
   spaceType: SpaceType;
   occupantCount: number;
   lightingDensity: number; // W/m²
-  equipmentLoad: number; // W/m²
+  equipmentLoad: number; // W (total)
   wallConstruction: WallType;
   windowArea: number; // m²
   windowOrientation: Orientation;

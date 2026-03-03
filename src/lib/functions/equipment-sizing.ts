@@ -4,6 +4,7 @@
  */
 
 import { EQUIPMENT_CATALOG } from '@/constants/equipment-catalog';
+import { INVERTER_EER_THRESHOLD } from '@/lib/utils/constants';
 import type { EquipmentType } from '@/types/equipment';
 
 type CatalogEntry = typeof EQUIPMENT_CATALOG[number];
@@ -119,9 +120,8 @@ function scoreEquipment(eq: CatalogEntry, input: SizingInput): number {
   else if (eq.eer >= 8) score += 15;
   else score += 5;
 
-  // Inverter tech (EER > 11 usually means inverter)
-  const isInverter = eq.eer >= 11;
-  if (isInverter) score += 15;
+  // Inverter tech bonus
+  if (eq.eer >= INVERTER_EER_THRESHOLD) score += 15;
 
   // Budget match
   const price = eq.unitPricePHP;
@@ -213,7 +213,7 @@ export function sizeEquipment(input: SizingInput): SizingResult {
 
   // Build recommendations
   const recommendations: EquipmentRecommendation[] = scored.map((s) => {
-    const isInverter = s.equipment.eer >= 11;
+    const isInverter = s.equipment.eer >= INVERTER_EER_THRESHOLD;
     return {
       equipment: {
         id: s.equipment.model.replace(/[\s\-\/]/g, '_'),
@@ -260,7 +260,7 @@ export function sizeEquipment(input: SizingInput): SizingResult {
 
 function buildReason(eq: CatalogEntry, score: number, units: number): string {
   const parts: string[] = [];
-  if (eq.eer >= 11) parts.push('Inverter technology for energy savings');
+  if (eq.eer >= INVERTER_EER_THRESHOLD) parts.push('Inverter technology for energy savings');
   if (eq.eer >= 12) parts.push('High energy efficiency (EER ' + eq.eer + ')');
   if (units > 1) parts.push(`${units} units for complete coverage`);
   parts.push(`${eq.manufacturer} ${eq.model}`);

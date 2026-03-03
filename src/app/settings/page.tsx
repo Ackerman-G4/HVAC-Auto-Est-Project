@@ -18,7 +18,7 @@ export default function SettingsPage() {
     defaultDiversityFactor: 1.0,
     defaultCeilingHeight: 2.7,
     defaultLightingDensity: 15,
-    defaultEquipmentLoad: 10,
+    defaultEquipmentLoad: 500,
 
     // Cost Defaults
     laborMultiplier: 0.35,
@@ -112,7 +112,7 @@ export default function SettingsPage() {
       defaultDiversityFactor: 1.0,
       defaultCeilingHeight: 2.7,
       defaultLightingDensity: 15,
-      defaultEquipmentLoad: 10,
+      defaultEquipmentLoad: 500,
       laborMultiplier: 0.35,
       overheadPercent: 0.15,
       vatRate: 0.12,
@@ -206,9 +206,9 @@ export default function SettingsPage() {
                 onChange={(e) => handleChange('defaultLightingDensity', parseFloat(e.target.value))}
               />
               <Input
-                label="Equipment Load (W/m²)"
+                label="Equipment Load (W)"
                 type="number"
-                step={1}
+                step={100}
                 value={settings.defaultEquipmentLoad}
                 onChange={(e) => handleChange('defaultEquipmentLoad', parseFloat(e.target.value))}
               />

@@ -72,7 +72,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   updateProject: async (id: string, data: Partial<Project>) => {
     try {
       const res = await fetch(`/api/projects/${id}`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
@@ -92,7 +92,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   archiveProject: async (id: string) => {
     try {
       const res = await fetch(`/api/projects/${id}`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'archived' }),
       });
@@ -112,7 +112,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   restoreProject: async (id: string) => {
     try {
       const res = await fetch(`/api/projects/${id}`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'active' }),
       });

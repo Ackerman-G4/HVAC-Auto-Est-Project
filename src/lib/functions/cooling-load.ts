@@ -1,7 +1,7 @@
 /**
  * HVAC Cooling Load Calculation Engine
- * Implements ASHRAE CLTD/CLF/SCL Method
- * Adapted for Philippine tropical conditions
+ * Philippine Standard Rule‑of‑Thumb: TR = Area (m²) ÷ factor
+ * Component breakdown via ASHRAE CLTD/CLF kept for reference
  */
 
 import type { CoolingLoadInput, CoolingLoadResult } from '@/types/calculation';
@@ -21,6 +21,29 @@ import {
 } from '@/constants/ashrae-tables';
 import { celsiusToFahrenheit, cfmToLPS, lpsToCSFM } from '@/lib/utils/unit-conversion';
 import { deltaHumidityRatio } from '@/lib/functions/psychrometric';
+
+// ─────────────────────────────────────────────────────────────
+// Philippine HVAC Rule of Thumb — m² per TR by space type
+// Standard: 1 TR per 15 m² for offices (≈ 150 sq ft / TR)
+// ─────────────────────────────────────────────────────────────
+const SQM_PER_TR: Record<string, number> = {
+  office: 15,
+  conference: 12,
+  lobby: 18,
+  retail: 12,
+  restaurant: 10,
+  kitchen: 8,
+  hotel_room: 18,
+  server_room: 8,
+  corridor: 20,
+  restroom: 20,
+  storage: 25,
+  residential: 18,
+  classroom: 12,
+  hospital_ward: 12,
+  operating_room: 8,
+  parking: 30,
+};
 
 // ─────────────────────────────────────────────────────────────
 // Carrier HAP — Sensible Heat Equation: Q = ṁ × Cp × ΔT
@@ -245,71 +268,77 @@ function calculatePeopleLoad(input: CoolingLoadInput): { sensible: number; laten
 }
 
 /**
- * Calculate equipment heat gain
+ * Calculate equipment heat gain.
+ * equipmentLoad is already total watts for the room (not a density).
  */
 function calculateEquipmentLoad(input: CoolingLoadInput): number {
-  return input.equipmentLoad * input.roomArea * CLF_EQUIPMENT;
+  return input.equipmentLoad * CLF_EQUIPMENT;
 }
 
 /**
- * Calculate ventilation/infiltration loads
+ * Shared airflow‑based sensible + latent load calculation.
+ * Used by both ventilation and infiltration load calcs.
+ */
+function airflowLoad(
+  airflowCFM: number,
+  outdoorDB: number,
+  outdoorRH: number,
+  indoorDB: number,
+  indoorRH: number,
+): { sensible: number; latent: number } {
+  const deltaT = celsiusToFahrenheit(outdoorDB) - celsiusToFahrenheit(indoorDB);
+  const deltaW = deltaHumidityRatio(outdoorDB, outdoorRH, indoorDB, indoorRH);
+
+  // Sensible: Q = 1.08 × CFM × ΔT (BTU/h) → Watts
+  const sensible = 1.08 * airflowCFM * deltaT * 0.293;
+
+  // Latent: Q = 0.68 × CFM × ΔW × 7000 (BTU/h) → Watts
+  const latent = 0.68 * airflowCFM * deltaW * 7000 * 0.293;
+
+  return { sensible: Math.max(0, sensible), latent: Math.max(0, latent) };
+}
+
+/**
+ * Calculate ventilation loads
  */
 function calculateVentilationLoad(input: CoolingLoadInput): { sensible: number; latent: number } {
   const freshAirReq = FRESH_AIR_REQUIREMENTS[input.spaceType] || FRESH_AIR_REQUIREMENTS['office'];
-  
-  // Fresh air in L/s
   const freshAirLPS = freshAirReq.perPerson * input.occupantCount + freshAirReq.perArea * input.roomArea;
   const freshAirCFM = lpsToCSFM(freshAirLPS);
-  
-  // Temperature difference
-  const deltaT = celsiusToFahrenheit(input.outdoorDB) - celsiusToFahrenheit(input.indoorDB);
-  
-  // Humidity ratio difference via Carrier psychrometric chart
-  // Uses actual outdoor RH & indoor RH instead of hardcoded values
   const outdoorRH = input.outdoorRH ?? 65;
-  const deltaW = deltaHumidityRatio(input.outdoorDB, outdoorRH, input.indoorDB, input.indoorRH);
-  
-  // Sensible: Q = 1.08 × CFM × ΔT (BTU/h) → convert to Watts
-  const sensibleBTU = 1.08 * freshAirCFM * deltaT;
-  const sensible = sensibleBTU * 0.293; // BTU/h to Watts
-  
-  // Latent: Q = 0.68 × CFM × ΔW × 7000 (BTU/h) → convert to Watts
-  const latentBTU = 0.68 * freshAirCFM * deltaW * 7000;
-  const latent = latentBTU * 0.293;
-  
-  return { sensible: Math.max(0, sensible), latent: Math.max(0, latent) };
+  return airflowLoad(freshAirCFM, input.outdoorDB, outdoorRH, input.indoorDB, input.indoorRH);
 }
 
 /**
  * Calculate infiltration loads
  */
 function calculateInfiltrationLoad(input: CoolingLoadInput): { sensible: number; latent: number } {
-  // Infiltration ACH = 0.5 for typical construction
-  const ach = 0.5;
+  const ach = 0.5; // Air Changes per Hour for typical construction
   const volume = input.roomArea * input.ceilingHeight;
   const infiltrationLPS = (ach * volume) / 3600 * 1000;
   const infiltrationCFM = lpsToCSFM(infiltrationLPS);
-  
-  const deltaT = celsiusToFahrenheit(input.outdoorDB) - celsiusToFahrenheit(input.indoorDB);
-  
-  // Humidity ratio difference via Carrier psychrometric chart
   const outdoorRH = input.outdoorRH ?? 65;
-  const deltaW = deltaHumidityRatio(input.outdoorDB, outdoorRH, input.indoorDB, input.indoorRH);
-  
-  const sensibleBTU = 1.08 * infiltrationCFM * deltaT;
-  const sensible = sensibleBTU * 0.293;
-  
-  const latentBTU = 0.68 * infiltrationCFM * deltaW * 7000;
-  const latent = latentBTU * 0.293;
-  
-  return { sensible: Math.max(0, sensible), latent: Math.max(0, latent) };
+  return airflowLoad(infiltrationCFM, input.outdoorDB, outdoorRH, input.indoorDB, input.indoorRH);
 }
 
 /**
  * Main cooling load calculation function
+ *
+ * Primary sizing uses the Philippine HVAC rule of thumb:
+ *   TR = Area (m²) ÷ SQM_PER_TR[spaceType]
+ *   e.g. 75 m² office → 75 / 15 = 5 TR
+ *
+ * Component‑level loads (wall, glass, lighting, etc.) are still
+ * calculated via ASHRAE CLTD/CLF for the detailed breakdown.
  */
 export function calculateCoolingLoad(input: CoolingLoadInput, roomId: string, roomName: string): CoolingLoadResult {
-  // Calculate each component
+  // ── Primary TR estimation — area ÷ factor ──────────────────
+  const sqmPerTR = SQM_PER_TR[input.spaceType] || 15;
+  const trValue = Math.round((input.roomArea / sqmPerTR) * 100) / 100;
+  const totalLoad = Math.round(trValue * 3517);       // Watts
+  const btuPerHour = Math.round(trValue * 12000);      // BTU/h
+
+  // ── Component breakdown (reference) ────────────────────────
   const wallLoad = calculateWallLoad(input);
   const roofLoad = calculateRoofLoad(input);
   const glassSolarLoad = calculateGlassSolarLoad(input);
@@ -319,47 +348,25 @@ export function calculateCoolingLoad(input: CoolingLoadInput, roomId: string, ro
   const equipmentLoadSensible = calculateEquipmentLoad(input);
   const ventilationLoad = calculateVentilationLoad(input);
   const infiltrationLoad = calculateInfiltrationLoad(input);
-  
-  // Sum sensible loads
+
   const totalSensibleLoad = (
-    wallLoad +
-    roofLoad +
-    glassSolarLoad +
-    glassConductionLoad +
-    lightingLoad +
-    peopleLoad.sensible +
-    equipmentLoadSensible +
-    ventilationLoad.sensible +
-    infiltrationLoad.sensible
+    wallLoad + roofLoad + glassSolarLoad + glassConductionLoad +
+    lightingLoad + peopleLoad.sensible + equipmentLoadSensible +
+    ventilationLoad.sensible + infiltrationLoad.sensible
   );
-  
-  // Sum latent loads
   const totalLatentLoad = (
-    peopleLoad.latent +
-    ventilationLoad.latent +
-    infiltrationLoad.latent
+    peopleLoad.latent + ventilationLoad.latent + infiltrationLoad.latent
   );
-  
-  // Total load with safety factor
-  const subtotal = totalSensibleLoad + totalLatentLoad;
-  const totalLoad = subtotal * input.safetyFactor;
-  
-  // Convert to TR and BTU
-  const trValue = totalLoad / 3517;
-  const btuPerHour = totalLoad * 3.412;
-  
-  // Airflow calculations
-  const deltaT_supply = 20; // °F supply air temperature difference
+
+  // ── Airflow calculations ───────────────────────────────────
+  const deltaT_supply = 20; // °F supply‑air ΔT
   const cfmSupply = (totalSensibleLoad * 3.412) / (1.08 * deltaT_supply);
-  
-  // Fresh air
   const freshAirReq = FRESH_AIR_REQUIREMENTS[input.spaceType] || FRESH_AIR_REQUIREMENTS['office'];
   const freshAirLPS = freshAirReq.perPerson * input.occupantCount + freshAirReq.perArea * input.roomArea;
   const cfmFreshAir = lpsToCSFM(freshAirLPS);
-  
-  const cfmReturn = cfmSupply * 0.9; // 10% less for pressurization
-  const cfmExhaust = cfmSupply * 0.1; // exhaust portion
-  
+  const cfmReturn = cfmSupply * 0.9;
+  const cfmExhaust = cfmSupply * 0.1;
+
   return {
     roomId,
     roomName,
@@ -377,16 +384,16 @@ export function calculateCoolingLoad(input: CoolingLoadInput, roomId: string, ro
     ventilationLoadLatent: Math.round(ventilationLoad.latent),
     totalSensibleLoad: Math.round(totalSensibleLoad),
     totalLatentLoad: Math.round(totalLatentLoad),
-    totalLoad: Math.round(totalLoad),
-    trValue: Math.round(trValue * 100) / 100,
-    btuPerHour: Math.round(btuPerHour),
+    totalLoad,
+    trValue,
+    btuPerHour,
     cfmSupply: Math.round(cfmSupply),
     cfmFreshAir: Math.round(cfmFreshAir),
     cfmReturn: Math.round(cfmReturn),
     cfmExhaust: Math.round(cfmExhaust),
     safetyFactor: input.safetyFactor,
     diversityFactor: input.diversityFactor,
-    calculationMethod: 'CLTD_CLF',
+    calculationMethod: 'AREA_RULE_OF_THUMB',
     timestamp: new Date().toISOString(),
   };
 }
