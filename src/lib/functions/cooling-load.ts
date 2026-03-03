@@ -48,6 +48,9 @@ export const SQM_PER_TR: Record<string, number> = {
   classroom: 12,        // high occupancy (students)
   hospital_ward: 12,    // medical equipment + occupants
   operating_room: 8,    // strict temp control + equipment
+  gym: 10,              // high activity + body heat
+  theater: 10,          // high occupancy, low activity
+  warehouse: 35,        // large area, low density
   parking: 40,          // ventilation only usually
 };
 

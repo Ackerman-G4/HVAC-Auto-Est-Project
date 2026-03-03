@@ -73,6 +73,9 @@ export type SpaceType =
   | 'classroom'
   | 'hospital_ward'
   | 'operating_room'
+  | 'gym'
+  | 'theater'
+  | 'warehouse'
   | 'parking';
 
 export type WallType =

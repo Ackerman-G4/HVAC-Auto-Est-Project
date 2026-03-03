@@ -297,6 +297,9 @@ export function quickEstimateTR(
     classroom: 12,
     hospital_ward: 12,
     operating_room: 8,
+    gym: 10,
+    theater: 10,
+    warehouse: 35,
     parking: 40,
   };
 

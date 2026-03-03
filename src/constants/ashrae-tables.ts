@@ -91,6 +91,9 @@ export const HEAT_GAIN_PER_PERSON: Record<string, { sensible: number; latent: nu
   classroom: { sensible: 75, latent: 55 },
   hospital_ward: { sensible: 60, latent: 40 },
   operating_room: { sensible: 100, latent: 80 },
+  gym: { sensible: 210, latent: 315 },
+  theater: { sensible: 75, latent: 55 },
+  warehouse: { sensible: 130, latent: 130 },
   parking: { sensible: 100, latent: 80 },
 };
 
@@ -111,6 +114,9 @@ export const OCCUPANCY_DENSITY: Record<string, number> = {
   classroom: 0.5,
   hospital_ward: 0.1,
   operating_room: 0.15,
+  gym: 0.3,
+  theater: 0.65,
+  warehouse: 0.02,
   parking: 0.01,
 };
 
@@ -131,6 +137,9 @@ export const LIGHTING_DENSITY: Record<string, number> = {
   classroom: 18,
   hospital_ward: 12,
   operating_room: 30,
+  gym: 12,
+  theater: 15,
+  warehouse: 6,
   parking: 5,
 };
 
@@ -151,6 +160,9 @@ export const EQUIPMENT_DENSITY: Record<string, number> = {
   classroom: 10,
   hospital_ward: 15,
   operating_room: 50,
+  gym: 5,
+  theater: 3,
+  warehouse: 3,
   parking: 0,
 };
 
@@ -172,6 +184,9 @@ export const FRESH_AIR_REQUIREMENTS: Record<string, { perPerson: number; perArea
   classroom: { perPerson: 5.0, perArea: 0.6 },
   hospital_ward: { perPerson: 2.5, perArea: 0.3 },
   operating_room: { perPerson: 7.5, perArea: 0.9 },
+  gym: { perPerson: 10.0, perArea: 0.6 },
+  theater: { perPerson: 2.5, perArea: 0.3 },
+  warehouse: { perPerson: 0, perArea: 0.3 },
   parking: { perPerson: 0, perArea: 7.5 },
 };
 

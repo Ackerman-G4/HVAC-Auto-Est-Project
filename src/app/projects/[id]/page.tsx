@@ -40,18 +40,24 @@ import { useRouter } from 'next/navigation';
 
 const SPACE_TYPES = [
   { value: 'office', label: 'Office' },
-  { value: 'conference_room', label: 'Conference Room' },
+  { value: 'conference', label: 'Conference Room' },
   { value: 'lobby', label: 'Lobby' },
   { value: 'retail', label: 'Retail' },
   { value: 'restaurant', label: 'Restaurant' },
   { value: 'kitchen', label: 'Kitchen' },
+  { value: 'hotel_room', label: 'Hotel Room' },
   { value: 'server_room', label: 'Server Room' },
+  { value: 'corridor', label: 'Corridor' },
+  { value: 'restroom', label: 'Restroom' },
+  { value: 'storage', label: 'Storage' },
   { value: 'residential', label: 'Residential' },
   { value: 'classroom', label: 'Classroom' },
   { value: 'hospital_ward', label: 'Hospital Ward' },
+  { value: 'operating_room', label: 'Operating Room' },
   { value: 'gym', label: 'Gym' },
   { value: 'theater', label: 'Theater' },
   { value: 'warehouse', label: 'Warehouse' },
+  { value: 'parking', label: 'Parking' },
 ];
 
 const WALL_TYPES = [
@@ -335,6 +341,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       const data = await res.json();
       if (res.ok) {
         showToast('success', `Equipment sized for ${data.results.length} rooms`);
+        setActiveTab('equipment');
         fetchProject();
       } else {
         showToast('error', data.error || 'Equipment sizing failed', data.description || 'The server returned an error. Make sure rooms have cooling loads calculated first.');
