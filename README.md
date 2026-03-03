@@ -35,14 +35,20 @@ HVAC Auto Estimation is a full-stack web app for preparing HVAC project estimate
 npm install
 ```
 
-2. Sync database schema and generate Prisma client:
+2. Create database and generate Prisma client:
 
 ```bash
-npx prisma db push
-npx prisma generate
+npm run db:push
+npm run db:generate
 ```
 
-3. Run the app:
+3. (Optional) Seed sample data:
+
+```bash
+npm run db:seed
+```
+
+4. Run the app:
 
 ```bash
 npm run dev

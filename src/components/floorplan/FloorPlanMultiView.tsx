@@ -611,6 +611,7 @@ export default function FloorPlanMultiView({
               <button
                 onClick={onClose}
                 className="p-1.5 rounded-lg hover:bg-secondary transition-colors"
+                title="Close multi-view"
               >
                 <X className="w-4 h-4 text-muted-foreground" />
               </button>
@@ -664,7 +665,7 @@ export default function FloorPlanMultiView({
                           className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-[#F3F4F6] transition-colors"
                         >
                           <div
-                            className="w-2.5 h-2.5 rounded-[3px] border border-black/10 flex-shrink-0"
+                            className="w-2.5 h-2.5 rounded-[3px] border border-black/10 shrink-0"
                             style={{ backgroundColor: room.color }}
                           />
                           <div className="flex-1 min-w-0">
@@ -717,7 +718,7 @@ export default function FloorPlanMultiView({
                       <span>Dimension lines</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="w-3.5 h-2.5 border border-[#9CA3AF] rounded-[2px]" />
+                      <div className="w-3.5 h-2.5 border border-[#9CA3AF] rounded-xs" />
                       <span>Window</span>
                     </div>
                     <div className="flex items-center gap-2">

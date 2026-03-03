@@ -1,7 +1,7 @@
 /**
  * Database Seed Script
  * Populates the database with sample project, rooms, equipment, and materials
- * Run: npx tsx prisma/seed.ts
+ * Run: npm run db:seed
  */
 
 import { PrismaClient } from '../src/generated/prisma/client';
