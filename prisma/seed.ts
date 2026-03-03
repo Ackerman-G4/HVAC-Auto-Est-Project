@@ -216,59 +216,100 @@ async function main() {
 
   console.log('  ✓ Equipment created (12 units)');
 
-  // ── Sample Project ────────────────────────────────────────────────────
+  // ── Sample Project — "Emerald Tower Business Center" ───────────────
 
   const project = await prisma.project.create({
     data: {
-      name: 'Sample Office Tower',
-      clientName: 'Acme Corporation',
-      location: 'Manila',
-      city: 'Manila',
+      name: 'Emerald Tower Business Center',
+      clientName: 'GreenEdge Development Corp.',
+      location: 'Makati City',
+      city: 'Makati City',
       buildingType: 'office',
       status: 'active',
-      totalFloorArea: 450,
+      totalFloorArea: 720,
       floorsAboveGrade: 3,
       floorsBelowGrade: 0,
       outdoorDB: 35,
       outdoorWB: 28,
+      outdoorRH: 65,
       indoorDB: 24,
-      indoorRH: 55,
+      indoorRH: 50,
       safetyFactor: 1.1,
       diversityFactor: 0.85,
-      notes: 'Sample project for demonstration. 3-storey office building in Makati.',
+      notes: '3-storey commercial office building along Ayala Avenue, Makati City. Ground floor is reception + conference, 2nd floor is the main open-plan office, 3rd floor houses executive offices and the boardroom. Construction: reinforced concrete frame with curtain wall on the north facade.',
     },
   });
 
   console.log(`  ✓ Project created: ${project.name}`);
 
-  // ── Floors & Rooms ────────────────────────────────────────────────────
+  // ── Floors, Rooms, Cooling Loads, Equipment Selection ─────────────
 
-  const floorConfigs = [
+  interface RoomConfig {
+    name: string;
+    spaceType: string;
+    area: number;
+    occupantCount: number;
+    lightingDensity: number;
+    equipmentLoad: number;
+    windowArea: number;
+    windowOrientation: string;
+    windowType: string;
+    wallConstruction: string;
+    ceilingHeight: number;
+    hasRoofExposure?: boolean;
+    /** Index into equipmentData stored above — we will look up by model */
+    equipModel: string;
+    equipQty: number;
+  }
+
+  const floorConfigs: {
+    floorNumber: number;
+    name: string;
+    rooms: RoomConfig[];
+  }[] = [
     {
-      floorNumber: 1, name: 'Ground Floor',
+      floorNumber: 1,
+      name: 'Ground Floor',
       rooms: [
-        { name: 'Main Lobby', spaceType: 'lobby', area: 80, occupantCount: 15, lightingDensity: 12, equipmentLoad: 5, windowArea: 12, ceilingHeight: 4.0 },
-        { name: 'Reception Office', spaceType: 'office', area: 25, occupantCount: 3, lightingDensity: 15, equipmentLoad: 20, windowArea: 4, ceilingHeight: 3.0 },
-        { name: 'Conference Room A', spaceType: 'conference_room', area: 40, occupantCount: 12, lightingDensity: 18, equipmentLoad: 15, windowArea: 6, ceilingHeight: 3.0 },
+        { name: 'Main Lobby', spaceType: 'lobby', area: 85, occupantCount: 15, lightingDensity: 14, equipmentLoad: 5, windowArea: 14, windowOrientation: 'N', windowType: 'double_tinted_6mm', wallConstruction: 'curtain_wall', ceilingHeight: 4.0, equipModel: 'FCF71CVM', equipQty: 2 },
+        { name: 'Reception', spaceType: 'office', area: 28, occupantCount: 3, lightingDensity: 15, equipmentLoad: 20, windowArea: 4, windowOrientation: 'N', windowType: 'single_tinted_6mm', wallConstruction: 'concrete_block_200mm', ceilingHeight: 3.0, equipModel: 'FTKF35BVM', equipQty: 1 },
+        { name: 'Conference Room A', spaceType: 'conference', area: 42, occupantCount: 14, lightingDensity: 18, equipmentLoad: 15, windowArea: 6, windowOrientation: 'E', windowType: 'double_clear_6mm', wallConstruction: 'concrete_block_200mm', ceilingHeight: 3.0, equipModel: 'FCF50CVM', equipQty: 1 },
+        { name: 'Conference Room B', spaceType: 'conference', area: 30, occupantCount: 10, lightingDensity: 18, equipmentLoad: 12, windowArea: 4, windowOrientation: 'W', windowType: 'double_clear_6mm', wallConstruction: 'concrete_block_200mm', ceilingHeight: 3.0, equipModel: 'FTKF71BVM', equipQty: 1 },
+        { name: 'Guard Station', spaceType: 'office', area: 12, occupantCount: 2, lightingDensity: 10, equipmentLoad: 8, windowArea: 2, windowOrientation: 'N', windowType: 'single_clear_6mm', wallConstruction: 'concrete_block_150mm', ceilingHeight: 3.0, equipModel: 'FTKF25BVM', equipQty: 1 },
       ],
     },
     {
-      floorNumber: 2, name: '2nd Floor',
+      floorNumber: 2,
+      name: '2nd Floor — Operations',
       rooms: [
-        { name: 'Open Office', spaceType: 'office', area: 120, occupantCount: 20, lightingDensity: 15, equipmentLoad: 25, windowArea: 15, ceilingHeight: 2.8 },
-        { name: 'Manager Office', spaceType: 'office', area: 20, occupantCount: 1, lightingDensity: 12, equipmentLoad: 15, windowArea: 3, ceilingHeight: 2.8 },
-        { name: 'Server Room', spaceType: 'server_room', area: 15, occupantCount: 0, lightingDensity: 10, equipmentLoad: 400, windowArea: 0, ceilingHeight: 2.8 },
+        { name: 'Open Plan Office', spaceType: 'office', area: 140, occupantCount: 25, lightingDensity: 16, equipmentLoad: 25, windowArea: 18, windowOrientation: 'N', windowType: 'double_tinted_6mm', wallConstruction: 'curtain_wall', ceilingHeight: 2.8, equipModel: 'FCF71CVM', equipQty: 3 },
+        { name: 'Manager Office 1', spaceType: 'office', area: 22, occupantCount: 1, lightingDensity: 12, equipmentLoad: 18, windowArea: 4, windowOrientation: 'E', windowType: 'double_clear_6mm', wallConstruction: 'concrete_block_200mm', ceilingHeight: 2.8, equipModel: 'FTKF25BVM', equipQty: 1 },
+        { name: 'Manager Office 2', spaceType: 'office', area: 22, occupantCount: 1, lightingDensity: 12, equipmentLoad: 18, windowArea: 4, windowOrientation: 'W', windowType: 'double_clear_6mm', wallConstruction: 'concrete_block_200mm', ceilingHeight: 2.8, equipModel: 'FTKF25BVM', equipQty: 1 },
+        { name: 'Server / IT Room', spaceType: 'server_room', area: 18, occupantCount: 0, lightingDensity: 10, equipmentLoad: 450, windowArea: 0, windowOrientation: 'N', windowType: 'single_clear_6mm', wallConstruction: 'concrete_block_200mm', ceilingHeight: 2.8, equipModel: 'FTKF71BVM', equipQty: 2 },
+        { name: 'Pantry / Break Room', spaceType: 'kitchen', area: 24, occupantCount: 6, lightingDensity: 12, equipmentLoad: 30, windowArea: 3, windowOrientation: 'S', windowType: 'single_clear_6mm', wallConstruction: 'concrete_block_150mm', ceilingHeight: 2.8, equipModel: 'FTKF35BVM', equipQty: 1 },
       ],
     },
     {
-      floorNumber: 3, name: '3rd Floor',
+      floorNumber: 3,
+      name: '3rd Floor — Executive',
       rooms: [
-        { name: 'Executive Suite', spaceType: 'office', area: 60, occupantCount: 4, lightingDensity: 12, equipmentLoad: 15, windowArea: 10, ceilingHeight: 3.0, hasRoofExposure: true },
-        { name: 'Board Room', spaceType: 'conference_room', area: 50, occupantCount: 16, lightingDensity: 18, equipmentLoad: 15, windowArea: 8, ceilingHeight: 3.0, hasRoofExposure: true },
-        { name: 'Break Room', spaceType: 'kitchen', area: 20, occupantCount: 5, lightingDensity: 12, equipmentLoad: 30, windowArea: 2, ceilingHeight: 3.0, hasRoofExposure: true },
+        { name: 'Executive Suite', spaceType: 'office', area: 65, occupantCount: 4, lightingDensity: 12, equipmentLoad: 15, windowArea: 12, windowOrientation: 'N', windowType: 'double_low_e', wallConstruction: 'curtain_wall', ceilingHeight: 3.0, hasRoofExposure: true, equipModel: 'FCF71CVM', equipQty: 1 },
+        { name: 'VP Office', spaceType: 'office', area: 30, occupantCount: 2, lightingDensity: 12, equipmentLoad: 15, windowArea: 5, windowOrientation: 'E', windowType: 'double_tinted_6mm', wallConstruction: 'concrete_block_200mm', ceilingHeight: 3.0, hasRoofExposure: true, equipModel: 'FTKF50BVM', equipQty: 1 },
+        { name: 'Board Room', spaceType: 'conference', area: 55, occupantCount: 18, lightingDensity: 18, equipmentLoad: 15, windowArea: 10, windowOrientation: 'W', windowType: 'double_low_e', wallConstruction: 'curtain_wall', ceilingHeight: 3.0, hasRoofExposure: true, equipModel: 'FCF71CVM', equipQty: 2 },
+        { name: 'Finance Office', spaceType: 'office', area: 35, occupantCount: 5, lightingDensity: 15, equipmentLoad: 22, windowArea: 5, windowOrientation: 'S', windowType: 'double_clear_6mm', wallConstruction: 'concrete_block_200mm', ceilingHeight: 3.0, hasRoofExposure: true, equipModel: 'FTKF50BVM', equipQty: 1 },
+        { name: 'CEO Lounge', spaceType: 'lobby', area: 20, occupantCount: 3, lightingDensity: 10, equipmentLoad: 8, windowArea: 6, windowOrientation: 'N', windowType: 'double_low_e', wallConstruction: 'curtain_wall', ceilingHeight: 3.0, hasRoofExposure: true, equipModel: 'FTKF35BVM', equipQty: 1 },
       ],
     },
   ];
+
+  // Build a model→id lookup so we can reference equipment records
+  const allEquipment = await prisma.equipment.findMany();
+  const equipByModel: Record<string, string> = {};
+  for (const eq of allEquipment) {
+    equipByModel[eq.model] = eq.id;
+  }
+
+  let totalRooms = 0;
 
   for (const floorCfg of floorConfigs) {
     const floor = await prisma.floor.create({
@@ -291,17 +332,20 @@ async function main() {
           lightingDensity: roomCfg.lightingDensity,
           equipmentLoad: roomCfg.equipmentLoad,
           windowArea: roomCfg.windowArea,
+          windowOrientation: roomCfg.windowOrientation,
+          windowType: roomCfg.windowType,
+          wallConstruction: roomCfg.wallConstruction,
           ceilingHeight: roomCfg.ceilingHeight,
-          hasRoofExposure: (roomCfg as any).hasRoofExposure ?? false,
+          hasRoofExposure: roomCfg.hasRoofExposure ?? false,
         },
       });
 
-      // Calculate simplified cooling load for seed data
+      // ── Cooling load calculation (simplified CLTD/CLF) ──
       const dt = 35 - 24; // outdoor - indoor
       const wallArea = Math.sqrt(roomCfg.area) * roomCfg.ceilingHeight * 2;
-      
+
       const wallLoad = wallArea * 2.9 * 12;
-      const roofLoad = (roomCfg as any).hasRoofExposure ? roomCfg.area * 1.8 * 25 : 0;
+      const roofLoad = roomCfg.hasRoofExposure ? roomCfg.area * 1.8 * 25 : 0;
       const glassCond = roomCfg.windowArea * 5.8 * dt;
       const glassSolar = roomCfg.windowArea * 0.82 * 300;
       const peopleSens = roomCfg.occupantCount * 75;
@@ -341,10 +385,120 @@ async function main() {
           diversityFactor: 0.85,
         },
       });
+
+      // ── Selected equipment for the room ──
+      const eqId = equipByModel[roomCfg.equipModel];
+      if (eqId) {
+        await prisma.selectedEquipment.create({
+          data: {
+            roomId: room.id,
+            equipmentId: eqId,
+            quantity: roomCfg.equipQty,
+          },
+        });
+      }
+
+      totalRooms++;
     }
 
-    console.log(`  ✓ Floor ${floorCfg.floorNumber}: ${floorCfg.rooms.length} rooms with cooling loads`);
+    console.log(`  ✓ Floor ${floorCfg.floorNumber} (${floorCfg.name}): ${floorCfg.rooms.length} rooms`);
   }
+
+  console.log(`  ✓ ${totalRooms} rooms with cooling loads & equipment selections`);
+
+  // ── BOQ Items ─────────────────────────────────────────────────────────
+
+  // Build realistic BOQ from the equipment + materials we already seeded
+  const boqItems: {
+    section: string;
+    category: string;
+    description: string;
+    specification: string;
+    quantity: number;
+    unit: string;
+    unitPrice: number;
+    totalPrice: number;
+    notes: string;
+  }[] = [
+    // -- Equipment --
+    { section: 'A', category: 'equipment', description: 'Daikin FCF71CVM Ceiling Cassette 2.0 TR', specification: 'R32, 24,000 BTU/h, EER 10.9', quantity: 8, unit: 'set', unitPrice: 82000, totalPrice: 656000, notes: 'Lobby, Open Office, Executive, Board Room' },
+    { section: 'A', category: 'equipment', description: 'Daikin FCF50CVM Ceiling Cassette 1.5 TR', specification: 'R32, 18,000 BTU/h, EER 12.0', quantity: 1, unit: 'set', unitPrice: 68000, totalPrice: 68000, notes: 'Conference Room A' },
+    { section: 'A', category: 'equipment', description: 'Daikin FTKF71BVM Wall Split 2.0 TR', specification: 'R32, 24,000 BTU/h, EER 11.5', quantity: 3, unit: 'set', unitPrice: 58000, totalPrice: 174000, notes: 'Conf B, Server Room' },
+    { section: 'A', category: 'equipment', description: 'Daikin FTKF50BVM Wall Split 1.5 TR', specification: 'R32, 18,000 BTU/h, EER 12.0', quantity: 2, unit: 'set', unitPrice: 48000, totalPrice: 96000, notes: 'VP Office, Finance' },
+    { section: 'A', category: 'equipment', description: 'Daikin FTKF35BVM Wall Split 1.0 TR', specification: 'R32, 12,000 BTU/h, EER 12.4', quantity: 3, unit: 'set', unitPrice: 38000, totalPrice: 114000, notes: 'Reception, Pantry, CEO Lounge' },
+    { section: 'A', category: 'equipment', description: 'Daikin FTKF25BVM Wall Split 0.75 TR', specification: 'R32, 9,000 BTU/h, EER 12.5', quantity: 3, unit: 'set', unitPrice: 32000, totalPrice: 96000, notes: 'Guard Station, Mgr Offices' },
+    // -- Refrigerant Piping --
+    { section: 'B', category: 'material', description: '1/4" Copper Tube (Type L)', specification: 'ASTM B280, soft temper, 15 m coil', quantity: 120, unit: 'meter', unitPrice: 185, totalPrice: 22200, notes: 'Liquid lines' },
+    { section: 'B', category: 'material', description: '3/8" Copper Tube (Type L)', specification: 'ASTM B280, soft temper, 15 m coil', quantity: 80, unit: 'meter', unitPrice: 275, totalPrice: 22000, notes: 'Gas lines (small units)' },
+    { section: 'B', category: 'material', description: '1/2" Copper Tube (Type L)', specification: 'ASTM B280, soft temper, 15 m coil', quantity: 45, unit: 'meter', unitPrice: 385, totalPrice: 17325, notes: 'Gas lines (1.5 TR)' },
+    { section: 'B', category: 'material', description: '5/8" Copper Tube (Type L)', specification: 'ASTM B280, soft temper, 15 m coil', quantity: 60, unit: 'meter', unitPrice: 485, totalPrice: 29100, notes: 'Gas lines (2.0 TR)' },
+    { section: 'B', category: 'material', description: 'Armaflex 1/4" × 3/8" Insulation', specification: 'Closed-cell elastomeric, 9.5 mm wall', quantity: 120, unit: 'meter', unitPrice: 65, totalPrice: 7800, notes: 'Pipe insulation' },
+    { section: 'B', category: 'material', description: 'Armaflex 3/8" × 3/8" Insulation', specification: 'Closed-cell elastomeric, 9.5 mm wall', quantity: 80, unit: 'meter', unitPrice: 75, totalPrice: 6000, notes: 'Pipe insulation' },
+    { section: 'B', category: 'material', description: 'R32 Refrigerant (10 kg)', specification: 'HFC, GWP = 675, ISO 817', quantity: 4, unit: 'tank', unitPrice: 4500, totalPrice: 18000, notes: 'Charging' },
+    { section: 'B', category: 'material', description: 'Silver Brazing Rod', specification: '15 % silver, 1.6 mm × 500 mm', quantity: 3, unit: 'kg', unitPrice: 3800, totalPrice: 11400, notes: 'Brazing' },
+    // -- Ductwork & Accessories --
+    { section: 'C', category: 'material', description: 'GI Sheet Gauge 24', specification: 'Galvanized iron, 4 × 8 ft, 0.56 mm', quantity: 35, unit: 'sheet', unitPrice: 850, totalPrice: 29750, notes: 'Supply/return ducts' },
+    { section: 'C', category: 'material', description: 'GI Sheet Gauge 22', specification: 'Galvanized iron, 4 × 8 ft, 0.70 mm', quantity: 15, unit: 'sheet', unitPrice: 1050, totalPrice: 15750, notes: 'Main trunk ducts' },
+    { section: 'C', category: 'material', description: 'PE Foam Insulation 25 mm', specification: 'Cross-linked polyethylene, self-adhesive', quantity: 90, unit: 'sqm', unitPrice: 320, totalPrice: 28800, notes: 'Duct insulation' },
+    { section: 'C', category: 'material', description: 'Supply Air Diffuser 12"×12"', specification: '4-way, powder-coated aluminum', quantity: 30, unit: 'pc', unitPrice: 850, totalPrice: 25500, notes: '' },
+    { section: 'C', category: 'material', description: 'Return Air Grille 18"×18"', specification: 'Egg-crate type, aluminum', quantity: 20, unit: 'pc', unitPrice: 650, totalPrice: 13000, notes: '' },
+    { section: 'C', category: 'material', description: 'Volume Damper 10"×10"', specification: 'Opposed blade, manual', quantity: 20, unit: 'pc', unitPrice: 450, totalPrice: 9000, notes: '' },
+    { section: 'C', category: 'material', description: 'Flexible Duct 10" dia', specification: 'Insulated, 6 m length', quantity: 25, unit: 'pc', unitPrice: 1200, totalPrice: 30000, notes: '' },
+    // -- Drainage --
+    { section: 'D', category: 'material', description: 'PVC Pipe 3/4" Sch 40', specification: 'ASTM D1785, 3 m length', quantity: 30, unit: 'pc', unitPrice: 165, totalPrice: 4950, notes: 'Condensate drain' },
+    { section: 'D', category: 'material', description: 'PVC Pipe 1" Sch 40', specification: 'ASTM D1785, 3 m length', quantity: 10, unit: 'pc', unitPrice: 215, totalPrice: 2150, notes: 'Condensate header' },
+    // -- Electrical --
+    { section: 'E', category: 'material', description: 'THHN Wire 3.5 mm² (14 AWG)', specification: '150 m roll, stranded copper', quantity: 2, unit: 'roll', unitPrice: 4800, totalPrice: 9600, notes: '0.75–1.0 TR units' },
+    { section: 'E', category: 'material', description: 'THHN Wire 5.5 mm² (10 AWG)', specification: '150 m roll, stranded copper', quantity: 2, unit: 'roll', unitPrice: 7200, totalPrice: 14400, notes: '1.5–2.0 TR units' },
+    { section: 'E', category: 'material', description: 'Circuit Breaker 20 A', specification: '2-pole, 220 V, bolt-on', quantity: 8, unit: 'pc', unitPrice: 850, totalPrice: 6800, notes: '≤ 1.0 TR' },
+    { section: 'E', category: 'material', description: 'Circuit Breaker 30 A', specification: '2-pole, 220 V, bolt-on', quantity: 12, unit: 'pc', unitPrice: 950, totalPrice: 11400, notes: '1.5–2.0 TR' },
+    { section: 'E', category: 'material', description: 'Digital Thermostat', specification: 'Programmable, 24 V, 7-day schedule', quantity: 15, unit: 'pc', unitPrice: 2500, totalPrice: 37500, notes: '' },
+    // -- Supports --
+    { section: 'F', category: 'material', description: 'All-thread Rod 3/8" × 10 ft', specification: 'Galvanized steel', quantity: 40, unit: 'pc', unitPrice: 120, totalPrice: 4800, notes: 'Duct/pipe hangers' },
+    { section: 'F', category: 'material', description: 'C-clamp 3/8"', specification: 'Galvanized steel beam clamp', quantity: 80, unit: 'pc', unitPrice: 45, totalPrice: 3600, notes: '' },
+    // -- Labor --
+    { section: 'G', category: 'labor', description: 'HVAC Installation Labor', specification: 'Equipment + piping + ductwork + controls', quantity: 1, unit: 'lot', unitPrice: 280000, totalPrice: 280000, notes: 'Based on ₱14,000/TR' },
+    { section: 'G', category: 'labor', description: 'Electrical Wiring & Breaker Installation', specification: 'All HVAC circuit wiring', quantity: 1, unit: 'lot', unitPrice: 65000, totalPrice: 65000, notes: '' },
+    { section: 'G', category: 'labor', description: 'Testing, Commissioning & Balancing', specification: 'System startup, temp & airflow verification', quantity: 1, unit: 'lot', unitPrice: 45000, totalPrice: 45000, notes: '' },
+  ];
+
+  for (const item of boqItems) {
+    await prisma.bOQItem.create({
+      data: {
+        projectId: project.id,
+        section: item.section,
+        category: item.category,
+        description: item.description,
+        specification: item.specification,
+        quantity: item.quantity,
+        unit: item.unit,
+        unitPrice: item.unitPrice,
+        totalPrice: item.totalPrice,
+        notes: item.notes,
+      },
+    });
+  }
+
+  console.log(`  ✓ BOQ created: ${boqItems.length} line items`);
+
+  // ── Electrical Loads ──────────────────────────────────────────────────
+
+  const elecLoads = [
+    { equipmentName: 'Daikin FCF71CVM (×8)', powerKW: 17.6, currentAmps: 88, voltage: 220, phase: '1-phase', cableSize: '5.5 mm²', breakerRating: 30 },
+    { equipmentName: 'Daikin FCF50CVM (×1)', powerKW: 1.5, currentAmps: 7.5, voltage: 220, phase: '1-phase', cableSize: '3.5 mm²', breakerRating: 20 },
+    { equipmentName: 'Daikin FTKF71BVM (×3)', powerKW: 6.3, currentAmps: 31.5, voltage: 220, phase: '1-phase', cableSize: '5.5 mm²', breakerRating: 30 },
+    { equipmentName: 'Daikin FTKF50BVM (×2)', powerKW: 2.9, currentAmps: 14.4, voltage: 220, phase: '1-phase', cableSize: '3.5 mm²', breakerRating: 20 },
+    { equipmentName: 'Daikin FTKF35BVM (×3)', powerKW: 2.91, currentAmps: 14.4, voltage: 220, phase: '1-phase', cableSize: '3.5 mm²', breakerRating: 20 },
+    { equipmentName: 'Daikin FTKF25BVM (×3)', powerKW: 2.07, currentAmps: 10.5, voltage: 220, phase: '1-phase', cableSize: '3.5 mm²', breakerRating: 20 },
+  ];
+
+  for (const load of elecLoads) {
+    await prisma.electricalLoad.create({
+      data: { projectId: project.id, ...load },
+    });
+  }
+
+  console.log(`  ✓ Electrical loads: ${elecLoads.length} entries`);
 
   // ── Audit Log ─────────────────────────────────────────────────────────
 
@@ -354,16 +508,41 @@ async function main() {
       action: 'created',
       entity: 'project',
       entityId: project.id,
-      details: JSON.stringify({ seeded: true }),
-      notes: 'Initial seed data',
+      details: JSON.stringify({ seeded: true, rooms: totalRooms }),
+      notes: 'Seed: initial project data',
     },
   });
 
-  console.log('  ✓ Audit log entry created');
+  await prisma.auditLog.create({
+    data: {
+      projectId: project.id,
+      action: 'calculated',
+      entity: 'coolingLoad',
+      entityId: project.id,
+      details: JSON.stringify({ method: 'CLTD_CLF', rooms: totalRooms }),
+      notes: 'Seed: cooling loads computed for all rooms',
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      projectId: project.id,
+      action: 'updated',
+      entity: 'equipment',
+      entityId: project.id,
+      details: JSON.stringify({ selections: 20 }),
+      notes: 'Seed: equipment auto-selected for all rooms',
+    },
+  });
+
+  console.log('  ✓ Audit log entries created');
   console.log('');
   console.log('✅ Database seeded successfully!');
-  console.log(`   Project: "${project.name}" (${project.id})`);
-  console.log(`   Floors: 3, Rooms: 9, Suppliers: 3, Materials: 30, Equipment: 12`);
+  console.log(`   Project : "${project.name}" (${project.id})`);
+  console.log(`   Floors  : 3`);
+  console.log(`   Rooms   : ${totalRooms}`);
+  console.log(`   BOQ     : ${boqItems.length} line items`);
+  console.log(`   Suppliers: 3 · Materials: 30 · Equipment catalog: 12`);
 }
 
 main()
