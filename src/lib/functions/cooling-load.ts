@@ -24,25 +24,31 @@ import { deltaHumidityRatio } from '@/lib/functions/psychrometric';
 
 // ─────────────────────────────────────────────────────────────
 // Philippine HVAC Rule of Thumb — m² per TR by space type
-// Standard: 1 TR per 15 m² for offices (≈ 150 sq ft / TR)
+// Industry standard: 1 HP ≈ 1 TR per ~15 m² for typical office
+// Adjusted per space type based on heat load density.
+//
+//   75 m² office  → 75 / 15 = 5.00 TR
+//   60 m² conf    → 60 / 12 = 5.00 TR
+//   40 m² server  → 40 /  8 = 5.00 TR
+//   90 m² resi    → 90 / 18 = 5.00 TR
 // ─────────────────────────────────────────────────────────────
-const SQM_PER_TR: Record<string, number> = {
-  office: 15,
-  conference: 12,
-  lobby: 18,
-  retail: 12,
-  restaurant: 10,
-  kitchen: 8,
-  hotel_room: 18,
-  server_room: 8,
-  corridor: 20,
-  restroom: 20,
-  storage: 25,
-  residential: 18,
-  classroom: 12,
-  hospital_ward: 12,
-  operating_room: 8,
-  parking: 30,
+export const SQM_PER_TR: Record<string, number> = {
+  office: 15,           // standard commercial office
+  conference: 12,       // high occupancy density
+  lobby: 18,            // large open area, low density
+  retail: 12,           // high foot traffic + lighting
+  restaurant: 10,       // cooking + high occupancy
+  kitchen: 8,           // heavy heat loads from cooking equip
+  hotel_room: 18,       // low occupancy, residential comfort
+  server_room: 8,       // 24/7 high-density heat load
+  corridor: 25,         // pass-through, minimal load
+  restroom: 25,         // minimal conditioning
+  storage: 30,          // rarely occupied
+  residential: 18,      // standard residential
+  classroom: 12,        // high occupancy (students)
+  hospital_ward: 12,    // medical equipment + occupants
+  operating_room: 8,    // strict temp control + equipment
+  parking: 40,          // ventilation only usually
 };
 
 // ─────────────────────────────────────────────────────────────

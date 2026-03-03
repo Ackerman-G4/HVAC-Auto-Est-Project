@@ -76,7 +76,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         roomCount: results.length,
         totalLoadWatts: Math.round(totalProjectLoad),
         totalTR: Math.round(totalProjectTR * 100) / 100,
-        totalBTU: Math.round(totalProjectLoad * 3.412),
+        totalBTU: Math.round(totalProjectTR * 12000),
       },
     });
   } catch (error) {

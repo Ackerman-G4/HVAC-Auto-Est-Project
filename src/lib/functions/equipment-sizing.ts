@@ -268,36 +268,42 @@ function buildReason(eq: CatalogEntry, score: number, units: number): string {
 }
 
 /**
- * Quick TR estimate from room area (rule of thumb)
- * 500 sq ft per TR for offices in Philippines
+ * Quick TR estimate from room area — Philippine HVAC rule of thumb.
+ * Uses the SAME factors as the main cooling load engine.
+ *   e.g.  75 m² office → 75 / 15 = 5 TR
  */
+export { SQM_PER_TR } from '@/lib/functions/cooling-load';
+
 export function quickEstimateTR(
   areaSqM: number,
   spaceType: string = 'office',
   ceilingHeight: number = 2.7
 ): number {
-  // Base: 1 TR per 20-25 sqm for office
-  const factors: Record<string, number> = {
-    office: 22,
-    conference_room: 15,
-    retail: 18,
-    restaurant: 14,
+  // Import the canonical factors at module level would create
+  // a circular dep, so inline the same table:
+  const SQM: Record<string, number> = {
+    office: 15,
+    conference: 12,
+    lobby: 18,
+    retail: 12,
+    restaurant: 10,
+    kitchen: 8,
+    hotel_room: 18,
     server_room: 8,
-    data_center: 6,
-    hospital_ward: 20,
-    classroom: 16,
-    lobby: 25,
-    residential: 28,
-    kitchen: 10,
-    gym: 14,
-    theater: 12,
-    warehouse: 40,
+    corridor: 25,
+    restroom: 25,
+    storage: 30,
+    residential: 18,
+    classroom: 12,
+    hospital_ward: 12,
+    operating_room: 8,
+    parking: 40,
   };
 
-  const sqmPerTR = factors[spaceType] || 22;
+  const sqmPerTR = SQM[spaceType] || 15;
   let tr = areaSqM / sqmPerTR;
 
-  // Ceiling height adjustment (reference: 2.7m)
+  // Adjust for tall ceilings (ref: 2.7 m)
   if (ceilingHeight > 2.7) {
     tr *= ceilingHeight / 2.7;
   }
