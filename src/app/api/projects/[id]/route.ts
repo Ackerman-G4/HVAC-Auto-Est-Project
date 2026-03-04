@@ -145,11 +145,11 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     if (permanent) {
       await prisma.project.delete({ where: { id } });
     } else {
-      await prisma.project.update({ where: { id }, data: { status: 'archived' } });
+      await prisma.project.update({ where: { id }, data: { status: 'deleted' } });
       await prisma.auditLog.create({
         data: {
           projectId: id,
-          action: 'archived',
+          action: 'deleted',
           entity: 'project',
           entityId: id,
           details: JSON.stringify({ name: existing.name }),

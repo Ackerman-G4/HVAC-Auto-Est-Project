@@ -16,6 +16,7 @@ import {
   X,
   FileText,
   Receipt,
+  Stethoscope,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { sidebarVariants } from '@/animations/shared';
@@ -26,6 +27,7 @@ const navItems = [
   { href: '/materials', label: 'Materials & Suppliers', icon: Package },
   { href: '/reports', label: 'Reports & Export', icon: FileText },
   { href: '/quotation', label: 'Quotation', icon: Receipt },
+  { href: '/diagnostics', label: 'Diagnostics', icon: Stethoscope },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 

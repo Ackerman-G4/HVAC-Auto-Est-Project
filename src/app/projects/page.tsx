@@ -221,18 +221,35 @@ export default function ProjectsPage() {
     fetchProjects();
   };
 
-  const statusColor: Record<string, 'default' | 'success' | 'warning' | 'accent'> = {
+  const handleSoftDelete = async (project: ProjectListItem) => {
+    try {
+      const res = await fetch(`/api/projects/${project.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        showToast('success', 'Project moved to trash');
+        fetchProjects();
+      } else {
+        const err = await res.json();
+        showToast('error', err.error || 'Failed to delete project');
+      }
+    } catch {
+      showToast('error', 'Network error while deleting');
+    }
+  };
+
+  const statusColor: Record<string, 'default' | 'success' | 'warning' | 'accent' | 'destructive'> = {
     draft: 'default',
     active: 'accent',
     completed: 'success',
     archived: 'warning',
+    deleted: 'destructive',
   };
 
-  const statuses = ['all', 'draft', 'active', 'completed', 'archived'];
+  const statuses = ['all', 'draft', 'active', 'completed', 'archived', 'deleted'];
   const draftCount = projects.filter((p) => p.status === 'draft').length;
   const activeCount = projects.filter((p) => p.status === 'active').length;
   const completedCount = projects.filter((p) => p.status === 'completed').length;
   const archivedCount = projects.filter((p) => p.status === 'archived').length;
+  const deletedCount = projects.filter((p) => p.status === 'deleted').length;
   const totalEquipment = projects.reduce((sum, p) => sum + (p._count?.selectedEquipment || 0), 0);
   const totalBOQItems = projects.reduce((sum, p) => sum + (p._count?.boqItems || 0), 0);
 
@@ -388,7 +405,8 @@ export default function ProjectsPage() {
                             <Pencil className="w-3.5 h-3.5 mr-1" />
                             Edit
                           </Button>
-                          {project.status !== 'archived' ? (
+                          {/* Archive (only for non-archived, non-deleted) */}
+                          {project.status !== 'archived' && project.status !== 'deleted' && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -400,7 +418,9 @@ export default function ProjectsPage() {
                               <Archive className="w-3.5 h-3.5 mr-1" />
                               Archive
                             </Button>
-                          ) : (
+                          )}
+                          {/* Restore (for archived or deleted) */}
+                          {(project.status === 'archived' || project.status === 'deleted') && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -413,17 +433,34 @@ export default function ProjectsPage() {
                               Restore
                             </Button>
                           )}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeleteTarget(project);
-                            }}
-                          >
-                            <Trash2 className="w-3.5 h-3.5 mr-1 text-red-500" />
-                            Delete
-                          </Button>
+                          {/* Soft delete (move to trash) for non-deleted */}
+                          {project.status !== 'deleted' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSoftDelete(project);
+                              }}
+                            >
+                              <Trash2 className="w-3.5 h-3.5 mr-1 text-red-500" />
+                              Delete
+                            </Button>
+                          )}
+                          {/* Permanent delete (only for deleted/archived) */}
+                          {(project.status === 'deleted' || project.status === 'archived') && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteTarget(project);
+                              }}
+                            >
+                              <Trash2 className="w-3.5 h-3.5 mr-1 text-red-500" />
+                              Permanently
+                            </Button>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
@@ -457,6 +494,10 @@ export default function ProjectsPage() {
                 <div className="rounded-lg border border-border/70 bg-card p-3">
                   <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Archived</p>
                   <p className="text-xl font-semibold tabular-nums">{loading ? '—' : archivedCount}</p>
+                </div>
+                <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3 col-span-2">
+                  <p className="text-[10px] uppercase tracking-[0.08em] text-red-400">Trash</p>
+                  <p className="text-xl font-semibold tabular-nums text-red-400">{loading ? '—' : deletedCount}</p>
                 </div>
               </div>
             </CardContent>

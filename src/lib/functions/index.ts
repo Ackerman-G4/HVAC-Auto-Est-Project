@@ -8,3 +8,4 @@ export { sizeDuct, sizeRoomDucts, calculateDuctMaterial } from './duct-sizing';
 export { sizeRefrigerantPipe, sizeChilledWaterPipe, sizeCondensatePipe } from './pipe-sizing';
 export { sizeElectrical, generatePanelSchedule } from './electrical';
 export { compileBOQ } from './cost-engine';
+export { runDiagnostic } from './diagnostic';

@@ -38,6 +38,22 @@ export type {
   CostAlert 
 } from './material';
 
+export type {
+  DiagnosticInput,
+  DiagnosticResult,
+  DiagnosticFault,
+  DiagnosticSymptom,
+  DiagnosticStep,
+  CorrectiveAction,
+  SystemType,
+  ApplicationType,
+  FaultDomain,
+  Severity,
+  CostLevel,
+  RepairLevel,
+  ConfidenceLevel,
+} from './diagnostic';
+
 // Audit
 export interface AuditEntry {
   id: string;
