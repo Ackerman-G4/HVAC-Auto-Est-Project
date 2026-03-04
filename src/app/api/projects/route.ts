@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     if (status && status !== 'all') {
       where.status = status;
     } else {
-      where.status = { not: 'archived' };
+      where.status = { notIn: ['archived', 'deleted'] };
     }
 
     if (search) {

@@ -12,6 +12,7 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
+    "db:temp-project": "tsx prisma/temp-project.ts",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset",
     "clean": "Remove-Item -Recurse -Force .next -ErrorAction SilentlyContinue",
