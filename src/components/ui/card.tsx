@@ -19,8 +19,8 @@ export function Card({ className, hover, padding = 'md', children, ...props }: C
   return (
     <div
       className={cn(
-        'bg-card border border-border/60 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.04)]',
-        hover && 'hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)] hover:border-border transition-all duration-200 cursor-pointer',
+        'bg-card border border-border/70 rounded-(--radius) shadow-sm',
+        hover && 'hover:shadow-md hover:border-border transition-all duration-200 cursor-pointer',
         paddings[padding],
         className
       )}
@@ -33,7 +33,7 @@ export function Card({ className, hover, padding = 'md', children, ...props }: C
 
 export function CardHeader({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn('mb-4', className)} {...props}>
+    <div className={cn('mb-3.5', className)} {...props}>
       {children}
     </div>
   );
@@ -41,7 +41,7 @@ export function CardHeader({ className, children, ...props }: React.HTMLAttribut
 
 export function CardTitle({ className, children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
   return (
-    <h3 className={cn('text-sm font-semibold text-foreground', className)} {...props}>
+    <h3 className={cn('text-[13px] font-semibold text-foreground', className)} {...props}>
       {children}
     </h3>
   );
@@ -65,7 +65,7 @@ export function CardContent({ className, children, ...props }: React.HTMLAttribu
 
 export function CardFooter({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn('mt-4 flex items-center gap-2', className)} {...props}>
+    <div className={cn('mt-3.5 flex items-center gap-2', className)} {...props}>
       {children}
     </div>
   );

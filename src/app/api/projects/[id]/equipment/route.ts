@@ -1,31 +1,30 @@
 /**
  * Equipment Selection API
- * POST /api/projects/[id]/equipment — Auto-size + select equipment
  * GET  /api/projects/[id]/equipment — Get selected equipment
+ * POST /api/projects/[id]/equipment — Auto-size + select equipment
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { sizeEquipment } from '@/lib/functions/equipment-sizing';
+import { INVERTER_EER_THRESHOLD } from '@/lib/utils/constants';
+import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
-    // Get rooms for this project via floors, then their selected equipment
+
     const floors = await prisma.floor.findMany({
       where: { projectId: id },
       include: {
         rooms: {
-          include: {
-            selectedEquipment: {
-              include: { equipment: true },
-            },
-          },
+          include: { selectedEquipment: { include: { equipment: true } } },
         },
       },
     });
+
     const equipment = floors.flatMap((f) =>
       f.rooms.flatMap((r) =>
         r.selectedEquipment.map((sel) => ({
@@ -40,15 +39,17 @@ export async function GET(request: NextRequest, context: RouteContext) {
           unitPrice: sel.equipment.unitPricePHP,
           totalPrice: sel.equipment.unitPricePHP * sel.quantity,
           eer: sel.equipment.eer,
-          isInverter: sel.equipment.eer >= 11,
+          isInverter: sel.equipment.eer >= INVERTER_EER_THRESHOLD,
           refrigerant: sel.equipment.refrigerant,
         }))
       )
     );
+
     return NextResponse.json({ equipment });
   } catch (error) {
     console.error('GET equipment error:', error);
-    return NextResponse.json({ error: 'Failed to fetch equipment' }, { status: 500 });
+    const d = getErrorDetails(error, 'Failed to fetch equipment');
+    return errorResponse(500, d.error, d.description, d.code);
   }
 }
 
@@ -57,26 +58,28 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const { id: projectId } = await context.params;
     const body = await request.json();
 
-    // If auto-sizing is requested
     if (body.autoSize) {
-      // Get all rooms with cooling loads for this project
       const floors = await prisma.floor.findMany({
         where: { projectId },
-        include: {
-          rooms: { include: { coolingLoad: true } },
-        },
+        include: { rooms: { include: { coolingLoad: true } } },
       });
 
-      // Clear existing selected equipment for all rooms in this project
-      for (const floor of floors) {
-        for (const room of floor.rooms) {
-          await prisma.selectedEquipment.deleteMany({
-            where: { roomId: room.id },
-          });
-        }
+      const allRooms = floors.flatMap((f) => f.rooms);
+      if (allRooms.length === 0) {
+        return errorResponse(400, 'No rooms found', 'Add rooms to the project before auto-sizing equipment.', 'NO_ROOMS');
       }
 
+      const roomsWithLoads = allRooms.filter((r) => r.coolingLoad);
+      if (roomsWithLoads.length === 0) {
+        return errorResponse(400, 'No cooling loads calculated', 'Run "Calculate" first to compute cooling loads for all rooms before auto-sizing equipment.', 'NO_LOADS');
+      }
+
+      // Batch-clear existing selected equipment for every room in the project
+      const roomIds = allRooms.map((r) => r.id);
+      await prisma.selectedEquipment.deleteMany({ where: { roomId: { in: roomIds } } });
+
       const results = [];
+
       for (const floor of floors) {
         for (const room of floor.rooms) {
           if (!room.coolingLoad) continue;
@@ -95,8 +98,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
           if (sizing.recommended.length > 0) {
             const top = sizing.recommended[0];
+            const avgPrice = (top.equipment.priceMin + top.equipment.priceMax) / 2;
+            const eer = top.equipment.eer || 10;
 
-            // Upsert equipment into Equipment table
             const equipmentRecord = await prisma.equipment.upsert({
               where: { id: top.equipment.id },
               update: {},
@@ -108,18 +112,17 @@ export async function POST(request: NextRequest, context: RouteContext) {
                 capacityTR: top.equipment.capacityTR,
                 capacityBTU: top.equipment.capacityBTU,
                 capacityKW: top.equipment.capacityKW,
-                powerInputKW: top.equipment.capacityKW / (top.equipment.eer || 10),
+                powerInputKW: top.equipment.capacityKW / eer,
                 currentAmps: 0,
                 phase: top.equipment.powerSupply?.includes('3') ? '3-phase' : '1-phase',
                 voltage: top.equipment.powerSupply?.includes('380') ? 380 : 220,
                 refrigerant: top.equipment.refrigerant || 'R32',
-                eer: top.equipment.eer,
-                cop: (top.equipment.eer || 10) / 3.412,
-                unitPricePHP: (top.equipment.priceMin + top.equipment.priceMax) / 2,
+                eer,
+                cop: eer / 3.412,
+                unitPricePHP: avgPrice,
               },
             });
 
-            // Create SelectedEquipment referencing the equipment
             const sel = await prisma.selectedEquipment.create({
               data: {
                 roomId: room.id,
@@ -148,6 +151,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     // Manual equipment selection
+    const eer = body.eer || 10;
     const equipmentRecord = await prisma.equipment.upsert({
       where: { id: body.equipmentId || 'new' },
       update: {},
@@ -161,8 +165,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
         powerInputKW: 0,
         currentAmps: 0,
         refrigerant: body.refrigerant || 'R32',
-        eer: body.eer || 10,
-        cop: (body.eer || 10) / 3.412,
+        eer,
+        cop: eer / 3.412,
         unitPricePHP: body.unitPrice || 0,
       },
     });
@@ -178,6 +182,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ equipment: sel }, { status: 201 });
   } catch (error) {
     console.error('POST equipment error:', error);
-    return NextResponse.json({ error: 'Failed to select equipment' }, { status: 500 });
+    const d = getErrorDetails(error, 'Failed to select equipment');
+    return errorResponse(500, d.error, d.description, d.code);
   }
 }

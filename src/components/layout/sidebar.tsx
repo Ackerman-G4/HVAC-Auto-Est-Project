@@ -43,10 +43,10 @@ export function Sidebar() {
     <div className="flex flex-col h-full">
       {/* Logo */}
       <div className={cn(
-        'flex items-center gap-3 px-5 h-14 border-b border-border/60 flex-shrink-0',
+        'flex items-center gap-3 px-5 h-14 border-b border-border/70 shrink-0 bg-card/95',
         collapsed && 'justify-center px-0'
       )}>
-        <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center flex-shrink-0">
+        <div className="w-8 h-8 rounded-[calc(var(--radius)-4px)] bg-accent/95 flex items-center justify-center shrink-0 shadow-sm">
           <Snowflake size={16} className="text-accent-foreground" />
         </div>
         {!collapsed && (
@@ -58,31 +58,31 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-3 px-3 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 py-3 px-3 space-y-1 overflow-y-auto">
         {navItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}
             onClick={() => setMobileOpen(false)}
             className={cn(
-              'flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-150 relative',
+              'flex items-center gap-3 px-3 py-2 rounded-[calc(var(--radius)-4px)] text-[13px] font-medium transition-all duration-150 relative',
               collapsed && 'justify-center px-0',
               isActive(item.href)
-                ? 'bg-accent/[0.08] text-accent'
-                : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+                ? 'bg-accent/12 text-accent border border-accent/20 shadow-sm'
+                : 'text-muted-foreground hover:text-foreground hover:bg-secondary/80 border border-transparent'
             )}
           >
-            <item.icon size={17} className="flex-shrink-0" />
+            <item.icon size={17} className="shrink-0" />
             {!collapsed && <span className="truncate">{item.label}</span>}
           </Link>
         ))}
       </nav>
 
       {/* Collapse button (desktop only) */}
-      <div className="hidden lg:flex border-t border-border/60 p-2.5">
+      <div className="hidden lg:flex border-t border-border/70 p-2.5">
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-[calc(var(--radius)-4px)] text-xs text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
         >
           {collapsed ? <ChevronRight size={15} /> : <><ChevronLeft size={15} /><span>Collapse</span></>}
         </button>
@@ -95,7 +95,9 @@ export function Sidebar() {
       {/* Mobile hamburger */}
       <button
         onClick={() => setMobileOpen(true)}
-        className="lg:hidden fixed top-3 left-3 z-50 p-2 rounded-lg bg-card border border-border/60 shadow-sm hover:bg-secondary transition-colors"
+        title="Open navigation menu"
+        aria-label="Open navigation menu"
+        className="lg:hidden fixed top-3 left-3 z-50 p-2 rounded-[calc(var(--radius)-4px)] bg-card border border-border/70 shadow-sm hover:bg-secondary transition-colors"
       >
         <Menu size={18} />
       </button>
@@ -112,7 +114,7 @@ export function Sidebar() {
               onClick={() => setMobileOpen(false)}
             />
             <motion.aside
-              className="lg:hidden fixed left-0 top-0 bottom-0 w-60 bg-card border-r border-border/60 z-50 shadow-xl"
+              className="lg:hidden fixed left-0 top-0 bottom-0 w-64 bg-card border-r border-border/70 z-50 shadow-xl"
               variants={sidebarVariants}
               initial="closed"
               animate="open"
@@ -120,6 +122,8 @@ export function Sidebar() {
             >
               <button
                 onClick={() => setMobileOpen(false)}
+                title="Close navigation menu"
+                aria-label="Close navigation menu"
                 className="absolute top-3 right-3 p-1.5 rounded-md hover:bg-secondary text-muted-foreground"
               >
                 <X size={18} />
@@ -133,8 +137,8 @@ export function Sidebar() {
       {/* Desktop sidebar */}
       <aside
         className={cn(
-          'hidden lg:flex flex-col h-screen bg-card border-r border-border/60 flex-shrink-0 transition-all duration-300',
-          collapsed ? 'w-16' : 'w-[252px]'
+          'hidden lg:flex flex-col h-screen bg-card/95 border-r border-border/70 shrink-0 transition-all duration-300',
+          collapsed ? 'w-16' : 'w-63'
         )}
       >
         <SidebarContent />

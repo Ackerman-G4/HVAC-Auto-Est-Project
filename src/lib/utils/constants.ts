@@ -4,6 +4,23 @@ export const VAT_RATE = 0.12; // 12% Philippine VAT
 
 export const CFM_PER_TR = 400; // Standard CFM per TR
 
+/**
+ * Watts per Ton of Refrigeration.
+ * One constant for all conversions — avoids hardcoding 3517 everywhere.
+ */
+export const WATTS_PER_TR = 3517;
+
+/**
+ * BTU/h per Ton of Refrigeration.
+ */
+export const BTU_PER_TR = 12000;
+
+/**
+ * Heuristic: equipment with EER ≥ this threshold is treated as inverter‑type.
+ * Changing this single value updates the whole app.
+ */
+export const INVERTER_EER_THRESHOLD = 11;
+
 export const SPACE_TYPE_LABELS: Record<string, string> = {
   office: 'Office',
   conference: 'Conference Room',

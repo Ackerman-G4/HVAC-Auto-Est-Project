@@ -4,6 +4,7 @@
  */
 
 import { EQUIPMENT_CATALOG } from '@/constants/equipment-catalog';
+import { INVERTER_EER_THRESHOLD } from '@/lib/utils/constants';
 import type { EquipmentType } from '@/types/equipment';
 
 type CatalogEntry = typeof EQUIPMENT_CATALOG[number];
@@ -119,9 +120,8 @@ function scoreEquipment(eq: CatalogEntry, input: SizingInput): number {
   else if (eq.eer >= 8) score += 15;
   else score += 5;
 
-  // Inverter tech (EER > 11 usually means inverter)
-  const isInverter = eq.eer >= 11;
-  if (isInverter) score += 15;
+  // Inverter tech bonus
+  if (eq.eer >= INVERTER_EER_THRESHOLD) score += 15;
 
   // Budget match
   const price = eq.unitPricePHP;
@@ -164,22 +164,41 @@ export function sizeEquipment(input: SizingInput): SizingResult {
     notes.push(`No ${input.preferredBrand} equipment found in capacity range. Showing all brands.`);
   }
 
-  // If still no matches, expand type search
+  // If still no matches, expand type search to all available types
   if (candidates.length === 0) {
     const allTypes: EquipmentType[] = ['wall_split', 'ceiling_cassette', 'ducted_split', 'floor_standing'];
     candidates = filterByCapacity(EQUIPMENT_CATALOG, minBTU, maxBTU, allTypes);
-    notes.push('Equipment type preference could not be matched. Showing all available types.');
+    if (candidates.length > 0) {
+      notes.push('Equipment type preference could not be matched. Showing all available types.');
+    }
   }
 
-  // If very large load, suggest multiple units of the largest capacity
-  if (candidates.length === 0 && neededBTU > 60000) {
+  // If very large load or still no matches, use multiple units of the largest available equipment
+  if (candidates.length === 0) {
+    const allTypes: EquipmentType[] = ['wall_split', 'ceiling_cassette', 'ducted_split', 'floor_standing'];
     const largestEquipment = [...EQUIPMENT_CATALOG]
-      .filter((eq) => recommendedTypes.includes(eq.type))
+      .filter((eq) => allTypes.includes(eq.type))
       .sort((a, b) => b.capacityBTU - a.capacityBTU);
     
     if (largestEquipment.length > 0) {
-      candidates = largestEquipment.slice(0, 5);
-      notes.push(`Load requires multiple units. Each unit: ${largestEquipment[0].capacityBTU.toLocaleString()} BTU/h`);
+      // Pick the top 5 largest unique units
+      const seen = new Set<string>();
+      const unique: typeof largestEquipment = [];
+      for (const eq of largestEquipment) {
+        const key = `${eq.manufacturer}-${eq.model}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          unique.push(eq);
+        }
+        if (unique.length >= 5) break;
+      }
+      candidates = unique;
+      const topUnit = largestEquipment[0];
+      const unitsNeeded = Math.ceil(neededBTU / topUnit.capacityBTU);
+      notes.push(`Load exceeds single-unit capacity. Recommending ${unitsNeeded}× ${topUnit.manufacturer} ${topUnit.model} (${topUnit.capacityBTU.toLocaleString()} BTU/h each).`);
+      if (input.trValue > 50) {
+        warnings.push('Very large cooling load (>50 TR). Consider central chiller system with AHUs for better efficiency.');
+      }
     }
   }
 
@@ -194,7 +213,7 @@ export function sizeEquipment(input: SizingInput): SizingResult {
 
   // Build recommendations
   const recommendations: EquipmentRecommendation[] = scored.map((s) => {
-    const isInverter = s.equipment.eer >= 11;
+    const isInverter = s.equipment.eer >= INVERTER_EER_THRESHOLD;
     return {
       equipment: {
         id: s.equipment.model.replace(/[\s\-\/]/g, '_'),
@@ -241,7 +260,7 @@ export function sizeEquipment(input: SizingInput): SizingResult {
 
 function buildReason(eq: CatalogEntry, score: number, units: number): string {
   const parts: string[] = [];
-  if (eq.eer >= 11) parts.push('Inverter technology for energy savings');
+  if (eq.eer >= INVERTER_EER_THRESHOLD) parts.push('Inverter technology for energy savings');
   if (eq.eer >= 12) parts.push('High energy efficiency (EER ' + eq.eer + ')');
   if (units > 1) parts.push(`${units} units for complete coverage`);
   parts.push(`${eq.manufacturer} ${eq.model}`);
@@ -249,36 +268,45 @@ function buildReason(eq: CatalogEntry, score: number, units: number): string {
 }
 
 /**
- * Quick TR estimate from room area (rule of thumb)
- * 500 sq ft per TR for offices in Philippines
+ * Quick TR estimate from room area — Philippine HVAC rule of thumb.
+ * Uses the SAME factors as the main cooling load engine.
+ *   e.g.  75 m² office → 75 / 15 = 5 TR
  */
+export { SQM_PER_TR } from '@/lib/functions/cooling-load';
+
 export function quickEstimateTR(
   areaSqM: number,
   spaceType: string = 'office',
   ceilingHeight: number = 2.7
 ): number {
-  // Base: 1 TR per 20-25 sqm for office
-  const factors: Record<string, number> = {
-    office: 22,
-    conference_room: 15,
-    retail: 18,
-    restaurant: 14,
+  // Import the canonical factors at module level would create
+  // a circular dep, so inline the same table:
+  const SQM: Record<string, number> = {
+    office: 15,
+    conference: 12,
+    lobby: 18,
+    retail: 12,
+    restaurant: 10,
+    kitchen: 8,
+    hotel_room: 18,
     server_room: 8,
-    data_center: 6,
-    hospital_ward: 20,
-    classroom: 16,
-    lobby: 25,
-    residential: 28,
-    kitchen: 10,
-    gym: 14,
-    theater: 12,
-    warehouse: 40,
+    corridor: 25,
+    restroom: 25,
+    storage: 30,
+    residential: 18,
+    classroom: 12,
+    hospital_ward: 12,
+    operating_room: 8,
+    gym: 10,
+    theater: 10,
+    warehouse: 35,
+    parking: 40,
   };
 
-  const sqmPerTR = factors[spaceType] || 22;
+  const sqmPerTR = SQM[spaceType] || 15;
   let tr = areaSqM / sqmPerTR;
 
-  // Ceiling height adjustment (reference: 2.7m)
+  // Adjust for tall ceilings (ref: 2.7 m)
   if (ceilingHeight > 2.7) {
     tr *= ceilingHeight / 2.7;
   }

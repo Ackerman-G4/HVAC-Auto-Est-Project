@@ -9,9 +9,18 @@ import { prisma } from '@/lib/db/prisma';
 import { compileBOQ } from '@/lib/functions/cost-engine';
 import { sizeRefrigerantPipe, sizeCondensatePipe } from '@/lib/functions/pipe-sizing';
 import { sizeElectrical } from '@/lib/functions/electrical';
+import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
 import type { BOQItem } from '@/types/material';
 
+/** Default estimated run lengths (metres) */
+const DEFAULT_REFRIGERANT_RUN_M = 10;
+const DEFAULT_ELEVATION_DIFF_M = 3;
+const DEFAULT_ELECTRICAL_RUN_M = 15;
+const DEFAULT_CONDENSATE_RUN_M = 5;
+
 type RouteContext = { params: Promise<{ id: string }> };
+
+/* ──────────────────────── GET ──────────────────────── */
 
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
@@ -21,16 +30,12 @@ export async function GET(request: NextRequest, context: RouteContext) {
       orderBy: { section: 'asc' },
     });
 
-    // Compute summary from stored items
-    const equipmentCost = items
-      .filter((i) => i.category === 'equipment')
-      .reduce((sum, i) => sum + i.totalPrice, 0);
-    const materialCost = items
-      .filter((i) => i.category === 'material')
-      .reduce((sum, i) => sum + i.totalPrice, 0);
-    const laborCost = items
-      .filter((i) => i.category === 'labor')
-      .reduce((sum, i) => sum + i.totalPrice, 0);
+    const sumByCategory = (cat: string) =>
+      items.filter((i) => i.category === cat).reduce((s, i) => s + i.totalPrice, 0);
+
+    const equipmentCost = sumByCategory('equipment');
+    const materialCost = sumByCategory('material');
+    const laborCost = sumByCategory('labor');
     const subtotal = equipmentCost + materialCost + laborCost;
     const overhead = subtotal * 0.15;
     const contingency = subtotal * 0.05;
@@ -38,28 +43,25 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const vat = beforeVAT * 0.12;
     const grandTotal = beforeVAT + vat;
 
-    // Compute total TR from equipment descriptions
+    // TR from equipment description strings
     let totalCapacityTR = 0;
-    items.filter((i) => i.category === 'equipment').forEach((i) => {
-      const trMatch = i.description.match(/(\d+\.?\d*)\s*TR/);
-      if (trMatch) totalCapacityTR += parseFloat(trMatch[1]) * i.quantity;
-    });
+    for (const i of items.filter((i) => i.category === 'equipment')) {
+      const m = i.description.match(/(\d+\.?\d*)\s*TR/);
+      if (m) totalCapacityTR += parseFloat(m[1]) * i.quantity;
+    }
     const costPerTR = totalCapacityTR > 0 ? grandTotal / totalCapacityTR : 0;
 
-    // Map items with floorName from notes field
-    const mappedItems = items.map((i) => ({
-      section: i.section,
-      description: i.description,
-      quantity: i.quantity,
-      unit: i.unit,
-      unitPrice: i.unitPrice,
-      totalPrice: i.totalPrice,
-      category: i.category,
-      floorName: i.notes || '',
-    }));
-
     return NextResponse.json({
-      items: mappedItems,
+      items: items.map((i) => ({
+        section: i.section,
+        description: i.description,
+        quantity: i.quantity,
+        unit: i.unit,
+        unitPrice: i.unitPrice,
+        totalPrice: i.totalPrice,
+        category: i.category,
+        floorName: i.notes || '',
+      })),
       equipmentCost: Math.round(equipmentCost),
       materialCost: Math.round(materialCost),
       laborCost: Math.round(laborCost),
@@ -72,25 +74,79 @@ export async function GET(request: NextRequest, context: RouteContext) {
     });
   } catch (error) {
     console.error('GET BOQ error:', error);
-    return NextResponse.json({ error: 'Failed to fetch BOQ' }, { status: 500 });
+    const d = getErrorDetails(error, 'Failed to fetch BOQ');
+    return errorResponse(500, d.error, d.description, d.code);
   }
 }
+
+/* ──────────── helpers for BOQ input construction ──────────── */
+
+interface SelEquip {
+  equipment: {
+    manufacturer: string;
+    model: string;
+    type: string;
+    capacityTR: number;
+    capacityBTU: number;
+    capacityKW: number;
+    refrigerant: string;
+    eer: number;
+    unitPricePHP: number;
+  };
+  quantity: number;
+}
+
+function buildBOQInputs(selections: SelEquip[]) {
+  return {
+    equipment: selections.map((s) => ({
+      brand: s.equipment.manufacturer,
+      model: s.equipment.model,
+      type: s.equipment.type,
+      quantity: s.quantity,
+      unitPriceMin: s.equipment.unitPricePHP * 0.9,
+      unitPriceMax: s.equipment.unitPricePHP * 1.1,
+      capacityTR: s.equipment.capacityTR,
+    })),
+    refrigerantPipes: selections.map((s) => ({
+      result: sizeRefrigerantPipe({
+        capacityBTU: s.equipment.capacityBTU,
+        refrigerantType: (s.equipment.refrigerant as 'R410A' | 'R32' | 'R22' | 'R134a') || 'R32',
+        lineLength: DEFAULT_REFRIGERANT_RUN_M,
+        elevationDiff: DEFAULT_ELEVATION_DIFF_M,
+      }),
+      runLengthM: DEFAULT_REFRIGERANT_RUN_M,
+    })),
+    electrical: selections.map((s) => {
+      const powerKW = s.equipment.capacityBTU * 0.000293 / (s.equipment.eer || 10);
+      return sizeElectrical({
+        equipmentPowerKW: powerKW,
+        voltage: s.equipment.capacityTR > 3 ? 380 : 220,
+        phase: s.equipment.capacityTR > 3 ? 3 : 1,
+        powerFactor: 0.9,
+        runLength: DEFAULT_ELECTRICAL_RUN_M,
+        ambientTemp: 35,
+        conduitType: 'PVC',
+      });
+    }),
+    condensate: selections.map((s) => ({
+      result: sizeCondensatePipe(s.equipment.capacityTR),
+      runLengthM: DEFAULT_CONDENSATE_RUN_M,
+    })),
+  };
+}
+
+/* ──────────────────────── POST ──────────────────────── */
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId } = await context.params;
 
-    // Get selected equipment with equipment details via rooms, organised by floor
     const floors = await prisma.floor.findMany({
       where: { projectId },
       orderBy: { floorNumber: 'asc' },
       include: {
         rooms: {
-          include: {
-            selectedEquipment: {
-              include: { equipment: true },
-            },
-          },
+          include: { selectedEquipment: { include: { equipment: true } } },
         },
       },
     });
@@ -107,140 +163,46 @@ export async function POST(request: NextRequest, context: RouteContext) {
     );
 
     if (selectedEquipment.length === 0) {
-      return NextResponse.json(
-        { error: 'No equipment selected. Please select equipment first.' },
-        { status: 400 }
-      );
+      return errorResponse(400, 'No equipment selected', 'Please select equipment first.', 'NO_EQUIPMENT');
     }
 
-    // Group equipment by floor for floor-level BOQ
-    const floorGroups = new Map<string, typeof selectedEquipment>();
-    for (const sel of selectedEquipment) {
-      const key = sel.floorName;
-      if (!floorGroups.has(key)) floorGroups.set(key, []);
-      floorGroups.get(key)!.push(sel);
-    }
-
-    // Compile BOQ per floor
+    // Build per-floor items using the shared helper
     const allItems: BOQItem[] = [];
-    let firstFloorSummary: ReturnType<typeof compileBOQ> | null = null;
+    const floorGroups = new Map<string, typeof selectedEquipment>();
+    for (const s of selectedEquipment) {
+      const arr = floorGroups.get(s.floorName);
+      if (arr) arr.push(s); else floorGroups.set(s.floorName, [s]);
+    }
 
     for (const [floorName, floorEquipment] of floorGroups) {
-      const equipmentInputs = floorEquipment.map((sel) => ({
-        brand: sel.equipment.manufacturer,
-        model: sel.equipment.model,
-        type: sel.equipment.type,
-        quantity: sel.quantity,
-        unitPriceMin: sel.equipment.unitPricePHP * 0.9,
-        unitPriceMax: sel.equipment.unitPricePHP * 1.1,
-        capacityTR: sel.equipment.capacityTR,
-      }));
-
-      const refrigerantPipes = floorEquipment.map((sel) => ({
-        result: sizeRefrigerantPipe({
-          capacityBTU: sel.equipment.capacityBTU,
-          refrigerantType: (sel.equipment.refrigerant as 'R410A' | 'R32' | 'R22' | 'R134a') || 'R32',
-          lineLength: 10,
-          elevationDiff: 3,
-        }),
-        runLengthM: 10,
-      }));
-
-      const electricalInputs = floorEquipment.map((sel) => {
-        const powerKW = sel.equipment.capacityBTU * 0.000293 / (sel.equipment.eer || 10);
-        return sizeElectrical({
-          equipmentPowerKW: powerKW,
-          voltage: sel.equipment.capacityTR > 3 ? 380 : 220,
-          phase: sel.equipment.capacityTR > 3 ? 3 : 1,
-          powerFactor: 0.90,
-          runLength: 15,
-          ambientTemp: 35,
-          conduitType: 'PVC',
-        });
-      });
-
-      const condensate = floorEquipment.map((sel) => ({
-        result: sizeCondensatePipe(sel.equipment.capacityTR),
-        runLengthM: 5,
-      }));
-
-      const floorBOQ = compileBOQ({
-        equipment: equipmentInputs,
-        refrigerantPipes,
-        electrical: electricalInputs,
-        condensate,
-      });
-
-      if (!firstFloorSummary) firstFloorSummary = floorBOQ;
-
-      // Tag each item with floor name
+      const floorBOQ = compileBOQ(buildBOQInputs(floorEquipment));
       for (const item of floorBOQ.items) {
         allItems.push({ ...item, floorName });
       }
     }
 
-    // Build overall summary
-    const boqSummaryResult = compileBOQ({
-      equipment: selectedEquipment.map((sel) => ({
-        brand: sel.equipment.manufacturer,
-        model: sel.equipment.model,
-        type: sel.equipment.type,
-        quantity: sel.quantity,
-        unitPriceMin: sel.equipment.unitPricePHP * 0.9,
-        unitPriceMax: sel.equipment.unitPricePHP * 1.1,
-        capacityTR: sel.equipment.capacityTR,
-      })),
-      refrigerantPipes: selectedEquipment.map((sel) => ({
-        result: sizeRefrigerantPipe({
-          capacityBTU: sel.equipment.capacityBTU,
-          refrigerantType: (sel.equipment.refrigerant as 'R410A' | 'R32' | 'R22' | 'R134a') || 'R32',
-          lineLength: 10,
-          elevationDiff: 3,
-        }),
-        runLengthM: 10,
-      })),
-      electrical: selectedEquipment.map((sel) => {
-        const powerKW = sel.equipment.capacityBTU * 0.000293 / (sel.equipment.eer || 10);
-        return sizeElectrical({
-          equipmentPowerKW: powerKW,
-          voltage: sel.equipment.capacityTR > 3 ? 380 : 220,
-          phase: sel.equipment.capacityTR > 3 ? 3 : 1,
-          powerFactor: 0.90,
-          runLength: 15,
-          ambientTemp: 35,
-          conduitType: 'PVC',
-        });
-      }),
-      condensate: selectedEquipment.map((sel) => ({
-        result: sizeCondensatePipe(sel.equipment.capacityTR),
-        runLengthM: 5,
+    // Build overall summary once (reuse same helper)
+    const overallBOQ = compileBOQ(buildBOQInputs(selectedEquipment));
+    const boqSummary = { ...overallBOQ, items: allItems };
+
+    // Persist
+    await prisma.bOQItem.deleteMany({ where: { projectId } });
+
+    await prisma.bOQItem.createMany({
+      data: boqSummary.items.map((item) => ({
+        projectId,
+        section: item.section,
+        description: item.description,
+        quantity: item.quantity,
+        unit: item.unit,
+        unitPrice: item.unitPrice,
+        totalPrice: item.totalPrice,
+        category: item.category,
+        notes: item.floorName || '',
       })),
     });
 
-    // Use floor-tagged items but keep overall summary totals
-    const boqSummary = { ...boqSummaryResult, items: allItems };
-
-    // Clear existing BOQ for this project
-    await prisma.bOQItem.deleteMany({ where: { projectId } });
-
-    // Save BOQ items with floor name in notes field
-    for (const item of boqSummary.items) {
-      await prisma.bOQItem.create({
-        data: {
-          projectId,
-          section: item.section,
-          description: item.description,
-          quantity: item.quantity,
-          unit: item.unit,
-          unitPrice: item.unitPrice,
-          totalPrice: item.totalPrice,
-          category: item.category,
-          notes: item.floorName || '',
-        },
-      });
-    }
-
-    // Update project total
+    // Update project total floor area
     await prisma.project.update({
       where: { id: projectId },
       data: {
@@ -267,6 +229,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ boq: boqSummary }, { status: 201 });
   } catch (error) {
     console.error('POST BOQ error:', error);
-    return NextResponse.json({ error: 'Failed to generate BOQ' }, { status: 500 });
+    const d = getErrorDetails(error, 'Failed to generate BOQ');
+    return errorResponse(500, d.error, d.description, d.code);
   }
 }

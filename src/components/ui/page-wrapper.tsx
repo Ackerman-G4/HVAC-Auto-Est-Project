@@ -55,7 +55,7 @@ export function PageHeader({ title, description, actions, breadcrumbs }: PageHea
           <h1 className="text-lg font-semibold text-foreground">{title}</h1>
           {description && <p className="text-[13px] text-muted-foreground mt-0.5">{description}</p>}
         </div>
-        {actions && <div className="flex items-center gap-2 flex-shrink-0">{actions}</div>}
+        {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
       </div>
     </div>
   );

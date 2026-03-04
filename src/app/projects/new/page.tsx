@@ -64,7 +64,7 @@ export default function NewProjectPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!String(form.name).trim()) {
-      showToast('error', 'Project name is required');
+      showToast('error', 'Project name is required', 'Enter a project name before creating the project.');
       return;
     }
 
@@ -75,16 +75,20 @@ export default function NewProjectPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       if (res.ok) {
         showToast('success', 'Project created successfully');
         router.push(`/projects/${data.project.id}`);
       } else {
-        showToast('error', data.error || 'Failed to create project');
+        showToast(
+          'error',
+          data.error || 'Failed to create project',
+          data.description || 'Check the form values and try again. If the issue persists, check server logs.'
+        );
       }
     } catch {
-      showToast('error', 'Network error');
+      showToast('error', 'Network error', 'Unable to reach the server. Make sure the app is running and try again.');
     } finally {
       setSaving(false);
     }

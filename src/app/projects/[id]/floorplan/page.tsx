@@ -728,7 +728,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
           {bgImage && bgFileName && (
             <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2.5 py-1.5 rounded-lg flex items-center gap-2">
               <ImageIcon className="w-3.5 h-3.5" />
-              <span className="truncate max-w-[180px]">{bgFileName}</span>
+              <span className="truncate max-w-45">{bgFileName}</span>
               {bgImageDims && <span className="text-white/60">{bgImageDims.w}×{bgImageDims.h}</span>}
               <button onClick={() => setShowImagePreview(true)} className="hover:text-blue-300 transition-colors" title="View full image">
                 <Maximize2 className="w-3.5 h-3.5" />
@@ -892,6 +892,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
         type="file"
         accept="image/*"
         className="hidden"
+        aria-label="Upload floor plan image"
         onChange={handleUpload}
       />
 
@@ -936,6 +937,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
                   <button
                     onClick={() => setShowImagePreview(false)}
                     className="p-1.5 rounded-lg hover:bg-secondary transition-colors"
+                    title="Close preview"
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -943,7 +945,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
               </div>
 
               {/* Image view */}
-              <div className="flex-1 overflow-auto p-4 bg-[#1a1a1a] flex items-center justify-center min-h-[300px]">
+              <div className="flex-1 overflow-auto p-4 bg-[#1a1a1a] flex items-center justify-center min-h-75">
                 <img
                   src={bgImageSrc}
                   alt="Floor Plan"

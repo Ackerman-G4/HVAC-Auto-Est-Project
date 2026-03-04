@@ -9,9 +9,10 @@ import {
   Archive,
   Trash2,
   RotateCcw,
-  Filter,
   Pencil,
   Save,
+  FolderKanban,
+  ClipboardList,
 } from 'lucide-react';
 import { PageWrapper, PageHeader } from '@/components/ui/page-wrapper';
 import { Card, CardContent } from '@/components/ui/card';
@@ -228,6 +229,12 @@ export default function ProjectsPage() {
   };
 
   const statuses = ['all', 'draft', 'active', 'completed', 'archived'];
+  const draftCount = projects.filter((p) => p.status === 'draft').length;
+  const activeCount = projects.filter((p) => p.status === 'active').length;
+  const completedCount = projects.filter((p) => p.status === 'completed').length;
+  const archivedCount = projects.filter((p) => p.status === 'archived').length;
+  const totalEquipment = projects.reduce((sum, p) => sum + (p._count?.selectedEquipment || 0), 0);
+  const totalBOQItems = projects.reduce((sum, p) => sum + (p._count?.boqItems || 0), 0);
 
   return (
     <PageWrapper>
@@ -244,171 +251,232 @@ export default function ProjectsPage() {
         }
       />
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
-        <div className="flex-1 flex gap-2">
-          <Input
-            placeholder="Search projects..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            className="flex-1"
-          />
-          <Button variant="secondary" size="md" onClick={handleSearch}>
-            <Search className="w-4 h-4" />
-          </Button>
-        </div>
-        <div className="flex gap-1 overflow-x-auto">
-          {statuses.map((s) => (
-            <Button
-              key={s}
-              variant={statusFilter === s ? 'accent' : 'ghost'}
-              size="sm"
-              onClick={() => setStatusFilter(s)}
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+        <div className="xl:col-span-3">
+          <Card className="mb-6 border-accent/20 bg-linear-to-r from-accent/10 via-primary/5 to-secondary/40">
+            <CardContent className="py-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Project Workspace</p>
+                  <p className="text-sm font-medium text-foreground mt-0.5">Manage active jobs, updates, and archival lifecycle in one view.</p>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <FolderKanban className="w-3.5 h-3.5" />
+                  <span className="tabular-nums">{loading ? '—' : projects.length} total projects</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="flex flex-col sm:flex-row gap-3 mb-6">
+            <div className="flex-1 flex gap-2">
+              <Input
+                placeholder="Search projects..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                className="flex-1"
+              />
+              <Button variant="secondary" size="md" onClick={handleSearch}>
+                <Search className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="flex gap-1 overflow-x-auto">
+              {statuses.map((s) => (
+                <Button
+                  key={s}
+                  variant={statusFilter === s ? 'accent' : 'ghost'}
+                  size="sm"
+                  onClick={() => setStatusFilter(s)}
+                >
+                  {s.charAt(0).toUpperCase() + s.slice(1)}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {/* Project Grid */}
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <Skeleton key={i} className="h-48" />
+              ))}
+            </div>
+          ) : projects.length === 0 ? (
+            <EmptyState
+              icon={<Building2 className="w-12 h-12" />}
+              title="No projects found"
+              description={search ? 'Try a different search term' : 'Create your first HVAC project'}
+              action={
+                <Link href="/projects/new">
+                  <Button variant="accent" size="sm">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Project
+                  </Button>
+                </Link>
+              }
+            />
+          ) : (
+            <motion.div
+              variants={cardGridVariants}
+              initial="hidden"
+              animate="visible"
+              className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4"
             >
-              {s.charAt(0).toUpperCase() + s.slice(1)}
-            </Button>
-          ))}
+              {projects.map((project) => {
+                const projectTR = project.floors?.reduce(
+                  (fSum, f) => fSum + f.rooms.reduce((rSum, r) => rSum + (r.coolingLoad?.trValue || 0), 0),
+                  0
+                ) || 0;
+                const roomCount = project.floors?.reduce((sum, f) => sum + f.rooms.length, 0) || 0;
+
+                return (
+                  <motion.div key={project.id} variants={cardItemVariants}>
+                    <Card hover>
+                      <CardContent className="p-5">
+                        <div
+                          onClick={() => router.push(`/projects/${project.id}`)}
+                          className="cursor-pointer"
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <h3 className="text-sm font-semibold text-foreground truncate flex-1 pr-2">
+                              {project.name}
+                            </h3>
+                            <Badge
+                              variant={statusColor[project.status] || 'default'}
+                              size="sm"
+                            >
+                              {project.status}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {project.clientName || 'No client'}
+                          </p>
+                          <p className="text-xs text-muted-foreground mb-4">
+                            {project.buildingType} · {project.city || project.location || '—'}
+                          </p>
+                          <div className="grid grid-cols-3 gap-2 text-center">
+                            <div className="bg-secondary/60 rounded-lg py-2">
+                              <p className="text-lg font-semibold tabular-nums text-foreground">
+                                {roomCount}
+                              </p>
+                              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Rooms</p>
+                            </div>
+                            <div className="bg-secondary/60 rounded-lg py-2">
+                              <p className="text-lg font-semibold tabular-nums text-foreground">
+                                {projectTR.toFixed(1)}
+                              </p>
+                              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">TR</p>
+                            </div>
+                            <div className="bg-secondary/60 rounded-lg py-2">
+                              <p className="text-lg font-semibold tabular-nums text-foreground">
+                                {project._count?.selectedEquipment || 0}
+                              </p>
+                              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Equip</p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex gap-1 border-t border-border/40 pt-3 mt-4">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEdit(project);
+                            }}
+                          >
+                            <Pencil className="w-3.5 h-3.5 mr-1" />
+                            Edit
+                          </Button>
+                          {project.status !== 'archived' ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleArchive(project);
+                              }}
+                            >
+                              <Archive className="w-3.5 h-3.5 mr-1" />
+                              Archive
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRestore(project);
+                              }}
+                            >
+                              <RotateCcw className="w-3.5 h-3.5 mr-1" />
+                              Restore
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteTarget(project);
+                            }}
+                          >
+                            <Trash2 className="w-3.5 h-3.5 mr-1 text-red-500" />
+                            Delete
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                );
+              })}
+            </motion.div>
+          )}
+        </div>
+
+        <div className="space-y-6">
+          <Card className="border-accent/20 bg-accent/5">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <ClipboardList className="w-4 h-4 text-accent" />
+                <h3 className="text-[13px] font-semibold text-foreground">Portfolio Snapshot</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-lg border border-border/70 bg-card p-3">
+                  <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Draft</p>
+                  <p className="text-xl font-semibold tabular-nums">{loading ? '—' : draftCount}</p>
+                </div>
+                <div className="rounded-lg border border-border/70 bg-card p-3">
+                  <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Active</p>
+                  <p className="text-xl font-semibold tabular-nums">{loading ? '—' : activeCount}</p>
+                </div>
+                <div className="rounded-lg border border-border/70 bg-card p-3">
+                  <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Completed</p>
+                  <p className="text-xl font-semibold tabular-nums">{loading ? '—' : completedCount}</p>
+                </div>
+                <div className="rounded-lg border border-border/70 bg-card p-3">
+                  <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Archived</p>
+                  <p className="text-xl font-semibold tabular-nums">{loading ? '—' : archivedCount}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4 space-y-3">
+              <h3 className="text-[13px] font-semibold text-foreground">Capacity & BOQ</h3>
+              <div className="rounded-lg border border-border/70 bg-secondary/40 p-3">
+                <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Selected Equipment</p>
+                <p className="text-2xl font-semibold tabular-nums text-foreground">{loading ? '—' : totalEquipment}</p>
+              </div>
+              <div className="rounded-lg border border-border/70 bg-secondary/40 p-3">
+                <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">BOQ Line Items</p>
+                <p className="text-2xl font-semibold tabular-nums text-foreground">{loading ? '—' : totalBOQItems}</p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
-
-      {/* Project Grid */}
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Skeleton key={i} className="h-48" />
-          ))}
-        </div>
-      ) : projects.length === 0 ? (
-        <EmptyState
-          icon={<Building2 className="w-12 h-12" />}
-          title="No projects found"
-          description={search ? 'Try a different search term' : 'Create your first HVAC project'}
-          action={
-            <Link href="/projects/new">
-              <Button variant="accent" size="sm">
-                <Plus className="w-4 h-4 mr-2" />
-                Create Project
-              </Button>
-            </Link>
-          }
-        />
-      ) : (
-        <motion.div
-          variants={cardGridVariants}
-          initial="hidden"
-          animate="visible"
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-        >
-          {projects.map((project) => {
-            const projectTR = project.floors?.reduce(
-              (fSum, f) => fSum + f.rooms.reduce((rSum, r) => rSum + (r.coolingLoad?.trValue || 0), 0),
-              0
-            ) || 0;
-            const roomCount = project.floors?.reduce((sum, f) => sum + f.rooms.length, 0) || 0;
-
-            return (
-              <motion.div key={project.id} variants={cardItemVariants}>
-                <Card hover>
-                  <CardContent className="p-5">
-                    <div
-                      onClick={() => router.push(`/projects/${project.id}`)}
-                      className="cursor-pointer"
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-sm font-semibold text-foreground truncate flex-1 pr-2">
-                          {project.name}
-                        </h3>
-                        <Badge
-                          variant={statusColor[project.status] || 'default'}
-                          size="sm"
-                        >
-                          {project.status}
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {project.clientName || 'No client'}
-                      </p>
-                      <p className="text-xs text-muted-foreground mb-4">
-                        {project.buildingType} · {project.city || project.location || '—'}
-                      </p>
-                      <div className="grid grid-cols-3 gap-2 text-center">
-                        <div className="bg-secondary/60 rounded-lg py-2">
-                          <p className="text-lg font-semibold tabular-nums text-foreground">
-                            {roomCount}
-                          </p>
-                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Rooms</p>
-                        </div>
-                        <div className="bg-secondary/60 rounded-lg py-2">
-                          <p className="text-lg font-semibold tabular-nums text-foreground">
-                            {projectTR.toFixed(1)}
-                          </p>
-                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">TR</p>
-                        </div>
-                        <div className="bg-secondary/60 rounded-lg py-2">
-                          <p className="text-lg font-semibold tabular-nums text-foreground">
-                            {project._count?.selectedEquipment || 0}
-                          </p>
-                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Equip</p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex gap-1 border-t border-border/40 pt-3 mt-4">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openEdit(project);
-                        }}
-                      >
-                        <Pencil className="w-3.5 h-3.5 mr-1" />
-                        Edit
-                      </Button>
-                      {project.status !== 'archived' ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleArchive(project);
-                          }}
-                        >
-                          <Archive className="w-3.5 h-3.5 mr-1" />
-                          Archive
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRestore(project);
-                          }}
-                        >
-                          <RotateCcw className="w-3.5 h-3.5 mr-1" />
-                          Restore
-                        </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeleteTarget(project);
-                        }}
-                      >
-                        <Trash2 className="w-3.5 h-3.5 mr-1 text-red-500" />
-                        Delete
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            );
-          })}
-        </motion.div>
-      )}
 
       {/* Edit Project Dialog */}
       <Dialog

@@ -59,18 +59,20 @@ const REFRIGERANT_PIPE_TABLE: Record<string, { maxBTU: number; liquid: number; s
     { maxBTU: 180000, liquid: 19.05, suction: 34.93 },
     { maxBTU: 240000, liquid: 22.23, suction: 41.28 },
   ],
+  // R32 operates at lower mass flow rate than R410A (≈12% less)
+  // so suction lines can be one step smaller at equivalent capacity.
   R32: [
     { maxBTU: 9000, liquid: 6.35, suction: 9.53 },
-    { maxBTU: 12000, liquid: 6.35, suction: 12.70 },
+    { maxBTU: 12000, liquid: 6.35, suction: 9.53 },
     { maxBTU: 18000, liquid: 6.35, suction: 12.70 },
-    { maxBTU: 24000, liquid: 9.53, suction: 15.88 },
+    { maxBTU: 24000, liquid: 6.35, suction: 12.70 },
     { maxBTU: 36000, liquid: 9.53, suction: 15.88 },
-    { maxBTU: 48000, liquid: 9.53, suction: 19.05 },
-    { maxBTU: 60000, liquid: 12.70, suction: 22.23 },
-    { maxBTU: 96000, liquid: 12.70, suction: 28.58 },
-    { maxBTU: 120000, liquid: 15.88, suction: 28.58 },
-    { maxBTU: 180000, liquid: 19.05, suction: 34.93 },
-    { maxBTU: 240000, liquid: 22.23, suction: 41.28 },
+    { maxBTU: 48000, liquid: 9.53, suction: 15.88 },
+    { maxBTU: 60000, liquid: 9.53, suction: 19.05 },
+    { maxBTU: 96000, liquid: 12.70, suction: 22.23 },
+    { maxBTU: 120000, liquid: 12.70, suction: 28.58 },
+    { maxBTU: 180000, liquid: 15.88, suction: 28.58 },
+    { maxBTU: 240000, liquid: 19.05, suction: 34.93 },
   ],
   R22: [
     { maxBTU: 9000, liquid: 6.35, suction: 12.70 },
@@ -112,8 +114,17 @@ function formatPipeDiameter(od: number): string {
  * Size refrigerant piping
  */
 export function sizeRefrigerantPipe(input: RefrigerantPipeInput): RefrigerantPipeResult {
-  const table = REFRIGERANT_PIPE_TABLE[input.refrigerantType] || REFRIGERANT_PIPE_TABLE['R410A'];
   const notes: string[] = [];
+
+  // Input validation
+  if (!input.capacityBTU || input.capacityBTU <= 0) {
+    throw new Error('capacityBTU must be a positive number');
+  }
+  if (input.lineLength < 0) {
+    throw new Error('lineLength cannot be negative');
+  }
+
+  const table = REFRIGERANT_PIPE_TABLE[input.refrigerantType] || REFRIGERANT_PIPE_TABLE['R410A'];
 
   // Find matching row
   const row = table.find((r) => input.capacityBTU <= r.maxBTU)

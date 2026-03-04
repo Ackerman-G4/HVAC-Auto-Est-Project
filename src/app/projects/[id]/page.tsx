@@ -58,18 +58,24 @@ const BuildingViewer3D = dynamic(() => import('@/components/building/BuildingVie
 
 const SPACE_TYPES = [
   { value: 'office', label: 'Office' },
-  { value: 'conference_room', label: 'Conference Room' },
+  { value: 'conference', label: 'Conference Room' },
   { value: 'lobby', label: 'Lobby' },
   { value: 'retail', label: 'Retail' },
   { value: 'restaurant', label: 'Restaurant' },
   { value: 'kitchen', label: 'Kitchen' },
+  { value: 'hotel_room', label: 'Hotel Room' },
   { value: 'server_room', label: 'Server Room' },
+  { value: 'corridor', label: 'Corridor' },
+  { value: 'restroom', label: 'Restroom' },
+  { value: 'storage', label: 'Storage' },
   { value: 'residential', label: 'Residential' },
   { value: 'classroom', label: 'Classroom' },
   { value: 'hospital_ward', label: 'Hospital Ward' },
+  { value: 'operating_room', label: 'Operating Room' },
   { value: 'gym', label: 'Gym' },
   { value: 'theater', label: 'Theater' },
   { value: 'warehouse', label: 'Warehouse' },
+  { value: 'parking', label: 'Parking' },
 ];
 
 const WALL_TYPES = [
@@ -209,7 +215,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     windowOrientation: 'N',
     occupantCount: 0,
     lightingDensity: 15,
-    equipmentLoad: 10,
+    equipmentLoad: 500,
     hasRoofExposure: false,
   });
 
@@ -243,12 +249,27 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const fetchProject = () => {
     setLoading(true);
     fetch(`/api/projects/${id}`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) {
+          return r.json().then((data) => {
+            showToast('error', data.error || 'Failed to load project', data.description || '');
+            setLoading(false);
+            return null;
+          });
+        }
+        return r.json();
+      })
       .then((data) => {
-        setProject(data.project);
+        if (data && data.project) {
+          setProject(data.project);
+        }
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((err) => {
+        console.error('Fetch project error:', err);
+        showToast('error', 'Failed to load project', 'Network error or server unreachable.');
+        setLoading(false);
+      });
   };
 
   useEffect(() => {
@@ -295,13 +316,17 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           windowOrientation: 'N',
           occupantCount: 0,
           lightingDensity: 15,
-          equipmentLoad: 10,
+          equipmentLoad: 500,
           hasRoofExposure: false,
         });
         fetchProject();
+      } else {
+        const data = await res.json();
+        showToast('error', data.error || 'Failed to add room', data.description || 'Check the room parameters and try again.');
       }
-    } catch {
-      showToast('error', 'Failed to add room');
+    } catch (err) {
+      console.error('Add room error:', err);
+      showToast('error', 'Failed to add room', 'Network error or server unreachable.');
     }
   };
 
@@ -313,9 +338,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       if (res.ok) {
         showToast('success', `Calculated ${data.summary.roomCount} rooms — Total: ${data.summary.totalTR} TR`);
         fetchProject();
+      } else {
+        showToast('error', data.error || 'Calculation failed', data.description || 'The server returned an error.');
       }
-    } catch {
-      showToast('error', 'Calculation failed');
+    } catch (err) {
+      console.error('Calculate error:', err);
+      showToast('error', 'Calculation failed', 'Network error or server unreachable.');
     } finally {
       setCalculating(false);
     }
@@ -332,10 +360,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       const data = await res.json();
       if (res.ok) {
         showToast('success', `Equipment sized for ${data.results.length} rooms`);
+        setActiveTab('equipment');
         fetchProject();
+      } else {
+        showToast('error', data.error || 'Equipment sizing failed', data.description || 'The server returned an error. Make sure rooms have cooling loads calculated first.');
       }
-    } catch {
-      showToast('error', 'Equipment sizing failed');
+    } catch (err) {
+      console.error('Auto-size error:', err);
+      showToast('error', 'Equipment sizing failed', 'Network error or server unreachable.');
     } finally {
       setAutoSizing(false);
     }
@@ -350,10 +382,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         showToast('success', `BOQ generated: ${formatPHP(data.boq.grandTotal)}`);
         fetchProject();
       } else {
-        showToast('error', data.error || 'BOQ generation failed');
+        showToast('error', data.error || 'BOQ generation failed', data.description || 'Make sure equipment is selected before generating BOQ.');
       }
-    } catch {
-      showToast('error', 'BOQ generation failed');
+    } catch (err) {
+      console.error('BOQ error:', err);
+      showToast('error', 'BOQ generation failed', 'Network error or server unreachable.');
     } finally {
       setGeneratingBOQ(false);
     }
@@ -424,10 +457,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
         <StatCard title="Rooms" value={allRooms.length} icon={MapPin} />
         <StatCard title="Total TR" value={totalTR.toFixed(1)} icon={Thermometer} />
         <StatCard title="Total Area" value={`${totalArea.toFixed(0)} m²`} icon={Building2} />
+        <StatCard title="Equipment" value={formatPHP(equipmentCost)} icon={Package} />
         <StatCard title="BOQ Total" value={formatPHP(boqTotal)} icon={FileText} />
       </div>
 
@@ -601,7 +635,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                         <Select label="Window Orientation" value={strVal(roomForm.windowOrientation)} onChange={(e) => setRoomForm({ ...roomForm, windowOrientation: e.target.value })} options={ORIENTATIONS} />
                         <Input label="Occupants" type="number" min={0} value={numVal(roomForm.occupantCount) || ''} onChange={(e) => handleRoomNumChange('occupantCount', e.target.value)} onBlur={() => handleRoomNumBlur('occupantCount', 0)} />
                         <Input label="Lighting (W/m²)" type="number" step={0.1} value={numVal(roomForm.lightingDensity) || ''} onChange={(e) => handleRoomNumChange('lightingDensity', e.target.value)} onBlur={() => handleRoomNumBlur('lightingDensity', 15)} />
-                        <Input label="Equipment (W/m²)" type="number" step={0.1} value={numVal(roomForm.equipmentLoad) || ''} onChange={(e) => handleRoomNumChange('equipmentLoad', e.target.value)} onBlur={() => handleRoomNumBlur('equipmentLoad', 10)} />
+                        <Input label="Equipment Load (W)" type="number" step={1} value={numVal(roomForm.equipmentLoad) || ''} onChange={(e) => handleRoomNumChange('equipmentLoad', e.target.value)} onBlur={() => handleRoomNumBlur('equipmentLoad', 0)} />
                         <div className="flex items-end">
                           <label className="flex items-center gap-2 text-sm">
                             <input
@@ -694,11 +728,24 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                   project.indoorDB,
                                   project.indoorRH
                                 );
-                                // Find matching catalog units
-                                const matchedUnits = EQUIPMENT_CATALOG
-                                  .filter((eq) => eq.capacityTR >= rec.adjustedTR * 0.85 && eq.capacityTR <= rec.adjustedTR * 1.5)
-                                  .sort((a, b) => Math.abs(a.capacityTR - rec.adjustedTR) - Math.abs(b.capacityTR - rec.adjustedTR))
+
+                                // Find matching catalog units — if TR is large, find the best single
+                                // unit and show how many are needed to cover the load.
+                                const maxCatalogTR = Math.max(...EQUIPMENT_CATALOG.map((e) => e.capacityTR));
+                                const needsMultiple = rec.adjustedTR > maxCatalogTR;
+                                const targetTR = needsMultiple ? maxCatalogTR : rec.adjustedTR;
+
+                                let matchedUnits = EQUIPMENT_CATALOG
+                                  .filter((eq) => eq.capacityTR >= targetTR * 0.85 && eq.capacityTR <= targetTR * 1.5)
+                                  .sort((a, b) => Math.abs(a.capacityTR - targetTR) - Math.abs(b.capacityTR - targetTR))
                                   .slice(0, 4);
+
+                                // Fallback: if still no match, show the closest units by capacity
+                                if (matchedUnits.length === 0) {
+                                  matchedUnits = [...EQUIPMENT_CATALOG]
+                                    .sort((a, b) => Math.abs(a.capacityTR - rec.adjustedTR) - Math.abs(b.capacityTR - rec.adjustedTR))
+                                    .slice(0, 4);
+                                }
 
                                 return (
                                   <div className="mt-4 pt-4 border-t border-border/50">
@@ -724,22 +771,26 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                     </p>
                                     {matchedUnits.length > 0 && (
                                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                                        {matchedUnits.map((unit, idx) => (
-                                          <div
-                                            key={idx}
-                                            className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded bg-secondary/60 text-xs"
-                                          >
-                                            <div className="flex-1 min-w-0">
-                                              <span className="font-medium">{unit.manufacturer}</span>
-                                              <span className="text-muted-foreground ml-1">{unit.model}</span>
+                                        {matchedUnits.map((unit, idx) => {
+                                          const qty = needsMultiple ? Math.ceil(rec.adjustedTR / unit.capacityTR) : 1;
+                                          return (
+                                            <div
+                                              key={idx}
+                                              className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded bg-secondary/60 text-xs"
+                                            >
+                                              <div className="flex-1 min-w-0">
+                                                <span className="font-medium">{unit.manufacturer}</span>
+                                                <span className="text-muted-foreground ml-1">{unit.model}</span>
+                                              </div>
+                                              <div className="flex items-center gap-2 text-right shrink-0">
+                                                <span className="tabular-nums font-medium">{unit.capacityTR} TR</span>
+                                                {qty > 1 && <span className="tabular-nums text-accent font-semibold">×{qty}</span>}
+                                                <span className="tabular-nums text-muted-foreground">EER {unit.eer}</span>
+                                                <span className="tabular-nums text-muted-foreground">{formatPHP(unit.unitPricePHP * qty)}</span>
+                                              </div>
                                             </div>
-                                            <div className="flex items-center gap-2 text-right shrink-0">
-                                              <span className="tabular-nums font-medium">{unit.capacityTR} TR</span>
-                                              <span className="tabular-nums text-muted-foreground">EER {unit.eer}</span>
-                                              <span className="tabular-nums text-muted-foreground">{formatPHP(unit.unitPricePHP)}</span>
-                                            </div>
-                                          </div>
-                                        ))}
+                                          );
+                                        })}
                                       </div>
                                     )}
                                   </div>

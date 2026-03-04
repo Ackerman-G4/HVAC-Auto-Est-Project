@@ -459,6 +459,7 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
               <button
                 onClick={() => setZoom(z => Math.max(0.5, z - 0.1))}
                 className="p-1.5 rounded-md text-muted-foreground hover:bg-secondary transition-colors"
+                title="Zoom out"
               >
                 <ZoomOut className="w-4 h-4" />
               </button>
@@ -468,6 +469,7 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
               <button
                 onClick={() => setZoom(z => Math.min(2, z + 0.1))}
                 className="p-1.5 rounded-md text-muted-foreground hover:bg-secondary transition-colors"
+                title="Zoom in"
               >
                 <ZoomIn className="w-4 h-4" />
               </button>
@@ -483,7 +485,7 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
 
           {/* Canvas area */}
           <Card padding="none" className="print-full">
-            <div ref={containerRef} className="w-full h-[500px] relative">
+            <div ref={containerRef} className="w-full h-125 relative">
               <canvas ref={canvasRef} className="w-full h-full" />
             </div>
           </Card>

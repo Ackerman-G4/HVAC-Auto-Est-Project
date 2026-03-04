@@ -133,32 +133,9 @@ export function formatSqFtSqM(sqft: number, decimals = 1): string {
 }
 
 // ── Quick TR Estimate ───────────────────────────────────────
-// Quick TR estimate for Philippine conditions
-export function quickTREstimate(areaSqm: number, spaceType: string): number {
-  const factors: Record<string, number> = {
-    office: 180,
-    conference: 160,
-    lobby: 200,
-    retail: 160,
-    restaurant: 140,
-    kitchen: 100,
-    hotel_room: 200,
-    server_room: 60,
-    corridor: 300,
-    restroom: 250,
-    storage: 350,
-    residential: 200,
-    classroom: 160,
-    hospital_ward: 170,
-    operating_room: 100,
-    parking: 500,
-  };
-  
-  // Factor = sq.ft per TR (lower = more cooling needed)
-  const factor = factors[spaceType] || 200;
-  const areaSqft = sqmToSqft(areaSqm);
-  return areaSqft / factor;
-}
+// Re-exported from the canonical source in equipment-sizing.ts
+// to avoid duplicate implementations with different constants.
+export { quickEstimateTR as quickTREstimate } from '@/lib/functions/equipment-sizing';
 
 /**
  * Quick BTU estimate per CSV methodology.

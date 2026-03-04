@@ -384,6 +384,8 @@ export default function ReportsPage() {
 
   const totalCoolingLoad = rooms.reduce((sum, r) => sum + (r.coolingLoad?.totalLoad || 0), 0);
   const totalTR = totalCoolingLoad / 3517;
+  const selectedProject = projects.find((p) => p.id === selectedProjectId) || null;
+  const boqSectionCount = boqData ? new Set(boqData.items.map((item) => item.section || 'Other')).size : 0;
 
   if (loading) {
     return (
@@ -428,61 +430,79 @@ export default function ReportsPage() {
         }
       />
 
-      {/* Project selector */}
-      <Card className="mb-6">
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
-            <div className="flex-1 w-full">
-              <Select
-                label="Select Project"
-                value={selectedProjectId}
-                onChange={(e) => setSelectedProjectId(e.target.value)}
-                options={[
-                  { value: '', label: 'Choose a project...' },
-                  ...projects.map((p) => ({
-                    value: p.id,
-                    label: `${p.name} — ${p.buildingType} (${p.totalFloorArea} m²)`,
-                  })),
-                ]}
-              />
+      <Card className="mb-6 border-accent/20 bg-linear-to-r from-accent/10 via-primary/5 to-secondary/40">
+        <CardContent className="py-4">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Reporting Workspace</p>
+              <p className="text-sm font-medium text-foreground mt-0.5">
+                Consolidate project costs, cooling loads, and BOQ details into export-ready documents.
+              </p>
             </div>
-            {selectedProjectId && (
-              <Button variant="secondary" size="sm" onClick={() => window.print()}>
-                <Printer className="w-4 h-4 mr-1" /> Print
-              </Button>
-            )}
+            <div className="text-xs text-muted-foreground tabular-nums">
+              {selectedProject ? `Active: ${selectedProject.name}` : `${projects.length} projects available`}
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {!selectedProjectId && (
-        <EmptyState
-          icon={<FolderOpen className="w-12 h-12" />}
-          title="Select a Project"
-          description="Choose a project to generate reports and export data"
-        />
-      )}
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+        <div className="xl:col-span-3">
+          {/* Project selector */}
+          <Card className="mb-6">
+            <CardContent className="p-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
+                <div className="flex-1 w-full">
+                  <Select
+                    label="Select Project"
+                    value={selectedProjectId}
+                    onChange={(e) => setSelectedProjectId(e.target.value)}
+                    options={[
+                      { value: '', label: 'Choose a project...' },
+                      ...projects.map((p) => ({
+                        value: p.id,
+                        label: `${p.name} — ${p.buildingType} (${p.totalFloorArea} m²)`,
+                      })),
+                    ]}
+                  />
+                </div>
+                {selectedProjectId && (
+                  <Button variant="secondary" size="sm" onClick={() => window.print()}>
+                    <Printer className="w-4 h-4 mr-1" /> Print
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
-      {generating && (
-        <div className="flex items-center justify-center h-40">
-          <Loader2 className="w-6 h-6 animate-spin text-accent mr-2" />
-          <span className="text-muted-foreground">Generating report...</span>
-        </div>
-      )}
+          {!selectedProjectId && (
+            <EmptyState
+              icon={<FolderOpen className="w-12 h-12" />}
+              title="Select a Project"
+              description="Choose a project to generate reports and export data"
+            />
+          )}
 
-      {boqData && !generating && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="space-y-6"
-        >
+          {generating && (
+            <div className="flex items-center justify-center h-40">
+              <Loader2 className="w-6 h-6 animate-spin text-accent mr-2" />
+              <span className="text-muted-foreground">Generating report...</span>
+            </div>
+          )}
+
+          {boqData && !generating && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-6"
+            >
           {/* Summary Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <Card padding="none">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-accent/8 flex items-center justify-center flex-shrink-0">
-                    <PhilippinePeso className="w-[18px] h-[18px] text-accent" />
+                  <div className="w-10 h-10 rounded-lg bg-accent/8 flex items-center justify-center shrink-0">
+                    <PhilippinePeso className="w-4.5 h-4.5 text-accent" />
                   </div>
                   <div className="min-w-0">
                     <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Grand Total</p>
@@ -494,8 +514,8 @@ export default function ReportsPage() {
             <Card padding="none">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
-                    <Snowflake className="w-[18px] h-[18px] text-muted-foreground" />
+                  <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+                    <Snowflake className="w-4.5 h-4.5 text-muted-foreground" />
                   </div>
                   <div className="min-w-0">
                     <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Cooling Load</p>
@@ -508,8 +528,8 @@ export default function ReportsPage() {
             <Card padding="none">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
-                    <Building2 className="w-[18px] h-[18px] text-muted-foreground" />
+                  <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+                    <Building2 className="w-4.5 h-4.5 text-muted-foreground" />
                   </div>
                   <div className="min-w-0">
                     <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Rooms</p>
@@ -521,8 +541,8 @@ export default function ReportsPage() {
             <Card padding="none">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
-                    <BarChart3 className="w-[18px] h-[18px] text-muted-foreground" />
+                  <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+                    <BarChart3 className="w-4.5 h-4.5 text-muted-foreground" />
                   </div>
                   <div className="min-w-0">
                     <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Cost / TR</p>
@@ -778,8 +798,62 @@ export default function ReportsPage() {
               </CardContent>
             </Card>
           )}
-        </motion.div>
-      )}
+            </motion.div>
+          )}
+        </div>
+
+        <div className="space-y-5">
+          <Card className="border-accent/20 bg-accent/5">
+            <CardHeader>
+              <CardTitle className="text-[13px] flex items-center gap-2">
+                <Info className="w-4 h-4 text-accent" /> Report Snapshot
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="rounded-lg border border-border/70 bg-card p-3">
+                <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Selected Project</p>
+                <p className="text-sm font-semibold truncate">{selectedProject?.name || 'None'}</p>
+              </div>
+              <div className="rounded-lg border border-border/70 bg-card p-3">
+                <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">BOQ Sections</p>
+                <p className="text-2xl font-semibold tabular-nums">{boqData ? boqSectionCount : '—'}</p>
+              </div>
+              <div className="rounded-lg border border-border/70 bg-card p-3">
+                <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Equipment Lines</p>
+                <p className="text-2xl font-semibold tabular-nums">{boqData ? equipment.length : '—'}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-[13px]">Export Readiness</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-[12px]">
+              <div className="flex items-center justify-between rounded-lg bg-secondary/50 px-3 py-2">
+                <span className="flex items-center gap-2 text-muted-foreground"><CheckCircle2 className="w-3.5 h-3.5 text-success" /> BOQ Data</span>
+                <span className="font-medium">{boqData ? 'Ready' : 'Pending'}</span>
+              </div>
+              <div className="flex items-center justify-between rounded-lg bg-secondary/50 px-3 py-2">
+                <span className="flex items-center gap-2 text-muted-foreground"><CheckCircle2 className="w-3.5 h-3.5 text-success" /> Room Loads</span>
+                <span className="font-medium">{rooms.length > 0 ? 'Ready' : 'Pending'}</span>
+              </div>
+              <div className="flex items-center justify-between rounded-lg bg-secondary/50 px-3 py-2">
+                <span className="flex items-center gap-2 text-muted-foreground"><CheckCircle2 className="w-3.5 h-3.5 text-success" /> Equipment</span>
+                <span className="font-medium">{equipment.length > 0 ? 'Ready' : 'Pending'}</span>
+              </div>
+              <div className="pt-2 border-t border-border/60">
+                <Button variant="secondary" size="sm" className="w-full" disabled={!boqData || generating} onClick={exportExcel}>
+                  <FileSpreadsheet className="w-4 h-4 mr-1" /> Export Excel
+                </Button>
+                <Button variant="accent" size="sm" className="w-full mt-2" disabled={!boqData || generating} onClick={exportPDF}>
+                  <Download className="w-4 h-4 mr-1" /> Export PDF
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </PageWrapper>
   );
 }

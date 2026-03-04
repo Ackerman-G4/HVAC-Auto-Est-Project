@@ -34,7 +34,7 @@ export interface CoolingLoadResult {
   // Meta
   safetyFactor: number;
   diversityFactor: number;
-  calculationMethod: 'CLTD_CLF' | 'RTS' | 'CARRIER_HAP' | 'manual';
+  calculationMethod: 'CLTD_CLF' | 'RTS' | 'CARRIER_HAP' | 'AREA_RULE_OF_THUMB' | 'manual';
   timestamp: string;
 }
 
