@@ -66,6 +66,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         name: body.name || 'New Room',
         spaceType: body.spaceType || 'office',
         area: body.area || 0,
+        perimeter: body.perimeter || (body.area > 0 ? Math.sqrt(body.area) * 4 : 0),
         ceilingHeight: body.ceilingHeight || floor.ceilingHeight,
         wallConstruction: body.wallConstruction || 'concrete_block_200mm',
         windowType: body.windowType || 'single_clear_6mm',
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     // Calculate cooling load if sufficient data
     if (room.area > 0) {
-      const perimeter = Math.sqrt(room.area) * 4; // approximate
+      const perimeter = room.perimeter > 0 ? room.perimeter : Math.sqrt(room.area) * 4;
       const wallArea = perimeter * room.ceilingHeight - room.windowArea;
 
       const loadInput: CoolingLoadInput = {

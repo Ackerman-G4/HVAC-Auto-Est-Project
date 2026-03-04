@@ -61,7 +61,7 @@ export default function ProjectsPage() {
     floorsAboveGrade: 1,
     floorsBelowGrade: 0,
     outdoorDB: 35,
-    outdoorRH: 65,
+    outdoorRH: 50,
     indoorDB: 24,
     indoorRH: 50,
     safetyFactor: 1.1,
@@ -109,7 +109,7 @@ export default function ProjectsPage() {
           floorsAboveGrade: p.floorsAboveGrade || 1,
           floorsBelowGrade: p.floorsBelowGrade || 0,
           outdoorDB: p.outdoorDB || 35,
-          outdoorRH: p.outdoorRH || 65,
+          outdoorRH: p.outdoorRH || 50,
           indoorDB: p.indoorDB || 24,
           indoorRH: p.indoorRH || 50,
           safetyFactor: p.safetyFactor || 1.1,
@@ -514,12 +514,12 @@ export default function ProjectsPage() {
                 max={100}
                 value={editForm.outdoorRH}
                 onChange={(e) => handleEditNumChange('outdoorRH', e.target.value)}
-                onBlur={() => handleEditNumBlur('outdoorRH', 65)}
+                onBlur={() => handleEditNumBlur('outdoorRH', 50)}
               />
             </div>
             {/* Psychrometric Summary — auto-computed */}
             {(() => {
-              const ps = psychrometricState(Number(editForm.outdoorDB) || 35, Number(editForm.outdoorRH) || 65);
+              const ps = psychrometricState(Number(editForm.outdoorDB) || 35, Number(editForm.outdoorRH) || 50);
               return (
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg py-1.5 px-1">

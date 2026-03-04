@@ -24,7 +24,7 @@ model Project {
   floorsBelowGrade     Int      @default(0)
   outdoorDB            Float    @default(35)
   outdoorWB            Float    @default(28)
-  outdoorRH            Float    @default(65)
+  outdoorRH            Float    @default(50)
   indoorDB             Float    @default(24)
   indoorRH             Float    @default(50)
   designConditions     String   @default("{}") // JSON

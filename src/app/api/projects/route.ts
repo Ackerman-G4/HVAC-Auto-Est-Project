@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
 
     // Auto-compute wet-bulb from dry-bulb + RH via Carrier psychrometric chart
     const finalDB = outdoorDB || 35;
-    const finalRH = outdoorRH || 65;
+    const finalRH = outdoorRH || 50;
     const computedWB = outdoorWB || Math.round(calcWetBulb(finalDB, finalRH) * 100) / 100;
 
     const project = await prisma.project.create({

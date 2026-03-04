@@ -283,5 +283,5 @@ export function quickEstimateTR(
     tr *= ceilingHeight / 2.7;
   }
 
-  return Math.round(tr * 100) / 100;
+  return tr;
 }

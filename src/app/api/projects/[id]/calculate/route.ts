@@ -37,7 +37,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       for (const room of floor.rooms) {
         if (room.area <= 0) continue;
 
-        const perimeter = Math.sqrt(room.area) * 4;
+        const perimeter = room.perimeter > 0 ? room.perimeter : Math.sqrt(room.area) * 4;
         const wallArea = perimeter * room.ceilingHeight - room.windowArea;
 
         const loadInput: CoolingLoadInput = {
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         entityId: projectId,
         details: JSON.stringify({
           roomCount: results.length,
-          totalTR: Math.round(totalProjectTR * 100) / 100,
+          totalTR: totalProjectTR,
         }),
       },
     });
@@ -142,9 +142,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
       results,
       summary: {
         roomCount: results.length,
-        totalLoadWatts: Math.round(totalProjectLoad),
-        totalTR: Math.round(totalProjectTR * 100) / 100,
-        totalBTU: Math.round(totalProjectLoad * 3.412),
+        totalLoadWatts: totalProjectLoad,
+        totalTR: totalProjectTR,
+        totalBTU: totalProjectLoad * 3.412,
       },
     });
   } catch (error) {

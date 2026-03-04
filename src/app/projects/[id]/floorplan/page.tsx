@@ -539,7 +539,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
           body: JSON.stringify({
             name: room.name,
             spaceType: room.spaceType,
-            area: Math.round(areaSqM * 100) / 100,
+            area: areaSqM,
             floorNumber: floors[activeFloor]?.floorNumber || 1,
             ceilingHeight: 2.7,
             occupantCount: Math.max(1, Math.round(areaSqM / 10)),

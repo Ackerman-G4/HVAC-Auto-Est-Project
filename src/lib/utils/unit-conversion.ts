@@ -208,13 +208,13 @@ export function quickBTUEstimate(input: {
   const requiredKW = requiredTR * 3.517;
 
   return {
-    roomBTU: Math.round(roomBTU),
-    windowBTU: Math.round(windowBTU),
-    occupantBTU: Math.round(occupantBTU),
-    equipmentBTU: Math.round(equipmentBTU),
-    lightingBTU: Math.round(lightingBTU),
-    totalBTU: Math.round(totalBTU),
-    requiredTR: Math.round(requiredTR * 100) / 100,
-    requiredKW: Math.round(requiredKW * 100) / 100,
+    roomBTU,
+    windowBTU,
+    occupantBTU,
+    equipmentBTU,
+    lightingBTU,
+    totalBTU,
+    requiredTR,
+    requiredKW,
   };
 }

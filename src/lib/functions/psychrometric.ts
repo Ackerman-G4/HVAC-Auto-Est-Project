@@ -329,14 +329,14 @@ export function psychrometricACRecommendation(
   }
 
   return {
-    requiredTR: round(roomTR, 2),
-    requiredBTU: Math.round(roomTR * 12000),
-    requiredKW: round(roomTR * 3.517, 2),
+    requiredTR: roomTR,
+    requiredBTU: roomTR * 12000,
+    requiredKW: roomTR * 3.517,
     recommendedType: recType,
     recommendedMinEER: minEER,
     conditionsSeverity: severity,
-    deratingFactor: round(derating, 3),
-    adjustedTR: round(adjustedTR, 2),
+    deratingFactor: derating,
+    adjustedTR: adjustedTR,
     outdoorState,
     indoorState,
     notes,

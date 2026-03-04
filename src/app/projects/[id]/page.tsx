@@ -17,6 +17,10 @@ import {
   ArrowLeft,
   Play,
   Zap,
+  Box,
+  Download,
+  FileSpreadsheet,
+  FileDown,
 } from 'lucide-react';
 import { PageWrapper, PageHeader } from '@/components/ui/page-wrapper';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
@@ -37,6 +41,20 @@ import { psychrometricState, psychrometricACRecommendation } from '@/lib/functio
 import { EQUIPMENT_CATALOG } from '@/constants/equipment-catalog';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { exportProjectPDF, exportProjectDXF, exportProjectCSV, exportProjectExcel } from '@/lib/utils/project-export';
+import dynamic from 'next/dynamic';
+
+const BuildingViewer3D = dynamic(() => import('@/components/building/BuildingViewer3D'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center h-[500px] border border-border rounded-xl bg-secondary/30">
+      <div className="text-center text-muted-foreground">
+        <div className="animate-spin w-8 h-8 border-2 border-accent border-t-transparent rounded-full mx-auto mb-3" />
+        <p className="text-sm">Loading 3D viewer...</p>
+      </div>
+    </div>
+  ),
+});
 
 const SPACE_TYPES = [
   { value: 'office', label: 'Office' },
@@ -107,6 +125,7 @@ interface ProjectData {
       name: string;
       spaceType: string;
       area: number;
+      perimeter: number;
       ceilingHeight: number;
       wallConstruction: string;
       windowType: string;
@@ -250,9 +269,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...roomForm,
-          area: Math.round(finalArea * 100) / 100,
-          windowArea: Math.round(finalWindowArea * 100) / 100,
-          perimeter: effectivePerimeterM > 0 ? Math.round(effectivePerimeterM * 100) / 100 : undefined,
+          area: finalArea,
+          windowArea: finalWindowArea,
+          perimeter: effectivePerimeterM > 0 ? effectivePerimeterM : undefined,
         }),
       });
       if (res.ok) {
@@ -374,8 +393,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   const tabs = [
     { id: 'rooms', label: 'Rooms & Loads', icon: <Thermometer className="w-4 h-4" /> },
+    { id: '3d', label: '3D View', icon: <Box className="w-4 h-4" /> },
     { id: 'equipment', label: 'Equipment', icon: <Package className="w-4 h-4" /> },
     { id: 'boq', label: 'BOQ', icon: <FileText className="w-4 h-4" /> },
+    { id: 'export', label: 'Export', icon: <Download className="w-4 h-4" /> },
   ];
 
   return (
@@ -412,7 +433,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
       {/* Psychrometric Conditions Panel — Carrier Chart */}
       {(() => {
-        const outdoorPS = psychrometricState(project.outdoorDB, project.outdoorRH || 65);
+        const outdoorPS = psychrometricState(project.outdoorDB, project.outdoorRH || 50);
         const indoorPS = psychrometricState(project.indoorDB, project.indoorRH);
         return (
           <Card className="mb-6">
@@ -616,39 +637,48 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 }
               />
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-6">
                 {project.floors.map((floor) => (
-                  <div key={floor.id}>
-                    <h4 className="text-sm font-semibold text-muted-foreground mb-2">
-                      {floor.name} (Floor {floor.floorNumber})
-                    </h4>
-                    <motion.div variants={listContainerVariants} initial="hidden" animate="visible" className="space-y-2">
+                  <div key={floor.id} className="border border-border rounded-xl bg-card/50 p-4">
+                    <div className="flex items-center gap-2 mb-4 pb-3 border-b border-border/60">
+                      <Building2 className="w-5 h-5 text-accent" />
+                      <h4 className="text-base font-bold text-foreground">
+                        {floor.name}
+                      </h4>
+                      <Badge size="sm" variant="default">Floor {floor.floorNumber}</Badge>
+                      <span className="text-sm text-muted-foreground ml-auto">{floor.rooms.length} room{floor.rooms.length !== 1 ? 's' : ''}</span>
+                    </div>
+                    <motion.div variants={listContainerVariants} initial="hidden" animate="visible" className="space-y-3">
                       {floor.rooms.map((room) => (
                         <motion.div key={room.id} variants={listItemVariants}>
-                          <Card>
-                            <CardContent className="p-4">
-                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <h4 className="font-medium">{room.name}</h4>
-                                    <Badge size="sm">{room.spaceType}</Badge>
+                          <Card className="border border-border/80 shadow-sm">
+                            <CardContent className="p-5">
+                              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <MapPin className="w-4 h-4 text-muted-foreground shrink-0" />
+                                    <h4 className="text-base font-semibold text-foreground">{room.name}</h4>
+                                    <Badge size="sm">{room.spaceType.replace(/_/g, ' ')}</Badge>
                                   </div>
-                                  <p className="text-sm text-muted-foreground mt-1">
-                                    {room.area} m² ({sqmToSqft(room.area).toFixed(0)} ft²) · {room.ceilingHeight}m ceil ({metersToFeet(room.ceilingHeight).toFixed(1)} ft) · {room.occupantCount} people · {room.windowOrientation}
-                                  </p>
+                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1 mt-2 text-sm">
+                                    <span className="text-muted-foreground">Area: <span className="text-foreground font-medium">{room.area} m² ({sqmToSqft(room.area).toFixed(0)} ft²)</span></span>
+                                    <span className="text-muted-foreground">Ceiling: <span className="text-foreground font-medium">{room.ceilingHeight}m ({metersToFeet(room.ceilingHeight).toFixed(1)} ft)</span></span>
+                                    <span className="text-muted-foreground">Occupants: <span className="text-foreground font-medium">{room.occupantCount}</span></span>
+                                    <span className="text-muted-foreground">Orientation: <span className="text-foreground font-medium">{room.windowOrientation}</span></span>
+                                  </div>
                                 </div>
                                 {room.coolingLoad && (
-                                  <div className="flex gap-4 text-right">
-                                    <div>
-                                      <p className="text-lg font-bold text-foreground">{room.coolingLoad.trValue} TR</p>
+                                  <div className="flex gap-5 text-right shrink-0">
+                                    <div className="px-3 py-1.5 rounded-lg bg-accent/10 border border-accent/20">
+                                      <p className="text-lg font-bold text-accent">{room.coolingLoad.trValue} TR</p>
                                       <p className="text-xs text-muted-foreground">{(room.coolingLoad.btuPerHour || 0).toLocaleString()} BTU/h</p>
                                     </div>
-                                    <div>
-                                      <p className="text-sm font-medium">{room.coolingLoad.cfmSupply} CFM</p>
+                                    <div className="px-3 py-1.5">
+                                      <p className="text-base font-semibold">{room.coolingLoad.cfmSupply} CFM</p>
                                       <p className="text-xs text-muted-foreground">Supply Air</p>
                                     </div>
-                                    <div>
-                                      <p className="text-sm font-medium">{(room.coolingLoad.totalLoad / room.area).toFixed(0)} W/m²</p>
+                                    <div className="px-3 py-1.5">
+                                      <p className="text-base font-semibold">{(room.coolingLoad.totalLoad / room.area).toFixed(0)} W/m²</p>
                                       <p className="text-xs text-muted-foreground">Load Density</p>
                                     </div>
                                   </div>
@@ -660,7 +690,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                   room.coolingLoad.totalLoad,
                                   room.coolingLoad.trValue,
                                   project.outdoorDB,
-                                  project.outdoorRH || 65,
+                                  project.outdoorRH || 50,
                                   project.indoorDB,
                                   project.indoorRH
                                 );
@@ -671,7 +701,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                   .slice(0, 4);
 
                                 return (
-                                  <div className="mt-3 pt-3 border-t border-border/40">
+                                  <div className="mt-4 pt-4 border-t border-border/50">
                                     <div className="flex items-center gap-2 mb-2">
                                       <Zap className="w-3.5 h-3.5 text-amber-500" />
                                       <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -726,6 +756,18 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             )}
           </div>
         )}
+
+        {/* 3D Visualization Tab */}
+        <div className={activeTab === '3d' ? 'block' : 'hidden'}>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold">3D Building Visualization</h3>
+          </div>
+          <BuildingViewer3D
+            floors={project.floors}
+            buildingType={project.buildingType}
+            projectName={project.name}
+          />
+        </div>
 
         {/* Equipment Tab */}
         {activeTab === 'equipment' && (
@@ -846,6 +888,73 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 </table>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Export Tab */}
+        {activeTab === 'export' && (
+          <div>
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold mb-1">Export Project</h3>
+              <p className="text-sm text-muted-foreground">Download project data in various formats for documentation, CAD, or spreadsheet analysis.</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* PDF Report */}
+              <Card className="border border-border hover:border-accent/50 transition-colors cursor-pointer" hover onClick={() => {
+                exportProjectPDF(project);
+                showToast('success', 'PDF report downloaded');
+              }}>
+                <CardContent className="p-5 text-center">
+                  <div className="w-12 h-12 rounded-xl bg-red-100 dark:bg-red-950/40 flex items-center justify-center mx-auto mb-3">
+                    <FileText className="w-6 h-6 text-red-600 dark:text-red-400" />
+                  </div>
+                  <h4 className="font-semibold mb-1">PDF Report</h4>
+                  <p className="text-xs text-muted-foreground">Full project report with cooling loads, equipment, and BOQ</p>
+                </CardContent>
+              </Card>
+
+              {/* DXF / CAD */}
+              <Card className="border border-border hover:border-accent/50 transition-colors cursor-pointer" hover onClick={() => {
+                exportProjectDXF(project);
+                showToast('success', 'DXF file downloaded — open in AutoCAD or BricsCAD');
+              }}>
+                <CardContent className="p-5 text-center">
+                  <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-950/40 flex items-center justify-center mx-auto mb-3">
+                    <FileDown className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <h4 className="font-semibold mb-1">CAD Export (DXF)</h4>
+                  <p className="text-xs text-muted-foreground">AutoCAD-compatible floor plans with room labels and loads</p>
+                </CardContent>
+              </Card>
+
+              {/* Excel */}
+              <Card className="border border-border hover:border-accent/50 transition-colors cursor-pointer" hover onClick={async () => {
+                await exportProjectExcel(project);
+                showToast('success', 'Excel workbook downloaded');
+              }}>
+                <CardContent className="p-5 text-center">
+                  <div className="w-12 h-12 rounded-xl bg-green-100 dark:bg-green-950/40 flex items-center justify-center mx-auto mb-3">
+                    <FileSpreadsheet className="w-6 h-6 text-green-600 dark:text-green-400" />
+                  </div>
+                  <h4 className="font-semibold mb-1">Excel Workbook</h4>
+                  <p className="text-xs text-muted-foreground">Multi-sheet workbook with loads, equipment, and BOQ</p>
+                </CardContent>
+              </Card>
+
+              {/* CSV */}
+              <Card className="border border-border hover:border-accent/50 transition-colors cursor-pointer" hover onClick={() => {
+                exportProjectCSV(project);
+                showToast('success', 'CSV file downloaded');
+              }}>
+                <CardContent className="p-5 text-center">
+                  <div className="w-12 h-12 rounded-xl bg-amber-100 dark:bg-amber-950/40 flex items-center justify-center mx-auto mb-3">
+                    <FileText className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <h4 className="font-semibold mb-1">CSV Data</h4>
+                  <p className="text-xs text-muted-foreground">Cooling load data in CSV format for custom analysis</p>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         )}
       </div>

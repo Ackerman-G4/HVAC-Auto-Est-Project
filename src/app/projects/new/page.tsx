@@ -37,7 +37,7 @@ export default function NewProjectPage() {
     floorsAboveGrade: 1,
     floorsBelowGrade: 0,
     outdoorDB: 35,
-    outdoorRH: 65,
+    outdoorRH: 50,
     indoorDB: 24,
     indoorRH: 50,
     notes: '',
@@ -199,12 +199,12 @@ export default function NewProjectPage() {
                   max={100}
                   value={form.outdoorRH}
                   onChange={(e) => handleNumChange('outdoorRH', e.target.value)}
-                  onBlur={() => handleNumBlur('outdoorRH', 65)}
+                  onBlur={() => handleNumBlur('outdoorRH', 50)}
                 />
               </div>
               {/* Live Psychrometric Summary */}
               {(() => {
-                const ps = psychrometricState(Number(form.outdoorDB) || 35, Number(form.outdoorRH) || 65);
+                const ps = psychrometricState(Number(form.outdoorDB) || 35, Number(form.outdoorRH) || 50);
                 return (
                   <div className="grid grid-cols-3 gap-2 text-center">
                     <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg py-1.5 px-1">

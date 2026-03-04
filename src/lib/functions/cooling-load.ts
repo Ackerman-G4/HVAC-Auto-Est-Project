@@ -81,11 +81,11 @@ export function calculateCarrierHAP(input: CarrierHAPInput): CarrierHAPResult {
   const TR = Q_kW / 3.517;
 
   return {
-    heatTransferKW: Math.round(Q_kW * 1000) / 1000,
-    heatTransferW: Math.round(Q_W),
-    heatTransferBTU: Math.round(Q_BTU),
-    requiredTR: Math.round(TR * 100) / 100,
-    requiredKW: Math.round(Q_kW * 100) / 100,
+    heatTransferKW: Q_kW,
+    heatTransferW: Q_W,
+    heatTransferBTU: Q_BTU,
+    requiredTR: TR,
+    requiredKW: Q_kW,
     massFlowRate: input.massFlowRate,
     specificHeat: Cp,
     deltaT: input.deltaT,
@@ -266,7 +266,7 @@ function calculateVentilationLoad(input: CoolingLoadInput): { sensible: number; 
   
   // Humidity ratio difference via Carrier psychrometric chart
   // Uses actual outdoor RH & indoor RH instead of hardcoded values
-  const outdoorRH = input.outdoorRH ?? 65;
+  const outdoorRH = input.outdoorRH ?? 50;
   const deltaW = deltaHumidityRatio(input.outdoorDB, outdoorRH, input.indoorDB, input.indoorRH);
   
   // Sensible: Q = 1.08 × CFM × ΔT (BTU/h) → convert to Watts
@@ -293,7 +293,7 @@ function calculateInfiltrationLoad(input: CoolingLoadInput): { sensible: number;
   const deltaT = celsiusToFahrenheit(input.outdoorDB) - celsiusToFahrenheit(input.indoorDB);
   
   // Humidity ratio difference via Carrier psychrometric chart
-  const outdoorRH = input.outdoorRH ?? 65;
+  const outdoorRH = input.outdoorRH ?? 50;
   const deltaW = deltaHumidityRatio(input.outdoorDB, outdoorRH, input.indoorDB, input.indoorRH);
   
   const sensibleBTU = 1.08 * infiltrationCFM * deltaT;
@@ -363,27 +363,27 @@ export function calculateCoolingLoad(input: CoolingLoadInput, roomId: string, ro
   return {
     roomId,
     roomName,
-    wallLoad: Math.round(wallLoad),
-    roofLoad: Math.round(roofLoad),
-    glassSolarLoad: Math.round(glassSolarLoad),
-    glassConductionLoad: Math.round(glassConductionLoad),
-    lightingLoad: Math.round(lightingLoad),
-    peopleLoadSensible: Math.round(peopleLoad.sensible),
-    peopleLoadLatent: Math.round(peopleLoad.latent),
-    equipmentLoadSensible: Math.round(equipmentLoadSensible),
-    infiltrationLoadSensible: Math.round(infiltrationLoad.sensible),
-    infiltrationLoadLatent: Math.round(infiltrationLoad.latent),
-    ventilationLoadSensible: Math.round(ventilationLoad.sensible),
-    ventilationLoadLatent: Math.round(ventilationLoad.latent),
-    totalSensibleLoad: Math.round(totalSensibleLoad),
-    totalLatentLoad: Math.round(totalLatentLoad),
-    totalLoad: Math.round(totalLoad),
-    trValue: Math.round(trValue * 100) / 100,
-    btuPerHour: Math.round(btuPerHour),
-    cfmSupply: Math.round(cfmSupply),
-    cfmFreshAir: Math.round(cfmFreshAir),
-    cfmReturn: Math.round(cfmReturn),
-    cfmExhaust: Math.round(cfmExhaust),
+    wallLoad,
+    roofLoad,
+    glassSolarLoad,
+    glassConductionLoad,
+    lightingLoad,
+    peopleLoadSensible: peopleLoad.sensible,
+    peopleLoadLatent: peopleLoad.latent,
+    equipmentLoadSensible,
+    infiltrationLoadSensible: infiltrationLoad.sensible,
+    infiltrationLoadLatent: infiltrationLoad.latent,
+    ventilationLoadSensible: ventilationLoad.sensible,
+    ventilationLoadLatent: ventilationLoad.latent,
+    totalSensibleLoad,
+    totalLatentLoad,
+    totalLoad,
+    trValue,
+    btuPerHour,
+    cfmSupply,
+    cfmFreshAir,
+    cfmReturn,
+    cfmExhaust,
     safetyFactor: input.safetyFactor,
     diversityFactor: input.diversityFactor,
     calculationMethod: 'CLTD_CLF',
