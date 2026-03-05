@@ -145,28 +145,10 @@ export default function ReportsPage() {
     setGenerating(true);
 
     try {
-      const jsPDF = (await import('jspdf')).default;
-      const doc = new jsPDF();
+      const { createAndDownloadPdf, hrLine, boldText } = await import('@/lib/utils/pdf-make');
+      type Content = import('pdfmake/interfaces').Content;
       const project = projects.find((p) => p.id === selectedProjectId);
-
-      // Title
-      doc.setFontSize(18);
-      doc.text('HVAC Auto-Estimation Report', 14, 20);
-      doc.setFontSize(10);
-      doc.text(`Project: ${project?.name || 'Unknown'}`, 14, 30);
-      doc.text(`Building Type: ${project?.buildingType || 'N/A'}`, 14, 36);
-      doc.text(`Total Floor Area: ${project?.totalFloorArea || 0} m²`, 14, 42);
-      doc.text(`Generated: ${new Date().toLocaleDateString('en-PH')}`, 14, 48);
-
-      doc.setDrawColor(200);
-      doc.line(14, 52, 196, 52);
-
-      // Summary
-      let y = 60;
-      doc.setFontSize(13);
-      doc.text('Cost Summary', 14, y);
-      y += 8;
-      doc.setFontSize(10);
+      const bold = boldText;
 
       const summaryItems = [
         ['Equipment Cost', formatPHP(boqData.equipmentCost)],
@@ -179,84 +161,86 @@ export default function ReportsPage() {
         ['Grand Total', formatPHP(boqData.grandTotal)],
       ];
 
-      summaryItems.forEach(([label, value]) => {
-        doc.text(label, 14, y);
-        doc.text(value, 120, y);
-        y += 6;
-      });
-
-      y += 5;
-      doc.text(`Cost per TR: ${formatPHP(boqData.costPerTR)}`, 14, y);
-      y += 10;
-
-      // Cooling Loads
+      // Cooling load table
+      const coolingLoadContent: Content[] = [];
       if (rooms.length > 0) {
-        doc.setFontSize(13);
-        doc.text('Cooling Load Summary', 14, y);
-        y += 8;
-        doc.setFontSize(9);
-
-        doc.text('Room', 14, y);
-        doc.text('Area (m²)', 70, y);
-        doc.text('Total (W)', 100, y);
-        doc.text('Sensible (W)', 135, y);
-        doc.text('Latent (W)', 170, y);
-        y += 5;
-        doc.line(14, y, 196, y);
-        y += 4;
-
-        rooms.forEach((room) => {
-          if (y > 270) {
-            doc.addPage();
-            y = 20;
-          }
-          doc.text(room.name.substring(0, 20), 14, y);
-          doc.text(room.area.toFixed(1), 70, y);
-          doc.text((room.coolingLoad?.totalLoad || 0).toFixed(0), 100, y);
-          doc.text((room.coolingLoad?.totalSensibleLoad || 0).toFixed(0), 135, y);
-          doc.text((room.coolingLoad?.totalLatentLoad || 0).toFixed(0), 170, y);
-          y += 5;
+        coolingLoadContent.push(bold('Cooling Load Summary', { fontSize: 13, margin: [0, 8, 0, 4] }));
+        coolingLoadContent.push({
+          table: {
+            headerRows: 1,
+            widths: ['*', 50, 60, 60, 60],
+            body: [
+              ['Room', 'Area (m²)', 'Total (W)', 'Sensible (W)', 'Latent (W)'].map((h) => bold(h, { fontSize: 9 })),
+              ...rooms.map((room) => [
+                room.name.substring(0, 20),
+                room.area.toFixed(1),
+                (room.coolingLoad?.totalLoad || 0).toFixed(0),
+                (room.coolingLoad?.totalSensibleLoad || 0).toFixed(0),
+                (room.coolingLoad?.totalLatentLoad || 0).toFixed(0),
+              ]),
+            ],
+          },
+          layout: 'lightHorizontalLines',
+          fontSize: 9,
+          margin: [0, 0, 0, 8] as [number, number, number, number],
         });
-
-        y += 8;
       }
 
-      // BOQ Table
+      // BOQ table
+      const boqContent: Content[] = [];
       if (boqData.items.length > 0) {
-        if (y > 200) {
-          doc.addPage();
-          y = 20;
-        }
-        doc.setFontSize(13);
-        doc.text('Bill of Quantities', 14, y);
-        y += 8;
-        doc.setFontSize(8);
-
-        doc.text('Description', 14, y);
-        doc.text('Qty', 90, y);
-        doc.text('Unit', 110, y);
-        doc.text('Unit Price', 135, y);
-        doc.text('Total', 170, y);
-        y += 4;
-        doc.line(14, y, 196, y);
-        y += 4;
-
-        boqData.items.forEach((item) => {
-          if (y > 275) {
-            doc.addPage();
-            y = 20;
-          }
-          const desc = item.description.length > 40 ? item.description.substring(0, 40) + '...' : item.description;
-          doc.text(desc, 14, y);
-          doc.text(item.quantity.toString(), 90, y);
-          doc.text(item.unit, 110, y);
-          doc.text(formatPHP(item.unitPrice), 135, y);
-          doc.text(formatPHP(item.totalPrice), 170, y);
-          y += 5;
+        boqContent.push(bold('Bill of Quantities', { fontSize: 13, margin: [0, 8, 0, 4] }));
+        boqContent.push({
+          table: {
+            headerRows: 1,
+            widths: ['*', 30, 35, 60, 60],
+            body: [
+              ['Description', 'Qty', 'Unit', 'Unit Price', 'Total'].map((h) => bold(h, { fontSize: 8 })),
+              ...boqData.items.map((item) => [
+                item.description.length > 40 ? item.description.substring(0, 40) + '...' : item.description,
+                item.quantity.toString(),
+                item.unit,
+                formatPHP(item.unitPrice),
+                formatPHP(item.totalPrice),
+              ]),
+            ],
+          },
+          layout: 'lightHorizontalLines',
+          fontSize: 8,
+          margin: [0, 0, 0, 4] as [number, number, number, number],
         });
       }
 
-      doc.save(`HVAC-Report-${project?.name || 'project'}.pdf`);
+      await createAndDownloadPdf(
+        {
+          content: [
+            bold('HVAC Auto-Estimation Report', { fontSize: 18, margin: [0, 0, 0, 6] }),
+            { text: `Project: ${project?.name || 'Unknown'}`, fontSize: 10 },
+            { text: `Building Type: ${project?.buildingType || 'N/A'}`, fontSize: 10 },
+            { text: `Total Floor Area: ${project?.totalFloorArea || 0} m²`, fontSize: 10 },
+            { text: `Generated: ${new Date().toLocaleDateString('en-PH')}`, fontSize: 10, margin: [0, 0, 0, 6] },
+            hrLine(),
+            bold('Cost Summary', { fontSize: 13, margin: [0, 6, 0, 4] }),
+            {
+              table: {
+                widths: [120, '*'],
+                body: summaryItems.map(([label, value]) => [
+                  { text: label, fontSize: 10 },
+                  { text: value, fontSize: 10 },
+                ]),
+              },
+              layout: 'noBorders',
+              margin: [0, 0, 0, 4] as [number, number, number, number],
+            },
+            { text: `Cost per TR: ${formatPHP(boqData.costPerTR)}`, fontSize: 10, margin: [0, 4, 0, 8] },
+            ...coolingLoadContent,
+            ...boqContent,
+          ],
+          pageSize: 'A4',
+          defaultStyle: { font: 'Roboto' },
+        },
+        `HVAC-Report-${project?.name || 'project'}.pdf`,
+      );
       showToast('success', 'PDF exported successfully');
     } catch (err) {
       showToast('error', 'Failed to generate PDF');

@@ -166,124 +166,69 @@ export default function QuotationPage() {
 		setGenerating(true);
 
 		try {
-			const jsPDF = (await import('jspdf')).default;
-			const doc = new jsPDF();
+			const { createAndDownloadPdf, hrLine, boldText } = await import('@/lib/utils/pdf-make');
+			type Content = import('pdfmake/interfaces').Content;
+			const bold = boldText;
+			const dateStr = new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' });
 
-			doc.setFontSize(20);
-			doc.setFont('helvetica', 'bold');
-			doc.text('QUOTATION', 105, 20, { align: 'center' });
-
-			doc.setFontSize(10);
-			doc.setFont('helvetica', 'bold');
-			doc.text('HVAC AutoEst Engineering', 14, 35);
-			doc.setFont('helvetica', 'normal');
-			doc.text('HVAC Design & Estimation System', 14, 41);
-			doc.text('Metro Manila, Philippines', 14, 47);
-
-			doc.setFont('helvetica', 'bold');
-			doc.text(`Quotation No: ${quotationNumber}`, 130, 35);
-			doc.setFont('helvetica', 'normal');
-			doc.text(`Date: ${new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })}`, 130, 41);
-			doc.text('Validity: 30 days', 130, 47);
-
-			doc.setDrawColor(34, 79, 198);
-			doc.setLineWidth(0.5);
-			doc.line(14, 52, 196, 52);
-
-			let y = 60;
-			doc.setFontSize(9);
-			doc.setFont('helvetica', 'bold');
-			doc.text('PROJECT DETAILS', 14, y);
-			y += 7;
-			doc.setFont('helvetica', 'normal');
-			doc.text(`Project: ${project.name}`, 14, y);
-			doc.text(`Building Type: ${project.buildingType}`, 110, y);
-			y += 5;
-			doc.text(`Client: ${project.clientName || 'N/A'}`, 14, y);
-			doc.text(`Floor Area: ${project.totalFloorArea} m²`, 110, y);
-			y += 5;
-			doc.text(`Location: ${project.location || ''}, ${project.city || ''}`, 14, y);
-			doc.text(`Cooling Load: ${totalTR.toFixed(1)} TR`, 110, y);
-			y += 10;
-
+			// Equipment schedule
+			const equipContent: Content[] = [];
 			if (equipment.length > 0) {
-				doc.setFont('helvetica', 'bold');
-				doc.text('EQUIPMENT SCHEDULE', 14, y);
-				y += 6;
-				doc.setFontSize(8);
-				doc.setFont('helvetica', 'bold');
-				doc.text('#', 14, y);
-				doc.text('Equipment', 20, y);
-				doc.text('Brand', 80, y);
-				doc.text('Capacity', 120, y);
-				doc.text('Qty', 145, y);
-				doc.text('Unit Price', 155, y);
-				doc.text('Total', 180, y);
-				y += 3;
-				doc.setDrawColor(200);
-				doc.line(14, y, 196, y);
-				y += 4;
-				doc.setFont('helvetica', 'normal');
-
-				equipment.forEach((eq, idx) => {
-					if (y > 270) { doc.addPage(); y = 20; }
-					doc.text(`${idx + 1}`, 14, y);
-					doc.text(`${eq.model} (${eq.type})`.substring(0, 35), 20, y);
-					doc.text(eq.brand.substring(0, 20), 80, y);
-					doc.text(`${eq.capacityTR.toFixed(1)} TR`, 120, y);
-					doc.text(`${eq.quantity}`, 145, y);
-					doc.text(formatPHP(eq.unitPrice), 155, y);
-					doc.text(formatPHP(eq.unitPrice * eq.quantity), 180, y);
-					y += 5;
+				equipContent.push(bold('EQUIPMENT SCHEDULE', { fontSize: 9, margin: [0, 6, 0, 4] }));
+				equipContent.push({
+					table: {
+						headerRows: 1,
+						widths: [14, '*', 55, 45, 20, 55, 55],
+						body: [
+							['#', 'Equipment', 'Brand', 'Capacity', 'Qty', 'Unit Price', 'Total'].map((h) => bold(h, { fontSize: 8 })),
+							...equipment.map((eq, idx) => [
+								`${idx + 1}`,
+								`${eq.model} (${eq.type})`.substring(0, 35),
+								eq.brand.substring(0, 20),
+								`${eq.capacityTR.toFixed(1)} TR`,
+								`${eq.quantity}`,
+								formatPHP(eq.unitPrice),
+								formatPHP(eq.unitPrice * eq.quantity),
+							]),
+						],
+					},
+					layout: 'lightHorizontalLines',
+					fontSize: 8,
+					margin: [0, 0, 0, 6] as [number, number, number, number],
 				});
-				y += 5;
 			}
 
+			// BOQ
+			const boqContent: Content[] = [];
 			if (boqData.items.length > 0) {
-				if (y > 200) { doc.addPage(); y = 20; }
-				doc.setFontSize(9);
-				doc.setFont('helvetica', 'bold');
-				doc.text('BILL OF QUANTITIES', 14, y);
-				y += 6;
-				doc.setFontSize(8);
-				doc.text('Description', 14, y);
-				doc.text('Qty', 100, y);
-				doc.text('Unit', 115, y);
-				doc.text('Unit Price', 140, y);
-				doc.text('Amount', 175, y);
-				y += 3;
-				doc.line(14, y, 196, y);
-				y += 4;
-				doc.setFont('helvetica', 'normal');
+				boqContent.push(bold('BILL OF QUANTITIES', { fontSize: 9, margin: [0, 6, 0, 4] }));
 
+				const boqBody: string[][] = [['Description', 'Qty', 'Unit', 'Unit Price', 'Amount'].map((h) => h)];
 				let currentSection = '';
-				boqData.items.forEach((item) => {
-					if (y > 270) { doc.addPage(); y = 20; }
+				for (const item of boqData.items) {
 					if (item.section !== currentSection) {
 						currentSection = item.section;
-						doc.setFont('helvetica', 'bold');
-						doc.text(currentSection, 14, y);
-						doc.setFont('helvetica', 'normal');
-						y += 5;
+						boqBody.push([{ text: currentSection, bold: true, colSpan: 5 } as unknown as string, '', '', '', '']);
 					}
 					const desc = item.description.length > 45 ? `${item.description.substring(0, 45)}...` : item.description;
-					doc.text(`  ${desc}`, 14, y);
-					doc.text(`${item.quantity}`, 100, y);
-					doc.text(item.unit, 115, y);
-					doc.text(formatPHP(item.unitPrice), 140, y);
-					doc.text(formatPHP(item.totalPrice), 175, y);
-					y += 5;
+					boqBody.push([`  ${desc}`, `${item.quantity}`, item.unit, formatPHP(item.unitPrice), formatPHP(item.totalPrice)]);
+				}
+
+				boqContent.push({
+					table: {
+						headerRows: 1,
+						widths: ['*', 25, 30, 55, 55],
+						body: boqBody.map((row, i) =>
+							i === 0 ? row.map((h) => bold(h, { fontSize: 8 })) : row,
+						),
+					},
+					layout: 'lightHorizontalLines',
+					fontSize: 8,
+					margin: [0, 0, 0, 6] as [number, number, number, number],
 				});
 			}
 
-			if (y > 220) { doc.addPage(); y = 20; }
-			y += 5;
-			doc.setDrawColor(34, 79, 198);
-			doc.setLineWidth(0.5);
-			doc.line(120, y, 196, y);
-			y += 8;
-			doc.setFontSize(9);
-
+			// Cost summary
 			const costLines = [
 				['Equipment Cost', formatPHP(boqData.equipmentCost)],
 				['Material Cost', formatPHP(boqData.materialCost)],
@@ -291,34 +236,77 @@ export default function QuotationPage() {
 				['Overhead', formatPHP(boqData.overhead)],
 				['Contingency', formatPHP(boqData.contingency)],
 			];
-			costLines.forEach(([label, value]) => {
-				doc.setFont('helvetica', 'normal');
-				doc.text(label, 120, y);
-				doc.text(value, 196, y, { align: 'right' });
-				y += 5;
-			});
 
-			y += 2;
-			doc.line(120, y, 196, y);
-			y += 6;
-			doc.setFont('helvetica', 'bold');
-			doc.text('Subtotal', 120, y);
-			doc.text(formatPHP(boqData.subtotal), 196, y, { align: 'right' });
-			y += 5;
-			doc.setFont('helvetica', 'normal');
-			doc.text('VAT (12%)', 120, y);
-			doc.text(formatPHP(boqData.vat), 196, y, { align: 'right' });
-			y += 6;
-			doc.setDrawColor(34, 79, 198);
-			doc.setLineWidth(1);
-			doc.line(120, y, 196, y);
-			y += 7;
-			doc.setFontSize(12);
-			doc.setFont('helvetica', 'bold');
-			doc.text('GRAND TOTAL', 120, y);
-			doc.text(formatPHP(boqData.grandTotal), 196, y, { align: 'right' });
-
-			doc.save(`Quotation-${quotationNumber}.pdf`);
+			await createAndDownloadPdf(
+				{
+					content: [
+						bold('QUOTATION', { fontSize: 20, alignment: 'center', margin: [0, 0, 0, 10] }),
+						{
+							columns: [
+								{
+									width: '*',
+									stack: [
+										bold('HVAC AutoEst Engineering', { fontSize: 10 }),
+										{ text: 'HVAC Design & Estimation System', fontSize: 10 },
+										{ text: 'Metro Manila, Philippines', fontSize: 10 },
+									],
+								},
+								{
+									width: 'auto',
+									stack: [
+										bold(`Quotation No: ${quotationNumber}`, { fontSize: 10 }),
+										{ text: `Date: ${dateStr}`, fontSize: 10 },
+										{ text: 'Validity: 30 days', fontSize: 10 },
+									],
+									alignment: 'right' as const,
+								},
+							],
+							margin: [0, 0, 0, 6] as [number, number, number, number],
+						},
+						{ canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: '#224FC6' }], margin: [0, 0, 0, 8] },
+						bold('PROJECT DETAILS', { fontSize: 9, margin: [0, 0, 0, 4] }),
+						{
+							columns: [
+								{ width: '*', stack: [
+									{ text: `Project: ${project.name}`, fontSize: 9 },
+									{ text: `Client: ${project.clientName || 'N/A'}`, fontSize: 9 },
+									{ text: `Location: ${project.location || ''}, ${project.city || ''}`, fontSize: 9 },
+								]},
+								{ width: '*', stack: [
+									{ text: `Building Type: ${project.buildingType}`, fontSize: 9 },
+									{ text: `Floor Area: ${project.totalFloorArea} m²`, fontSize: 9 },
+									{ text: `Cooling Load: ${totalTR.toFixed(1)} TR`, fontSize: 9 },
+								]},
+							],
+							margin: [0, 0, 0, 8] as [number, number, number, number],
+						},
+						...equipContent,
+						...boqContent,
+						hrLine('#224FC6'),
+						{
+							table: {
+								widths: ['*', 80],
+								body: [
+									...costLines.map(([label, value]) => [
+										{ text: label, fontSize: 9 },
+										{ text: value, fontSize: 9, alignment: 'right' as const },
+									]),
+									[{ canvas: [{ type: 'line', x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 0.3 }], colSpan: 2 }, ''],
+									[bold('Subtotal', { fontSize: 9 }), { text: formatPHP(boqData.subtotal), fontSize: 9, alignment: 'right' as const }],
+									[{ text: 'VAT (12%)', fontSize: 9 }, { text: formatPHP(boqData.vat), fontSize: 9, alignment: 'right' as const }],
+									[{ canvas: [{ type: 'line', x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 1, lineColor: '#224FC6' }], colSpan: 2 }, ''],
+									[bold('GRAND TOTAL', { fontSize: 12 }), bold(formatPHP(boqData.grandTotal), { fontSize: 12, alignment: 'right' })],
+								],
+							},
+							layout: 'noBorders',
+							margin: [200, 6, 0, 0] as [number, number, number, number],
+						},
+					],
+					pageSize: 'A4',
+					defaultStyle: { font: 'Roboto' },
+				},
+				`Quotation-${quotationNumber}.pdf`,
+			);
 			showToast('success', 'Quotation PDF exported');
 		} catch (err) {
 			showToast('error', 'Failed to generate quotation PDF');

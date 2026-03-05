@@ -360,69 +360,67 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
   const exportToPDF = async () => {
     setExporting(true);
     try {
-      const jsPDF = (await import('jspdf')).default;
+      const { createAndDownloadPdf, boldText } = await import('@/lib/utils/pdf-make');
+      type Content = import('pdfmake/interfaces').Content;
       const canvas = canvasRef.current;
       if (!canvas) throw new Error('Canvas not ready');
 
-      // Render canvas at current state to data URL
+      // Render canvas to data URL
       const imgData = canvas.toDataURL('image/png', 1.0);
       const cw = canvas.width;
       const ch = canvas.height;
-
-      // Landscape or portrait based on aspect ratio
       const orientation = cw >= ch ? 'landscape' : 'portrait';
-      const doc = new jsPDF({ orientation, unit: 'mm', format: 'a3' });
-      const pageW = doc.internal.pageSize.getWidth();
-      const pageH = doc.internal.pageSize.getHeight();
 
-      // Title
-      doc.setFontSize(16);
-      doc.text('HVAC Floor Plan', 14, 15);
-      doc.setFontSize(9);
-      doc.text(`Scale: 1m = ${scale}px  |  Rooms: ${rooms.length}  |  Generated: ${new Date().toLocaleDateString('en-PH')}`, 14, 22);
-
-      // Fit canvas image into page with margins
+      // Calculate image fit within A3 margins
+      const pageW = orientation === 'landscape' ? 420 : 297;
+      const pageH = orientation === 'landscape' ? 297 : 420;
       const margin = 14;
       const topOffset = 28;
-      const maxW = pageW - margin * 2;
-      const maxH = pageH - topOffset - margin;
+      const maxW = (pageW - margin * 2) * 2.83465; // mm to pt
+      const maxH = (pageH - topOffset - margin) * 2.83465;
       const ratio = Math.min(maxW / cw, maxH / ch);
       const imgW = cw * ratio;
-      const imgH = ch * ratio;
-      doc.addImage(imgData, 'PNG', margin, topOffset, imgW, imgH);
 
-      // Room schedule table
+      const bold = boldText;
+
+      // Room schedule table (second page)
+      const roomSchedule: Content[] = [];
       if (rooms.length > 0) {
-        doc.addPage('a4', 'portrait');
-        doc.setFontSize(14);
-        doc.text('Room Schedule', 14, 20);
-        let y = 30;
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Room', 14, y);
-        doc.text('Type', 60, y);
-        doc.text('Width (m)', 100, y);
-        doc.text('Depth (m)', 125, y);
-        doc.text('Area (m\u00B2)', 150, y);
-        y += 2;
-        doc.line(14, y, 180, y);
-        y += 5;
-        doc.setFont('helvetica', 'normal');
-        rooms.forEach((room) => {
-          if (y > 280) { doc.addPage(); y = 20; }
-          const wM = (room.width / scale).toFixed(2);
-          const hM = (room.height / scale).toFixed(2);
-          const aM = ((room.width / scale) * (room.height / scale)).toFixed(2);
-          doc.text(room.name, 14, y);
-          doc.text(room.spaceType, 60, y);
-          doc.text(wM, 100, y);
-          doc.text(hM, 125, y);
-          doc.text(aM, 150, y);
-          y += 6;
+        roomSchedule.push({ text: '', pageBreak: 'before' as const });
+        roomSchedule.push(bold('Room Schedule', { fontSize: 14, margin: [0, 0, 0, 8] }));
+        roomSchedule.push({
+          table: {
+            headerRows: 1,
+            widths: ['*', 80, 50, 50, 50],
+            body: [
+              ['Room', 'Type', 'Width (m)', 'Depth (m)', 'Area (m²)'].map((h) => bold(h, { fontSize: 8 })),
+              ...rooms.map((room) => {
+                const wM = (room.width / scale).toFixed(2);
+                const hM = (room.height / scale).toFixed(2);
+                const aM = ((room.width / scale) * (room.height / scale)).toFixed(2);
+                return [room.name, room.spaceType, wM, hM, aM];
+              }),
+            ],
+          },
+          layout: 'lightHorizontalLines',
+          fontSize: 8,
         });
       }
 
-      doc.save(`FloorPlan-${id}.pdf`);
+      await createAndDownloadPdf(
+        {
+          content: [
+            bold('HVAC Floor Plan', { fontSize: 16, margin: [0, 0, 0, 4] }),
+            { text: `Scale: 1m = ${scale}px  |  Rooms: ${rooms.length}  |  Generated: ${new Date().toLocaleDateString('en-PH')}`, fontSize: 9, margin: [0, 0, 0, 8] },
+            { image: imgData, width: imgW / 2.83465 } as Content,
+            ...roomSchedule,
+          ],
+          pageSize: 'A3',
+          pageOrientation: orientation as 'landscape' | 'portrait',
+          defaultStyle: { font: 'Roboto' },
+        },
+        `FloorPlan-${id}.pdf`,
+      );
       showToast('success', 'PDF exported with floor plan and room schedule');
     } catch (err) {
       console.error(err);
