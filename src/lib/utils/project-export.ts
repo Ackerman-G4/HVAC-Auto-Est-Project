@@ -84,201 +84,129 @@ interface ExportProject {
 /* ─────────────── PDF Export ─────────────── */
 
 export async function exportProjectPDF(project: ExportProject) {
-  const jsPDF = (await import('jspdf')).default;
-  const doc = new jsPDF();
-  const pageW = doc.internal.pageSize.getWidth();
-  let y = 20;
+  const { createAndDownloadPdf, hrLine, boldText } = await import('./pdf-make');
+  type Content = import('pdfmake/interfaces').Content;
 
-  const addPage = () => {
-    doc.addPage();
-    y = 20;
-  };
-
-  const checkPage = (needed: number) => {
-    if (y + needed > 270) addPage();
-  };
-
-  // ── Header ──
-  doc.setFontSize(20);
-  doc.setFont('helvetica', 'bold');
-  doc.text(project.name, pageW / 2, y, { align: 'center' });
-  y += 8;
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Client: ${project.clientName || '—'} | Type: ${project.buildingType} | City: ${project.city}`, pageW / 2, y, { align: 'center' });
-  y += 5;
-  doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageW / 2, y, { align: 'center' });
-  y += 10;
-
-  // ── Design Conditions ──
-  doc.setFontSize(13);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Design Conditions', 14, y);
-  y += 6;
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Outdoor: ${project.outdoorDB}°C DB / ${project.outdoorWB}°C WB / ${project.outdoorRH}% RH`, 14, y);
-  y += 5;
-  doc.text(`Indoor: ${project.indoorDB}°C DB / ${project.indoorRH}% RH`, 14, y);
-  y += 5;
-  doc.text(`Total Floor Area: ${project.totalFloorArea} m²`, 14, y);
-  y += 10;
-
-  // Line separator
-  doc.setDrawColor(200);
-  doc.line(14, y, pageW - 14, y);
-  y += 8;
-
-  // ── Floors & Rooms ──
   const allRooms = project.floors.flatMap((f) => f.rooms);
   const totalTR = allRooms.reduce((s, r) => s + (r.coolingLoad?.trValue || 0), 0);
   const totalBTU = allRooms.reduce((s, r) => s + (r.coolingLoad?.btuPerHour || 0), 0);
 
-  doc.setFontSize(13);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Cooling Load Summary', 14, y);
-  y += 6;
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Total Rooms: ${allRooms.length} | Total TR: ${totalTR.toFixed(2)} | Total BTU/h: ${totalBTU.toLocaleString()}`, 14, y);
-  y += 10;
+  const bold = boldText;
 
+  // Build floor-by-floor room tables
+  const floorSections: Content[] = [];
   for (const floor of project.floors) {
-    checkPage(30);
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`${floor.name} (Floor ${floor.floorNumber})`, 14, y);
-    y += 6;
-
-    // Room table header
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'bold');
-    const cols = [14, 50, 80, 100, 120, 140, 165];
-    doc.text('Room', cols[0], y);
-    doc.text('Type', cols[1], y);
-    doc.text('Area (m²)', cols[2], y);
-    doc.text('Height (m)', cols[3], y);
-    doc.text('TR', cols[4], y);
-    doc.text('BTU/h', cols[5], y);
-    doc.text('CFM', cols[6], y);
-    y += 1;
-    doc.setDrawColor(180);
-    doc.line(14, y, pageW - 14, y);
-    y += 4;
-
-    doc.setFont('helvetica', 'normal');
-    for (const room of floor.rooms) {
-      checkPage(8);
-      doc.text(room.name.substring(0, 18), cols[0], y);
-      doc.text(room.spaceType.replace(/_/g, ' ').substring(0, 14), cols[1], y);
-      doc.text(room.area.toFixed(2), cols[2], y);
-      doc.text(String(room.ceilingHeight), cols[3], y);
-      doc.text(room.coolingLoad ? String(room.coolingLoad.trValue) : '—', cols[4], y);
-      doc.text(room.coolingLoad ? room.coolingLoad.btuPerHour.toLocaleString() : '—', cols[5], y);
-      doc.text(room.coolingLoad ? String(room.coolingLoad.cfmSupply) : '—', cols[6], y);
-      y += 5;
-    }
-    y += 5;
+    floorSections.push(bold(`${floor.name} (Floor ${floor.floorNumber})`, { fontSize: 11, margin: [0, 6, 0, 4] }));
+    floorSections.push({
+      table: {
+        headerRows: 1,
+        widths: [80, 60, 45, 40, 30, 55, 35],
+        body: [
+          ['Room', 'Type', 'Area (m²)', 'Height (m)', 'TR', 'BTU/h', 'CFM'].map((h) => bold(h, { fontSize: 8 })),
+          ...floor.rooms.map((room) => [
+            room.name.substring(0, 18),
+            room.spaceType.replace(/_/g, ' ').substring(0, 14),
+            room.area.toFixed(2),
+            String(room.ceilingHeight),
+            room.coolingLoad ? String(room.coolingLoad.trValue) : '—',
+            room.coolingLoad ? room.coolingLoad.btuPerHour.toLocaleString() : '—',
+            room.coolingLoad ? String(room.coolingLoad.cfmSupply) : '—',
+          ]),
+        ],
+      },
+      layout: 'lightHorizontalLines',
+      fontSize: 8,
+      margin: [0, 0, 0, 6] as [number, number, number, number],
+    });
   }
 
-  // ── Equipment ──
+  // Equipment table
+  const equipContent: Content[] = [];
   if (project.selectedEquipment.length > 0) {
-    checkPage(30);
-    doc.setDrawColor(200);
-    doc.line(14, y, pageW - 14, y);
-    y += 8;
-    doc.setFontSize(13);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Selected Equipment', 14, y);
-    y += 6;
-
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'bold');
-    const eqCols = [14, 55, 90, 115, 135, 160];
-    doc.text('Brand / Model', eqCols[0], y);
-    doc.text('Type', eqCols[1], y);
-    doc.text('Capacity', eqCols[2], y);
-    doc.text('Qty', eqCols[3], y);
-    doc.text('EER', eqCols[4], y);
-    doc.text('Total Price', eqCols[5], y);
-    y += 1;
-    doc.line(14, y, pageW - 14, y);
-    y += 4;
-
-    doc.setFont('helvetica', 'normal');
-    for (const eq of project.selectedEquipment) {
-      checkPage(8);
-      doc.text(`${eq.brand} ${eq.model}`.substring(0, 22), eqCols[0], y);
-      doc.text(eq.type.replace(/_/g, ' ').substring(0, 16), eqCols[1], y);
-      doc.text(`${eq.capacityTR} TR`, eqCols[2], y);
-      doc.text(String(eq.quantity), eqCols[3], y);
-      doc.text(String(eq.eer), eqCols[4], y);
-      doc.text(`₱${eq.totalPrice.toLocaleString()}`, eqCols[5], y);
-      y += 5;
-    }
-
     const eqTotal = project.selectedEquipment.reduce((s, e) => s + e.totalPrice, 0);
-    y += 2;
-    doc.setFont('helvetica', 'bold');
-    doc.text(`Equipment Subtotal: ₱${eqTotal.toLocaleString()}`, pageW - 14, y, { align: 'right' });
-    y += 8;
+    equipContent.push(hrLine());
+    equipContent.push(bold('Selected Equipment', { fontSize: 13, margin: [0, 4, 0, 4] }));
+    equipContent.push({
+      table: {
+        headerRows: 1,
+        widths: ['*', 70, 55, 30, 30, 65],
+        body: [
+          ['Brand / Model', 'Type', 'Capacity', 'Qty', 'EER', 'Total Price'].map((h) => bold(h, { fontSize: 8 })),
+          ...project.selectedEquipment.map((eq) => [
+            `${eq.brand} ${eq.model}`.substring(0, 30),
+            eq.type.replace(/_/g, ' ').substring(0, 16),
+            `${eq.capacityTR} TR`,
+            String(eq.quantity),
+            String(eq.eer),
+            `₱${eq.totalPrice.toLocaleString()}`,
+          ]),
+        ],
+      },
+      layout: 'lightHorizontalLines',
+      fontSize: 8,
+      margin: [0, 0, 0, 4] as [number, number, number, number],
+    });
+    equipContent.push(bold(`Equipment Subtotal: ₱${eqTotal.toLocaleString()}`, { alignment: 'right', fontSize: 9, margin: [0, 2, 0, 6] }));
   }
 
-  // ── BOQ ──
+  // BOQ table
+  const boqContent: Content[] = [];
   if (project.boqItems.length > 0) {
-    checkPage(30);
-    doc.setDrawColor(200);
-    doc.line(14, y, pageW - 14, y);
-    y += 8;
-    doc.setFontSize(13);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Bill of Quantities', 14, y);
-    y += 6;
-
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'bold');
-    const bCols = [14, 40, 100, 118, 135, 160];
-    doc.text('Section', bCols[0], y);
-    doc.text('Description', bCols[1], y);
-    doc.text('Qty', bCols[2], y);
-    doc.text('Unit', bCols[3], y);
-    doc.text('Unit Price', bCols[4], y);
-    doc.text('Total', bCols[5], y);
-    y += 1;
-    doc.line(14, y, pageW - 14, y);
-    y += 4;
-
-    doc.setFont('helvetica', 'normal');
-    for (const item of project.boqItems) {
-      checkPage(8);
-      doc.text(item.section.substring(0, 12), bCols[0], y);
-      doc.text(item.description.substring(0, 30), bCols[1], y);
-      doc.text(String(item.quantity), bCols[2], y);
-      doc.text(item.unit, bCols[3], y);
-      doc.text(`₱${item.unitPrice.toLocaleString()}`, bCols[4], y);
-      doc.text(`₱${item.totalPrice.toLocaleString()}`, bCols[5], y);
-      y += 5;
-    }
-
     const boqTotal = project.boqItems.reduce((s, b) => s + b.totalPrice, 0);
-    y += 2;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.text(`Grand Total: ₱${boqTotal.toLocaleString()}`, pageW - 14, y, { align: 'right' });
+    boqContent.push(hrLine());
+    boqContent.push(bold('Bill of Quantities', { fontSize: 13, margin: [0, 4, 0, 4] }));
+    boqContent.push({
+      table: {
+        headerRows: 1,
+        widths: [55, '*', 30, 35, 55, 60],
+        body: [
+          ['Section', 'Description', 'Qty', 'Unit', 'Unit Price', 'Total'].map((h) => bold(h, { fontSize: 8 })),
+          ...project.boqItems.map((item) => [
+            item.section.substring(0, 12),
+            item.description.substring(0, 30),
+            String(item.quantity),
+            item.unit,
+            `₱${item.unitPrice.toLocaleString()}`,
+            `₱${item.totalPrice.toLocaleString()}`,
+          ]),
+        ],
+      },
+      layout: 'lightHorizontalLines',
+      fontSize: 8,
+      margin: [0, 0, 0, 4] as [number, number, number, number],
+    });
+    boqContent.push(bold(`Grand Total: ₱${boqTotal.toLocaleString()}`, { alignment: 'right', fontSize: 10, margin: [0, 4, 0, 0] }));
   }
 
-  // Footer on each page
-  const totalPages = doc.getNumberOfPages();
-  for (let i = 1; i <= totalPages; i++) {
-    doc.setPage(i);
-    doc.setFontSize(7);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(150);
-    doc.text(`HVAC Auto-Estimation — ${project.name} — Page ${i}/${totalPages}`, pageW / 2, 290, { align: 'center' });
-    doc.setTextColor(0);
-  }
-
-  doc.save(`${project.name.replace(/\s+/g, '_')}_HVAC_Report.pdf`);
+  await createAndDownloadPdf(
+    {
+      content: [
+        { text: project.name, fontSize: 20, bold: true, alignment: 'center' },
+        { text: `Client: ${project.clientName || '—'} | Type: ${project.buildingType} | City: ${project.city}`, fontSize: 10, alignment: 'center', margin: [0, 4, 0, 2] },
+        { text: `Generated: ${new Date().toLocaleDateString()}`, fontSize: 10, alignment: 'center', margin: [0, 0, 0, 8] },
+        bold('Design Conditions', { fontSize: 13, margin: [0, 6, 0, 4] }),
+        { text: `Outdoor: ${project.outdoorDB}°C DB / ${project.outdoorWB}°C WB / ${project.outdoorRH}% RH`, fontSize: 9 },
+        { text: `Indoor: ${project.indoorDB}°C DB / ${project.indoorRH}% RH`, fontSize: 9 },
+        { text: `Total Floor Area: ${project.totalFloorArea} m²`, fontSize: 9, margin: [0, 0, 0, 8] },
+        hrLine(),
+        bold('Cooling Load Summary', { fontSize: 13, margin: [0, 6, 0, 4] }),
+        { text: `Total Rooms: ${allRooms.length} | Total TR: ${totalTR.toFixed(2)} | Total BTU/h: ${totalBTU.toLocaleString()}`, fontSize: 9, margin: [0, 0, 0, 6] },
+        ...floorSections,
+        ...equipContent,
+        ...boqContent,
+      ],
+      footer: (currentPage: number, pageCount: number) => ({
+        text: `HVAC Auto-Estimation — ${project.name} — Page ${currentPage}/${pageCount}`,
+        fontSize: 7,
+        alignment: 'center' as const,
+        color: '#999999',
+        margin: [0, 10, 0, 0],
+      }),
+      pageSize: 'A4',
+      defaultStyle: { font: 'Roboto' },
+    },
+    `${project.name.replace(/\s+/g, '_')}_HVAC_Report.pdf`,
+  );
 }
 
 /* ─────────────── DXF Export (AutoCAD compatible) ─────────────── */
