@@ -49,3 +49,6 @@ next-env.d.ts
 # Large binaries
 *.exe
 
+# local pglite database
+.pglite-hvac/
+

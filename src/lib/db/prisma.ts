@@ -1,9 +1,17 @@
 import { PrismaClient } from '../../generated/prisma/client';
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
-import path from 'path';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
 
-const dbPath = path.join(process.cwd(), 'dev.db');
-const adapter = new PrismaBetterSqlite3({ url: `file:${dbPath}` });
+const connectionString = process.env.DATABASE_URL!;
+const pool = new Pool({
+  connectionString,
+  // PGlite socket is more stable with a low connection count.
+  max: 1,
+  idleTimeoutMillis: 60_000,
+  connectionTimeoutMillis: 10_000,
+});
+
+const adapter = new PrismaPg(pool);
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;

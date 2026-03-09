@@ -12,6 +12,7 @@ interface RoomData {
   area: number;
   perimeter?: number;
   ceilingHeight: number;
+  polygon?: string;
   coolingLoad?: { trValue: number; btuPerHour: number; totalLoad: number } | null;
 }
 interface FloorData { id: string; floorNumber: number; name: string; rooms: RoomData[] }
@@ -130,6 +131,53 @@ interface RoomBox {
 
 function layoutFloor(rooms: RoomData[], floorY: number, floorNum: number): RoomBox[] {
   if (!rooms.length) return [];
+
+  // Check if any rooms have polygon data — if so, use real positions
+  const hasPolygon = rooms.some(r => {
+    if (!r.polygon) return false;
+    try {
+      const p = JSON.parse(r.polygon);
+      return p && typeof p === 'object' && !Array.isArray(p) && p.width > 0;
+    } catch { return false; }
+  });
+
+  if (hasPolygon) {
+    // Use persisted pixel positions, converting to meters via stored scale
+    const boxes: RoomBox[] = [];
+    for (const r of rooms) {
+      let poly: { x: number; y: number; width: number; height: number; scale?: number } | null = null;
+      try {
+        const p = JSON.parse(r.polygon || '[]');
+        if (p && typeof p === 'object' && !Array.isArray(p) && p.width > 0) poly = p;
+      } catch { /* no-op */ }
+
+      const dims = roomDims(r);
+      if (poly) {
+        const pxScale = poly.scale || 50;
+        const lM = poly.width / pxScale;
+        const wM = poly.height / pxScale;
+        const xM = poly.x / pxScale;
+        const zM = poly.y / pxScale;
+        boxes.push({
+          room: r, floorNum,
+          x: xM, y: floorY, z: zM,
+          w: lM, h: dims.h, d: wM,
+          lengthM: lM, widthM: wM, heightM: dims.h,
+        });
+      } else {
+        // Fallback for rooms without polygon on this floor
+        boxes.push({
+          room: r, floorNum,
+          x: 0, y: floorY, z: 0,
+          w: dims.l, h: dims.h, d: dims.w,
+          lengthM: dims.l, widthM: dims.w, heightM: dims.h,
+        });
+      }
+    }
+    return boxes;
+  }
+
+  // Fallback: bin-packing layout (no polygon data)
   const items = rooms.map(r => ({ room: r, ...roomDims(r) }))
     .sort((a, b) => b.l * b.w - a.l * a.w);
   const totalArea = rooms.reduce((s, r) => s + Math.max(1, r.area || 1), 0);

@@ -211,27 +211,27 @@ export default function NewProjectPage() {
                 const ps = psychrometricState(Number(form.outdoorDB) || 35, Number(form.outdoorRH) || 50);
                 return (
                   <div className="grid grid-cols-3 gap-2 text-center">
-                    <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg py-1.5 px-1">
+                    <div className="bg-blue-50 rounded-lg py-1.5 px-1">
                       <p className="text-sm font-semibold tabular-nums">{ps.wetBulb}°C</p>
                       <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Wet Bulb</p>
                     </div>
-                    <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg py-1.5 px-1">
+                    <div className="bg-blue-50 rounded-lg py-1.5 px-1">
                       <p className="text-sm font-semibold tabular-nums">{ps.dewPoint}°C</p>
                       <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Dew Point</p>
                     </div>
-                    <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg py-1.5 px-1">
+                    <div className="bg-blue-50 rounded-lg py-1.5 px-1">
                       <p className="text-sm font-semibold tabular-nums">{(ps.humidityRatio * 1000).toFixed(1)} g/kg</p>
                       <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Humidity Ratio</p>
                     </div>
-                    <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg py-1.5 px-1">
+                    <div className="bg-blue-50 rounded-lg py-1.5 px-1">
                       <p className="text-sm font-semibold tabular-nums">{ps.enthalpy} kJ/kg</p>
                       <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Enthalpy</p>
                     </div>
-                    <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg py-1.5 px-1">
+                    <div className="bg-blue-50 rounded-lg py-1.5 px-1">
                       <p className="text-sm font-semibold tabular-nums">{ps.specificVolume} m³/kg</p>
                       <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Sp. Volume</p>
                     </div>
-                    <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg py-1.5 px-1">
+                    <div className="bg-blue-50 rounded-lg py-1.5 px-1">
                       <p className="text-sm font-semibold tabular-nums">{ps.density} kg/m³</p>
                       <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Density</p>
                     </div>

@@ -89,36 +89,29 @@ export default function DashboardPage() {
         }
       />
 
-      <Card className="mb-6 border-accent/20 bg-linear-to-r from-accent/15 via-primary/10 to-secondary/20">
-        <CardContent className="py-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      {/* Hero Card */}
+      <Card className="mb-8 border-0 bg-slate-900 text-white overflow-hidden relative">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-purple-600/20" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+        <CardContent className="py-8 relative z-10">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Workspace Summary</p>
-              <h2 className="mt-1 text-2xl font-semibold text-foreground">Your HVAC pipeline is ready to scale</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Track projects, generate BOQ, and export client-ready reports from one place.
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-500/20 border border-blue-400/30 rounded-full mb-4">
+                <span className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
+                <span className="text-xs font-medium text-blue-300">Engineering Automation Platform</span>
+              </div>
+              <h2 className="text-2xl lg:text-3xl font-bold text-white tracking-tight">Welcome to HVAC-AEST-EA</h2>
+              <p className="mt-2 text-sm text-slate-300 max-w-lg">
+                Streamline your HVAC estimation workflow with intelligent load calculations, automated equipment sizing, and professional BOQ generation.
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Link href="/projects/new">
-                <Button variant="accent" size="sm">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Start Project
-                </Button>
-              </Link>
-              <Link href="/reports">
-                <Button variant="secondary" size="sm">
-                  <FileSpreadsheet className="w-4 h-4 mr-2" />
-                  Open Reports
-                </Button>
-              </Link>
-            </div>
+            
           </div>
         </CardContent>
       </Card>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
         <StatCard
           title="Total Projects"
           value={loading ? '—' : totalProjects}
@@ -149,7 +142,7 @@ export default function DashboardPage() {
               <CardTitle>Recent Projects</CardTitle>
               <Link href="/projects">
                 <Button variant="ghost" size="sm">
-                  View All <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                  View All <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
                 </Button>
               </Link>
             </div>
@@ -158,18 +151,18 @@ export default function DashboardPage() {
             {loading ? (
               <div className="space-y-3">
                 {[1, 2, 3, 4].map((i) => (
-                  <Skeleton key={i} className="h-14 w-full" />
+                  <Skeleton key={i} className="h-16 w-full rounded-xl" />
                 ))}
               </div>
             ) : recentProjects.length === 0 ? (
               <EmptyState
-                icon={<Building2 className="w-10 h-10" />}
+                icon={<Building2 className="w-12 h-12" />}
                 title="No projects yet"
                 description="Create your first HVAC estimation project to get started"
                 action={
                   <Link href="/projects/new">
                     <Button variant="accent" size="sm">
-                      <Plus className="w-3.5 h-3.5 mr-1.5" />
+                      <Plus className="w-4 h-4 mr-2" />
                       Create Project
                     </Button>
                   </Link>
@@ -180,7 +173,7 @@ export default function DashboardPage() {
                 variants={listContainerVariants}
                 initial="hidden"
                 animate="visible"
-                className="divide-y divide-border/50"
+                className="space-y-2"
               >
                 {recentProjects.map((project) => {
                   const projectTR = project.floors?.reduce((fSum, f) => {
@@ -191,26 +184,26 @@ export default function DashboardPage() {
                     <motion.div key={project.id} variants={listItemVariants}>
                       <Link
                         href={`/projects/${project.id}`}
-                        className="flex items-center justify-between py-3 px-3 -mx-3 rounded-lg hover:bg-secondary/60 transition-colors"
+                        className="flex items-center justify-between p-4 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-100 hover:border-slate-300 hover:shadow-sm transition-all duration-200 group"
                       >
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h3 className="text-[13px] font-medium text-foreground truncate">
+                          <div className="flex items-center gap-2.5">
+                            <h3 className="text-sm font-semibold text-slate-900 truncate group-hover:text-accent transition-colors">
                               {project.name}
                             </h3>
                             <Badge variant={statusColor[project.status] || 'default'} size="sm">
                               {project.status}
                             </Badge>
                           </div>
-                          <p className="text-xs text-muted-foreground mt-0.5">
+                          <p className="text-xs text-slate-500 mt-1">
                             {project.clientName || 'No client'} · {project.buildingType} · {project.location || 'No location'}
                           </p>
                         </div>
                         <div className="text-right ml-4 shrink-0">
-                          <p className="text-[13px] font-medium tabular-nums text-foreground">
+                          <p className="text-sm font-bold tabular-nums text-slate-900">
                             {projectTR.toFixed(1)} TR
                           </p>
-                          <p className="text-[11px] text-muted-foreground tabular-nums">
+                          <p className="text-[11px] text-slate-500 tabular-nums">
                             {new Date(project.updatedAt).toLocaleDateString()}
                           </p>
                         </div>
@@ -224,54 +217,24 @@ export default function DashboardPage() {
         </Card>
 
         <div className="space-y-6">
-          <Card className="border-primary/20 bg-primary/5">
-            <CardHeader>
-              <CardTitle className="text-base">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Link href="/projects/new" className="block">
-                <Button variant="secondary" size="sm" className="w-full justify-start">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create New Project
-                </Button>
-              </Link>
-              <Link href="/quotation" className="block">
-                <Button variant="secondary" size="sm" className="w-full justify-start">
-                  <ReceiptText className="w-4 h-4 mr-2" />
-                  Generate Quotation
-                </Button>
-              </Link>
-              <Link href="/materials" className="block">
-                <Button variant="secondary" size="sm" className="w-full justify-start">
-                  <Boxes className="w-4 h-4 mr-2" />
-                  Manage Materials
-                </Button>
-              </Link>
-              <Link href="/reports" className="block">
-                <Button variant="secondary" size="sm" className="w-full justify-start">
-                  <FileSpreadsheet className="w-4 h-4 mr-2" />
-                  Open Reports
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
+          
 
-          <Card className="border-accent/20 bg-accent/5">
+          <Card className="border-blue-200 bg-gradient-to-br from-blue-50/80 to-indigo-50/50">
             <CardHeader>
-              <CardTitle className="text-base">Portfolio Snapshot</CardTitle>
+              <CardTitle className="text-base font-bold">Portfolio Snapshot</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="rounded-lg border border-border/60 bg-background/70 p-3">
-                <p className="text-xs text-muted-foreground">Selected Equipment</p>
-                <p className="text-2xl font-semibold text-foreground">{loading ? '—' : totalEquipment}</p>
+            <CardContent className="space-y-3">
+              <div className="rounded-xl border border-white bg-white/70 p-4 shadow-sm">
+                <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Selected Equipment</p>
+                <p className="text-2xl font-bold text-slate-900 mt-1">{loading ? '—' : totalEquipment}</p>
               </div>
-              <div className="rounded-lg border border-border/60 bg-background/70 p-3">
-                <p className="text-xs text-muted-foreground">BOQ Line Items</p>
-                <p className="text-2xl font-semibold text-foreground">{loading ? '—' : totalBOQItems}</p>
+              <div className="rounded-xl border border-white bg-white/70 p-4 shadow-sm">
+                <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">BOQ Line Items</p>
+                <p className="text-2xl font-bold text-slate-900 mt-1">{loading ? '—' : totalBOQItems}</p>
               </div>
-              <div className="rounded-lg border border-border/60 bg-background/70 p-3">
-                <p className="text-xs text-muted-foreground">Average Items / Project</p>
-                <p className="text-2xl font-semibold text-foreground">
+              <div className="rounded-xl border border-white bg-white/70 p-4 shadow-sm">
+                <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Avg Items / Project</p>
+                <p className="text-2xl font-bold text-slate-900 mt-1">
                   {loading ? '—' : totalProjects > 0 ? (totalBOQItems / totalProjects).toFixed(1) : '0.0'}
                 </p>
               </div>
@@ -282,3 +245,6 @@ export default function DashboardPage() {
     </PageWrapper>
   );
 }
+
+
+

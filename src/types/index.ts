@@ -54,6 +54,15 @@ export type {
   ConfidenceLevel,
 } from './diagnostic';
 
+export type {
+  ApiSuccess,
+  ApiError,
+  ApiResponse,
+  ProjectListItem,
+  AppSettings,
+  DiagnosticHistoryItem,
+} from './api';
+
 // Audit
 export interface AuditEntry {
   id: string;

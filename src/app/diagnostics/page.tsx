@@ -446,7 +446,7 @@ function FaultRow({ fault, expanded, onToggle }: { fault: DiagnosticFault; expan
   const conf = confidenceConfig[fault.probability];
 
   return (
-    <Card padding="none" className="overflow-hidden">
+    <Card className="overflow-hidden p-0">
       <button type="button" onClick={onToggle} className="w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-secondary/40 transition-colors">
         <span className="flex items-center justify-center w-6 h-6 rounded-full bg-secondary text-[10px] font-bold shrink-0">{fault.rank}</span>
         <div className="flex-1 min-w-0">

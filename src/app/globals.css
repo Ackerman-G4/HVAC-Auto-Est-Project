@@ -1,32 +1,31 @@
 @import "tailwindcss";
 
 :root {
-  --background: #F4F6F9;
-  --foreground: #141920;
+  --background: #F8FAFC;
+  --foreground: #0F172A;
   --card: #FFFFFF;
-  --card-foreground: #141920;
-  --primary: #141920;
+  --card-foreground: #0F172A;
+  --primary: #0F172A;
   --primary-foreground: #FFFFFF;
-  --secondary: #EDEFF4;
-  --secondary-foreground: #2F3A46;
-  --muted: #D9DEE7;
-  --muted-foreground: #667287;
-  --accent: #224FC6;
+  --secondary: #F1F5F9;
+  --secondary-foreground: #334155;
+  --muted: #E2E8F0;
+  --muted-foreground: #64748B;
+  --accent: #2563EB;
+  --accent-light: #60A5FA;
+  --accent-dark: #1D4ED8;
   --accent-foreground: #FFFFFF;
-  --border: #DCE2EB;
-  --input: #D3DAE6;
-  --ring: #224FC6;
-  --destructive: #DC2626;
+  --border: #E2E8F0;
+  --input: #E2E8F0;
+  --ring: #2563EB;
+  --destructive: #EF4444;
   --destructive-foreground: #FFFFFF;
-  --success: #0B8B63;
-  --warning: #C77812;
-  --silver: #95A0B2;
-  --silver-light: #E3E8F0;
-  --silver-dark: #5F6B7E;
-  --radius: 0.75rem;
-  --sidebar-width: 252px;
-  --sidebar-collapsed: 64px;
-  --topbar-height: 56px;
+  --success: #10B981;
+  --warning: #F59E0B;
+  --silver: #94A3B8;
+  --silver-light: #F1F5F9;
+  --silver-dark: #475569;
+  --radius: 0.5rem;
 }
 
 @theme inline {
@@ -41,6 +40,8 @@
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
+  --color-accent-light: var(--accent-light);
+  --color-accent-dark: var(--accent-dark);
   --color-accent-foreground: var(--accent-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
@@ -63,65 +64,47 @@
 }
 
 body {
-  background: linear-gradient(180deg, #f7f9fc 0%, var(--background) 28%);
+  background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: 'cv11', 'ss01';
-  letter-spacing: -0.011em;
-  line-height: 1.5;
 }
 
 ::selection {
-  background: color-mix(in oklab, var(--accent) 22%, white);
+  background: color-mix(in oklab, var(--accent) 25%, white);
   color: var(--foreground);
 }
 
-/* Scrollbar styling */
+/* Modern scrollbar styling */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--silver-light);
-  border-radius: 100px;
+  background: var(--silver);
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--silver);
+  background: var(--silver-dark);
 }
 
-/* Skeleton loading animation */
-@keyframes skeleton-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
-}
-.animate-skeleton {
-  animation: skeleton-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-/* Focus ring */
-.focus-ring {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
-}
-
-/* Glass overlay mode for floor plans */
-.glass-overlay {
-  background: rgba(255, 255, 255, 0.88);
-  -webkit-backdrop-filter: blur(8px);
+/* Base utilities */
+.glass {
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
 }
 
-/* Tabular nums utility */
 .tabular-nums {
+  font-feature-settings: 'tnum' 1;
   font-variant-numeric: tabular-nums;
 }
 
-/* Print styles */
 @media print {
   .no-print { display: none !important; }
   body { background: white; }

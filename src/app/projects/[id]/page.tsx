@@ -132,6 +132,7 @@ interface ProjectData {
       spaceType: string;
       area: number;
       perimeter: number;
+      polygon?: string;
       ceilingHeight: number;
       wallConstruction: string;
       windowType: string;
@@ -481,27 +482,27 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 <div>
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">Outdoor Air</p>
                   <div className="grid grid-cols-3 gap-1.5 text-center">
-                    <div className="bg-orange-50 dark:bg-orange-950/30 rounded py-1.5">
+                    <div className="bg-orange-50 rounded py-1.5">
                       <p className="text-sm font-bold tabular-nums">{outdoorPS.dryBulb}°C</p>
                       <p className="text-[8px] uppercase tracking-wider text-muted-foreground">DB</p>
                     </div>
-                    <div className="bg-orange-50 dark:bg-orange-950/30 rounded py-1.5">
+                    <div className="bg-orange-50 rounded py-1.5">
                       <p className="text-sm font-bold tabular-nums">{outdoorPS.wetBulb}°C</p>
                       <p className="text-[8px] uppercase tracking-wider text-muted-foreground">WB</p>
                     </div>
-                    <div className="bg-orange-50 dark:bg-orange-950/30 rounded py-1.5">
+                    <div className="bg-orange-50 rounded py-1.5">
                       <p className="text-sm font-bold tabular-nums">{outdoorPS.relativeHumidity}%</p>
                       <p className="text-[8px] uppercase tracking-wider text-muted-foreground">RH</p>
                     </div>
-                    <div className="bg-orange-50 dark:bg-orange-950/30 rounded py-1.5">
+                    <div className="bg-orange-50 rounded py-1.5">
                       <p className="text-sm font-bold tabular-nums">{outdoorPS.dewPoint}°C</p>
                       <p className="text-[8px] uppercase tracking-wider text-muted-foreground">Dew Pt</p>
                     </div>
-                    <div className="bg-orange-50 dark:bg-orange-950/30 rounded py-1.5">
+                    <div className="bg-orange-50 rounded py-1.5">
                       <p className="text-sm font-bold tabular-nums">{(outdoorPS.humidityRatio * 1000).toFixed(1)}</p>
                       <p className="text-[8px] uppercase tracking-wider text-muted-foreground">W (g/kg)</p>
                     </div>
-                    <div className="bg-orange-50 dark:bg-orange-950/30 rounded py-1.5">
+                    <div className="bg-orange-50 rounded py-1.5">
                       <p className="text-sm font-bold tabular-nums">{outdoorPS.enthalpy}</p>
                       <p className="text-[8px] uppercase tracking-wider text-muted-foreground">h (kJ/kg)</p>
                     </div>
@@ -511,27 +512,27 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 <div>
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">Indoor Air (Design)</p>
                   <div className="grid grid-cols-3 gap-1.5 text-center">
-                    <div className="bg-blue-50 dark:bg-blue-950/30 rounded py-1.5">
+                    <div className="bg-blue-50 rounded py-1.5">
                       <p className="text-sm font-bold tabular-nums">{indoorPS.dryBulb}°C</p>
                       <p className="text-[8px] uppercase tracking-wider text-muted-foreground">DB</p>
                     </div>
-                    <div className="bg-blue-50 dark:bg-blue-950/30 rounded py-1.5">
+                    <div className="bg-blue-50 rounded py-1.5">
                       <p className="text-sm font-bold tabular-nums">{indoorPS.wetBulb}°C</p>
                       <p className="text-[8px] uppercase tracking-wider text-muted-foreground">WB</p>
                     </div>
-                    <div className="bg-blue-50 dark:bg-blue-950/30 rounded py-1.5">
+                    <div className="bg-blue-50 rounded py-1.5">
                       <p className="text-sm font-bold tabular-nums">{indoorPS.relativeHumidity}%</p>
                       <p className="text-[8px] uppercase tracking-wider text-muted-foreground">RH</p>
                     </div>
-                    <div className="bg-blue-50 dark:bg-blue-950/30 rounded py-1.5">
+                    <div className="bg-blue-50 rounded py-1.5">
                       <p className="text-sm font-bold tabular-nums">{indoorPS.dewPoint}°C</p>
                       <p className="text-[8px] uppercase tracking-wider text-muted-foreground">Dew Pt</p>
                     </div>
-                    <div className="bg-blue-50 dark:bg-blue-950/30 rounded py-1.5">
+                    <div className="bg-blue-50 rounded py-1.5">
                       <p className="text-sm font-bold tabular-nums">{(indoorPS.humidityRatio * 1000).toFixed(1)}</p>
                       <p className="text-[8px] uppercase tracking-wider text-muted-foreground">W (g/kg)</p>
                     </div>
-                    <div className="bg-blue-50 dark:bg-blue-950/30 rounded py-1.5">
+                    <div className="bg-blue-50 rounded py-1.5">
                       <p className="text-sm font-bold tabular-nums">{indoorPS.enthalpy}</p>
                       <p className="text-[8px] uppercase tracking-wider text-muted-foreground">h (kJ/kg)</p>
                     </div>
@@ -693,6 +694,26 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                     <MapPin className="w-4 h-4 text-muted-foreground shrink-0" />
                                     <h4 className="text-base font-semibold text-foreground">{room.name}</h4>
                                     <Badge size="sm">{room.spaceType.replace(/_/g, ' ')}</Badge>
+                                    <button
+                                      onClick={async () => {
+                                        if (!confirm(`Delete room "${room.name}"?`)) return;
+                                        try {
+                                          const res = await fetch(`/api/projects/${id}/rooms/${room.id}`, { method: 'DELETE' });
+                                          if (res.ok) {
+                                            showToast('success', `Room "${room.name}" deleted`);
+                                            fetchProject();
+                                          } else {
+                                            showToast('error', 'Failed to delete room');
+                                          }
+                                        } catch {
+                                          showToast('error', 'Failed to delete room');
+                                        }
+                                      }}
+                                      className="ml-auto p-1 rounded hover:bg-red-100 text-muted-foreground hover:text-red-600 transition-colors"
+                                      title="Delete room"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
                                   </div>
                                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1 mt-2 text-sm">
                                     <span className="text-muted-foreground">Area: <span className="text-foreground font-medium">{room.area} m² ({sqmToSqft(room.area).toFixed(0)} ft²)</span></span>
@@ -825,9 +846,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           <div>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Selected Equipment</h3>
-              <Button variant="accent" size="sm" onClick={autoSizeEquipment} isLoading={autoSizing}>
-                <Zap className="w-4 h-4 mr-1" /> Auto-Size All
-              </Button>
+              
             </div>
             {project.selectedEquipment.length === 0 ? (
               <EmptyState
@@ -890,9 +909,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           <div>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Bill of Quantities</h3>
-              <Button variant="accent" size="sm" onClick={generateBOQ} isLoading={generatingBOQ}>
-                <FileText className="w-4 h-4 mr-1" /> Regenerate BOQ
-              </Button>
+              
             </div>
             {project.boqItems.length === 0 ? (
               <EmptyState
@@ -951,13 +968,13 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* PDF Report */}
-              <Card className="border border-border hover:border-accent/50 transition-colors cursor-pointer" hover onClick={() => {
+              <Card className="border border-border hover:border-accent/50 transition-colors cursor-pointer" onClick={() => {
                 exportProjectPDF(project);
                 showToast('success', 'PDF report downloaded');
               }}>
                 <CardContent className="p-5 text-center">
-                  <div className="w-12 h-12 rounded-xl bg-red-100 dark:bg-red-950/40 flex items-center justify-center mx-auto mb-3">
-                    <FileText className="w-6 h-6 text-red-600 dark:text-red-400" />
+                  <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center mx-auto mb-3">
+                    <FileText className="w-6 h-6 text-red-600" />
                   </div>
                   <h4 className="font-semibold mb-1">PDF Report</h4>
                   <p className="text-xs text-muted-foreground">Full project report with cooling loads, equipment, and BOQ</p>
@@ -965,13 +982,13 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               </Card>
 
               {/* DXF / CAD */}
-              <Card className="border border-border hover:border-accent/50 transition-colors cursor-pointer" hover onClick={() => {
+              <Card className="border border-border hover:border-accent/50 transition-colors cursor-pointer" onClick={() => {
                 exportProjectDXF(project);
                 showToast('success', 'DXF file downloaded — open in AutoCAD or BricsCAD');
               }}>
                 <CardContent className="p-5 text-center">
-                  <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-950/40 flex items-center justify-center mx-auto mb-3">
-                    <FileDown className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                  <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center mx-auto mb-3">
+                    <FileDown className="w-6 h-6 text-blue-600" />
                   </div>
                   <h4 className="font-semibold mb-1">CAD Export (DXF)</h4>
                   <p className="text-xs text-muted-foreground">AutoCAD-compatible floor plans with room labels and loads</p>
@@ -979,13 +996,13 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               </Card>
 
               {/* Excel */}
-              <Card className="border border-border hover:border-accent/50 transition-colors cursor-pointer" hover onClick={async () => {
+              <Card className="border border-border hover:border-accent/50 transition-colors cursor-pointer" onClick={async () => {
                 await exportProjectExcel(project);
                 showToast('success', 'Excel workbook downloaded');
               }}>
                 <CardContent className="p-5 text-center">
-                  <div className="w-12 h-12 rounded-xl bg-green-100 dark:bg-green-950/40 flex items-center justify-center mx-auto mb-3">
-                    <FileSpreadsheet className="w-6 h-6 text-green-600 dark:text-green-400" />
+                  <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center mx-auto mb-3">
+                    <FileSpreadsheet className="w-6 h-6 text-green-600" />
                   </div>
                   <h4 className="font-semibold mb-1">Excel Workbook</h4>
                   <p className="text-xs text-muted-foreground">Multi-sheet workbook with loads, equipment, and BOQ</p>
@@ -993,13 +1010,13 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               </Card>
 
               {/* CSV */}
-              <Card className="border border-border hover:border-accent/50 transition-colors cursor-pointer" hover onClick={() => {
+              <Card className="border border-border hover:border-accent/50 transition-colors cursor-pointer" onClick={() => {
                 exportProjectCSV(project);
                 showToast('success', 'CSV file downloaded');
               }}>
                 <CardContent className="p-5 text-center">
-                  <div className="w-12 h-12 rounded-xl bg-amber-100 dark:bg-amber-950/40 flex items-center justify-center mx-auto mb-3">
-                    <FileText className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                  <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center mx-auto mb-3">
+                    <FileText className="w-6 h-6 text-amber-600" />
                   </div>
                   <h4 className="font-semibold mb-1">CSV Data</h4>
                   <p className="text-xs text-muted-foreground">Cooling load data in CSV format for custom analysis</p>
@@ -1013,3 +1030,5 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     </PageWrapper>
   );
 }
+
+

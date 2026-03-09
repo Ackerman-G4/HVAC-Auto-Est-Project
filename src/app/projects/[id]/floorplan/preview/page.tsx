@@ -484,7 +484,7 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
           </div>
 
           {/* Canvas area */}
-          <Card padding="none" className="print-full">
+          <Card className="p-0 print-full">
             <div ref={containerRef} className="w-full h-125 relative">
               <canvas ref={canvasRef} className="w-full h-full" />
             </div>

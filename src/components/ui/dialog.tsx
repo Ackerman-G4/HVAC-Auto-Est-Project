@@ -4,6 +4,7 @@ import React, { useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
+import { Button } from '@/components/ui/button';
 import { modalOverlayVariants, modalContentVariants } from '@/animations/modal-variants';
 
 interface DialogProps {
@@ -45,7 +46,7 @@ export function Dialog({ open, onClose, title, description, children, size = 'md
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <motion.div
-            className="fixed inset-0 bg-black/40"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
             variants={modalOverlayVariants}
             initial="initial"
             animate="animate"
@@ -54,7 +55,7 @@ export function Dialog({ open, onClose, title, description, children, size = 'md
           />
           <motion.div
             className={cn(
-              'relative z-50 w-full bg-card rounded-xl shadow-xl border border-border',
+              'relative z-50 w-full bg-white rounded-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] border border-slate-200',
               'max-h-[85vh] overflow-y-auto',
               sizes[size],
               className
@@ -65,20 +66,21 @@ export function Dialog({ open, onClose, title, description, children, size = 'md
             exit="exit"
           >
             {(title || description) && (
-              <div className="sticky top-0 bg-card border-b border-border px-6 py-4 flex items-start justify-between rounded-t-xl z-10">
+              <div className="sticky top-0 bg-white/95 backdrop-blur border-b border-slate-200/80 px-6 sm:px-8 py-5 flex items-start justify-between z-10">
                 <div>
-                  {title && <h2 className="text-lg font-semibold text-foreground">{title}</h2>}
-                  {description && <p className="text-sm text-muted-foreground mt-1">{description}</p>}
+                  {title && <h2 className="text-xl font-bold tracking-tight text-slate-900">{title}</h2>}
+                  {description && <p className="text-sm font-medium text-slate-500 mt-1">{description}</p>}
                 </div>
                 <button
                   onClick={onClose}
-                  className="p-1 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+                  className="rounded-full p-2 bg-slate-100/50 hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
                 >
-                  <X size={18} />
+                  <X className="h-5 w-5" />
+                  <span className="sr-only">Close</span>
                 </button>
               </div>
             )}
-            <div className="p-6">{children}</div>
+            <div className="p-6 sm:p-8">{children}</div>
           </motion.div>
         </div>
       )}
@@ -112,26 +114,20 @@ export function ConfirmDialog({
   return (
     <Dialog open={open} onClose={onClose} title={title} description={description} size="sm">
       <div className="flex justify-end gap-3 mt-4">
-        <button
-          onClick={onClose}
-          className="h-10 px-4 text-sm rounded-lg border border-border hover:bg-secondary transition-colors"
-          disabled={isLoading}
-        >
+        <Button onClick={onClose} variant="outline" disabled={isLoading}>
           {cancelText}
-        </button>
-        <button
+        </Button>
+        <Button
           onClick={onConfirm}
           disabled={isLoading}
-          className={cn(
-            'h-10 px-4 text-sm rounded-lg font-medium transition-colors',
-            variant === 'destructive'
-              ? 'bg-destructive text-white hover:bg-red-700'
-              : 'bg-primary text-primary-foreground hover:bg-[#343A40]'
-          )}
+          variant={variant === 'destructive' ? 'destructive' : 'primary'}
+          isLoading={isLoading}
         >
-          {isLoading ? 'Processing...' : confirmText}
-        </button>
+          {confirmText}
+        </Button>
       </div>
     </Dialog>
   );
 }
+
+

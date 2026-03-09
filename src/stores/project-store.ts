@@ -28,7 +28,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const res = await fetch('/api/projects');
       if (!res.ok) throw new Error('Failed to fetch projects');
       const data = await res.json();
-      set({ projects: data, isLoading: false });
+      set({ projects: data.projects || data, isLoading: false });
     } catch (error) {
       console.error(error);
       set({ isLoading: false });
@@ -42,7 +42,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const res = await fetch(`/api/projects/${id}`);
       if (!res.ok) throw new Error('Failed to fetch project');
       const data = await res.json();
-      set({ currentProject: data, isLoading: false });
+      set({ currentProject: data.project || data, isLoading: false });
     } catch (error) {
       console.error(error);
       set({ isLoading: false });
@@ -58,7 +58,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         body: JSON.stringify(data),
       });
       if (!res.ok) throw new Error('Failed to create project');
-      const project = await res.json();
+      const result = await res.json();
+      const project = result.project || result;
       set((state) => ({ projects: [project, ...state.projects] }));
       showToast('success', 'Project created', project.name);
       return project;
@@ -77,7 +78,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         body: JSON.stringify(data),
       });
       if (!res.ok) throw new Error('Failed to update project');
-      const updated = await res.json();
+      const result = await res.json();
+      const updated = result.project || result;
       set((state) => ({
         projects: state.projects.map((p) => (p.id === id ? updated : p)),
         currentProject: state.currentProject?.id === id ? updated : state.currentProject,

@@ -185,45 +185,47 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const overallBOQ = compileBOQ(buildBOQInputs(selectedEquipment));
     const boqSummary = { ...overallBOQ, items: allItems };
 
-    // Persist
-    await prisma.bOQItem.deleteMany({ where: { projectId } });
+    // Persist — wrap delete+create in a transaction for atomicity
+    await prisma.$transaction(async (tx) => {
+      await tx.bOQItem.deleteMany({ where: { projectId } });
 
-    await prisma.bOQItem.createMany({
-      data: boqSummary.items.map((item) => ({
-        projectId,
-        section: item.section,
-        description: item.description,
-        quantity: item.quantity,
-        unit: item.unit,
-        unitPrice: item.unitPrice,
-        totalPrice: item.totalPrice,
-        category: item.category,
-        notes: item.floorName || '',
-      })),
-    });
+      await tx.bOQItem.createMany({
+        data: boqSummary.items.map((item) => ({
+          projectId,
+          section: item.section,
+          description: item.description,
+          quantity: item.quantity,
+          unit: item.unit,
+          unitPrice: item.unitPrice,
+          totalPrice: item.totalPrice,
+          category: item.category,
+          notes: item.floorName || '',
+        })),
+      });
 
-    // Update project total floor area
-    await prisma.project.update({
-      where: { id: projectId },
-      data: {
-        totalFloorArea: (await prisma.room.aggregate({
-          where: { floor: { projectId } },
-          _sum: { area: true },
-        }))._sum.area || 0,
-      },
-    });
+      // Update project total floor area
+      await tx.project.update({
+        where: { id: projectId },
+        data: {
+          totalFloorArea: (await tx.room.aggregate({
+            where: { floor: { projectId } },
+            _sum: { area: true },
+          }))._sum.area || 0,
+        },
+      });
 
-    await prisma.auditLog.create({
-      data: {
-        projectId,
-        action: 'generated',
-        entity: 'boq',
-        entityId: projectId,
-        details: JSON.stringify({
-          itemCount: boqSummary.items.length,
-          grandTotal: boqSummary.grandTotal,
-        }),
-      },
+      await tx.auditLog.create({
+        data: {
+          projectId,
+          action: 'generated',
+          entity: 'boq',
+          entityId: projectId,
+          details: JSON.stringify({
+            itemCount: boqSummary.items.length,
+            grandTotal: boqSummary.grandTotal,
+          }),
+        },
+      });
     });
 
     return NextResponse.json({ boq: boqSummary }, { status: 201 });

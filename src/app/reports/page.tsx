@@ -482,7 +482,7 @@ export default function ReportsPage() {
             >
           {/* Summary Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card padding="none">
+            <Card className="p-0">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-accent/8 flex items-center justify-center shrink-0">
@@ -495,7 +495,7 @@ export default function ReportsPage() {
                 </div>
               </CardContent>
             </Card>
-            <Card padding="none">
+            <Card className="p-0">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center shrink-0">
@@ -509,7 +509,7 @@ export default function ReportsPage() {
                 </div>
               </CardContent>
             </Card>
-            <Card padding="none">
+            <Card className="p-0">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center shrink-0">
@@ -522,7 +522,7 @@ export default function ReportsPage() {
                 </div>
               </CardContent>
             </Card>
-            <Card padding="none">
+            <Card className="p-0">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center shrink-0">

@@ -107,12 +107,13 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
   const [exporting, setExporting] = useState(false);
   const [showMultiView, setShowMultiView] = useState(false);
 
-  // Fetch project floors
+  // Fetch project floors AND restore persisted rooms as canvas rectangles
   useEffect(() => {
     fetch(`/api/projects/${id}/rooms`)
       .then((r) => r.json())
       .then((data) => {
-        const floorData: FloorData[] = (data.floors || []).map((f: FloorData) => ({
+        const rawFloors = data.floors || [];
+        const floorData: FloorData[] = rawFloors.map((f: FloorData) => ({
           id: f.id,
           floorNumber: f.floorNumber,
           name: f.name,
@@ -120,8 +121,47 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
           scale: f.scale || 50,
         }));
         setFloors(floorData);
-        if (floorData.length > 0) {
-          setScale(floorData[0].scale);
+        const floorScale = floorData.length > 0 ? floorData[0].scale : 50;
+        if (floorData.length > 0) setScale(floorScale);
+
+        // Restore rooms from DB as CanvasRooms on the active floor
+        interface DbRoom {
+          id: string;
+          name: string;
+          spaceType: string;
+          polygon: string;
+          area: number;
+          perimeter: number;
+        }
+        interface DbFloor {
+          floorNumber: number;
+          rooms: DbRoom[];
+        }
+        const activeFloorData = rawFloors.find((f: DbFloor) => f.floorNumber === (floorData[0]?.floorNumber ?? 1));
+        if (activeFloorData && activeFloorData.rooms) {
+          const restored: CanvasRoom[] = [];
+          activeFloorData.rooms.forEach((r: DbRoom, idx: number) => {
+            let poly: { x: number; y: number; width: number; height: number } | null = null;
+            try {
+              const parsed = JSON.parse(r.polygon || '[]');
+              if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && parsed.width > 0) {
+                poly = parsed;
+              }
+            } catch { /* ignore */ }
+            if (poly) {
+              restored.push({
+                id: r.id,
+                name: r.name,
+                spaceType: r.spaceType,
+                x: poly.x,
+                y: poly.y,
+                width: poly.width,
+                height: poly.height,
+                color: ROOM_COLORS[idx % ROOM_COLORS.length],
+              });
+            }
+          });
+          if (restored.length > 0) setRooms(restored);
         }
       })
       .catch(() => {
@@ -521,7 +561,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
     showToast('success', 'DXF exported — open in AutoCAD, BricsCAD, or any CAD viewer');
   };
 
-  // Save rooms to project
+  // Save rooms to project — persists polygon geometry for 3D/floorplan sync
   const handleSaveRooms = async () => {
     if (rooms.length === 0) {
       showToast('warning', 'No rooms to save');
@@ -529,22 +569,48 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
     }
 
     try {
+      let saved = 0;
       for (const room of rooms) {
-        const areaSqM = (room.width / scale) * (room.height / scale);
-        await fetch(`/api/projects/${id}/rooms`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: room.name,
-            spaceType: room.spaceType,
-            area: areaSqM,
-            floorNumber: floors[activeFloor]?.floorNumber || 1,
-            ceilingHeight: 2.7,
-            occupantCount: Math.max(1, Math.round(areaSqM / 10)),
-          }),
-        });
+        const widthM = room.width / scale;
+        const heightM = room.height / scale;
+        const areaSqM = widthM * heightM;
+        const perimeterM = 2 * (widthM + heightM);
+        // Store pixel-coordinate rectangle as polygon for later reload
+        const polygon = { x: room.x, y: room.y, width: room.width, height: room.height, scale };
+
+        // If room already has a DB id (loaded from DB), update it
+        const isExisting = !room.id.startsWith('room_');
+        if (isExisting) {
+          await fetch(`/api/projects/${id}/rooms/${room.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: room.name,
+              spaceType: room.spaceType,
+              area: areaSqM,
+              perimeter: perimeterM,
+              polygon,
+            }),
+          });
+        } else {
+          await fetch(`/api/projects/${id}/rooms`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: room.name,
+              spaceType: room.spaceType,
+              area: areaSqM,
+              perimeter: perimeterM,
+              polygon,
+              floorNumber: floors[activeFloor]?.floorNumber || 1,
+              ceilingHeight: 2.7,
+              occupantCount: Math.max(1, Math.round(areaSqM / 10)),
+            }),
+          });
+        }
+        saved++;
       }
-      showToast('success', `${rooms.length} rooms saved with auto-calculated cooling loads`);
+      showToast('success', `${saved} rooms saved with geometry and cooling loads`);
     } catch {
       showToast('error', 'Failed to save rooms');
     }

@@ -48,21 +48,21 @@ export function ToastContainer() {
   }, [toasts, removeToast]);
 
   const icons = {
-    success: <CheckCircle size={18} className="text-success" />,
-    error: <AlertCircle size={18} className="text-destructive" />,
-    warning: <AlertTriangle size={18} className="text-warning" />,
-    info: <Info size={18} className="text-accent" />,
+    success: <CheckCircle size={18} className="text-emerald-500" />,
+    error: <AlertCircle size={18} className="text-red-500" />,
+    warning: <AlertTriangle size={18} className="text-amber-500" />,
+    info: <Info size={18} className="text-blue-500" />,
   };
 
   const borderColors = {
-    success: 'border-l-success',
-    error: 'border-l-destructive',
-    warning: 'border-l-warning',
-    info: 'border-l-accent',
+    success: 'border-l-emerald-500',
+    error: 'border-l-red-500',
+    warning: 'border-l-amber-500',
+    info: 'border-l-blue-500',
   };
 
   return (
-    <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 max-w-sm w-full pointer-events-none">
+    <div className="fixed top-4 right-4 z-[100] flex flex-col gap-3 max-w-sm w-full pointer-events-none">
       <AnimatePresence>
         {toasts.map((toast) => (
           <motion.div
@@ -72,16 +72,16 @@ export function ToastContainer() {
             animate="animate"
             exit="exit"
             className={cn(
-              'pointer-events-auto bg-card border border-border rounded-lg shadow-lg p-4 flex items-start gap-3 border-l-4',
+              'pointer-events-auto bg-white/95 backdrop-blur-md border border-slate-200/50 rounded-2xl shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] p-4 flex items-start gap-3 border-l-4',
               borderColors[toast.type]
             )}
           >
-            {icons[toast.type]}
+            <div className="flex-shrink-0 mt-0.5">{icons[toast.type]}</div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground">{toast.title}</p>
-              {toast.message && <p className="text-xs text-muted-foreground mt-0.5">{toast.message}</p>}
+              <p className="text-sm font-semibold text-slate-900">{toast.title}</p>
+              {toast.message && <p className="text-xs text-slate-500 mt-1 leading-relaxed">{toast.message}</p>}
             </div>
-            <button onClick={() => removeToast(toast.id)} className="text-muted-foreground hover:text-foreground p-0.5">
+            <button onClick={() => removeToast(toast.id)} className="text-slate-500 hover:text-slate-900 p-1 rounded-lg hover:bg-slate-100 transition-colors">
               <X size={14} />
             </button>
           </motion.div>
@@ -90,3 +90,4 @@ export function ToastContainer() {
     </div>
   );
 }
+

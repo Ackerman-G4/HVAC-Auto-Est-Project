@@ -1,10 +1,12 @@
 /**
- * Suppliers API
- * GET /api/suppliers
+ * Suppliers API — DB-backed CRUD
+ * GET  /api/suppliers — List suppliers
+ * POST /api/suppliers — Create supplier
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { PHILIPPINE_SUPPLIERS } from '@/constants/philippine-suppliers';
+import { prisma } from '@/lib/db/prisma';
+import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,27 +14,52 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type');
     const search = searchParams.get('search');
 
-    let suppliers = [...PHILIPPINE_SUPPLIERS];
-
-    if (type) {
-      suppliers = suppliers.filter((s) => s.type === type);
-    }
-
+    const where: Record<string, unknown> = {};
+    if (type) where.type = type;
     if (search) {
-      const q = search.toLowerCase();
-      suppliers = suppliers.filter(
-        (s) =>
-          s.name.toLowerCase().includes(q) ||
-          s.location.toLowerCase().includes(q) ||
-          s.categories?.some((c: string) => c.toLowerCase().includes(q))
-      );
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { location: { contains: search, mode: 'insensitive' } },
+      ];
     }
 
-    const types = [...new Set(PHILIPPINE_SUPPLIERS.map((s) => s.type))];
+    const suppliers = await prisma.supplier.findMany({
+      where,
+      include: { materials: true },
+      orderBy: { name: 'asc' },
+    });
+
+    const allSuppliers = await prisma.supplier.findMany({ select: { type: true } });
+    const types = [...new Set(allSuppliers.map((s) => s.type))];
 
     return NextResponse.json({ suppliers, types });
   } catch (error) {
     console.error('GET /api/suppliers error:', error);
-    return NextResponse.json({ error: 'Failed to fetch suppliers' }, { status: 500 });
+    const d = getErrorDetails(error, 'Failed to fetch suppliers');
+    return errorResponse(500, d.error, d.description, d.code);
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+
+    const supplier = await prisma.supplier.create({
+      data: {
+        name: body.name || 'New Supplier',
+        type: body.type || 'local',
+        website: body.website || '',
+        location: body.location || '',
+        contactInfo: body.contactInfo || '',
+        coverageArea: body.coverageArea || '',
+        categories: body.categories ? JSON.stringify(body.categories) : '[]',
+      },
+    });
+
+    return NextResponse.json({ supplier }, { status: 201 });
+  } catch (error) {
+    console.error('POST /api/suppliers error:', error);
+    const d = getErrorDetails(error, 'Failed to create supplier');
+    return errorResponse(500, d.error, d.description, d.code);
   }
 }

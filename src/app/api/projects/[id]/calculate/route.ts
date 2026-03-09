@@ -33,41 +33,44 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return errorResponse(400, 'No rooms to calculate', 'Add rooms to the project before running cooling load calculations.', 'NO_ROOMS');
     }
 
-    const results = [];
+    const results: ReturnType<typeof calculateCoolingLoad>[] = [];
     let totalProjectLoad = 0;
     let totalProjectTR = 0;
 
-    for (const floor of project.floors) {
-      for (const room of floor.rooms) {
-        if (room.area <= 0) continue;
+    // Wrap all upserts in a transaction for atomicity
+    await prisma.$transaction(async (tx) => {
+      for (const floor of project.floors) {
+        for (const room of floor.rooms) {
+          if (room.area <= 0) continue;
 
-        const loadInput = buildCoolingLoadInput(room, project);
-        const loadResult = calculateCoolingLoad(loadInput, room.id, room.name);
-        const fields = coolingLoadToDbFields(loadResult);
+          const loadInput = buildCoolingLoadInput(room, project);
+          const loadResult = calculateCoolingLoad(loadInput, room.id, room.name);
+          const fields = coolingLoadToDbFields(loadResult);
 
-        await prisma.coolingLoad.upsert({
-          where: { roomId: room.id },
-          create: { roomId: room.id, ...fields },
-          update: fields,
-        });
+          await tx.coolingLoad.upsert({
+            where: { roomId: room.id },
+            create: { roomId: room.id, ...fields },
+            update: fields,
+          });
 
-        totalProjectLoad += loadResult.totalLoad;
-        totalProjectTR += loadResult.trValue;
-        results.push(loadResult);
+          totalProjectLoad += loadResult.totalLoad;
+          totalProjectTR += loadResult.trValue;
+          results.push(loadResult);
+        }
       }
-    }
 
-    await prisma.auditLog.create({
-      data: {
-        projectId,
-        action: 'calculated',
-        entity: 'cooling_load',
-        entityId: projectId,
-        details: JSON.stringify({
-          roomCount: results.length,
-          totalTR: totalProjectTR,
-        }),
-      },
+      await tx.auditLog.create({
+        data: {
+          projectId,
+          action: 'calculated',
+          entity: 'cooling_load',
+          entityId: projectId,
+          details: JSON.stringify({
+            roomCount: results.length,
+            totalTR: totalProjectTR,
+          }),
+        },
+      });
     });
 
     return NextResponse.json({

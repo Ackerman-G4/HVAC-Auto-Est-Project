@@ -1,5 +1,5 @@
 // HVAC Auto-Estimation System - Database Schema
-// SQLite embedded database via Prisma ORM
+// PostgreSQL via Supabase + Prisma ORM
 
 generator client {
   provider = "prisma-client"
@@ -7,7 +7,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 model Project {
@@ -56,6 +56,7 @@ model Floor {
   project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   rooms    Room[]
 
+  @@unique([projectId, floorNumber])
   @@index([projectId])
 }
 
@@ -296,4 +297,20 @@ model AuditLog {
 
   @@index([projectId])
   @@index([timestamp])
+}
+
+model AppSettings {
+  id        String   @id @default("global")
+  data      String   @default("{}") // JSON: all app settings
+  updatedAt DateTime @updatedAt
+}
+
+model DiagnosticHistory {
+  id          String   @id @default(uuid())
+  systemType  String   @default("")
+  input       String   @default("{}") // JSON: DiagnosticInput snapshot
+  result      String   @default("{}") // JSON: DiagnosticResult snapshot
+  faultCount  Int      @default(0)
+  maxSeverity String   @default("info")
+  createdAt   DateTime @default(now())
 }

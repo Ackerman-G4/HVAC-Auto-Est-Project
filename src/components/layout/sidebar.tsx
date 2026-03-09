@@ -11,7 +11,7 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Snowflake,
+  Zap,
   Menu,
   X,
   FileText,
@@ -22,10 +22,10 @@ import { cn } from '@/lib/utils/cn';
 import { sidebarVariants } from '@/animations/shared';
 
 const navItems = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/', label: 'Overview', icon: LayoutDashboard },
   { href: '/projects', label: 'Projects', icon: FolderOpen },
-  { href: '/materials', label: 'Materials & Suppliers', icon: Package },
-  { href: '/reports', label: 'Reports & Export', icon: FileText },
+  { href: '/materials', label: 'Materials \& Suppliers', icon: Package },
+  { href: '/reports', label: 'Reports \& Export', icon: FileText },
   { href: '/quotation', label: 'Quotation', icon: Receipt },
   { href: '/diagnostics', label: 'Diagnostics', icon: Stethoscope },
   { href: '/settings', label: 'Settings', icon: Settings },
@@ -42,51 +42,48 @@ export function Sidebar() {
   };
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-white border-r border-slate-200 shadow-[4px_0_24px_-4px_rgba(0,0,0,0.02)] z-10 relative">
       {/* Logo */}
       <div className={cn(
-        'flex items-center gap-3 px-5 h-14 border-b border-border/70 shrink-0 bg-card/95',
+        'flex items-center gap-4 px-6 h-[80px] shrink-0 border-b border-slate-100 bg-white/50 backdrop-blur-xl',
         collapsed && 'justify-center px-0'
       )}>
-        <div className="w-8 h-8 rounded-[calc(var(--radius)-4px)] bg-accent/95 flex items-center justify-center shrink-0 shadow-sm">
-          <Snowflake size={16} className="text-accent-foreground" />
+        <div className="flex items-center justify-center p-2.5 bg-blue-600 rounded-xl shadow-lg shadow-blue-600/20">
+          <Zap size={24} className="text-white" />
         </div>
-        {!collapsed && (
-          <div className="min-w-0">
-            <h1 className="text-[13px] font-semibold text-foreground tracking-tight truncate">HVAC AutoEst</h1>
-            <p className="text-[10px] text-muted-foreground leading-tight">Estimation System</p>
-          </div>
-        )}
+        {!collapsed && <span className="font-extrabold text-2xl tracking-tighter text-slate-900">HVAC<span className="text-blue-600">APP</span></span>}
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 py-3 px-3 space-y-1 overflow-y-auto">
-        {navItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            onClick={() => setMobileOpen(false)}
-            className={cn(
-              'flex items-center gap-3 px-3 py-2 rounded-[calc(var(--radius)-4px)] text-[13px] font-medium transition-all duration-150 relative',
-              collapsed && 'justify-center px-0',
-              isActive(item.href)
-                ? 'bg-accent/12 text-accent border border-accent/20 shadow-sm'
-                : 'text-muted-foreground hover:text-foreground hover:bg-secondary/80 border border-transparent'
-            )}
-          >
-            <item.icon size={17} className="shrink-0" />
-            {!collapsed && <span className="truncate">{item.label}</span>}
-          </Link>
-        ))}
+      {/* Nav Links */}
+      <nav className="flex-1 py-8 flex flex-col gap-2 px-4 overflow-y-auto">
+        {navItems.map((item) => {
+          const active = isActive(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                'group relative flex items-center gap-3.5 px-3 py-3 rounded-xl text-[15px] font-bold transition-all duration-300',
+                collapsed ? 'justify-center' : '',
+                active
+                  ? 'bg-blue-50 text-blue-700 shadow-sm border border-blue-100/50'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 border border-transparent hover:border-slate-200/50'
+              )}
+            >
+              <item.icon size={20} className={cn('shrink-0 transition-transform duration-300 group-hover:scale-110', active ? 'text-blue-600' : 'text-slate-400 group-hover:text-blue-600')} strokeWidth={active ? 2.5 : 2} />
+              {!collapsed && <span className="truncate tracking-wide">{item.label}</span>}
+            </Link>
+          );
+        })}
       </nav>
 
       {/* Collapse button (desktop only) */}
-      <div className="hidden lg:flex border-t border-border/70 p-2.5">
+      <div className="hidden lg:flex p-5 border-t border-slate-100 bg-slate-50/50">
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-[calc(var(--radius)-4px)] text-xs text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold text-slate-500 hover:text-slate-900 hover:bg-white border border-transparent hover:border-slate-200 hover:shadow-sm transition-all duration-300"
         >
-          {collapsed ? <ChevronRight size={15} /> : <><ChevronLeft size={15} /><span>Collapse</span></>}
+          {collapsed ? <ChevronRight size={20} /> : <><ChevronLeft size={20} /><span>Collapse Setup</span></>}
         </button>
       </div>
     </div>
@@ -94,29 +91,25 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Mobile hamburger */}
       <button
         onClick={() => setMobileOpen(true)}
-        title="Open navigation menu"
-        aria-label="Open navigation menu"
-        className="lg:hidden fixed top-3 left-3 z-50 p-2 rounded-[calc(var(--radius)-4px)] bg-card border border-border/70 shadow-sm hover:bg-secondary transition-colors"
+        className="lg:hidden fixed top-4 left-4 z-50 p-2.5 rounded-lg bg-white border border-slate-200 shadow-sm text-slate-900 hover:bg-slate-50 transition-colors"
       >
-        <Menu size={18} />
+        <Menu size={20} />
       </button>
 
-      {/* Mobile sidebar overlay */}
       <AnimatePresence>
         {mobileOpen && (
           <>
             <motion.div
-              className="lg:hidden fixed inset-0 bg-black/40 z-40"
+              className="lg:hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setMobileOpen(false)}
             />
             <motion.aside
-              className="lg:hidden fixed left-0 top-0 bottom-0 w-64 bg-card border-r border-border/70 z-50 shadow-xl"
+              className="lg:hidden fixed left-0 top-0 bottom-0 w-[280px] bg-white z-50 shadow-2xl"
               variants={sidebarVariants}
               initial="closed"
               animate="open"
@@ -124,11 +117,9 @@ export function Sidebar() {
             >
               <button
                 onClick={() => setMobileOpen(false)}
-                title="Close navigation menu"
-                aria-label="Close navigation menu"
-                className="absolute top-3 right-3 p-1.5 rounded-md hover:bg-secondary text-muted-foreground"
+                className="absolute top-5 right-5 p-2 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-colors z-50"
               >
-                <X size={18} />
+                <X size={20} />
               </button>
               <SidebarContent />
             </motion.aside>
@@ -136,11 +127,10 @@ export function Sidebar() {
         )}
       </AnimatePresence>
 
-      {/* Desktop sidebar */}
       <aside
         className={cn(
-          'hidden lg:flex flex-col h-screen bg-card/95 border-r border-border/70 shrink-0 transition-all duration-300',
-          collapsed ? 'w-16' : 'w-63'
+          'hidden lg:flex flex-col h-screen shrink-0 transition-all duration-300 ease-in-out z-40',
+          collapsed ? 'w-[80px]' : 'w-[280px]'
         )}
       >
         <SidebarContent />

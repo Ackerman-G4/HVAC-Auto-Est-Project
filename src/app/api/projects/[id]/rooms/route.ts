@@ -67,6 +67,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         spaceType: body.spaceType || 'office',
         area: body.area || 0,
         perimeter: body.perimeter || (body.area > 0 ? Math.sqrt(body.area) * 4 : 0),
+        polygon: body.polygon ? JSON.stringify(body.polygon) : '[]',
         ceilingHeight: body.ceilingHeight || floor.ceilingHeight,
         wallConstruction: body.wallConstruction || 'concrete_block_200mm',
         windowType: body.windowType || 'single_clear_6mm',

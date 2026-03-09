@@ -26,21 +26,23 @@ import { cardGridVariants, cardItemVariants, listContainerVariants, listItemVari
 import { formatPHP } from '@/lib/utils/format-currency';
 
 interface MaterialItem {
+  id: string;
   name: string;
   category: string;
   unit: string;
-  unitPrice: number;
-  specifications?: string;
-  brand?: string;
+  unitPricePHP: number;
+  specification?: string;
+  supplier?: { name: string } | null;
 }
 
 interface SupplierItem {
+  id: string;
   name: string;
   type: string;
   location: string;
   contactInfo?: string;
   website?: string;
-  categories?: string[];
+  categories?: string | string[];
   coverageArea?: string;
 }
 
@@ -106,7 +108,7 @@ export default function MaterialsPage() {
     cat.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
 
   const averageMaterialPrice = materials.length
-    ? materials.reduce((sum, m) => sum + (m.unitPrice || 0), 0) / materials.length
+    ? materials.reduce((sum, m) => sum + (m.unitPricePHP || 0), 0) / materials.length
     : 0;
 
   return (
@@ -217,8 +219,8 @@ export default function MaterialsPage() {
                           >
                             <td className="py-2.5 px-3">
                               <div className="text-[13px] font-medium text-foreground">{mat.name}</div>
-                              {mat.brand && (
-                                <span className="text-[11px] text-muted-foreground">{mat.brand}</span>
+                              {mat.supplier && (
+                                <span className="text-[11px] text-muted-foreground">{mat.supplier.name}</span>
                               )}
                               <div className="sm:hidden">
                                 <Badge size="sm" className="mt-1">{formatCategory(mat.category)}</Badge>
@@ -228,10 +230,10 @@ export default function MaterialsPage() {
                               <Badge size="sm">{formatCategory(mat.category)}</Badge>
                             </td>
                             <td className="py-2.5 px-3 hidden md:table-cell text-xs text-muted-foreground">
-                              {mat.specifications || '—'}
+                              {mat.specification || '—'}
                             </td>
                             <td className="text-right py-2.5 px-3 text-muted-foreground">{mat.unit}</td>
-                            <td className="text-right py-2.5 px-3 font-medium tabular-nums">{formatPHP(mat.unitPrice)}</td>
+                            <td className="text-right py-2.5 px-3 font-medium tabular-nums">{formatPHP(mat.unitPricePHP)}</td>
                           </motion.tr>
                         ))}
                       </tbody>
@@ -264,7 +266,7 @@ export default function MaterialsPage() {
                 >
                   {suppliers.map((supplier, idx) => (
                     <motion.div key={`${supplier.name}-${idx}`} variants={cardItemVariants}>
-                      <Card className="h-full" hover>
+                      <Card className="h-full">
                         <CardContent className="p-5">
                           <div className="flex items-start gap-3 mb-3">
                             <div className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center shrink-0">
@@ -302,16 +304,23 @@ export default function MaterialsPage() {
                               </div>
                             )}
                           </div>
-                          {supplier.categories && supplier.categories.length > 0 && (
+                          {(() => {
+                            const cats = Array.isArray(supplier.categories)
+                              ? supplier.categories
+                              : typeof supplier.categories === 'string'
+                                ? (() => { try { return JSON.parse(supplier.categories); } catch { return []; } })()
+                                : [];
+                            return cats.length > 0 && (
                             <div className="mt-3 flex flex-wrap gap-1">
-                              {supplier.categories.slice(0, 5).map((cat) => (
+                              {cats.slice(0, 5).map((cat: string) => (
                                 <Badge key={cat} size="sm" variant="outline">{cat.replace(/_/g, ' ')}</Badge>
                               ))}
-                              {supplier.categories.length > 5 && (
-                                <Badge size="sm" variant="outline">+{supplier.categories.length - 5}</Badge>
+                              {cats.length > 5 && (
+                                <Badge size="sm" variant="outline">+{cats.length - 5}</Badge>
                               )}
                             </div>
-                          )}
+                            );
+                          })()}
                         </CardContent>
                       </Card>
                     </motion.div>

@@ -30,14 +30,12 @@ export async function GET(request: NextRequest, context: RouteContext) {
             rooms: {
               include: {
                 coolingLoad: true,
-                selectedEquipment: { include: { equipment: true } },
               },
             },
           },
           orderBy: { floorNumber: 'asc' },
         },
         boqItems: true,
-        auditLogs: { orderBy: { timestamp: 'desc' }, take: 50 },
       },
     });
 
@@ -45,26 +43,46 @@ export async function GET(request: NextRequest, context: RouteContext) {
       return errorResponse(404, 'Project not found', 'The project ID does not match any existing project record.', 'PROJECT_NOT_FOUND');
     }
 
-    // Flatten selectedEquipment from rooms for frontend
-    const allSelectedEquipment = project.floors.flatMap((f) =>
-      f.rooms.flatMap((r) =>
-        r.selectedEquipment.map((sel) => ({
-          id: sel.id,
-          roomId: sel.roomId,
-          brand: sel.equipment.manufacturer,
-          model: sel.equipment.model,
-          type: sel.equipment.type,
-          capacityTR: sel.equipment.capacityTR,
-          capacityBTU: sel.equipment.capacityBTU,
-          quantity: sel.quantity,
-          unitPrice: sel.equipment.unitPricePHP,
-          totalPrice: sel.equipment.unitPricePHP * sel.quantity,
-          eer: sel.equipment.eer,
-          isInverter: sel.equipment.eer >= INVERTER_EER_THRESHOLD,
-          refrigerant: sel.equipment.refrigerant,
-        })),
-      ),
-    );
+    // Fetch selected equipment in a focused query to keep detail endpoint responsive.
+    const selectedEquipment = await prisma.selectedEquipment.findMany({
+      where: {
+        room: {
+          floor: {
+            projectId: id,
+          },
+        },
+      },
+      include: {
+        equipment: {
+          select: {
+            manufacturer: true,
+            model: true,
+            type: true,
+            capacityTR: true,
+            capacityBTU: true,
+            unitPricePHP: true,
+            eer: true,
+            refrigerant: true,
+          },
+        },
+      },
+    });
+
+    const allSelectedEquipment = selectedEquipment.map((sel) => ({
+      id: sel.id,
+      roomId: sel.roomId,
+      brand: sel.equipment.manufacturer,
+      model: sel.equipment.model,
+      type: sel.equipment.type,
+      capacityTR: sel.equipment.capacityTR,
+      capacityBTU: sel.equipment.capacityBTU,
+      quantity: sel.quantity,
+      unitPrice: sel.equipment.unitPricePHP,
+      totalPrice: sel.equipment.unitPricePHP * sel.quantity,
+      eer: sel.equipment.eer,
+      isInverter: sel.equipment.eer >= INVERTER_EER_THRESHOLD,
+      refrigerant: sel.equipment.refrigerant,
+    }));
 
     return NextResponse.json({
       project: { ...project, selectedEquipment: allSelectedEquipment },

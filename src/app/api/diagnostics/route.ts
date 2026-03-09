@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { runDiagnostic } from '@/lib/functions/diagnostic';
+import { prisma } from '@/lib/db/prisma';
 import type { DiagnosticInput } from '@/types/diagnostic';
 
 export async function POST(request: NextRequest) {
@@ -54,6 +55,23 @@ export async function POST(request: NextRequest) {
     };
 
     const result = runDiagnostic(input);
+
+    // Persist diagnostic run to history
+    try {
+      await prisma.diagnosticHistory.create({
+        data: {
+          systemType: input.systemType,
+          input: JSON.stringify(input),
+          result: JSON.stringify(result),
+          faultCount: result.faults?.length ?? 0,
+          maxSeverity: result.faults?.[0]?.severity ?? 'info',
+        },
+      });
+    } catch (persistError) {
+      console.warn('Failed to persist diagnostic history:', persistError);
+      // Non-blocking — still return result
+    }
+
     return NextResponse.json({ result });
   } catch (error) {
     console.error('POST /api/diagnostics error:', error);

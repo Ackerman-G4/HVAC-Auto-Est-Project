@@ -16,7 +16,7 @@ export function Select({ className, label, error, options, placeholder, id, ref,
   return (
     <div className="w-full">
       {label && (
-        <label htmlFor={selectId} className="block text-xs font-medium text-foreground mb-1.5">
+        <label htmlFor={selectId} className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">
           {label}
         </label>
       )}
@@ -24,18 +24,18 @@ export function Select({ className, label, error, options, placeholder, id, ref,
         ref={ref}
         id={selectId}
         className={cn(
-          'w-full h-9 px-3 rounded-lg border bg-card text-foreground text-[13px] appearance-none',
-          'focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-accent',
-          'transition-all duration-150 cursor-pointer',
-          'disabled:opacity-50 disabled:cursor-not-allowed',
-          error ? 'border-destructive focus:ring-destructive/30' : 'border-border/60',
+          'w-full h-11 px-4 rounded-lg border bg-white text-slate-900 text-sm appearance-none shadow-sm',
+          'focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500',
+          'transition-all duration-200 cursor-pointer',
+          'disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-50',
+          error ? 'border-red-500 focus:ring-red-500/20' : 'border-slate-200 hover:border-slate-300',
           className
         )}
         style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23868E96' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
+          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
           backgroundRepeat: 'no-repeat',
-          backgroundPosition: 'right 12px center',
-          paddingRight: '36px',
+          backgroundPosition: 'right 14px center',
+          paddingRight: '40px',
         }}
         {...props}
       >
@@ -50,7 +50,8 @@ export function Select({ className, label, error, options, placeholder, id, ref,
           </option>
         ))}
       </select>
-      {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
+      {error && <p className="mt-1.5 text-xs text-red-500 font-medium">{error}</p>}
     </div>
   );
 }
+

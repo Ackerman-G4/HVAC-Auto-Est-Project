@@ -76,76 +76,80 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
       // Batch-clear existing selected equipment for every room in the project
       const roomIds = allRooms.map((r) => r.id);
-      await prisma.selectedEquipment.deleteMany({ where: { roomId: { in: roomIds } } });
 
-      const results = [];
+      // Wrap delete + re-create in a transaction for atomicity
+      const results: { room: string; equipment: { id: string; brand: string; model: string; type: string; capacityTR: number; quantity: number }; alternatives: ReturnType<typeof sizeEquipment>['alternatives'] }[] = [];
 
-      for (const floor of floors) {
-        for (const room of floor.rooms) {
-          if (!room.coolingLoad) continue;
+      await prisma.$transaction(async (tx) => {
+        await tx.selectedEquipment.deleteMany({ where: { roomId: { in: roomIds } } });
 
-          const sizing = sizeEquipment({
-            totalLoadWatts: room.coolingLoad.totalLoad,
-            trValue: room.coolingLoad.trValue,
-            btuPerHour: room.coolingLoad.btuPerHour,
-            spaceType: room.spaceType,
-            roomArea: room.area,
-            ceilingHeight: room.ceilingHeight,
-            budgetLevel: body.budgetLevel || 'mid-range',
-            preferredBrand: body.preferredBrand,
-            preferredType: body.preferredType,
-          });
+        for (const floor of floors) {
+          for (const room of floor.rooms) {
+            if (!room.coolingLoad) continue;
 
-          if (sizing.recommended.length > 0) {
-            const top = sizing.recommended[0];
-            const avgPrice = (top.equipment.priceMin + top.equipment.priceMax) / 2;
-            const eer = top.equipment.eer || 10;
-
-            const equipmentRecord = await prisma.equipment.upsert({
-              where: { id: top.equipment.id },
-              update: {},
-              create: {
-                id: top.equipment.id,
-                manufacturer: top.equipment.brand,
-                model: top.equipment.model,
-                type: top.equipment.type,
-                capacityTR: top.equipment.capacityTR,
-                capacityBTU: top.equipment.capacityBTU,
-                capacityKW: top.equipment.capacityKW,
-                powerInputKW: top.equipment.capacityKW / eer,
-                currentAmps: 0,
-                phase: top.equipment.powerSupply?.includes('3') ? '3-phase' : '1-phase',
-                voltage: top.equipment.powerSupply?.includes('380') ? 380 : 220,
-                refrigerant: top.equipment.refrigerant || 'R32',
-                eer,
-                cop: eer / 3.412,
-                unitPricePHP: avgPrice,
-              },
+            const sizing = sizeEquipment({
+              totalLoadWatts: room.coolingLoad.totalLoad,
+              trValue: room.coolingLoad.trValue,
+              btuPerHour: room.coolingLoad.btuPerHour,
+              spaceType: room.spaceType,
+              roomArea: room.area,
+              ceilingHeight: room.ceilingHeight,
+              budgetLevel: body.budgetLevel || 'mid-range',
+              preferredBrand: body.preferredBrand,
+              preferredType: body.preferredType,
             });
 
-            const sel = await prisma.selectedEquipment.create({
-              data: {
-                roomId: room.id,
-                equipmentId: equipmentRecord.id,
-                quantity: top.quantity,
-              },
-            });
+            if (sizing.recommended.length > 0) {
+              const top = sizing.recommended[0];
+              const avgPrice = (top.equipment.priceMin + top.equipment.priceMax) / 2;
+              const eer = top.equipment.eer || 10;
 
-            results.push({
-              room: room.name,
-              equipment: {
-                id: sel.id,
-                brand: top.equipment.brand,
-                model: top.equipment.model,
-                type: top.equipment.type,
-                capacityTR: top.equipment.capacityTR,
-                quantity: top.quantity,
-              },
-              alternatives: sizing.alternatives.slice(0, 3),
-            });
+              const equipmentRecord = await tx.equipment.upsert({
+                where: { id: top.equipment.id },
+                update: {},
+                create: {
+                  id: top.equipment.id,
+                  manufacturer: top.equipment.brand,
+                  model: top.equipment.model,
+                  type: top.equipment.type,
+                  capacityTR: top.equipment.capacityTR,
+                  capacityBTU: top.equipment.capacityBTU,
+                  capacityKW: top.equipment.capacityKW,
+                  powerInputKW: top.equipment.capacityKW / eer,
+                  currentAmps: 0,
+                  phase: top.equipment.powerSupply?.includes('3') ? '3-phase' : '1-phase',
+                  voltage: top.equipment.powerSupply?.includes('380') ? 380 : 220,
+                  refrigerant: top.equipment.refrigerant || 'R32',
+                  eer,
+                  cop: eer / 3.412,
+                  unitPricePHP: avgPrice,
+                },
+              });
+
+              const sel = await tx.selectedEquipment.create({
+                data: {
+                  roomId: room.id,
+                  equipmentId: equipmentRecord.id,
+                  quantity: top.quantity,
+                },
+              });
+
+              results.push({
+                room: room.name,
+                equipment: {
+                  id: sel.id,
+                  brand: top.equipment.brand,
+                  model: top.equipment.model,
+                  type: top.equipment.type,
+                  capacityTR: top.equipment.capacityTR,
+                  quantity: top.quantity,
+                },
+                alternatives: sizing.alternatives.slice(0, 3),
+              });
+            }
           }
         }
-      }
+      });
 
       return NextResponse.json({ results }, { status: 201 });
     }

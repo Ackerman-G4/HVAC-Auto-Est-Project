@@ -33,29 +33,29 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, description, actions, breadcrumbs }: PageHeaderProps) {
   return (
-    <div className="mb-6">
+    <div className="mb-10 lg:mb-12">
       {breadcrumbs && (
-        <nav className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
+        <nav className="flex items-center gap-2 text-sm font-medium text-slate-500 mb-4">
           {breadcrumbs.map((crumb, i) => (
             <React.Fragment key={i}>
-              {i > 0 && <span className="text-border">/</span>}
+              {i > 0 && <span className="text-slate-300">/</span>}
               {crumb.href ? (
-                <a href={crumb.href} className="hover:text-foreground transition-colors">
+                <a href={crumb.href} className="hover:text-slate-900 transition-colors">
                   {crumb.label}
                 </a>
               ) : (
-                <span className="text-foreground font-medium">{crumb.label}</span>
+                <span className="text-slate-900">{crumb.label}</span>
               )}
             </React.Fragment>
           ))}
         </nav>
       )}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
         <div>
-          <h1 className="text-lg font-semibold text-foreground">{title}</h1>
-          {description && <p className="text-[13px] text-muted-foreground mt-0.5">{description}</p>}
+          <h1 className="text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight">{title}</h1>
+          {description && <p className="text-base font-medium text-slate-500 mt-2">{description}</p>}
         </div>
-        {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
+        {actions && <div className="flex items-center gap-3 shrink-0">{actions}</div>}
       </div>
     </div>
   );

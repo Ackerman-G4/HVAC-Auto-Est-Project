@@ -55,21 +55,38 @@ export default function SettingsPage() {
     { id: 5, spaceType: 'retail', maxTR: 5, preferredUnit: 'ceiling_cassette', wallMountHeight: 0, outdoorPlacement: 'rooftop', notes: '' },
   ]);
 
-  // Load saved settings on mount
+  const [loading, setLoading] = useState(true);
+
+  // Load settings from DB on mount, fallback to localStorage
   useEffect(() => {
-    const saved = localStorage.getItem('hvac-settings');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setSettings((prev) => ({ ...prev, ...parsed }));
-      } catch { /* ignore */ }
-    }
-    const savedRules = localStorage.getItem('hvac-placement-rules');
-    if (savedRules) {
-      try {
-        setPlacementRules(JSON.parse(savedRules));
-      } catch { /* ignore */ }
-    }
+    fetch('/api/settings')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.settings) {
+          setSettings((prev) => ({ ...prev, ...data.settings }));
+          if (data.settings.placementRules) {
+            setPlacementRules(data.settings.placementRules);
+          }
+        }
+        setLoading(false);
+      })
+      .catch(() => {
+        // Fallback to localStorage
+        const saved = localStorage.getItem('hvac-settings');
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            setSettings((prev) => ({ ...prev, ...parsed }));
+          } catch { /* ignore */ }
+        }
+        const savedRules = localStorage.getItem('hvac-placement-rules');
+        if (savedRules) {
+          try {
+            setPlacementRules(JSON.parse(savedRules));
+          } catch { /* ignore */ }
+        }
+        setLoading(false);
+      });
   }, []);
 
   const addPlacementRule = () => {
@@ -97,15 +114,25 @@ export default function SettingsPage() {
     setSettings((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSave = () => {
-    // Save to localStorage
-    localStorage.setItem('hvac-settings', JSON.stringify(settings));
-    localStorage.setItem('hvac-placement-rules', JSON.stringify(placementRules));
-    showToast('success', 'Settings saved');
+  const handleSave = async () => {
+    const payload = { ...settings, placementRules };
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error('Save failed');
+      showToast('success', 'Settings saved');
+    } catch {
+      localStorage.setItem('hvac-settings', JSON.stringify(settings));
+      localStorage.setItem('hvac-placement-rules', JSON.stringify(placementRules));
+      showToast('warning', 'Saved locally (DB unavailable)');
+    }
   };
 
-  const handleReset = () => {
-    setSettings({
+  const handleReset = async () => {
+    const defaults = {
       defaultIndoorDB: 24,
       defaultIndoorRH: 50,
       defaultSafetyFactor: 1.1,
@@ -124,14 +151,24 @@ export default function SettingsPage() {
       currencySymbol: '₱',
       autoCalculate: true,
       autoSaveInterval: 30,
-    });
-    setPlacementRules([
+    };
+    const defaultRules = [
       { id: 1, spaceType: 'office', maxTR: 3, preferredUnit: 'wall_split', wallMountHeight: 2.1, outdoorPlacement: 'rooftop', notes: '' },
       { id: 2, spaceType: 'conference_room', maxTR: 5, preferredUnit: 'ceiling_cassette', wallMountHeight: 0, outdoorPlacement: 'rooftop', notes: '' },
       { id: 3, spaceType: 'server_room', maxTR: 10, preferredUnit: 'floor_standing', wallMountHeight: 0, outdoorPlacement: 'ground_level', notes: 'Precision cooling required' },
-    ]);
+    ];
+    setSettings(defaults);
+    setPlacementRules(defaultRules);
     localStorage.removeItem('hvac-settings');
     localStorage.removeItem('hvac-placement-rules');
+    // Reset in DB too
+    try {
+      await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...defaults, placementRules: defaultRules }),
+      });
+    } catch { /* ignore */ }
     showToast('info', 'Settings reset to defaults');
   };
 
