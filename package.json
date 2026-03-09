@@ -3,9 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "pglite-server --db=./.pglite-hvac --port=55432 --host=127.0.0.1 --run \"cmd /c npm run dev:app -- -p 3000\" --include-database-url",
-    "dev:app": "next dev --turbopack",
-    "dev:no-db": "next dev --turbopack",
+    "dev": "next dev --turbopack",
     "dev:no-turbo": "next dev",
     "build": "next build",
     "start": "next start",
@@ -24,7 +22,8 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
-    "@prisma/adapter-pg": "7.4.2",
+    "@neondatabase/serverless": "^1.0.0",
+    "@prisma/adapter-neon": "^7.4.2",
     "@prisma/client": "^7.4.2",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.5.0",
@@ -39,7 +38,6 @@
     "lucide-react": "^0.575.0",
     "next": "^16.1.6",
     "pdfmake": "0.3.5",
-    "pg": "8.20.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-hook-form": "^7.71.2",
@@ -55,7 +53,6 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/fabric": "^5.3.11",
     "@types/node": "^20",
-    "@types/pg": "8.18.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/uuid": "^10.0.0",
@@ -67,8 +64,6 @@
     "typescript": "^5"
   },
   "overrides": {
-    "hono": "4.12.5",
-    "@hono/node-server": "1.19.11",
     "lodash": "4.17.23"
   }
 }
