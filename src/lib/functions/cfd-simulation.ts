@@ -157,6 +157,16 @@ function placePerforatedTiles(grid: CFDGrid, tiles: PerforatedTile[], config: Si
 
 // ─── Physics Solver ─────────────────────────────────────────────────
 
+/**
+ * Step-wise CFD simulation: runs a single iteration and returns updated grid
+ */
+export function stepCFDSimulation(grid: CFDGrid, config: SimulationConfig): void {
+  updateVelocity(grid, config);
+  updatePressure(grid, config);
+  updateTemperature(grid, config);
+  applyBoundaryConditions(grid, config);
+}
+
 function clampIndex(val: number, max: number): number {
   return Math.max(0, Math.min(val, max - 1));
 }

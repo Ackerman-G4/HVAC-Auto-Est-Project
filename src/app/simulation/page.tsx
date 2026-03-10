@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 import {
@@ -15,9 +15,11 @@ import { useSimulationStore } from '@/stores/simulation-store';
 import type {
   RackDensity, HVACUnitType, FailureScenario,
 } from '@/types/simulation';
+import type { Project } from '@/types/project';
+import { demoProject } from '../projects/demo-project';
 
 const AirflowViewer3D = dynamic(
-  () => import('@/components/building/AirflowViewer3D'),
+  () => import('@/components/building/AirflowViewer3D').then(mod => mod.default),
   { ssr: false, loading: () => <div className="h-[500px] bg-slate-900 rounded-xl flex items-center justify-center text-slate-400">Loading 3D viewer...</div> }
 );
 
@@ -644,13 +646,69 @@ function FailurePanel() {
 
 // ─── Main Page ──────────────────────────────────────────────────────
 
+function ProjectDropdown({ projects, onSelect, selectedId }: ProjectDropdownProps) {
+  return (
+    <div className="mb-6">
+      <label className="block text-xs font-bold text-slate-500 mb-1.5">Choose Project</label>
+      <select
+        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+        value={selectedId}
+        onChange={e => onSelect(e.target.value)}
+      >
+        {projects.map((p: Project) => (
+          <option key={p.id} value={p.id}>{p.name}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+interface ProjectDropdownProps {
+  projects: Project[];
+  onSelect: (id: string) => void;
+  selectedId: string;
+}
+
+
+// Project dropdown now fetches from API
+import { useEffect, useState } from 'react';
+
 export default function SimulationPage() {
+    const [simError, setSimError] = useState<string | null>(null);
+  const [projectList, setProjectList] = useState<Project[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(true);
   const [activeTab, setActiveTab] = useState('equipment');
   const {
     racks, hvacUnits, isRunning, result,
     runSimulation, runCompliance, runPUE, runOptimization, clearResults,
   } = useSimulationStore();
+  const [selectedProjectId, setSelectedProjectId] = useState('');
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
+  useEffect(() => {
+    setLoadingProjects(true);
+    fetch('/api/projects')
+      .then(res => res.json())
+      .then(data => {
+        if (data.projects && Array.isArray(data.projects)) {
+          setProjectList(data.projects);
+          if (data.projects.length > 0) {
+            setSelectedProjectId(data.projects[0].id);
+            setSelectedProject(data.projects[0]);
+          }
+        }
+        setLoadingProjects(false);
+      })
+      .catch((err) => {
+        setLoadingProjects(false);
+        setSimError('Failed to load projects: ' + err?.message);
+      });
+  }, []);
+
+  useEffect(() => {
+    const proj = projectList.find(p => p.id === selectedProjectId);
+    setSelectedProject(proj || null);
+  }, [selectedProjectId, projectList]);
   const totalHeatKW = useMemo(() => racks.reduce((s, r) => s + r.powerKW, 0), [racks]);
   const totalCoolingKW = useMemo(() => hvacUnits.filter(u => u.status !== 'failed').reduce((s, u) => s + u.capacityKW, 0), [hvacUnits]);
 
@@ -664,6 +722,11 @@ export default function SimulationPage() {
 
   return (
     <PageWrapper>
+      {simError && (
+        <div className="max-w-4xl mx-auto mt-6 mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm font-bold">
+          {simError}
+        </div>
+      )}
       <PageHeader
         title="CFD Simulation"
         description="Airflow simulation, thermal analysis, and cooling optimization"
@@ -699,6 +762,18 @@ export default function SimulationPage() {
           </div>
         }
       />
+
+      <div className="max-w-4xl mx-auto">
+        {loadingProjects ? (
+          <div className="text-center text-slate-500 py-6">Loading projects...</div>
+        ) : (
+          <ProjectDropdown
+            projects={projectList}
+            selectedId={selectedProjectId}
+            onSelect={setSelectedProjectId}
+          />
+        )}
+      </div>
 
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">

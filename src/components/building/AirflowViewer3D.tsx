@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
+import { stepCFDSimulation } from '@/lib/functions/cfd-simulation';
 import type { SimulationResult, Vec3, ServerRack, HVACUnit } from '@/types/simulation';
 
 /* ------------------------------------------------------------------ */
@@ -94,31 +95,34 @@ function createParticles(result: SimulationResult, count: number): Particle[] {
       i--;
       continue;
     }
-
     particles.push({
       pos: [
-        gx * gridResolution + Math.random() * gridResolution,
-        gz * gridResolution,  // Z in grid → Y in 3D (vertical)
+        gx * gridResolution,
         gy * gridResolution + Math.random() * gridResolution,
+        gz * gridResolution
       ],
-      vel: [vel.x, vel.z, vel.y], // Remap to 3D coordinates
+      vel: [vel.x, vel.z, vel.y],
       life: Math.random() * 60,
       maxLife: 60 + Math.random() * 40,
-      temp,
+      temp: temp
     });
   }
-
   return particles;
 }
 
 /* ------------------------------------------------------------------ */
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
-export default function AirflowViewer3D({
-  result, racks, hvacUnits,
-  showHotspots = true, showAirflow = true,
-  selectedSliceZ = 1, viewMode = 'temperature',
-}: Props) {
+export default function AirflowViewer3D(props: Props) {
+  const {
+    result,
+    racks,
+    hvacUnits,
+    showHotspots = true,
+    showAirflow = true,
+    selectedSliceZ = 1,
+    viewMode = 'temperature',
+  } = props;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const animRef = useRef(0);
@@ -134,6 +138,36 @@ export default function AirflowViewer3D({
   const cy = (config.gridSizeZ * config.gridResolution) / 2;
   const cz = (config.gridSizeY * config.gridResolution) / 2;
 
+  // CFD animation state
+  const [animating, setAnimating] = useState(false);
+  const [frame, setFrame] = useState(0);
+  const [simGrid, setSimGrid] = useState<any>(null);
+
+  // Initialize grid for animation
+  useEffect(() => {
+      // No-op draw function removed. If animating, deep copy velocityField and temperatureField for animation.
+      if (animating) {
+        setSimGrid({
+          velocityField: JSON.parse(JSON.stringify(result.velocityField)),
+          temperatureField: JSON.parse(JSON.stringify(result.temperatureField)),
+        });
+      }
+  }, [result, animating]);
+
+  // Animation loop
+  useEffect(() => {
+    if (!animating || !simGrid) return;
+    let running = true;
+    function animateStep() {
+      if (!running) return;
+      stepCFDSimulation(simGrid, result.config);
+      setFrame(f => f + 1);
+      requestAnimationFrame(animateStep);
+    }
+    animateStep();
+    return () => { running = false; };
+  }, [animating, simGrid, result.config]);
+
   // Initialize particles
   useEffect(() => {
     if (showAirflow) {
@@ -141,336 +175,237 @@ export default function AirflowViewer3D({
     }
   }, [result, showAirflow]);
 
-  // Draw loop
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const wrap = wrapRef.current;
-    if (!canvas || !wrap) return;
+    useEffect(() => {
+      const canvas = canvasRef.current;
+      const wrap = wrapRef.current;
+      if (!canvas || !wrap) return;
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
 
-    let w = 0, h = 0;
-
-    function resize() {
-      const rect = wrap!.getBoundingClientRect();
-      w = rect.width;
-      h = rect.height;
-      const dpr = Math.min(window.devicePixelRatio, 2);
-      canvas!.width = w * dpr;
-      canvas!.height = h * dpr;
-      canvas!.style.width = `${w}px`;
-      canvas!.style.height = `${h}px`;
-      ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
-    }
-    resize();
-    window.addEventListener('resize', resize);
-
-    function draw() {
-      ctx!.clearRect(0, 0, w, h);
-      const midX = w / 2, midY = h / 2;
-      const { ry, rx, sc } = cam.current;
-
-      // Background
-      const grad = ctx!.createLinearGradient(0, 0, 0, h);
-      grad.addColorStop(0, '#0f172a');
-      grad.addColorStop(1, '#1e293b');
-      ctx!.fillStyle = grad;
-      ctx!.fillRect(0, 0, w, h);
-
-      // Grid floor
-      ctx!.strokeStyle = 'rgba(100,116,139,0.15)';
-      ctx!.lineWidth = 0.5;
-      const floorY = 0;
-      for (let i = 0; i <= config.gridSizeX; i++) {
-        const x1 = i * config.gridResolution - cx;
-        const p1 = project(rotX(rotY([x1, floorY, -cz], ry), rx), midX, midY, sc);
-        const p2 = project(rotX(rotY([x1, floorY, config.gridSizeY * config.gridResolution - cz], ry), rx), midX, midY, sc);
-        ctx!.beginPath();
-        ctx!.moveTo(p1[0], p1[1]);
-        ctx!.lineTo(p2[0], p2[1]);
-        ctx!.stroke();
-      }
-      for (let j = 0; j <= config.gridSizeY; j++) {
-        const z1 = j * config.gridResolution - cz;
-        const p1 = project(rotX(rotY([-cx, floorY, z1], ry), rx), midX, midY, sc);
-        const p2 = project(rotX(rotY([config.gridSizeX * config.gridResolution - cx, floorY, z1], ry), rx), midX, midY, sc);
-        ctx!.beginPath();
-        ctx!.moveTo(p1[0], p1[1]);
-        ctx!.lineTo(p2[0], p2[1]);
-        ctx!.stroke();
-      }
-
-      // Draw temperature cells for the selected slice
-      const minT = metrics.minTemperature;
-      const maxT = metrics.maxTemperature;
-
-      for (let gx = 0; gx < config.gridSizeX; gx++) {
-        for (let gy = 0; gy < config.gridSizeY; gy++) {
-          const temp = result.temperatureField[gx]?.[gy]?.[selectedSliceZ] ?? config.ambientTempC;
-          const vel = result.velocityField[gx]?.[gy]?.[selectedSliceZ];
-
-          const worldX = gx * config.gridResolution - cx;
-          const worldZ = gy * config.gridResolution - cz;
-          const worldY = selectedSliceZ * config.gridResolution;
-          const sz = config.gridResolution;
-
-          // Cell corners
-          const corners: V3[] = [
-            [worldX, worldY, worldZ],
-            [worldX + sz, worldY, worldZ],
-            [worldX + sz, worldY, worldZ + sz],
-            [worldX, worldY, worldZ + sz],
-          ];
-
-          const pts = corners.map(c => project(rotX(rotY(c, ry), rx), midX, midY, sc));
-
-          let fillColor: string;
-          if (viewMode === 'temperature') {
-            fillColor = tempToRGB(temp, minT, maxT);
-          } else if (viewMode === 'velocity' && vel) {
-            fillColor = velocityToRGB(vel);
-          } else {
-            fillColor = 'rgba(100,116,139,0.1)';
-          }
-
-          ctx!.fillStyle = fillColor;
-          ctx!.globalAlpha = 0.6;
-          ctx!.beginPath();
-          ctx!.moveTo(pts[0][0], pts[0][1]);
-          for (let i = 1; i < pts.length; i++) ctx!.lineTo(pts[i][0], pts[i][1]);
-          ctx!.closePath();
-          ctx!.fill();
-          ctx!.globalAlpha = 1;
-
-          // Draw velocity arrows
-          if (showAirflow && vel && viewMode === 'velocity') {
-            const speed = Math.sqrt(vel.x ** 2 + vel.y ** 2 + vel.z ** 2);
-            if (speed > 0.05) {
-              const centerX = worldX + sz / 2;
-              const centerZ = worldZ + sz / 2;
-              const arrowLen = Math.min(sz * 0.8, speed * sz);
-              const normX = vel.x / speed;
-              const normZ = vel.y / speed; // grid Y → world Z
-
-              const start = project(rotX(rotY([centerX, worldY, centerZ], ry), rx), midX, midY, sc);
-              const end = project(rotX(rotY([centerX + normX * arrowLen, worldY, centerZ + normZ * arrowLen], ry), rx), midX, midY, sc);
-
-              ctx!.strokeStyle = 'rgba(255,255,255,0.7)';
-              ctx!.lineWidth = 1.5;
-              ctx!.beginPath();
-              ctx!.moveTo(start[0], start[1]);
-              ctx!.lineTo(end[0], end[1]);
-              ctx!.stroke();
-
-              // Arrowhead
-              const angle = Math.atan2(end[1] - start[1], end[0] - start[0]);
-              ctx!.fillStyle = 'rgba(255,255,255,0.8)';
-              ctx!.beginPath();
-              ctx!.moveTo(end[0], end[1]);
-              ctx!.lineTo(end[0] - 6 * Math.cos(angle - 0.4), end[1] - 6 * Math.sin(angle - 0.4));
-              ctx!.lineTo(end[0] - 6 * Math.cos(angle + 0.4), end[1] - 6 * Math.sin(angle + 0.4));
-              ctx!.closePath();
-              ctx!.fill();
-            }
-          }
+      function resize() {
+        const wrap = wrapRef.current;
+        let w = 0, h = 0;
+        if (wrap) {
+          const rect = wrap.getBoundingClientRect();
+          w = rect.width;
+          h = rect.height;
+        }
+        const dpr = Math.min(window.devicePixelRatio, 2);
+        if (canvas) {
+          canvas.width = w * dpr;
+          canvas.height = h * dpr;
+          canvas.style.width = `${w}px`;
+          canvas.style.height = `${h}px`;
+        }
+        if (ctx) {
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          draw(w, h, ctx);
         }
       }
 
-      // Draw racks as 3D boxes
-      for (const rack of racks) {
-        const rx1 = rack.position.x - cx;
-        const ry1 = 0;
-        const rz1 = rack.position.y - cz;
-        const rw = rack.width;
-        const rh = rack.height;
-        const rd = rack.depth;
+      function draw(w: number, h: number, ctx: CanvasRenderingContext2D) {
+                    // Camera and center variables
+                    const ry = cam.current.ry;
+                    const rx = cam.current.rx;
+                    const sc = cam.current.sc;
+                    const midX = w / 2;
+                    const midY = h / 2;
+                    const cx = (config.gridSizeX * config.gridResolution) / 2;
+                    const cz = (config.gridSizeY * config.gridResolution) / 2;
+                    const velocityField = animating && simGrid ? simGrid.velocityField : result.velocityField;
+                    const temperatureField = animating && simGrid ? simGrid.temperatureField : result.temperatureField;
+                      const minT = metrics.minTemperature ?? config.ambientTempC;
+                      const maxT = metrics.maxTemperature ?? config.ambientTempC + 10;
+                        // Draw hotspots
+                        if (showHotspots) {
+                          for (const hs of metrics.hotspots) {
+                            const pos = project(
+                              rotX(rotY([hs.position.x - cx, hs.position.z, hs.position.y - cz], ry), rx),
+                              midX, midY, sc
+                            );
+                            const pulseSize = 8 + 3 * Math.sin(Date.now() / 300);
+                            const hsColor = hs.severity === 'emergency' ? 'rgba(239,68,68,'
+                              : hs.severity === 'critical' ? 'rgba(245,158,11,' : 'rgba(234,179,8,';
+                            ctx.beginPath();
+                            ctx.arc(pos[0], pos[1], pulseSize + 6, 0, Math.PI * 2);
+                            ctx.fillStyle = hsColor + '0.2)';
+                            ctx.fill();
+                            ctx.beginPath();
+                            ctx.arc(pos[0], pos[1], pulseSize, 0, Math.PI * 2);
+                            ctx.fillStyle = hsColor + '0.8)';
+                            ctx.fill();
+                            ctx.fillStyle = '#fff';
+                            ctx.font = 'bold 9px system-ui';
+                            ctx.textAlign = 'center';
+                            ctx.fillText(`${hs.temperature.toFixed(0)}°`, pos[0], pos[1] - pulseSize - 4);
+                          }
+                        }
 
-        // Top face
-        const topPts = [
-          [rx1, ry1 + rh, rz1],
-          [rx1 + rw, ry1 + rh, rz1],
-          [rx1 + rw, ry1 + rh, rz1 + rd],
-          [rx1, ry1 + rh, rz1 + rd],
-        ].map(p => project(rotX(rotY(p as V3, ry), rx), midX, midY, sc));
+                        // Draw particles (airflow streams)
+                        if (showAirflow && viewMode !== 'velocity') {
+                          const particles = particlesRef.current;
+                          for (const p of particles) {
+                            const gx = Math.floor(p.pos[0] / config.gridResolution);
+                            const gy = Math.floor(p.pos[2] / config.gridResolution);
+                            const gz = Math.floor(p.pos[1] / config.gridResolution);
+                            const vel = velocityField?.[gx]?.[gy]?.[gz] || { x: 0, y: 0, z: 0 };
+                            p.vel = [vel.x, vel.z, vel.y];
+                            p.pos[0] += p.vel[0] * 0.02;
+                            p.pos[1] += p.vel[1] * 0.02;
+                            p.pos[2] += p.vel[2] * 0.02;
+                            p.life++;
+                            if (p.life > p.maxLife || p.pos[0] < -cx || p.pos[0] > cx * 2 ||
+                                p.pos[1] < -1 || p.pos[1] > config.gridSizeZ * config.gridResolution + 1 ||
+                                p.pos[2] < -cz || p.pos[2] > cz * 2) {
+                              const gx = Math.floor(Math.random() * config.gridSizeX);
+                              const gy = Math.floor(Math.random() * config.gridSizeY);
+                              const gz = Math.floor(Math.random() * config.gridSizeZ);
+                              const vel = velocityField?.[gx]?.[gy]?.[gz] || { x: 0, y: 0, z: 0 };
+                              p.pos = [gx * config.gridResolution, gz * config.gridResolution, gy * config.gridResolution];
+                              p.vel = [vel.x, vel.z, vel.y];
+                              p.life = 0;
+                              p.temp = temperatureField?.[gx]?.[gy]?.[gz] || config.ambientTempC;
+                            }
+                            const alpha = Math.max(0, 1 - p.life / p.maxLife) * 0.7;
+                            const pPos = project(
+                              rotX(rotY([p.pos[0] - cx, p.pos[1], p.pos[2] - cz], ry), rx),
+                              midX, midY, sc
+                            );
+                            ctx.beginPath();
+                            ctx.arc(pPos[0], pPos[1], 2, 0, Math.PI * 2);
+                            ctx.fillStyle = tempToRGB(p.temp, minT, maxT).replace('rgb', 'rgba').replace(')', `,${alpha})`);
+                            ctx.fill();
+                          }
+                        }
 
-        ctx!.fillStyle = 'rgba(99,102,241,0.6)';
-        ctx!.strokeStyle = 'rgba(99,102,241,0.9)';
-        ctx!.lineWidth = 1;
-        ctx!.beginPath();
-        ctx!.moveTo(topPts[0][0], topPts[0][1]);
-        topPts.forEach(p => ctx!.lineTo(p[0], p[1]));
-        ctx!.closePath();
-        ctx!.fill();
-        ctx!.stroke();
+                        // HUD Info
+                        ctx.fillStyle = 'rgba(255,255,255,0.8)';
+                        ctx.font = 'bold 12px system-ui';
+                        ctx.textAlign = 'left';
+                        ctx.fillText(`Max: ${metrics.maxTemperature.toFixed(1)}°C  |  Avg: ${metrics.avgTemperature.toFixed(1)}°C  |  PUE: ${metrics.pue.toFixed(2)}  |  Hotspots: ${metrics.hotspots.length}`, 16, h - 16);
+                // Draw HVAC units
+                for (const unit of hvacUnits) {
+                  const ux = unit.position.x - cx;
+                  const uy = 0;
+                  const uz = unit.position.y - cz;
+                  const uw = unit.width;
+                  const uh = unit.height;
+                  const ud = unit.depth;
 
-        // Front face
-        const frontPts = [
-          [rx1, ry1, rz1],
-          [rx1 + rw, ry1, rz1],
-          [rx1 + rw, ry1 + rh, rz1],
-          [rx1, ry1 + rh, rz1],
-        ].map(p => project(rotX(rotY(p as V3, ry), rx), midX, midY, sc));
+                  const color = unit.status === 'failed' ? 'rgba(239,68,68,' : 'rgba(16,185,129,';
 
-        ctx!.fillStyle = 'rgba(79,70,229,0.5)';
-        ctx!.beginPath();
-        ctx!.moveTo(frontPts[0][0], frontPts[0][1]);
-        frontPts.forEach(p => ctx!.lineTo(p[0], p[1]));
-        ctx!.closePath();
-        ctx!.fill();
-        ctx!.stroke();
+                  const topPts = [
+                    [ux, uy + uh, uz],
+                    [ux + uw, uy + uh, uz],
+                    [ux + uw, uy + uh, uz + ud],
+                    [ux, uy + uh, uz + ud],
+                  ].map(p => project(rotX(rotY(p as V3, ry), rx), midX, midY, sc));
 
-        // Right side face
-        const sidePts = [
-          [rx1 + rw, ry1, rz1],
-          [rx1 + rw, ry1, rz1 + rd],
-          [rx1 + rw, ry1 + rh, rz1 + rd],
-          [rx1 + rw, ry1 + rh, rz1],
-        ].map(p => project(rotX(rotY(p as V3, ry), rx), midX, midY, sc));
+                  ctx.fillStyle = color + '0.6)';
+                  ctx.strokeStyle = color + '0.9)';
+                  ctx.lineWidth = 1;
+                  ctx.beginPath();
+                  ctx.moveTo(topPts[0][0], topPts[0][1]);
+                  topPts.forEach(p => ctx.lineTo(p[0], p[1]));
+                  ctx.closePath();
+                  ctx.fill();
+                  ctx.stroke();
 
-        ctx!.fillStyle = 'rgba(67,56,202,0.4)';
-        ctx!.beginPath();
-        ctx!.moveTo(sidePts[0][0], sidePts[0][1]);
-        sidePts.forEach(p => ctx!.lineTo(p[0], p[1]));
-        ctx!.closePath();
-        ctx!.fill();
-        ctx!.stroke();
+                  const frontPts = [
+                    [ux, uy, uz],
+                    [ux + uw, uy, uz],
+                    [ux + uw, uy + uh, uz],
+                    [ux, uy + uh, uz],
+                  ].map(p => project(rotX(rotY(p as V3, ry), rx), midX, midY, sc));
+                  ctx.fillStyle = color + '0.4)';
+                  ctx.beginPath();
+                  ctx.moveTo(frontPts[0][0], frontPts[0][1]);
+                  frontPts.forEach(p => ctx.lineTo(p[0], p[1]));
+                  ctx.closePath();
+                  ctx.fill();
+                  ctx.stroke();
 
-        // Label
-        const labelPos = project(rotX(rotY([rx1 + rw / 2, ry1 + rh + 0.3, rz1 + rd / 2], ry), rx), midX, midY, sc);
-        ctx!.fillStyle = '#e0e7ff';
-        ctx!.font = 'bold 10px system-ui';
-        ctx!.textAlign = 'center';
-        ctx!.fillText(rack.name, labelPos[0], labelPos[1]);
-        ctx!.fillText(`${rack.powerKW}kW`, labelPos[0], labelPos[1] + 12);
-      }
+                  const labelPos = project(rotX(rotY([ux + uw / 2, uy + uh + 0.3, uz + ud / 2], ry), rx), midX, midY, sc);
+                  ctx.fillStyle = '#d1fae5';
+                  ctx.font = 'bold 10px system-ui';
+                  ctx.textAlign = 'center';
+                  ctx.fillText(unit.name, labelPos[0], labelPos[1]);
+                }
+        // Camera and center variables
+        // (removed duplicate declarations)
 
-      // Draw HVAC units
-      for (const unit of hvacUnits) {
-        const ux = unit.position.x - cx;
-        const uy = 0;
-        const uz = unit.position.y - cz;
-        const uw = unit.width;
-        const uh = unit.height;
-        const ud = unit.depth;
+        // Draw racks
+        for (const rack of racks) {
+          const rx1 = rack.position.x - cx;
+          const ry1 = 0;
+          const rz1 = rack.position.y - cz;
+          const rw = rack.width;
+          const rh = rack.height;
+          const rd = rack.depth;
 
-        const color = unit.status === 'failed' ? 'rgba(239,68,68,' : 'rgba(16,185,129,';
+          // Top face
+          const topPts = [
+            [rx1, ry1 + rh, rz1],
+            [rx1 + rw, ry1 + rh, rz1],
+            [rx1 + rw, ry1 + rh, rz1 + rd],
+            [rx1, ry1 + rh, rz1 + rd],
+          ].map(p => project(rotX(rotY(p as V3, ry), rx), midX, midY, sc));
 
-        const topPts = [
-          [ux, uy + uh, uz],
-          [ux + uw, uy + uh, uz],
-          [ux + uw, uy + uh, uz + ud],
-          [ux, uy + uh, uz + ud],
-        ].map(p => project(rotX(rotY(p as V3, ry), rx), midX, midY, sc));
+          ctx.fillStyle = 'rgba(99,102,241,0.6)';
+          ctx.strokeStyle = 'rgba(99,102,241,0.9)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(topPts[0][0], topPts[0][1]);
+          topPts.forEach(p => ctx.lineTo(p[0], p[1]));
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
 
-        ctx!.fillStyle = color + '0.6)';
-        ctx!.strokeStyle = color + '0.9)';
-        ctx!.lineWidth = 1;
-        ctx!.beginPath();
-        ctx!.moveTo(topPts[0][0], topPts[0][1]);
-        topPts.forEach(p => ctx!.lineTo(p[0], p[1]));
-        ctx!.closePath();
-        ctx!.fill();
-        ctx!.stroke();
+          // Front face
+          const frontPts = [
+            [rx1, ry1, rz1],
+            [rx1 + rw, ry1, rz1],
+            [rx1 + rw, ry1 + rh, rz1],
+            [rx1, ry1 + rh, rz1],
+          ].map(p => project(rotX(rotY(p as V3, ry), rx), midX, midY, sc));
 
-        const frontPts = [
-          [ux, uy, uz],
-          [ux + uw, uy, uz],
-          [ux + uw, uy + uh, uz],
-          [ux, uy + uh, uz],
-        ].map(p => project(rotX(rotY(p as V3, ry), rx), midX, midY, sc));
-        ctx!.fillStyle = color + '0.4)';
-        ctx!.beginPath();
-        ctx!.moveTo(frontPts[0][0], frontPts[0][1]);
-        frontPts.forEach(p => ctx!.lineTo(p[0], p[1]));
-        ctx!.closePath();
-        ctx!.fill();
-        ctx!.stroke();
+          ctx.fillStyle = 'rgba(79,70,229,0.5)';
+          ctx.beginPath();
+          ctx.moveTo(frontPts[0][0], frontPts[0][1]);
+          frontPts.forEach(p => ctx.lineTo(p[0], p[1]));
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
 
-        const labelPos = project(rotX(rotY([ux + uw / 2, uy + uh + 0.3, uz + ud / 2], ry), rx), midX, midY, sc);
-        ctx!.fillStyle = '#d1fae5';
-        ctx!.font = 'bold 10px system-ui';
-        ctx!.textAlign = 'center';
-        ctx!.fillText(unit.name, labelPos[0], labelPos[1]);
-      }
+          // Right side face
+          const sidePts = [
+            [rx1 + rw, ry1, rz1],
+            [rx1 + rw, ry1, rz1 + rd],
+            [rx1 + rw, ry1 + rh, rz1 + rd],
+            [rx1 + rw, ry1 + rh, rz1],
+          ].map(p => project(rotX(rotY(p as V3, ry), rx), midX, midY, sc));
 
-      // Draw hotspots
-      if (showHotspots) {
-        for (const hs of metrics.hotspots) {
-          const pos = project(
-            rotX(rotY([hs.position.x - cx, hs.position.z, hs.position.y - cz], ry), rx),
-            midX, midY, sc
-          );
+          ctx.fillStyle = 'rgba(67,56,202,0.4)';
+          ctx.beginPath();
+          ctx.moveTo(sidePts[0][0], sidePts[0][1]);
+          sidePts.forEach(p => ctx.lineTo(p[0], p[1]));
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
 
-          const pulseSize = 8 + 3 * Math.sin(Date.now() / 300);
-          const hsColor = hs.severity === 'emergency' ? 'rgba(239,68,68,'
-            : hs.severity === 'critical' ? 'rgba(245,158,11,' : 'rgba(234,179,8,';
-
-          // Glow
-          ctx!.beginPath();
-          ctx!.arc(pos[0], pos[1], pulseSize + 6, 0, Math.PI * 2);
-          ctx!.fillStyle = hsColor + '0.2)';
-          ctx!.fill();
-
-          // Core
-          ctx!.beginPath();
-          ctx!.arc(pos[0], pos[1], pulseSize, 0, Math.PI * 2);
-          ctx!.fillStyle = hsColor + '0.8)';
-          ctx!.fill();
-
-          ctx!.fillStyle = '#fff';
-          ctx!.font = 'bold 9px system-ui';
-          ctx!.textAlign = 'center';
-          ctx!.fillText(`${hs.temperature.toFixed(0)}°`, pos[0], pos[1] - pulseSize - 4);
+          // Label
+          const labelPos = project(rotX(rotY([rx1 + rw / 2, ry1 + rh + 0.3, rz1 + rd / 2], ry), rx), midX, midY, sc);
+          ctx.fillStyle = '#e0e7ff';
+          ctx.font = 'bold 10px system-ui';
+          ctx.textAlign = 'center';
+          ctx.fillText(rack.name, labelPos[0], labelPos[1]);
+          ctx.fillText(`${rack.powerKW}kW`, labelPos[0], labelPos[1] + 12);
         }
       }
 
-      // Draw particles (airflow streams)
-      if (showAirflow && viewMode !== 'velocity') {
-        const particles = particlesRef.current;
-        for (const p of particles) {
-          p.pos[0] += p.vel[0] * 0.02;
-          p.pos[1] += p.vel[1] * 0.02;
-          p.pos[2] += p.vel[2] * 0.02;
-          p.life++;
-
-          if (p.life > p.maxLife || p.pos[0] < -cx || p.pos[0] > cx * 2 ||
-              p.pos[1] < -1 || p.pos[1] > config.gridSizeZ * config.gridResolution + 1 ||
-              p.pos[2] < -cz || p.pos[2] > cz * 2) {
-            // Respawn
-            const gx = Math.floor(Math.random() * config.gridSizeX);
-            const gy = Math.floor(Math.random() * config.gridSizeY);
-            const gz = Math.floor(Math.random() * config.gridSizeZ);
-            const vel = result.velocityField[gx]?.[gy]?.[gz] || { x: 0, y: 0, z: 0 };
-            p.pos = [gx * config.gridResolution, gz * config.gridResolution, gy * config.gridResolution];
-            p.vel = [vel.x, vel.z, vel.y];
-            p.life = 0;
-            p.temp = result.temperatureField[gx]?.[gy]?.[gz] || config.ambientTempC;
-          }
-
-          const alpha = Math.max(0, 1 - p.life / p.maxLife) * 0.7;
-          const pPos = project(
-            rotX(rotY([p.pos[0] - cx, p.pos[1], p.pos[2] - cz], ry), rx),
-            midX, midY, sc
-          );
-
-          ctx!.beginPath();
-          ctx!.arc(pPos[0], pPos[1], 2, 0, Math.PI * 2);
-          ctx!.fillStyle = tempToRGB(p.temp, minT, maxT).replace('rgb', 'rgba').replace(')', `,${alpha})`);
-          ctx!.fill();
-        }
-      }
-
-      // HUD Info
-      ctx!.fillStyle = 'rgba(255,255,255,0.8)';
-      ctx!.font = 'bold 12px system-ui';
-      ctx!.textAlign = 'left';
-      ctx!.fillText(`Max: ${metrics.maxTemperature.toFixed(1)}°C  |  Avg: ${metrics.avgTemperature.toFixed(1)}°C  |  PUE: ${metrics.pue.toFixed(2)}  |  Hotspots: ${metrics.hotspots.length}`, 16, h - 16);
-
-      animRef.current = requestAnimationFrame(draw);
-    }
-
-    animRef.current = requestAnimationFrame(draw);
+      resize();
+      window.addEventListener('resize', resize);
 
     // Mouse interaction
     const handleMouseDown = (e: MouseEvent) => {
