@@ -1,3 +1,14 @@
+// ─── User Authentication ───────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String   // hashed password
+  name      String   @default("")
+  role      String   @default("engineer") // admin, engineer, viewer
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
 // HVAC Auto-Estimation System - Database Schema
 // PostgreSQL via Supabase + Prisma ORM
 
@@ -40,6 +51,10 @@ model Project {
   ductSegments      DuctSegment[]
   electricalLoads   ElectricalLoad[]
   auditLogs         AuditLog[]
+  serverRacks       ServerRack[]
+  hvacUnits         HVACUnit[]
+  cfdSimulations    CFDSimulation[]
+  simulationResults SimulationResult[]
 }
 
 model Floor {
@@ -313,4 +328,133 @@ model DiagnosticHistory {
   faultCount  Int      @default(0)
   maxSeverity String   @default("info")
   createdAt   DateTime @default(now())
+}
+
+// ─── Data Center Equipment ───────────────────────────────────────────
+
+model ServerRack {
+  id            String   @id @default(uuid())
+  projectId     String
+  floorId       String
+  name          String   @default("Rack")
+  positionX     Float    @default(0) // meters
+  positionY     Float    @default(0)
+  positionZ     Float    @default(0)
+  width         Float    @default(0.6) // meters (standard 600mm)
+  depth         Float    @default(1.2) // meters (standard 1200mm)
+  height        Float    @default(2.0) // meters (42U)
+  powerDensity  String   @default("medium") // low, medium, high, ultra
+  powerKW       Float    @default(5) // kW per rack
+  airflowCFM    Float    @default(300)
+  orientation   Float    @default(0) // degrees
+  rackUnits     Int      @default(42)
+  filledUnits   Int      @default(30)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([floorId])
+}
+
+model HVACUnit {
+  id              String   @id @default(uuid())
+  projectId       String
+  floorId         String
+  type            String   // crac, crah, ahu, in_row, rear_door, vent_duct
+  name            String   @default("HVAC Unit")
+  positionX       Float    @default(0)
+  positionY       Float    @default(0)
+  positionZ       Float    @default(0)
+  width           Float    @default(1.0)
+  depth           Float    @default(1.0)
+  height          Float    @default(2.5)
+  capacityKW      Float    @default(30) // cooling capacity
+  capacityTR      Float    @default(8.5)
+  airflowCFM      Float    @default(5000)
+  supplyTempC     Float    @default(13) // supply air temperature
+  returnTempC     Float    @default(24)
+  orientation     Float    @default(0)
+  powerInputKW    Float    @default(10)
+  status          String   @default("active") // active, standby, failed
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([floorId])
+}
+
+// ─── CFD Simulation ─────────────────────────────────────────────────
+
+model CFDSimulation {
+  id              String   @id @default(uuid())
+  projectId       String
+  floorId         String
+  name            String   @default("Simulation")
+  status          String   @default("pending") // pending, running, completed, failed
+  gridResolution  Float    @default(0.5) // meters per cell
+  gridSizeX       Int      @default(20) // number of cells
+  gridSizeY       Int      @default(20)
+  gridSizeZ       Int      @default(6)
+  iterations      Int      @default(100)
+  convergence     Float    @default(0.001)
+  timeStep        Float    @default(0.1) // seconds
+  ambientTempC    Float    @default(24)
+  parameters      String   @default("{}") // JSON: additional simulation parameters
+  resultSummary   String   @default("{}") // JSON: summary metrics
+  createdAt       DateTime @default(now())
+  completedAt     DateTime?
+
+  project  Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tiles    CFDTile[]
+
+  @@index([projectId])
+  @@index([floorId])
+}
+
+model CFDTile {
+  id             String @id @default(uuid())
+  simulationId   String
+  cellX          Int
+  cellY          Int
+  cellZ          Int
+  temperature    Float  @default(24)
+  velocityX      Float  @default(0)
+  velocityY      Float  @default(0)
+  velocityZ      Float  @default(0)
+  pressure       Float  @default(101325) // Pa
+  heatSource     Float  @default(0) // W
+  isObstacle     Boolean @default(false)
+  tileType       String  @default("open") // open, perforated, solid, inlet, outlet
+
+  simulation CFDSimulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+
+  @@unique([simulationId, cellX, cellY, cellZ])
+  @@index([simulationId])
+}
+
+// ─── Simulation Results & Compliance ────────────────────────────────
+
+model SimulationResult {
+  id              String   @id @default(uuid())
+  projectId       String
+  simulationId    String
+  type            String   // thermal_map, airflow, compliance, failure, optimization
+  data            String   @default("{}") // JSON: result data
+  metrics         String   @default("{}") // JSON: computed metrics
+  pueValue        Float?   // Power Usage Effectiveness
+  maxTemp         Float?
+  minTemp         Float?
+  avgTemp         Float?
+  hotspotCount    Int      @default(0)
+  compliancePass  Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([simulationId])
 }

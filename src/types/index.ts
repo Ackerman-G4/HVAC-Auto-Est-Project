@@ -63,6 +63,39 @@ export type {
   DiagnosticHistoryItem,
 } from './api';
 
+// Re-export simulation types
+export type {
+  SimulationStatus,
+  TileType,
+  RackDensity,
+  HVACUnitType,
+  FailureScenario,
+  Vec3,
+  CFDCell,
+  CFDGrid,
+  ServerRack as SimServerRack,
+  HVACUnit as SimHVACUnit,
+  PerforatedTile,
+  SimulationConfig,
+  SimulationInput,
+  HotspotInfo,
+  AirflowVector,
+  SimulationMetrics,
+  SimulationResult,
+  ASHRAEThermalClass,
+  ASHRAELimits,
+  ComplianceCheck,
+  ComplianceReport,
+  FailureConfig,
+  FailureTimeStep,
+  FailureResult,
+  PUEAnalysis,
+  OptimizationTarget,
+  OptimizationConfig,
+  OptimizationSuggestion,
+  OptimizationResult,
+} from './simulation';
+
 // Audit
 export interface AuditEntry {
   id: string;

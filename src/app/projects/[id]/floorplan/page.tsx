@@ -68,7 +68,16 @@ interface FloorData {
   scale: number;
 }
 
-type Tool = 'select' | 'draw' | 'measure';
+type Tool = 'select' | 'draw' | 'measure' | 'wall';
+
+interface WallSegment {
+  id: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  thickness: number;
+}
 
 const ROOM_COLORS = [
   'rgba(37, 99, 235, 0.15)',
@@ -90,6 +99,8 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
   const [activeFloor, setActiveFloor] = useState<number>(0);
   const [rooms, setRooms] = useState<CanvasRoom[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<CanvasRoom | null>(null);
+  const [walls, setWalls] = useState<WallSegment[]>([]);
+  const [wallDrawing, setWallDrawing] = useState<{ x1: number; y1: number } | null>(null);
   const [tool, setTool] = useState<Tool>('select');
   const [scale, setScale] = useState(50); // pixels per meter
   const [zoom, setZoom] = useState(1);
@@ -223,6 +234,17 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
 
     // Rooms
     rooms.forEach((room) => {
+          // Walls
+          walls.forEach((wall) => {
+            ctx.save();
+            ctx.strokeStyle = '#222';
+            ctx.lineWidth = wall.thickness;
+            ctx.beginPath();
+            ctx.moveTo(wall.x1, wall.y1);
+            ctx.lineTo(wall.x2, wall.y2);
+            ctx.stroke();
+            ctx.restore();
+          });
       const isSelected = selectedRoom?.id === room.id;
 
       // Fill
@@ -325,6 +347,20 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
       setDrawCurrent({ x: snapToGrid(pos.x), y: snapToGrid(pos.y) });
       return;
     }
+    if (tool === 'wall') {
+      if (!wallDrawing) {
+        setWallDrawing({ x1: snapToGrid(pos.x), y1: snapToGrid(pos.y) });
+      } else {
+        // Complete wall segment
+        const x1 = wallDrawing.x1;
+        const y1 = wallDrawing.y1;
+        const x2 = snapToGrid(pos.x);
+        const y2 = snapToGrid(pos.y);
+        setWalls([...walls, { id: `wall_${Date.now()}`, x1, y1, x2, y2, thickness: 6 }]);
+        setWallDrawing(null);
+      }
+      return;
+    }
 
     if (tool === 'select') {
       // Check if clicking on a room
@@ -336,42 +372,46 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing || !drawStart) return;
-    const pos = getCanvasPos(e);
-    setDrawCurrent({ x: snapToGrid(pos.x), y: snapToGrid(pos.y) });
+    if (tool === 'draw') {
+      if (!isDrawing || !drawStart) return;
+      const pos = getCanvasPos(e);
+      setDrawCurrent({ x: snapToGrid(pos.x), y: snapToGrid(pos.y) });
+    }
   };
 
   const handleMouseUp = () => {
-    if (!isDrawing || !drawStart || !drawCurrent) {
+    if (tool === 'draw') {
+      if (!isDrawing || !drawStart || !drawCurrent) {
+        setIsDrawing(false);
+        return;
+      }
+
+      const x = Math.min(drawStart.x, drawCurrent.x);
+      const y = Math.min(drawStart.y, drawCurrent.y);
+      const width = Math.abs(drawCurrent.x - drawStart.x);
+      const height = Math.abs(drawCurrent.y - drawStart.y);
+
+      // Minimum 0.5m x 0.5m
+      if (width >= scale * 0.5 && height >= scale * 0.5) {
+        const newRoom: CanvasRoom = {
+          id: `room_${Date.now()}`,
+          name: `Room ${rooms.length + 1}`,
+          spaceType: 'office',
+          x,
+          y,
+          width,
+          height,
+          color: ROOM_COLORS[rooms.length % ROOM_COLORS.length],
+        };
+        setRooms([...rooms, newRoom]);
+        setSelectedRoom(newRoom);
+        showToast('success', `Room added: ${((width / scale) * (height / scale)).toFixed(1)} m²`);
+      }
+
       setIsDrawing(false);
-      return;
+      setDrawStart(null);
+      setDrawCurrent(null);
     }
-
-    const x = Math.min(drawStart.x, drawCurrent.x);
-    const y = Math.min(drawStart.y, drawCurrent.y);
-    const width = Math.abs(drawCurrent.x - drawStart.x);
-    const height = Math.abs(drawCurrent.y - drawStart.y);
-
-    // Minimum 0.5m x 0.5m
-    if (width >= scale * 0.5 && height >= scale * 0.5) {
-      const newRoom: CanvasRoom = {
-        id: `room_${Date.now()}`,
-        name: `Room ${rooms.length + 1}`,
-        spaceType: 'office',
-        x,
-        y,
-        width,
-        height,
-        color: ROOM_COLORS[rooms.length % ROOM_COLORS.length],
-      };
-      setRooms([...rooms, newRoom]);
-      setSelectedRoom(newRoom);
-      showToast('success', `Room added: ${((width / scale) * (height / scale)).toFixed(1)} m²`);
-    }
-
-    setIsDrawing(false);
-    setDrawStart(null);
-    setDrawCurrent(null);
   };
 
   // Image upload

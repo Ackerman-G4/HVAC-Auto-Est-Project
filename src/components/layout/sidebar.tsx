@@ -17,6 +17,7 @@ import {
   FileText,
   Receipt,
   Stethoscope,
+  Wind,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { sidebarVariants } from '@/animations/shared';
@@ -24,6 +25,7 @@ import { sidebarVariants } from '@/animations/shared';
 const navItems = [
   { href: '/', label: 'Overview', icon: LayoutDashboard },
   { href: '/projects', label: 'Projects', icon: FolderOpen },
+  { href: '/simulation', label: 'CFD Simulation', icon: Wind },
   { href: '/materials', label: 'Materials \& Suppliers', icon: Package },
   { href: '/reports', label: 'Reports \& Export', icon: FileText },
   { href: '/quotation', label: 'Quotation', icon: Receipt },
