@@ -19,7 +19,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId } = await context.params;
 
-    const project = await prisma.project.findUnique({
+    const project = await neon.project.findUnique({
       where: { id: projectId },
       include: { floors: { include: { rooms: true } } },
     });

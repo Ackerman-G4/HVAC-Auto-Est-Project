@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db/prisma';
+import neon from '@/lib/db/prisma';
 import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -15,12 +15,12 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     const { id } = await context.params;
     const body = await request.json();
 
-    const existing = await prisma.material.findUnique({ where: { id } });
+    const existing = await neon.material.findUnique({ where: { id } });
     if (!existing) {
       return errorResponse(404, 'Material not found', 'The material does not exist.', 'MATERIAL_NOT_FOUND');
     }
 
-    const material = await prisma.material.update({
+    const material = await neon.material.update({
       where: { id },
       data: {
         category: body.category ?? existing.category,
@@ -45,12 +45,12 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
 
-    const existing = await prisma.material.findUnique({ where: { id } });
+    const existing = await neon.material.findUnique({ where: { id } });
     if (!existing) {
       return errorResponse(404, 'Material not found', 'The material does not exist.', 'MATERIAL_NOT_FOUND');
     }
 
-    await prisma.material.delete({ where: { id } });
+    await neon.material.delete({ where: { id } });
 
     return NextResponse.json({ message: 'Material deleted' });
   } catch (error) {

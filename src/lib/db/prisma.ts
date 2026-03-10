@@ -1,9 +1,9 @@
 import { PrismaClient } from '../../generated/prisma/client';
 import { PrismaNeon } from '@prisma/adapter-neon';
-import { getDatabaseUrlOrNull, MISSING_DB_URL_MESSAGE } from './database-url';
+import { getDatabaseUrl, MISSING_DB_URL_MESSAGE } from './database-url';
 
-function createPrismaClient(): PrismaClient {
-  const connectionString = getDatabaseUrlOrNull({ allowMissing: true });
+function createNeonClient(): PrismaClient {
+  const connectionString = getDatabaseUrl();
 
   if (!connectionString) {
     const runtimeError = new Error(MISSING_DB_URL_MESSAGE);
@@ -18,14 +18,14 @@ function createPrismaClient(): PrismaClient {
   return new PrismaClient({ adapter });
 }
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
+const globalForNeon = globalThis as unknown as {
+  neon: PrismaClient | undefined;
 };
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient();
+export const neon = globalForNeon.neon ?? createNeonClient();
 
 if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma;
+  globalForNeon.neon = neon;
 }
 
-export default prisma;
+export default neon;

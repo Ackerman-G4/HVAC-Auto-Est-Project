@@ -8,7 +8,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { sizeEquipment } from '@/lib/functions/equipment-sizing';
 import { INVERTER_EER_THRESHOLD } from '@/lib/utils/constants';
-import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
+import neon from '@/lib/db/prisma';
+import neon from '@/lib/db/prisma';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       },
     });
 
-    const equipment = floors.flatMap((f) =>
+    const equipment = floors.flatMap((f) => 
       f.rooms.flatMap((r) =>
         r.selectedEquipment.map((sel) => ({
           id: sel.id,

@@ -5,7 +5,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/db/prisma';
+import neon from '@/lib/db/prisma';
 import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
 
 const DEFAULT_SETTINGS = {
@@ -26,7 +26,7 @@ const DEFAULT_SETTINGS = {
 
 export async function GET() {
   try {
-    const record = await prisma.appSettings.findUnique({ where: { id: 'global' } });
+    const record = await neon.appSettings.findUnique({ where: { id: 'global' } });
 
     let settings = DEFAULT_SETTINGS;
     if (record) {

@@ -5,10 +5,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db/prisma';
+import neon from '@/lib/db/prisma';
 import { compileBOQ } from '@/lib/functions/cost-engine';
 import { sizeRefrigerantPipe, sizeCondensatePipe } from '@/lib/functions/pipe-sizing';
 import { sizeElectrical } from '@/lib/functions/electrical';
+import neon from '@/lib/db/prisma';
 import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
 import type { BOQItem } from '@/types/material';
 
@@ -25,11 +26,10 @@ type RouteContext = { params: Promise<{ id: string }> };
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
-    const items = await prisma.bOQItem.findMany({
+    const items = await neon.bOQItem.findMany({
       where: { projectId: id },
       orderBy: { section: 'asc' },
     });
-
     const sumByCategory = (cat: string) =>
       items.filter((i) => i.category === cat).reduce((s, i) => s + i.totalPrice, 0);
 

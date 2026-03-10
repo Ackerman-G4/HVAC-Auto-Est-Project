@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db/prisma';
+import neon from '@/lib/db/prisma';
 import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -15,12 +15,12 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     const { id } = await context.params;
     const body = await request.json();
 
-    const existing = await prisma.supplier.findUnique({ where: { id } });
+    const existing = await neon.supplier.findUnique({ where: { id } });
     if (!existing) {
       return errorResponse(404, 'Supplier not found', 'The supplier does not exist.', 'SUPPLIER_NOT_FOUND');
     }
 
-    const supplier = await prisma.supplier.update({
+    const supplier = await neon.supplier.update({
       where: { id },
       data: {
         name: body.name ?? existing.name,

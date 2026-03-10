@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db/prisma';
+import neon from '@/lib/db/prisma';
 import { calculateCoolingLoad } from '@/lib/functions/cooling-load';
 import {
   errorResponse,
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     // Create room
-    const room = await prisma.room.create({
+    const room = await neon.room.create({
       data: {
         floorId: floor.id,
         name: body.name || 'New Room',

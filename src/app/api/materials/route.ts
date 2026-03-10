@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db/prisma';
+import neon from '@/lib/db/prisma';
 import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
 
 export async function GET(request: NextRequest) {
@@ -24,13 +24,13 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    const materials = await prisma.material.findMany({
+    const materials = await neon.material.findMany({
       where,
       include: { supplier: true },
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
     });
 
-    const allMaterials = await prisma.material.findMany({ select: { category: true } });
+    const allMaterials = await neon.material.findMany({ select: { category: true } });
     const categories = [...new Set(allMaterials.map((m) => m.category))];
 
     return NextResponse.json({
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    const material = await prisma.material.create({
+    const material = await neon.material.create({
       data: {
         category: body.category || 'misc',
         name: body.name || 'New Material',

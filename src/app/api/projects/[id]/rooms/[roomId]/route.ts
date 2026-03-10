@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db/prisma';
+import neon from '@/lib/db/prisma';
 import { calculateCoolingLoad } from '@/lib/functions/cooling-load';
 import {
   errorResponse,
@@ -26,7 +26,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       include: { floor: true },
     });
     if (!existing || existing.floor.projectId !== projectId) {
-      return errorResponse(404, 'Room not found', 'The room does not exist in this project.', 'ROOM_NOT_FOUND');
+    import neon from '@/lib/db/prisma';
     }
 
     const room = await prisma.room.update({

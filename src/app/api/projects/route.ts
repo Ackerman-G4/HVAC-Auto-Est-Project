@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db/prisma';
+import neon from '@/lib/db/prisma';
 import { wetBulb as calcWetBulb } from '@/lib/functions/psychrometric';
 import {
   toNumber,
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    const projects = await prisma.project.findMany({
+    const projects = await neon.project.findMany({
       where,
       include: {
         floors: {

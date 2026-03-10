@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@/generated/prisma/client';
+import { neon } from '@/lib/db/prisma';
 import jwt from 'jsonwebtoken';
 
-const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'changeme';
 
 export async function GET(req: NextRequest) {
@@ -12,8 +11,9 @@ export async function GET(req: NextRequest) {
   }
   const token = auth.split(' ')[1];
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const user = await prisma.user.findUnique({ where: { id: decoded.id } });
+    if (!JWT_SECRET) throw new Error('JWT_SECRET is missing');
+    const decoded = jwt.verify(token, JWT_SECRET as string) as { id: string };
+    const user = await neon.user.findUnique({ where: { id: decoded.id } });
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }

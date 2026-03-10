@@ -10,17 +10,18 @@ import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
 
 type RouteContext = { params: Promise<{ id: string; floorId: string }> };
 
+import neon from '@/lib/db/prisma';
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId, floorId } = await context.params;
     const body = await request.json();
 
-    const existing = await prisma.floor.findUnique({ where: { id: floorId } });
+    const existing = await neon.floor.findUnique({ where: { id: floorId } });
     if (!existing || existing.projectId !== projectId) {
       return errorResponse(404, 'Floor not found', 'The floor does not exist in this project.', 'FLOOR_NOT_FOUND');
     }
 
-    const floor = await prisma.floor.update({
+    const floor = await neon.floor.update({
       where: { id: floorId },
       data: {
         name: body.name ?? existing.name,

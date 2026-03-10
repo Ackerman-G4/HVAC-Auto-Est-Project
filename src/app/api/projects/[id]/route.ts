@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db/prisma';
+import neon from '@/lib/db/prisma';
 import { wetBulb as calcWetBulb } from '@/lib/functions/psychrometric';
 import { INVERTER_EER_THRESHOLD } from '@/lib/utils/constants';
 import {
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
 
-    const project = await prisma.project.findUnique({
+    const project = await neon.project.findUnique({
       where: { id },
       include: {
         floors: {

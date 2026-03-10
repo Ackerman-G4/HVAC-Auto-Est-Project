@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db/prisma';
+import neon from '@/lib/db/prisma';
 import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
 
 export async function GET(request: NextRequest) {
@@ -23,13 +23,13 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    const suppliers = await prisma.supplier.findMany({
+    const suppliers = await neon.supplier.findMany({
       where,
       include: { materials: true },
       orderBy: { name: 'asc' },
     });
 
-    const allSuppliers = await prisma.supplier.findMany({ select: { type: true } });
+    const allSuppliers = await neon.supplier.findMany({ select: { type: true } });
     const types = [...new Set(allSuppliers.map((s) => s.type))];
 
     return NextResponse.json({ suppliers, types });
