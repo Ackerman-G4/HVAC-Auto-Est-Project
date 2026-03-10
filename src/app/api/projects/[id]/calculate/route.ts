@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db/prisma';
+import neon from '@/lib/db/prisma';
 import { calculateCoolingLoad } from '@/lib/functions/cooling-load';
 import {
   errorResponse,
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     let totalProjectTR = 0;
 
     // Wrap all upserts in a transaction for atomicity
-    await prisma.$transaction(async (tx) => {
+    await neon.$transaction(async (tx) => {
       for (const floor of project.floors) {
         for (const room of floor.rooms) {
           if (room.area <= 0) continue;

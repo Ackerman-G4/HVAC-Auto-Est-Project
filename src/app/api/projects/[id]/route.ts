@@ -44,7 +44,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     }
 
     // Fetch selected equipment in a focused query to keep detail endpoint responsive.
-    const selectedEquipment = await prisma.selectedEquipment.findMany({
+    const selectedEquipment = await neon.selectedEquipment.findMany({
       where: {
         room: {
           floor: {
@@ -99,7 +99,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     const { id } = await context.params;
     const body = await request.json();
 
-    const existing = await prisma.project.findUnique({ where: { id } });
+    const existing = await neon.project.findUnique({ where: { id } });
     if (!existing) {
       return errorResponse(404, 'Project not found', 'The project you are trying to update no longer exists.', 'PROJECT_NOT_FOUND');
     }
@@ -108,7 +108,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     const finalOutdoorRH = toNumber(body.outdoorRH, existing.outdoorRH);
     const computedWB = calcWetBulb(finalOutdoorDB, finalOutdoorRH);
 
-    const project = await prisma.project.update({
+    const project = await neon.project.update({
       where: { id },
       data: {
         name: body.name ?? existing.name,
@@ -132,7 +132,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       include: { floors: { include: { rooms: true } } },
     });
 
-    await prisma.auditLog.create({
+    await neon.auditLog.create({
       data: {
         projectId: id,
         action: 'updated',
@@ -155,22 +155,21 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     const { id } = await context.params;
     const permanent = new URL(request.url).searchParams.get('permanent') === 'true';
 
-    const existing = await prisma.project.findUnique({ where: { id } });
+    const existing = await neon.project.findUnique({ where: { id } });
     if (!existing) {
       return errorResponse(404, 'Project not found', 'The project you are trying to delete no longer exists.', 'PROJECT_NOT_FOUND');
     }
 
     if (permanent) {
-      await prisma.project.delete({ where: { id } });
+      await neon.project.delete({ where: { id } });
     } else {
-      await prisma.project.update({ where: { id }, data: { status: 'deleted' } });
-      await prisma.auditLog.create({
+      await neon.project.update({ where: { id }, data: { status: 'deleted' } });
+      await neon.auditLog.create({
         data: {
           projectId: id,
           action: 'deleted',
           entity: 'project',
           entityId: id,
-          details: JSON.stringify({ name: existing.name }),
         },
       });
     }

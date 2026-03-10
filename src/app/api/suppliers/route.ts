@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    const supplier = await prisma.supplier.create({
+    const supplier = await neon.supplier.create({
       data: {
         name: body.name || 'New Supplier',
         type: body.type || 'local',

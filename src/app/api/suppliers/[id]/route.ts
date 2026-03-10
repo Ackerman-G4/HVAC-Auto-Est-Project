@@ -45,12 +45,12 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
 
-    const existing = await prisma.supplier.findUnique({ where: { id } });
+    const existing = await neon.supplier.findUnique({ where: { id } });
     if (!existing) {
       return errorResponse(404, 'Supplier not found', 'The supplier does not exist.', 'SUPPLIER_NOT_FOUND');
     }
 
-    await prisma.supplier.delete({ where: { id } });
+    await neon.supplier.delete({ where: { id } });
 
     return NextResponse.json({ message: 'Supplier deleted' });
   } catch (error) {

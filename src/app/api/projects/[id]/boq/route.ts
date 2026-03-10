@@ -9,7 +9,6 @@ import neon from '@/lib/db/prisma';
 import { compileBOQ } from '@/lib/functions/cost-engine';
 import { sizeRefrigerantPipe, sizeCondensatePipe } from '@/lib/functions/pipe-sizing';
 import { sizeElectrical } from '@/lib/functions/electrical';
-import neon from '@/lib/db/prisma';
 import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
 import type { BOQItem } from '@/types/material';
 
@@ -141,7 +140,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId } = await context.params;
 
-    const floors = await prisma.floor.findMany({
+    const floors = await neon.floor.findMany({
       where: { projectId },
       orderBy: { floorNumber: 'asc' },
       include: {
@@ -186,7 +185,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const boqSummary = { ...overallBOQ, items: allItems };
 
     // Persist — wrap delete+create in a transaction for atomicity
-    await prisma.$transaction(async (tx) => {
+    await neon.$transaction(async (tx) => {
       await tx.bOQItem.deleteMany({ where: { projectId } });
 
       await tx.bOQItem.createMany({
@@ -199,7 +198,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
           unitPrice: item.unitPrice,
           totalPrice: item.totalPrice,
           category: item.category,
-          notes: item.floorName || '',
         })),
       });
 

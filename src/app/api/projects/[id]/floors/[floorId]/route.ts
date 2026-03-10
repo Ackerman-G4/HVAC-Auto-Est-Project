@@ -5,12 +5,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db/prisma';
+import neon from '@/lib/db/prisma';
 import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
 
 type RouteContext = { params: Promise<{ id: string; floorId: string }> };
 
-import neon from '@/lib/db/prisma';
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId, floorId } = await context.params;
@@ -44,12 +43,12 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId, floorId } = await context.params;
 
-    const existing = await prisma.floor.findUnique({ where: { id: floorId } });
+    const existing = await neon.floor.findUnique({ where: { id: floorId } });
     if (!existing || existing.projectId !== projectId) {
       return errorResponse(404, 'Floor not found', 'The floor does not exist in this project.', 'FLOOR_NOT_FOUND');
     }
 
-    await prisma.floor.delete({ where: { id: floorId } });
+    await neon.floor.delete({ where: { id: floorId } });
 
     return NextResponse.json({ message: 'Floor deleted successfully' });
   } catch (error) {

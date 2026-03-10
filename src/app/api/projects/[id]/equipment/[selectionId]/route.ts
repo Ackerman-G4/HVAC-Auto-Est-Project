@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db/prisma';
+import neon from '@/lib/db/prisma';
 import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
 
 type RouteContext = { params: Promise<{ id: string; selectionId: string }> };
@@ -13,7 +13,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId, selectionId } = await context.params;
 
-    const existing = await prisma.selectedEquipment.findUnique({
+    const existing = await neon.selectedEquipment.findUnique({
       where: { id: selectionId },
       include: { room: { include: { floor: true } } },
     });
@@ -21,7 +21,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       return errorResponse(404, 'Equipment selection not found', 'The selection does not exist in this project.', 'SELECTION_NOT_FOUND');
     }
 
-    await prisma.selectedEquipment.delete({ where: { id: selectionId } });
+    await neon.selectedEquipment.delete({ where: { id: selectionId } });
 
     return NextResponse.json({ message: 'Equipment selection removed' });
   } catch (error) {

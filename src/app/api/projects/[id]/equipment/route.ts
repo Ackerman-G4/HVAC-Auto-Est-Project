@@ -5,11 +5,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db/prisma';
+import neon from '@/lib/db/prisma';
 import { sizeEquipment } from '@/lib/functions/equipment-sizing';
 import { INVERTER_EER_THRESHOLD } from '@/lib/utils/constants';
-import neon from '@/lib/db/prisma';
-import neon from '@/lib/db/prisma';
+import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -17,7 +16,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
 
-    const floors = await prisma.floor.findMany({
+    const floors = await neon.floor.findMany({
       where: { projectId: id },
       include: {
         rooms: {
@@ -60,7 +59,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const body = await request.json();
 
     if (body.autoSize) {
-      const floors = await prisma.floor.findMany({
+      const floors = await neon.floor.findMany({
         where: { projectId },
         include: { rooms: { include: { coolingLoad: true } } },
       });
@@ -81,7 +80,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       // Wrap delete + re-create in a transaction for atomicity
       const results: { room: string; equipment: { id: string; brand: string; model: string; type: string; capacityTR: number; quantity: number }; alternatives: ReturnType<typeof sizeEquipment>['alternatives'] }[] = [];
 
-      await prisma.$transaction(async (tx) => {
+      await neon.$transaction(async (tx) => {
         await tx.selectedEquipment.deleteMany({ where: { roomId: { in: roomIds } } });
 
         for (const floor of floors) {
@@ -157,7 +156,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     // Manual equipment selection
     const eer = body.eer || 10;
-    const equipmentRecord = await prisma.equipment.upsert({
+    const equipmentRecord = await neon.equipment.upsert({
       where: { id: body.equipmentId || 'new' },
       update: {},
       create: {
@@ -176,7 +175,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       },
     });
 
-    const sel = await prisma.selectedEquipment.create({
+    const sel = await neon.selectedEquipment.create({
       data: {
         roomId: body.roomId,
         equipmentId: equipmentRecord.id,

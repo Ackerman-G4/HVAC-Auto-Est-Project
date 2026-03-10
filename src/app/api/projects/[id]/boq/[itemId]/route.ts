@@ -5,11 +5,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db/prisma';
+import neon from '@/lib/db/prisma';
 import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
 
 type RouteContext = { params: Promise<{ id: string; itemId: string }> };
-import neon from '@/lib/db/prisma';
+
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId, itemId } = await context.params;
@@ -48,7 +48,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId, itemId } = await context.params;
 
-    const existing = await prisma.bOQItem.findUnique({ where: { id: itemId } });
+    const existing = await neon.bOQItem.findUnique({ where: { id: itemId } });
     if (!existing || existing.projectId !== projectId) {
       return errorResponse(404, 'BOQ item not found', 'The item does not exist in this project.', 'BOQ_ITEM_NOT_FOUND');
     }

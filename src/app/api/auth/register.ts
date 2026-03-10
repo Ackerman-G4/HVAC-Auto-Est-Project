@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { neon } from '@/lib/db/prisma';
+import neon from '@/lib/db/prisma';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
@@ -10,12 +10,12 @@ export async function POST(req: NextRequest) {
   if (!email || !password) {
     return NextResponse.json({ error: 'Email and password required' }, { status: 400 });
   }
-  const existing = await prisma.user.findUnique({ where: { email } });
+  const existing = await neon.user.findUnique({ where: { email } });
   if (existing) {
     return NextResponse.json({ error: 'User already exists' }, { status: 409 });
   }
   const hashed = await bcrypt.hash(password, 10);
-  const user = await prisma.user.create({
+  const user = await neon.user.create({
     data: { email, password: hashed, name: name || '', role: role || 'engineer' },
   });
   const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });

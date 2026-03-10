@@ -20,7 +20,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
 
-    const floors = await prisma.floor.findMany({
+    const floors = await neon.floor.findMany({
       where: { projectId: id },
       include: { rooms: { include: { coolingLoad: true } } },
       orderBy: { floorNumber: 'asc' },
@@ -39,17 +39,17 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const { id: projectId } = await context.params;
     const body = await request.json();
 
-    const project = await prisma.project.findUnique({ where: { id: projectId } });
+    const project = await neon.project.findUnique({ where: { id: projectId } });
     if (!project) {
       return errorResponse(404, 'Project not found', 'The project does not exist.', 'PROJECT_NOT_FOUND');
     }
 
     // Find or create floor
-    let floor = await prisma.floor.findFirst({
+    let floor = await neon.floor.findFirst({
       where: { projectId, floorNumber: body.floorNumber || 1 },
     });
     if (!floor) {
-      floor = await prisma.floor.create({
+      floor = await neon.floor.create({
         data: {
           projectId,
           floorNumber: body.floorNumber || 1,
@@ -86,12 +86,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
       const loadInput = buildCoolingLoadInput(room, project);
       const result = calculateCoolingLoad(loadInput, room.id, room.name);
 
-      await prisma.coolingLoad.create({
+      await neon.coolingLoad.create({
         data: { roomId: room.id, ...coolingLoadToDbFields(result) },
       });
     }
 
-    const createdRoom = await prisma.room.findUnique({
+    const createdRoom = await neon.room.findUnique({
       where: { id: room.id },
       include: { coolingLoad: true },
     });

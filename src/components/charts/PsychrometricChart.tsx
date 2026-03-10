@@ -1,12 +1,18 @@
 // PsychrometricChart: Interactive HVAC chart
 import React, { useRef, useEffect } from 'react';
 
-export default function PsychrometricChart({ points = [] }) {
-  const canvasRef = useRef(null);
+interface Point {
+  temp: number;
+  rh: number;
+}
+
+export default function PsychrometricChart({ points = [] }: { points?: Point[] }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
+    if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     // Draw axes
     ctx.strokeStyle = '#222';

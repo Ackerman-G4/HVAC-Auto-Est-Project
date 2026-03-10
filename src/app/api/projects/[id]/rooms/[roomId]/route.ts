@@ -21,15 +21,15 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     const { id: projectId, roomId } = await context.params;
     const body = await request.json();
 
-    const existing = await prisma.room.findUnique({
+    const existing = await neon.room.findUnique({
       where: { id: roomId },
       include: { floor: true },
     });
     if (!existing || existing.floor.projectId !== projectId) {
-    import neon from '@/lib/db/prisma';
+      return errorResponse(404, 'Room not found', 'The room does not exist in this project.', 'ROOM_NOT_FOUND');
     }
 
-    const room = await prisma.room.update({
+    const room = await neon.room.update({
       where: { id: roomId },
       data: {
         name: body.name ?? existing.name,
@@ -52,12 +52,12 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
     // Recalculate cooling load if room has area
     if (room.area > 0) {
-      const project = await prisma.project.findUnique({ where: { id: projectId } });
+      const project = await neon.project.findUnique({ where: { id: projectId } });
       if (project) {
         const loadInput = buildCoolingLoadInput(room, project);
         const result = calculateCoolingLoad(loadInput, room.id, room.name);
 
-        await prisma.coolingLoad.upsert({
+        await neon.coolingLoad.upsert({
           where: { roomId: room.id },
           create: { roomId: room.id, ...coolingLoadToDbFields(result) },
           update: coolingLoadToDbFields(result),
@@ -65,7 +65,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       }
     }
 
-    const updatedRoom = await prisma.room.findUnique({
+    const updatedRoom = await neon.room.findUnique({
       where: { id: room.id },
       include: { coolingLoad: true },
     });
@@ -82,7 +82,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId, roomId } = await context.params;
 
-    const existing = await prisma.room.findUnique({
+    const existing = await neon.room.findUnique({
       where: { id: roomId },
       include: { floor: true },
     });
@@ -90,7 +90,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       return errorResponse(404, 'Room not found', 'The room does not exist in this project.', 'ROOM_NOT_FOUND');
     }
 
-    await prisma.room.delete({ where: { id: roomId } });
+    await neon.room.delete({ where: { id: roomId } });
 
     return NextResponse.json({ message: 'Room deleted successfully' });
   } catch (error) {

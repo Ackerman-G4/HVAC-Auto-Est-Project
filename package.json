@@ -6,7 +6,7 @@
     "dev": "next dev --turbopack",
     "dev:no-turbo": "next dev",
     "build": "next build",
-    "build:netlify": "prisma db push && next build",
+    "build:netlify": "next build",
     "start": "next start",
     "lint": "next lint",
     "db:generate": "prisma generate",

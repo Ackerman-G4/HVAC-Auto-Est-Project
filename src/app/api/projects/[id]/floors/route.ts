@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db/prisma';
+import neon from '@/lib/db/prisma';
 import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId } = await context.params;
 
-    const floors = await prisma.floor.findMany({
+    const floors = await neon.floor.findMany({
       where: { projectId },
       include: {
         rooms: {
@@ -37,12 +37,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const { id: projectId } = await context.params;
     const body = await request.json();
 
-    const project = await prisma.project.findUnique({ where: { id: projectId } });
+    const project = await neon.project.findUnique({ where: { id: projectId } });
     if (!project) {
       return errorResponse(404, 'Project not found', 'The project does not exist.', 'PROJECT_NOT_FOUND');
     }
 
-    const floor = await prisma.floor.create({
+    const floor = await neon.floor.create({
       data: {
         projectId,
         floorNumber: body.floorNumber ?? 1,

@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
       ? toNumber(body.outdoorWB, 0)
       : calcWetBulb(finalDB, finalRH);
 
-    const project = await prisma.project.create({
+    const project = await neon.project.create({
       data: {
         name: body.name,
         clientName: body.clientName || '',
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
       include: { floors: true },
     });
 
-    await prisma.auditLog.create({
+    await neon.auditLog.create({
       data: {
         projectId: project.id,
         action: 'created',

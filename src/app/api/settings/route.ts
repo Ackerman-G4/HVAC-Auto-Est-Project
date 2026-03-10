@@ -50,7 +50,7 @@ export async function PUT(request: Request) {
     const body = await request.json();
 
     // Merge with existing settings
-    const existing = await prisma.appSettings.findUnique({ where: { id: 'global' } });
+    const existing = await neon.appSettings.findUnique({ where: { id: 'global' } });
     let current = DEFAULT_SETTINGS;
     if (existing) {
       try {
@@ -62,7 +62,7 @@ export async function PUT(request: Request) {
 
     const merged = { ...current, ...body };
 
-    const record = await prisma.appSettings.upsert({
+    const record = await neon.appSettings.upsert({
       where: { id: 'global' },
       create: { id: 'global', data: JSON.stringify(merged) },
       update: { data: JSON.stringify(merged) },
