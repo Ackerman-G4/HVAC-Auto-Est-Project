@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import neon from '@/lib/db/prisma';
+import { getNeon } from '@/lib/db/prisma';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
@@ -10,6 +10,7 @@ export async function POST(req: NextRequest) {
   if (!email || !password) {
     return NextResponse.json({ error: 'Email and password required' }, { status: 400 });
   }
+  const neon = getNeon();
   const existing = await neon.user.findUnique({ where: { email } });
   if (existing) {
     return NextResponse.json({ error: 'User already exists' }, { status: 409 });

@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import neon from '@/lib/db/prisma';
+import { getNeon } from '@/lib/db/prisma';
 import { wetBulb as calcWetBulb } from '@/lib/functions/psychrometric';
 import {
   toNumber,
@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
       ];
     }
 
+    const neon = getNeon();
     const projects = await neon.project.findMany({
       where,
       include: {
@@ -91,6 +92,7 @@ export async function POST(request: NextRequest) {
       ? toNumber(body.outdoorWB, 0)
       : calcWetBulb(finalDB, finalRH);
 
+    const neon = getNeon();
     const project = await neon.project.create({
       data: {
         name: body.name,

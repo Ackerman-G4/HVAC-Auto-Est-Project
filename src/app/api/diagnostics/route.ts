@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { runDiagnostic } from '@/lib/functions/diagnostic';
-import neon from '@/lib/db/prisma';
+import { getNeon } from '@/lib/db/prisma';
 import type { DiagnosticInput } from '@/types/diagnostic';
 
 export async function POST(request: NextRequest) {
@@ -58,6 +58,7 @@ export async function POST(request: NextRequest) {
 
     // Persist diagnostic run to history
     try {
+      const neon = getNeon();
       await neon.diagnosticHistory.create({
         data: {
           systemType: input.systemType,

@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import neon from '@/lib/db/prisma';
+import { getNeon } from '@/lib/db/prisma';
 import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
 
 export async function GET(request: NextRequest) {
@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
       ];
     }
 
+    const neon = getNeon();
     const materials = await neon.material.findMany({
       where,
       include: { supplier: true },
@@ -49,6 +50,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
+    const neon = getNeon();
     const material = await neon.material.create({
       data: {
         category: body.category || 'misc',

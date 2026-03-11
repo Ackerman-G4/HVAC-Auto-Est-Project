@@ -5,7 +5,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import neon from '@/lib/db/prisma';
+import { getNeon } from '@/lib/db/prisma';
 import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
 
 const DEFAULT_SETTINGS = {
@@ -26,6 +26,7 @@ const DEFAULT_SETTINGS = {
 
 export async function GET() {
   try {
+    const neon = getNeon();
     const record = await neon.appSettings.findUnique({ where: { id: 'global' } });
 
     let settings = DEFAULT_SETTINGS;
@@ -50,6 +51,7 @@ export async function PUT(request: Request) {
     const body = await request.json();
 
     // Merge with existing settings
+    const neon = getNeon();
     const existing = await neon.appSettings.findUnique({ where: { id: 'global' } });
     let current = DEFAULT_SETTINGS;
     if (existing) {
