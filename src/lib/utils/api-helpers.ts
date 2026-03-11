@@ -4,8 +4,65 @@
  * building so every route uses the same logic.
  */
 
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import type { CoolingLoadInput } from '@/types/calculation';
+import { adminAuth, adminDb } from '@/lib/db/firebase-admin';
+import type { DecodedIdToken } from 'firebase-admin/auth';
+
+/**
+ * Shared utility to verify Firebase ID token from Authorization header.
+ * Returns the decoded token or null if verification fails.
+ */
+export async function getAuthToken(request: NextRequest): Promise<DecodedIdToken | null> {
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) return null;
+  const token = authHeader.split('Bearer ')[1];
+  try {
+    return await adminAuth.verifyIdToken(token);
+  } catch (error) {
+    console.error('Token verification error:', error);
+    return null;
+  }
+}
+
+/**
+ * Check if the decoded token has admin claims.
+ */
+export function isAdmin(token: DecodedIdToken | null): boolean {
+  return !!token?.admin;
+}
+
+/**
+ * Check if a user has access to a project.
+ * Returns the owner's UID if access is granted, otherwise null.
+ */
+export async function checkProjectAccess(
+  projectId: string,
+  token: DecodedIdToken
+): Promise<string | null> {
+  const uid = token.uid;
+  
+  // 1. Check if user is the owner
+  const projectRef = adminDb.ref(`users/${uid}/projects/${projectId}`);
+  const snapshot = await projectRef.once('value');
+  if (snapshot.exists()) return uid;
+
+  // 2. If not owner, check if admin
+  if (isAdmin(token)) {
+    const ownerSnap = await adminDb.ref(`projectOwners/${projectId}`).once('value');
+    if (ownerSnap.exists()) return ownerSnap.val();
+  }
+
+  return null;
+}
+
+/**
+ * Legacy wrapper for getAuthToken to maintain compatibility while returning just the UID.
+ */
+export async function getUserId(request: NextRequest): Promise<string | null> {
+  const decodedToken = await getAuthToken(request);
+  return decodedToken ? decodedToken.uid : null;
+}
 
 // ── Type‑safe coercion ──────────────────────────────────────
 
@@ -47,8 +104,7 @@ export function errorResponse(
 
 /**
  * Extract a structured error from an unknown catch value.
- * Handles Prisma error codes (P2002 / P2003 / P2025),
- * JSON parse errors, and generic Error objects.
+ * Handles Firebase error codes and generic Error objects.
  */
 export function getErrorDetails(
   error: unknown,
@@ -67,14 +123,20 @@ export function getErrorDetails(
     const code = typeof obj.code === 'string' ? obj.code : '';
     const msg = typeof obj.message === 'string' ? obj.message : '';
 
-    const prismaMap: Record<string, { error: string; description: string }> = {
-      P2002: { error: 'Duplicate record', description: 'A record with the same unique value already exists.' },
-      P2003: { error: 'Invalid relation reference', description: 'A related record referenced by this request does not exist.' },
-      P2025: { error: 'Record not found', description: 'The target record was not found.' },
+    // Firebase common errors
+    const firebaseMap: Record<string, { error: string; description: string }> = {
+      'permission-denied': { error: 'Permission denied', description: 'You do not have permission to access this resource.' },
+      'unavailable': { error: 'Service unavailable', description: 'The database is currently unavailable.' },
+      'not-found': { error: 'Not found', description: 'The requested record was not found.' },
+      'already-exists': { error: 'Already exists', description: 'A record with this ID already exists.' },
     };
 
-    if (code in prismaMap) {
-      return { ...prismaMap[code], code };
+    const normalizedCode = code.startsWith('auth/') || code.startsWith('functions/') 
+      ? code.split('/')[1] 
+      : code;
+
+    if (normalizedCode in firebaseMap) {
+      return { ...firebaseMap[normalizedCode], code: normalizedCode };
     }
 
     if (msg) {

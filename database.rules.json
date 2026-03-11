@@ -1,0 +1,85 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    
+    "users": {
+      "$uid": {
+        // Users can only read/write their own profile and project list
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && auth.uid == $uid",
+        
+        "projects": {
+          "$projectId": {
+            ".validate": "newData.hasChildren(['name', 'status'])"
+          }
+        },
+        "settings": {
+           ".read": "auth != null && auth.uid == $uid",
+           ".write": "auth != null && auth.uid == $uid"
+        },
+        "diagnostics": {
+           ".read": "auth != null && auth.uid == $uid",
+           ".write": "auth != null && auth.uid == $uid"
+        }
+      }
+    },
+    
+    "projectData": {
+      "$projectId": {
+        // Access is granted if the project exists in the user's project list
+        // OR if they are an admin
+        ".read": "auth != null && (root.child('users').child(auth.uid).child('projects').child($projectId).exists() || auth.token.admin === true)",
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('projects').child($projectId).exists() || auth.token.admin === true)",
+        
+        "floors": {
+          ".indexOn": ["floorNumber"]
+        },
+        "rooms": {
+          ".indexOn": ["floorId"]
+        }
+      }
+    },
+    
+    "recognizedEmails": {
+      ".read": "auth != null",
+      ".write": "auth != null && auth.token.admin === true"
+    },
+    
+    "projectOwners": {
+      // Mapping of projectId to owner UID
+      // Any authenticated user can read (needed for lookup)
+      // Only the owner or admin can write
+      ".read": "auth != null",
+      "$projectId": {
+        ".write": "auth != null && (!data.exists() || data.val() == auth.uid || auth.token.admin === true)"
+      }
+    },
+    
+    "metadata": {
+      // Global metadata like materials and suppliers
+      "materials": {
+        ".read": "auth != null", // Any logged-in user can read
+        ".write": "auth != null && auth.token.admin === true" // Only admins can update
+      },
+      "suppliers": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.token.admin === true"
+      }
+    },
+    
+    "simulations": {
+      "$projectId": {
+        ".read": "auth != null && (root.child('users').child(auth.uid).child('projects').child($projectId).exists() || auth.token.admin === true)",
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('projects').child($projectId).exists() || auth.token.admin === true)"
+      }
+    },
+    
+    "auditLogs": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || auth.token.admin === true)",
+        ".write": "auth != null && auth.uid == $uid"
+      }
+    }
+  }
+}

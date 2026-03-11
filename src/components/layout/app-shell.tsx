@@ -3,12 +3,28 @@
 import React from 'react';
 import { Sidebar } from './sidebar';
 import { ToastContainer } from '@/components/ui/toast';
+import { useAuth } from '@/lib/auth/AuthContext';
+import LoginPage from '@/app/login/page';
 
 interface AppShellProps {
   children: React.ReactNode;
 }
 
 export function AppShell({ children }: AppShellProps) {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginPage />;
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-[#f8fafc] font-sans text-slate-900">
       <Sidebar />
