@@ -93,7 +93,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     await floorRef.set(floorData);
 
     // Update project updatedAt
-    await adminDb.ref(`users/${ownerId}/projects/${projectId}`).update({ updatedAt: now });
+    await adminDb.ref(`projects/${projectId}`).update({ updatedAt: now });
 
     return NextResponse.json({ floor: { id: floorId, ...floorData } }, { status: 201 });
   } catch (error) {

@@ -26,8 +26,8 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const search = searchParams.get('search')?.toLowerCase();
 
-    const projectsRef = adminDb.ref(`users/${uid}/projects`);
-    const snapshot = await projectsRef.once('value');
+    const projectsRef = adminDb.ref(`projects`);
+    const snapshot = await projectsRef.orderByChild('ownerId').equalTo(uid).once('value');
     const projectsData = snapshot.val() || {};
 
     let projects = Object.keys(projectsData).map(id => ({
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       : calcWetBulb(finalDB, finalRH);
 
     const now = new Date().toISOString();
-    const newProjectRef = adminDb.ref(`users/${uid}/projects`).push();
+    const newProjectRef = adminDb.ref(`projects`).push();
     const projectId = newProjectRef.key;
 
     const projectData = {
@@ -115,6 +115,7 @@ export async function POST(request: NextRequest) {
       indoorRH: toNumber(body.indoorRH, 50),
       notes: body.notes || '',
       status: 'draft',
+      ownerId: uid,
       createdAt: now,
       updatedAt: now,
     };

@@ -195,7 +195,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     if (permanent) {
       // Permanent delete: remove project and all its data
       const updates: Record<string, any> = {};
-      updates[`users/${ownerId}/projects/${id}`] = null;
+      updates[`projects/${id}`] = null;
       updates[`projectData/${id}`] = null;
       updates[`simulations/${id}`] = null;
       updates[`projectOwners/${id}`] = null;

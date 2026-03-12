@@ -33,7 +33,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     // Get project metadata
-    const projectRef = adminDb.ref(`users/${ownerId}/projects/${projectId}`);
+    const projectRef = adminDb.ref(`projects/${projectId}`);
     const projectSnapshot = await projectRef.once('value');
     if (!projectSnapshot.exists()) {
       return errorResponse(404, 'Project not found', 'The project metadata was not found.', 'PROJECT_NOT_FOUND');
@@ -90,8 +90,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
       timestamp: now
     };
 
-    // Update project timestamp (on the owner's project record)
-    updates[`users/${ownerId}/projects/${projectId}/updatedAt`] = now;
+    // Update project timestamp
+    updates[`projects/${projectId}/updatedAt`] = now;
 
     // Execute all updates atomically
     await adminDb.ref().update(updates);
