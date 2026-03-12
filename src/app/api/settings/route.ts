@@ -1,12 +1,12 @@
 /**
- * Settings API — DB-backed app settings
- * GET /api/settings — Get settings
- * PUT /api/settings — Update settings
+ * Settings API — Firebase-backed user settings
+ * GET /api/settings — Get user-specific settings
+ * POST /api/settings — Update user-specific settings
  */
 
-import { NextResponse } from 'next/server';
-import neon from '@/lib/db/prisma';
-import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
+import { NextRequest, NextResponse } from 'next/server';
+import { adminDb } from '@/lib/db/firebase-admin';
+import { getUserId, errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
 
 const DEFAULT_SETTINGS = {
   companyName: '',
@@ -24,18 +24,17 @@ const DEFAULT_SETTINGS = {
   vatPercent: 12,
 };
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const record = await neon.appSettings.findUnique({ where: { id: 'global' } });
-
-    let settings = DEFAULT_SETTINGS;
-    if (record) {
-      try {
-        settings = { ...DEFAULT_SETTINGS, ...JSON.parse(record.data) };
-      } catch {
-        // fallback to defaults if JSON is invalid
-      }
+    const uid = await getUserId(request);
+    if (!uid) {
+      return errorResponse(401, 'Unauthorized', 'You must be logged in to fetch settings.');
     }
+
+    const snapshot = await adminDb.ref(`users/${uid}/settings`).once('value');
+    const data = snapshot.val();
+
+    const settings = { ...DEFAULT_SETTINGS, ...data };
 
     return NextResponse.json({ settings });
   } catch (error) {
@@ -45,32 +44,27 @@ export async function GET() {
   }
 }
 
-export async function PUT(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-
-    // Merge with existing settings
-    const existing = await neon.appSettings.findUnique({ where: { id: 'global' } });
-    let current = DEFAULT_SETTINGS;
-    if (existing) {
-      try {
-        current = { ...DEFAULT_SETTINGS, ...JSON.parse(existing.data) };
-      } catch {
-        // fallback
-      }
+    const uid = await getUserId(request);
+    if (!uid) {
+      return errorResponse(401, 'Unauthorized', 'You must be logged in to update settings.');
     }
 
-    const merged = { ...current, ...body };
+    const body = await request.json();
+    const ref = adminDb.ref(`users/${uid}/settings`);
+    
+    // Get existing to merge
+    const snapshot = await ref.once('value');
+    const current = snapshot.val() || {};
+    
+    const merged = { ...current, ...body, updatedAt: Date.now() };
 
-    const record = await neon.appSettings.upsert({
-      where: { id: 'global' },
-      create: { id: 'global', data: JSON.stringify(merged) },
-      update: { data: JSON.stringify(merged) },
-    });
+    await ref.set(merged);
 
-    return NextResponse.json({ settings: JSON.parse(record.data) });
+    return NextResponse.json({ settings: merged });
   } catch (error) {
-    console.error('PUT /api/settings error:', error);
+    console.error('POST /api/settings error:', error);
     const d = getErrorDetails(error, 'Failed to update settings');
     return errorResponse(500, d.error, d.description, d.code);
   }

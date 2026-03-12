@@ -2,60 +2,85 @@ export type ProjectStatus = 'draft' | 'active' | 'archived' | 'deleted';
 export type OutputClassification = 'preliminary' | 'ifc';
 export type BuildingType = 'office' | 'retail' | 'residential' | 'hotel' | 'hospital' | 'restaurant' | 'warehouse' | 'school' | 'mixed';
 
-export interface Project {
+export interface ProjectMetadata {
   id: string;
   name: string;
+  clientName: string;
   location: string;
+  city: string;
   buildingType: BuildingType;
   status: ProjectStatus;
-  outputClassification: OutputClassification;
-  designConditions: DesignConditions;
+  totalFloorArea: number;
+  floorsAboveGrade: number;
+  floorsBelowGrade: number;
+  notes: string;
+  outdoorDB: number;
+  outdoorWB: number;
+  outdoorRH: number;
+  indoorDB: number;
+  indoorRH: number;
   safetyFactor: number;
   diversityFactor: number;
-  notes: string;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface DesignConditions {
-  outdoorDB: number; // °C
-  outdoorWB: number; // °C
-  indoorDB: number;  // °C
-  indoorRH: number;  // %
-  altitude: number;  // meters
-  latitude: number;
-  longitude: number;
+// Full hydrated project object used in store and pages
+export interface DetailedProject extends ProjectMetadata {
+  floors: DetailedFloor[];
+  boqItems?: Record<string, any>;
+  selectedEquipment?: Record<string, any>;
+  coolingLoads?: Record<string, any>;
 }
 
-export interface Floor {
+export interface DetailedFloor {
   id: string;
   projectId: string;
   floorNumber: number;
   name: string;
   floorPlanImage: string | null;
-  scale: number; // px per meter
-  ceilingHeight: number; // meters
-  rooms: Room[];
+  scale: number; 
+  ceilingHeight: number;
+  rooms: DetailedRoom[];
 }
 
-export interface Room {
+export interface DetailedRoom {
   id: string;
   floorId: string;
   name: string;
-  polygon: { x: number; y: number }[];
-  area: number; // m²
-  perimeter: number; // m
+  area: number;
+  perimeter: number;
+  polygon?: { x: number; y: number }[];
   spaceType: SpaceType;
   occupantCount: number;
-  lightingDensity: number; // W/m²
-  equipmentLoad: number; // W (total)
+  lightingDensity: number;
+  equipmentLoad: number;
   wallConstruction: WallType;
-  windowArea: number; // m²
+  windowArea: number;
   windowOrientation: Orientation;
   windowType: GlassType;
   ceilingHeight: number;
   notes: string;
+  coolingLoad?: any; // The calculated results
 }
+
+export interface DesignConditions {
+  outdoorDB: number;
+  outdoorWB: number;
+  indoorDB: number;
+  indoorRH: number;
+  altitude?: number;
+  latitude?: number;
+  longitude?: number;
+}
+
+export interface Project extends ProjectMetadata {
+  outputClassification?: OutputClassification;
+  designConditions?: DesignConditions;
+}
+
+export interface Floor extends DetailedFloor {}
+export interface Room extends DetailedRoom {}
 
 export type SpaceType =
   | 'office'
@@ -100,9 +125,15 @@ export type Orientation = 'N' | 'NE' | 'E' | 'SE' | 'S' | 'SW' | 'W' | 'NW';
 
 export interface ProjectFormData {
   name: string;
-  location: string;
-  buildingType: BuildingType;
+  clientName?: string;
+  location?: string;
+  buildingType?: BuildingType;
   notes?: string;
   safetyFactor?: number;
   diversityFactor?: number;
+  outdoorDB?: number;
+  outdoorRH?: number;
+  indoorDB?: number;
+  indoorRH?: number;
+  totalFloorArea?: number;
 }

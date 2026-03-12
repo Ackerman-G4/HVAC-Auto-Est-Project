@@ -1,74 +1,69 @@
 /**
- * Projects API — CRUD operations
- * GET  /api/projects — List all projects
+ * Projects API — Firebase RTDB implementation
+ * GET  /api/projects — List user projects
  * POST /api/projects — Create new project
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import neon from '@/lib/db/prisma';
+import { adminDb } from '@/lib/db/firebase-admin';
 import { wetBulb as calcWetBulb } from '@/lib/functions/psychrometric';
 import {
   toNumber,
   toInt,
   errorResponse,
   getErrorDetails,
+  getUserId,
 } from '@/lib/utils/api-helpers';
 
 export async function GET(request: NextRequest) {
   try {
+    const uid = await getUserId(request);
+    if (!uid) {
+      return errorResponse(401, 'Unauthorized', 'You must be logged in to access projects.', 'UNAUTHORIZED');
+    }
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
-    const search = searchParams.get('search');
-    const sortBy = searchParams.get('sortBy') || 'updatedAt';
-    const sortOrder = searchParams.get('sortOrder') || 'desc';
+    const search = searchParams.get('search')?.toLowerCase();
 
-    const where: Record<string, unknown> = {};
+    const projectsRef = adminDb.ref(`users/${uid}/projects`);
+    const snapshot = await projectsRef.once('value');
+    const projectsData = snapshot.val() || {};
 
+    let projects = Object.keys(projectsData).map(id => ({
+      id,
+      ...projectsData[id]
+    }));
+
+    // Filter
     if (status && status !== 'all') {
-      where.status = status;
+      projects = projects.filter(p => p.status === status);
     } else {
-      where.status = { notIn: ['archived', 'deleted'] };
+      projects = projects.filter(p => p.status !== 'archived' && p.status !== 'deleted');
     }
 
     if (search) {
-      where.OR = [
-        { name: { contains: search } },
-        { clientName: { contains: search } },
-        { buildingType: { contains: search } },
-        { location: { contains: search } },
-      ];
+      projects = projects.filter(p => 
+        p.name?.toLowerCase().includes(search) || 
+        p.clientName?.toLowerCase().includes(search) ||
+        p.location?.toLowerCase().includes(search)
+      );
     }
 
-    const projects = await neon.project.findMany({
-      where,
-      include: {
-        floors: {
-          include: {
-            rooms: {
-              include: {
-                coolingLoad: true,
-                _count: { select: { selectedEquipment: true } },
-              },
-            },
-          },
-        },
-        _count: { select: { boqItems: true } },
-      },
-      orderBy: { [sortBy]: sortOrder },
+    // Sort
+    const sortBy = searchParams.get('sortBy') || 'updatedAt';
+    const sortOrder = searchParams.get('sortOrder') || 'desc';
+    
+    projects.sort((a, b) => {
+      const valA = a[sortBy];
+      const valB = b[sortBy];
+      if (sortOrder === 'desc') {
+        return valA < valB ? 1 : -1;
+      }
+      return valA > valB ? 1 : -1;
     });
 
-    const transformedProjects = projects.map((p) => ({
-      ...p,
-      _count: {
-        ...p._count,
-        selectedEquipment: p.floors.reduce(
-          (sum, f) => sum + f.rooms.reduce((rSum, r) => rSum + r._count.selectedEquipment, 0),
-          0,
-        ),
-      },
-    }));
-
-    return NextResponse.json({ projects: transformedProjects });
+    return NextResponse.json({ projects });
   } catch (error) {
     console.error('GET /api/projects error:', error);
     const d = getErrorDetails(error, 'Failed to fetch projects');
@@ -78,51 +73,67 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const uid = await getUserId(request);
+    if (!uid) {
+      return errorResponse(401, 'Unauthorized', 'You must be logged in to create projects.', 'UNAUTHORIZED');
+    }
+
+    if (!process.env.FIREBASE_PRIVATE_KEY) {
+       console.error("Missing FIREBASE_PRIVATE_KEY. Cannot write to Realtime Database.");
+       return errorResponse(500, 'Server Configuration Error', 'Missing Firebase Admin credentials (.env.local). Please configure FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY.', 'MISSING_ENV');
+    }
+
     const body = await request.json();
 
     if (!body.name) {
       return errorResponse(400, 'Project name is required', 'Enter a project name before creating the project.', 'MISSING_NAME');
     }
 
-    // Auto-compute wet-bulb from dry-bulb + RH via Carrier psychrometric chart
     const finalDB = toNumber(body.outdoorDB, 35);
     const finalRH = toNumber(body.outdoorRH, 50);
     const computedWB = Number.isFinite(toNumber(body.outdoorWB, NaN))
       ? toNumber(body.outdoorWB, 0)
       : calcWetBulb(finalDB, finalRH);
 
-    const project = await neon.project.create({
-      data: {
-        name: body.name,
-        clientName: body.clientName || '',
-        buildingType: body.buildingType || 'commercial',
-        location: body.location || '',
-        city: body.city || 'Manila',
-        totalFloorArea: toNumber(body.totalFloorArea, 0),
-        floorsAboveGrade: toInt(body.floorsAboveGrade, 1),
-        floorsBelowGrade: toInt(body.floorsBelowGrade, 0),
-        outdoorDB: finalDB,
-        outdoorWB: computedWB,
-        outdoorRH: finalRH,
-        indoorDB: toNumber(body.indoorDB, 24),
-        indoorRH: toNumber(body.indoorRH, 50),
-        notes: body.notes || '',
-        status: 'draft',
-      },
-      include: { floors: true },
+    const now = new Date().toISOString();
+    const newProjectRef = adminDb.ref(`users/${uid}/projects`).push();
+    const projectId = newProjectRef.key;
+
+    const projectData = {
+      name: body.name,
+      clientName: body.clientName || '',
+      buildingType: body.buildingType || 'commercial',
+      location: body.location || '',
+      city: body.city || 'Manila',
+      totalFloorArea: toNumber(body.totalFloorArea, 0),
+      floorsAboveGrade: toInt(body.floorsAboveGrade, 1),
+      floorsBelowGrade: toInt(body.floorsBelowGrade, 0),
+      outdoorDB: finalDB,
+      outdoorWB: computedWB,
+      outdoorRH: finalRH,
+      indoorDB: toNumber(body.indoorDB, 24),
+      indoorRH: toNumber(body.indoorRH, 50),
+      notes: body.notes || '',
+      status: 'draft',
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await newProjectRef.set(projectData);
+
+    // Add to projectOwners for admin lookup and cross-referencing
+    await adminDb.ref(`projectOwners/${projectId}`).set(uid);
+
+    await adminDb.ref(`auditLogs/${uid}`).push({
+      projectId,
+      action: 'created',
+      entity: 'project',
+      entityId: projectId,
+      details: { name: body.name },
+      timestamp: now
     });
 
-    await neon.auditLog.create({
-      data: {
-        projectId: project.id,
-        action: 'created',
-        entity: 'project',
-        entityId: project.id,
-        details: JSON.stringify({ name: body.name }),
-      },
-    });
-
-    return NextResponse.json({ project }, { status: 201 });
+    return NextResponse.json({ project: { id: projectId, ...projectData } }, { status: 201 });
   } catch (error) {
     console.error('POST /api/projects error:', error);
     const d = getErrorDetails(error, 'Failed to create project');

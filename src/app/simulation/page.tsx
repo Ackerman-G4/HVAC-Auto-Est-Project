@@ -11,6 +11,7 @@ import {
 import { PageWrapper, PageHeader } from '@/components/ui/page-wrapper';
 import { StatCard } from '@/components/ui/stat-card';
 import { Tabs, TabPanel } from '@/components/ui/tabs';
+import { showToast } from '@/components/ui/toast';
 import { useSimulationStore } from '@/stores/simulation-store';
 import type {
   RackDensity, HVACUnitType, FailureScenario,
@@ -573,14 +574,18 @@ function ResultsPanel() {
 
 // ─── Failure Simulation Panel ───────────────────────────────────────
 
-function FailurePanel() {
+function FailurePanel({ projectId }: { projectId: string }) {
   const { hvacUnits, runFailure, isRunning } = useSimulationStore();
   const [scenario, setScenario] = useState<FailureScenario>('crac_failure');
   const [duration, setDuration] = useState(3600);
   const [selectedUnits, setSelectedUnits] = useState<string[]>([]);
 
   const handleRun = () => {
-    runFailure({
+    if (!projectId) {
+      showToast('error', 'Please select a project first');
+      return;
+    }
+    runFailure(projectId, {
       scenario,
       failedUnitIds: selectedUnits,
       duration,
@@ -733,28 +738,29 @@ export default function SimulationPage() {
         actions={
           <div className="flex items-center gap-3">
             <button
-              onClick={() => { runPUE(); }}
-              disabled={racks.length === 0}
+              onClick={() => { if (selectedProjectId) runPUE(selectedProjectId); }}
+              disabled={racks.length === 0 || !selectedProjectId}
               className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors"
             >
               <Zap size={16} /> PUE
             </button>
             <button
-              onClick={() => { runCompliance(); }}
+              onClick={() => { if (selectedProjectId) runCompliance(selectedProjectId); }}
+              disabled={!selectedProjectId}
               className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
             >
               <ShieldCheck size={16} /> Compliance
             </button>
             <button
-              onClick={() => { runOptimization(); }}
-              disabled={racks.length === 0 || isRunning}
+              onClick={() => { if (selectedProjectId) runOptimization(selectedProjectId); }}
+              disabled={racks.length === 0 || isRunning || !selectedProjectId}
               className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors"
             >
               <TrendingUp size={16} /> Optimize
             </button>
             <button
-              onClick={() => runSimulation('', '')}
-              disabled={racks.length === 0 || isRunning}
+              onClick={() => { if (selectedProjectId) runSimulation(selectedProjectId, 'default-floor'); }}
+              disabled={racks.length === 0 || isRunning || !selectedProjectId}
               className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 disabled:opacity-50 shadow-lg shadow-blue-600/20 transition-colors"
             >
               {isRunning ? <><RotateCcw size={16} className="animate-spin" /> Running...</> : <><Play size={16} /> Run Simulation</>}
@@ -826,7 +832,7 @@ export default function SimulationPage() {
           <ResultsPanel />
         </TabPanel>
         <TabPanel tabId="failure" activeTab={activeTab}>
-          <FailurePanel />
+          <FailurePanel projectId={selectedProjectId} />
         </TabPanel>
       </Tabs>
     </PageWrapper>

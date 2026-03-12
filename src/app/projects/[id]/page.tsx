@@ -42,6 +42,7 @@ import { EQUIPMENT_CATALOG } from '@/constants/equipment-catalog';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { exportProjectPDF, exportProjectDXF, exportProjectCSV, exportProjectExcel } from '@/lib/utils/project-export';
+import { projectsApi, roomsApi, calculateApi, equipmentApi, boqApi, ApiClientError } from '@/lib/api-client';
 import dynamic from 'next/dynamic';
 
 const BuildingViewer3D = dynamic(() => import('@/components/building/BuildingViewer3D'), {
@@ -249,18 +250,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   const fetchProject = () => {
     setLoading(true);
-    fetch(`/api/projects/${id}`)
-      .then((r) => {
-        if (!r.ok) {
-          return r.json().then((data) => {
-            showToast('error', data.error || 'Failed to load project', data.description || '');
-            setLoading(false);
-            return null;
-          });
-        }
-        return r.json();
-      })
-      .then((data) => {
+    projectsApi.get(id)
+      .then((data: any) => {
         if (data && data.project) {
           setProject(data.project);
         }
@@ -286,65 +277,51 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       return;
     }
     try {
-      const res = await fetch(`/api/projects/${id}/rooms`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...roomForm,
-          area: finalArea,
-          windowArea: finalWindowArea,
-          perimeter: effectivePerimeterM > 0 ? effectivePerimeterM : undefined,
-        }),
+      await roomsApi.create(id, {
+        ...roomForm,
+        area: finalArea,
+        windowArea: finalWindowArea,
+        perimeter: effectivePerimeterM > 0 ? effectivePerimeterM : undefined,
       });
-      if (res.ok) {
-        showToast('success', 'Room added with cooling load calculated');
-        setShowAddRoom(false);
-        setRoomForm({
-          name: '',
-          floorNumber: roomForm.floorNumber,
-          spaceType: 'office',
-          area: 0,
-          lengthFt: 0,
-          widthFt: 0,
-          useFootInput: true,
-          ceilingHeight: 2.7,
-          wallConstruction: 'concrete_block_200mm',
-          windowType: 'single_clear_6mm',
-          windowArea: 0,
-          windowLengthFt: 0,
-          windowWidthFt: 0,
-          windowQty: 1,
-          windowOrientation: 'N',
-          occupantCount: 0,
-          lightingDensity: 15,
-          equipmentLoad: 500,
-          hasRoofExposure: false,
-        });
-        fetchProject();
-      } else {
-        const data = await res.json();
-        showToast('error', data.error || 'Failed to add room', data.description || 'Check the room parameters and try again.');
-      }
+      showToast('success', 'Room added with cooling load calculated');
+      setShowAddRoom(false);
+      setRoomForm({
+        name: '',
+        floorNumber: roomForm.floorNumber,
+        spaceType: 'office',
+        area: 0,
+        lengthFt: 0,
+        widthFt: 0,
+        useFootInput: true,
+        ceilingHeight: 2.7,
+        wallConstruction: 'concrete_block_200mm',
+        windowType: 'single_clear_6mm',
+        windowArea: 0,
+        windowLengthFt: 0,
+        windowWidthFt: 0,
+        windowQty: 1,
+        windowOrientation: 'N',
+        occupantCount: 0,
+        lightingDensity: 15,
+        equipmentLoad: 500,
+        hasRoofExposure: false,
+      });
+      fetchProject();
     } catch (err) {
       console.error('Add room error:', err);
-      showToast('error', 'Failed to add room', 'Network error or server unreachable.');
+      showToast('error', 'Failed to add room', 'Check the room parameters and try again.');
     }
   };
 
   const runCalculation = async () => {
     setCalculating(true);
     try {
-      const res = await fetch(`/api/projects/${id}/calculate`, { method: 'POST' });
-      const data = await res.json();
-      if (res.ok) {
-        showToast('success', `Calculated ${data.summary.roomCount} rooms — Total: ${data.summary.totalTR} TR`);
-        fetchProject();
-      } else {
-        showToast('error', data.error || 'Calculation failed', data.description || 'The server returned an error.');
-      }
+      const data: any = await calculateApi.recalculate(id);
+      showToast('success', `Calculated ${data.summary.roomCount} rooms — Total: ${data.summary.totalTR} TR`);
+      fetchProject();
     } catch (err) {
       console.error('Calculate error:', err);
-      showToast('error', 'Calculation failed', 'Network error or server unreachable.');
+      showToast('error', 'Calculation failed', 'The server returned an error.');
     } finally {
       setCalculating(false);
     }
@@ -353,22 +330,13 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const autoSizeEquipment = async () => {
     setAutoSizing(true);
     try {
-      const res = await fetch(`/api/projects/${id}/equipment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ autoSize: true, budgetLevel: 'mid-range' }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        showToast('success', `Equipment sized for ${data.results.length} rooms`);
-        setActiveTab('equipment');
-        fetchProject();
-      } else {
-        showToast('error', data.error || 'Equipment sizing failed', data.description || 'The server returned an error. Make sure rooms have cooling loads calculated first.');
-      }
+      const data: any = await equipmentApi.autoSize(id);
+      showToast('success', `Equipment sized for ${data.results.length} rooms`);
+      setActiveTab('equipment');
+      fetchProject();
     } catch (err) {
       console.error('Auto-size error:', err);
-      showToast('error', 'Equipment sizing failed', 'Network error or server unreachable.');
+      showToast('error', 'Equipment sizing failed', 'Make sure rooms have cooling loads calculated first.');
     } finally {
       setAutoSizing(false);
     }
@@ -377,17 +345,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const generateBOQ = async () => {
     setGeneratingBOQ(true);
     try {
-      const res = await fetch(`/api/projects/${id}/boq`, { method: 'POST' });
-      const data = await res.json();
-      if (res.ok) {
-        showToast('success', `BOQ generated: ${formatPHP(data.boq.grandTotal)}`);
-        fetchProject();
-      } else {
-        showToast('error', data.error || 'BOQ generation failed', data.description || 'Make sure equipment is selected before generating BOQ.');
-      }
+      const data: any = await boqApi.generate(id);
+      showToast('success', `BOQ generated: ${formatPHP(data.boq?.grandTotal || 0)}`);
+      fetchProject();
     } catch (err) {
       console.error('BOQ error:', err);
-      showToast('error', 'BOQ generation failed', 'Network error or server unreachable.');
+      showToast('error', 'BOQ generation failed', 'Make sure equipment is selected before generating BOQ.');
     } finally {
       setGeneratingBOQ(false);
     }
@@ -698,13 +661,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                       onClick={async () => {
                                         if (!confirm(`Delete room "${room.name}"?`)) return;
                                         try {
-                                          const res = await fetch(`/api/projects/${id}/rooms/${room.id}`, { method: 'DELETE' });
-                                          if (res.ok) {
-                                            showToast('success', `Room "${room.name}" deleted`);
-                                            fetchProject();
-                                          } else {
-                                            showToast('error', 'Failed to delete room');
-                                          }
+                                          await roomsApi.delete(id, room.id);
+                                          showToast('success', `Room "${room.name}" deleted`);
+                                          fetchProject();
                                         } catch {
                                           showToast('error', 'Failed to delete room');
                                         }

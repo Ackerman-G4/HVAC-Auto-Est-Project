@@ -1,0 +1,90 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    
+    "users": {
+      "$uid": {
+        // Users can only read/write their own profile data, settings, and diagnostics
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && auth.uid == $uid",
+        
+        "settings": {
+           ".read": "auth != null && auth.uid == $uid",
+           ".write": "auth != null && auth.uid == $uid"
+        },
+        "diagnostics": {
+           ".read": "auth != null && auth.uid == $uid",
+           ".write": "auth != null && auth.uid == $uid"
+        }
+      }
+    },
+
+    "projects": {
+      ".indexOn": ["ownerId"],
+      "$projectId": {
+        // User can read their own projects, admin can read all
+        ".read": "auth != null && (data.child('ownerId').val() === auth.uid || auth.token.admin === true)",
+        // User can create projects where ownerId is them, and update/delete their own projects
+        ".write": "auth != null && (!data.exists() ? newData.child('ownerId').val() === auth.uid : data.child('ownerId').val() === auth.uid || auth.token.admin === true)",
+        ".validate": "newData.hasChildren(['name', 'status', 'ownerId'])"
+      }
+    },
+    
+    "projectData": {
+      "$projectId": {
+        // Access is granted if the project's ownerId matches the user, OR if they are an admin
+        ".read": "auth != null && (root.child('projects').child($projectId).child('ownerId').val() === auth.uid || auth.token.admin === true)",
+        ".write": "auth != null && (root.child('projects').child($projectId).child('ownerId').val() === auth.uid || auth.token.admin === true)",
+        
+        "floors": {
+          ".indexOn": ["floorNumber"]
+        },
+        "rooms": {
+          ".indexOn": ["floorId"]
+        }
+      }
+    },
+    
+    "recognizedEmails": {
+      ".read": "auth != null",
+      ".write": "auth != null && auth.token.admin === true"
+    },
+    
+    "projectOwners": {
+      // Mapping of projectId to owner UID
+      // Any authenticated user can read (needed for lookup)
+      // Only the owner or admin can write
+      ".read": "auth != null",
+      "$projectId": {
+        ".write": "auth != null && (!data.exists() || data.val() == auth.uid || auth.token.admin === true)"
+      }
+    },
+    
+    "metadata": {
+      // Global metadata like materials and suppliers
+      "materials": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.token.admin === true"
+      },
+      "suppliers": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.token.admin === true"
+      }
+    },
+    
+    "simulations": {
+      "$projectId": {
+        ".read": "auth != null && (root.child('projects').child($projectId).child('ownerId').val() === auth.uid || auth.token.admin === true)",
+        ".write": "auth != null && (root.child('projects').child($projectId).child('ownerId').val() === auth.uid || auth.token.admin === true)"
+      }
+    },
+    
+    "auditLogs": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || auth.token.admin === true)",
+        ".write": "auth != null && auth.uid == $uid"
+      }
+    }
+  }
+}

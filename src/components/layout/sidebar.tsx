@@ -18,16 +18,19 @@ import {
   Receipt,
   Stethoscope,
   Wind,
+  LogOut,
+  User as UserIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { sidebarVariants } from '@/animations/shared';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 const navItems = [
   { href: '/', label: 'Overview', icon: LayoutDashboard },
   { href: '/projects', label: 'Projects', icon: FolderOpen },
   { href: '/simulation', label: 'CFD Simulation', icon: Wind },
-  { href: '/materials', label: 'Materials \& Suppliers', icon: Package },
-  { href: '/reports', label: 'Reports \& Export', icon: FileText },
+  { href: '/materials', label: 'Materials & Suppliers', icon: Package },
+  { href: '/reports', label: 'Reports & Export', icon: FileText },
   { href: '/quotation', label: 'Quotation', icon: Receipt },
   { href: '/diagnostics', label: 'Diagnostics', icon: Stethoscope },
   { href: '/settings', label: 'Settings', icon: Settings },
@@ -37,6 +40,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { user, logout } = useAuth();
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
@@ -79,13 +83,42 @@ export function Sidebar() {
         })}
       </nav>
 
+      {/* User Profile & Logout */}
+      <div className="p-4 border-t border-slate-100 bg-slate-50/30">
+        {!collapsed && user && (
+          <div className="flex items-center gap-3 px-3 py-4 mb-2 bg-white rounded-2xl border border-slate-100 shadow-sm">
+            {user.photoURL ? (
+              <img src={user.photoURL} alt={user.displayName || 'User'} className="w-10 h-10 rounded-xl object-cover" />
+            ) : (
+              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
+                <UserIcon size={20} />
+              </div>
+            )}
+            <div className="flex flex-col min-w-0">
+              <span className="text-sm font-extrabold text-slate-900 truncate">{user.displayName || 'Engineer'}</span>
+              <span className="text-[11px] font-bold text-slate-400 truncate">{user.email}</span>
+            </div>
+          </div>
+        )}
+        <button
+          onClick={logout}
+          className={cn(
+            "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold text-slate-500 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 transition-all duration-300 group",
+            collapsed && "justify-center"
+          )}
+        >
+          <LogOut size={20} className="shrink-0 transition-transform group-hover:scale-110" />
+          {!collapsed && <span>Sign Out</span>}
+        </button>
+      </div>
+
       {/* Collapse button (desktop only) */}
-      <div className="hidden lg:flex p-5 border-t border-slate-100 bg-slate-50/50">
+      <div className="hidden lg:flex p-5 border-t border-slate-100 bg-white">
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold text-slate-500 hover:text-slate-900 hover:bg-white border border-transparent hover:border-slate-200 hover:shadow-sm transition-all duration-300"
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold text-slate-400 hover:text-slate-900 hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all duration-300"
         >
-          {collapsed ? <ChevronRight size={20} /> : <><ChevronLeft size={20} /><span>Collapse Setup</span></>}
+          {collapsed ? <ChevronRight size={20} /> : <><ChevronLeft size={20} /><span>Minimize</span></>}
         </button>
       </div>
     </div>

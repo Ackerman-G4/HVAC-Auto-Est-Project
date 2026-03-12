@@ -1,8 +1,15 @@
 import { create } from 'zustand';
+import { 
+  ref, 
+  onValue, 
+  off, 
+  set as firebaseSet, 
+  update as firebaseUpdate 
+} from 'firebase/database';
+import { db, auth } from '@/lib/db/firebase';
 import { showToast } from '@/components/ui/toast';
 import type {
   SimulationConfig,
-  SimulationInput,
   SimulationResult,
   SimulationMetrics,
   ServerRack,
@@ -14,8 +21,6 @@ import type {
   PUEAnalysis,
   OptimizationResult,
   OptimizationConfig,
-  HVACUnitType,
-  RackDensity,
 } from '@/types/simulation';
 
 interface SimulationStore {
@@ -42,7 +47,11 @@ interface SimulationStore {
   showAirflow: boolean;
   selectedSliceZ: number;
 
-  // Actions - Equipment
+  // Actions
+  subscribeToSimulation: (projectId: string) => () => void;
+  saveSimulationData: (projectId: string) => Promise<void>;
+  
+  // Actions - Equipment (Local state first, then save)
   addRack: (rack: Omit<ServerRack, 'id'>) => void;
   updateRack: (id: string, updates: Partial<ServerRack>) => void;
   removeRack: (id: string) => void;
@@ -55,11 +64,11 @@ interface SimulationStore {
   // Actions - Simulation
   setConfig: (config: Partial<SimulationConfig>) => void;
   runSimulation: (projectId: string, floorId: string) => Promise<void>;
-  runCompliance: () => void;
-  runFailure: (config: FailureConfig) => Promise<void>;
-  runPUE: () => void;
-  runOptimization: (config?: OptimizationConfig) => Promise<void>;
-  clearResults: () => void;
+  runCompliance: (projectId: string) => Promise<void>;
+  runFailure: (projectId: string, config: FailureConfig) => Promise<void>;
+  runPUE: (projectId: string) => Promise<void>;
+  runOptimization: (projectId: string, config?: OptimizationConfig) => Promise<void>;
+  clearResults: (projectId: string) => Promise<void>;
 
   // Actions - UI
   setActiveView: (view: 'temperature' | 'velocity' | 'pressure') => void;
@@ -106,6 +115,44 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
   showHotspots: true,
   showAirflow: true,
   selectedSliceZ: 1,
+
+  subscribeToSimulation: (projectId: string) => {
+    const simRef = ref(db, `simulations/${projectId}`);
+    
+    const unsubscribe = onValue(simRef, (snapshot) => {
+      const data = snapshot.val() || {};
+      set({
+        racks: data.racks || [],
+        hvacUnits: data.hvacUnits || [],
+        tiles: data.tiles || [],
+        config: data.config || DEFAULT_CONFIG,
+        result: data.result || null,
+        complianceReport: data.complianceReport || null,
+        failureResult: data.failureResult || null,
+        pueAnalysis: data.pueAnalysis || null,
+        optimizationResult: data.optimizationResult || null,
+        raisedFloorHeight: data.raisedFloorHeight || 0.45,
+      });
+    });
+
+    return () => off(simRef, 'value', unsubscribe);
+  },
+
+  saveSimulationData: async (projectId: string) => {
+    const { racks, hvacUnits, tiles, config, raisedFloorHeight } = get();
+    try {
+      await firebaseUpdate(ref(db, `simulations/${projectId}`), {
+        racks,
+        hvacUnits,
+        tiles,
+        config,
+        raisedFloorHeight,
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Error saving simulation data:", error);
+    }
+  },
 
   // ─── Equipment Actions ──────────────────────────────────────
 
@@ -161,12 +208,16 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
 
   runSimulation: async (projectId, floorId) => {
     const { config, racks, hvacUnits, tiles, raisedFloorHeight } = get();
-    set({ isRunning: true, result: null });
+    set({ isRunning: true });
 
     try {
+      const idToken = await auth.currentUser?.getIdToken();
       const res = await fetch('/api/simulation', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
         body: JSON.stringify({
           action: 'cfd',
           input: { projectId, floorId, config, racks, hvacUnits, tiles, raisedFloorHeight },
@@ -175,7 +226,14 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
 
       if (!res.ok) throw new Error('Simulation failed');
       const data = await res.json();
-      set({ result: data.result, isRunning: false });
+      
+      // Save result to Firebase
+      await firebaseUpdate(ref(db, `simulations/${projectId}`), {
+        result: data.result,
+        updatedAt: new Date().toISOString(),
+      });
+      
+      set({ isRunning: false });
       showToast('success', 'CFD simulation completed');
     } catch (error) {
       console.error(error);
@@ -184,7 +242,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     }
   },
 
-  runCompliance: () => {
+  runCompliance: async (projectId) => {
     const { result, racks, hvacUnits } = get();
     if (!result) {
       showToast('error', 'Run CFD simulation first');
@@ -192,37 +250,49 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     }
 
     try {
-      // We'll call the API for compliance check
-      fetch('/api/simulation', {
+      const idToken = await auth.currentUser?.getIdToken();
+      const res = await fetch('/api/simulation', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
         body: JSON.stringify({
           action: 'compliance',
           metrics: result.metrics,
           racks,
           hvacUnits,
         }),
-      }).then(async (res) => {
-        if (!res.ok) throw new Error('Compliance check failed');
-        const data = await res.json();
-        set({ complianceReport: data.report });
-        showToast(data.report.overallPass ? 'success' : 'error',
-          data.report.overallPass ? 'ASHRAE compliance passed' : 'ASHRAE compliance issues found');
       });
+
+      if (!res.ok) throw new Error('Compliance check failed');
+      const data = await res.json();
+      
+      await firebaseUpdate(ref(db, `simulations/${projectId}`), {
+        complianceReport: data.report,
+        updatedAt: new Date().toISOString(),
+      });
+      
+      showToast(data.report.overallPass ? 'success' : 'error',
+        data.report.overallPass ? 'ASHRAE compliance passed' : 'ASHRAE compliance issues found');
     } catch (error) {
       console.error(error);
       showToast('error', 'Compliance check failed');
     }
   },
 
-  runFailure: async (failureConfig) => {
+  runFailure: async (projectId, failureConfig) => {
     const { racks, hvacUnits, config } = get();
     set({ isRunning: true });
 
     try {
+      const idToken = await auth.currentUser?.getIdToken();
       const res = await fetch('/api/simulation', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
         body: JSON.stringify({
           action: 'failure',
           racks,
@@ -234,7 +304,13 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
 
       if (!res.ok) throw new Error('Failure simulation failed');
       const data = await res.json();
-      set({ failureResult: data.result, isRunning: false });
+      
+      await firebaseUpdate(ref(db, `simulations/${projectId}`), {
+        failureResult: data.result,
+        updatedAt: new Date().toISOString(),
+      });
+      
+      set({ isRunning: false });
       showToast('success', 'Failure simulation completed');
     } catch (error) {
       console.error(error);
@@ -243,32 +319,47 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     }
   },
 
-  runPUE: () => {
+  runPUE: async (projectId) => {
     const { racks, hvacUnits } = get();
 
-    fetch('/api/simulation', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'pue', racks, hvacUnits }),
-    }).then(async (res) => {
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      const res = await fetch('/api/simulation', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({ action: 'pue', racks, hvacUnits }),
+      });
+
       if (!res.ok) throw new Error('PUE calculation failed');
       const data = await res.json();
-      set({ pueAnalysis: data.analysis });
+      
+      await firebaseUpdate(ref(db, `simulations/${projectId}`), {
+        pueAnalysis: data.analysis,
+        updatedAt: new Date().toISOString(),
+      });
+      
       showToast('success', `PUE: ${data.analysis.pue}`);
-    }).catch((error) => {
+    } catch (error) {
       console.error(error);
       showToast('error', 'PUE calculation failed');
-    });
+    }
   },
 
-  runOptimization: async (optimizationConfig) => {
+  runOptimization: async (projectId, optimizationConfig) => {
     const { config, racks, hvacUnits, tiles, raisedFloorHeight } = get();
     set({ isRunning: true });
 
     try {
+      const idToken = await auth.currentUser?.getIdToken();
       const res = await fetch('/api/simulation', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
         body: JSON.stringify({
           action: 'optimize',
           input: { projectId: '', floorId: '', config, racks, hvacUnits, tiles, raisedFloorHeight },
@@ -278,7 +369,13 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
 
       if (!res.ok) throw new Error('Optimization failed');
       const data = await res.json();
-      set({ optimizationResult: data.result, isRunning: false });
+      
+      await firebaseUpdate(ref(db, `simulations/${projectId}`), {
+        optimizationResult: data.result,
+        updatedAt: new Date().toISOString(),
+      });
+      
+      set({ isRunning: false });
       showToast('success', `Optimization complete: ${data.result.improvement}% improvement`);
     } catch (error) {
       console.error(error);
@@ -287,13 +384,14 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     }
   },
 
-  clearResults: () => {
-    set({
+  clearResults: async (projectId: string) => {
+    await firebaseUpdate(ref(db, `simulations/${projectId}`), {
       result: null,
       complianceReport: null,
       failureResult: null,
       pueAnalysis: null,
       optimizationResult: null,
+      updatedAt: new Date().toISOString(),
     });
   },
 

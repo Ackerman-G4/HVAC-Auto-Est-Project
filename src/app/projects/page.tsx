@@ -1,7 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import dynamic from 'next/dynamic';
+
+const MotionDiv = dynamic(() => import('framer-motion').then((mod) => mod.motion.div), { ssr: true });
+const MotionSection = dynamic(() => import('framer-motion').then((mod) => mod.motion.section), { ssr: true });
+
 import {
   Plus,
   Search,
@@ -27,6 +31,7 @@ import { showToast } from '@/components/ui/toast';
 import { getCityOptions } from '@/constants/climate-data';
 import { psychrometricState } from '@/lib/functions/psychrometric';
 import { cardGridVariants, cardItemVariants } from '@/animations/list-variants';
+import { projectsApi } from '@/lib/api-client';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -75,14 +80,13 @@ export default function ProjectsPage() {
 
   const fetchProjects = () => {
     setLoading(true);
-    const params = new URLSearchParams();
-    if (search) params.set('search', search);
-    if (statusFilter !== 'all') params.set('status', statusFilter);
+    const params: Record<string, string> = {};
+    if (search) params.search = search;
+    if (statusFilter !== 'all') params.status = statusFilter;
 
-    fetch(`/api/projects?${params}`)
-      .then((r) => r.json())
+    projectsApi.list(params)
       .then((data) => {
-        setProjects(data.projects || []);
+        setProjects(data.projects as ProjectListItem[] || []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -96,9 +100,8 @@ export default function ProjectsPage() {
 
   const openEdit = (project: ProjectListItem) => {
     // Fetch full project data for the form
-    fetch(`/api/projects/${project.id}`)
-      .then((r) => r.json())
-      .then((data) => {
+    projectsApi.get(project.id)
+      .then((data: any) => {
         const p = data.project || data;
         setEditForm({
           name: p.name || '',
@@ -130,21 +133,12 @@ export default function ProjectsPage() {
     }
     setEditSaving(true);
     try {
-      const res = await fetch(`/api/projects/${editTarget.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editForm),
-      });
-      if (res.ok) {
-        showToast('success', 'Project updated successfully');
-        setEditTarget(null);
-        fetchProjects();
-      } else {
-        const err = await res.json();
-        showToast('error', err.error || 'Failed to update');
-      }
+      await projectsApi.update(editTarget.id, editForm);
+      showToast('success', 'Project updated successfully');
+      setEditTarget(null);
+      fetchProjects();
     } catch {
-      showToast('error', 'Network error');
+      showToast('error', 'Failed to update');
     } finally {
       setEditSaving(false);
     }
@@ -168,71 +162,43 @@ export default function ProjectsPage() {
 
   const handleArchive = async (project: ProjectListItem) => {
     try {
-      const res = await fetch(`/api/projects/${project.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'archived' }),
-      });
-      if (res.ok) {
-        showToast('success', 'Project archived');
-        fetchProjects();
-      } else {
-        const err = await res.json();
-        showToast('error', err.error || 'Failed to archive project');
-      }
+      await projectsApi.update(project.id, { status: 'archived' });
+      showToast('success', 'Project archived');
+      fetchProjects();
     } catch {
-      showToast('error', 'Network error while archiving');
+      showToast('error', 'Failed to archive project');
     }
   };
 
   const handleRestore = async (project: ProjectListItem) => {
     try {
-      const res = await fetch(`/api/projects/${project.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'draft' }),
-      });
-      if (res.ok) {
-        showToast('success', 'Project restored');
-        fetchProjects();
-      } else {
-        const err = await res.json();
-        showToast('error', err.error || 'Failed to restore project');
-      }
+      await projectsApi.update(project.id, { status: 'draft' });
+      showToast('success', 'Project restored');
+      fetchProjects();
     } catch {
-      showToast('error', 'Network error while restoring');
+      showToast('error', 'Failed to restore project');
     }
   };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
-      const res = await fetch(`/api/projects/${deleteTarget.id}?permanent=true`, { method: 'DELETE' });
-      if (res.ok) {
-        showToast('success', 'Project permanently deleted');
-      } else {
-        const err = await res.json();
-        showToast('error', err.error || 'Failed to delete project');
-      }
+      await projectsApi.delete(deleteTarget.id, true);
+      showToast('success', 'Project permanently deleted');
+      fetchProjects();
     } catch {
-      showToast('error', 'Network error while deleting');
+      showToast('error', 'Failed to delete project');
     }
     setDeleteTarget(null);
-    fetchProjects();
   };
 
   const handleSoftDelete = async (project: ProjectListItem) => {
     try {
-      const res = await fetch(`/api/projects/${project.id}`, { method: 'DELETE' });
-      if (res.ok) {
-        showToast('success', 'Project moved to trash');
-        fetchProjects();
-      } else {
-        const err = await res.json();
-        showToast('error', err.error || 'Failed to delete project');
-      }
+      await projectsApi.delete(project.id, false);
+      showToast('success', 'Project moved to trash');
+      fetchProjects();
     } catch {
-      showToast('error', 'Network error while deleting');
+      showToast('error', 'Failed to delete project');
     }
   };
 

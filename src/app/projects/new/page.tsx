@@ -10,6 +10,7 @@ import { Select } from '@/components/ui/select';
 import { showToast } from '@/components/ui/toast';
 import { getCityOptions } from '@/constants/climate-data';
 import { psychrometricState } from '@/lib/functions/psychrometric';
+import { projectsApi, ApiClientError } from '@/lib/api-client';
 import { Save, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
@@ -70,25 +71,20 @@ export default function NewProjectPage() {
 
     setSaving(true);
     try {
-      const res = await fetch('/api/projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
-      const data = await res.json().catch(() => ({}));
-
-      if (res.ok) {
-        showToast('success', 'Project created successfully');
-        router.push(`/projects/${data.project.id}`);
-      } else {
+      const data = await projectsApi.create(form);
+      showToast('success', 'Project created successfully');
+      router.push(`/projects/${(data as any).project.id}`);
+    } catch (error: any) {
+      console.error('Project creation failed:', error);
+      if (error instanceof ApiClientError) {
         showToast(
           'error',
-          data.error || 'Failed to create project',
-          data.description || 'Check the form values and try again. If the issue persists, check server logs.'
+          error.message || 'Failed to create project',
+          error.details || 'Check the form values and try again. If the issue persists, check server logs.'
         );
+      } else {
+        showToast('error', 'Error', error?.message || 'Unable to reach the server. Make sure the app is running and try again.');
       }
-    } catch {
-      showToast('error', 'Network error', 'Unable to reach the server. Make sure the app is running and try again.');
     } finally {
       setSaving(false);
     }

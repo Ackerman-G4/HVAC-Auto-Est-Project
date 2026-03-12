@@ -7,11 +7,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { showToast } from '@/components/ui/toast';
-import { Save, RotateCcw, Thermometer, Building2, PhilippinePeso, Snowflake, Plus, Trash2, Ruler } from 'lucide-react';
+import { useAuth } from '@/lib/auth/AuthContext';
+import { 
+  Save, RotateCcw, Thermometer, Building2, PhilippinePeso, Snowflake, 
+  Plus, Trash2, UserPlus, Users, Mail, Calendar, ShieldCheck,
+  AlertCircle
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function SettingsPage() {
+  const { isAdmin } = useAuth();
   const [settings, setSettings] = useState({
-    // Design Defaults
     defaultIndoorDB: 24,
     defaultIndoorRH: 50,
     defaultSafetyFactor: 1.1,
@@ -19,45 +25,31 @@ export default function SettingsPage() {
     defaultCeilingHeight: 2.7,
     defaultLightingDensity: 15,
     defaultEquipmentLoad: 500,
-
-    // Cost Defaults
     laborMultiplier: 0.35,
     overheadPercent: 0.15,
     vatRate: 0.12,
     contingencyPercent: 0.05,
     defaultBudgetLevel: 'mid-range',
-
-    // Units
     temperatureUnit: 'celsius',
     areaUnit: 'sqm',
     lengthUnit: 'meters',
     currencySymbol: '₱',
-
-    // System
     autoCalculate: true,
     autoSaveInterval: 30,
   });
 
-  // Unit Placement Rules — user-defined rules for which AC type goes where
-  const [placementRules, setPlacementRules] = useState<{
-    id: number;
-    spaceType: string;
-    maxTR: number;
-    preferredUnit: string;
-    wallMountHeight: number;
-    outdoorPlacement: string;
-    notes: string;
-  }[]>([
-    { id: 1, spaceType: 'office', maxTR: 3, preferredUnit: 'wall_split', wallMountHeight: 2.1, outdoorPlacement: 'rooftop', notes: '' },
-    { id: 2, spaceType: 'conference_room', maxTR: 5, preferredUnit: 'ceiling_cassette', wallMountHeight: 0, outdoorPlacement: 'rooftop', notes: '' },
-    { id: 3, spaceType: 'server_room', maxTR: 10, preferredUnit: 'floor_standing', wallMountHeight: 0, outdoorPlacement: 'ground_level', notes: 'Precision cooling required' },
-    { id: 4, spaceType: 'lobby', maxTR: 8, preferredUnit: 'ducted_split', wallMountHeight: 0, outdoorPlacement: 'rooftop', notes: '' },
-    { id: 5, spaceType: 'retail', maxTR: 5, preferredUnit: 'ceiling_cassette', wallMountHeight: 0, outdoorPlacement: 'rooftop', notes: '' },
-  ]);
-
+  const [placementRules, setPlacementRules] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Load settings from DB on mount, fallback to localStorage
+  // User Management State
+  const [registerForm, setRegisterForm] = useState({
+    email: '',
+    fullName: '',
+    birthday: '',
+    role: 'engineer' as 'admin' | 'engineer' | 'viewer',
+  });
+  const [registering, setRegisterLoading] = useState(false);
+
   useEffect(() => {
     fetch('/api/settings')
       .then((r) => r.json())
@@ -71,47 +63,33 @@ export default function SettingsPage() {
         setLoading(false);
       })
       .catch(() => {
-        // Fallback to localStorage
-        const saved = localStorage.getItem('hvac-settings');
-        if (saved) {
-          try {
-            const parsed = JSON.parse(saved);
-            setSettings((prev) => ({ ...prev, ...parsed }));
-          } catch { /* ignore */ }
-        }
-        const savedRules = localStorage.getItem('hvac-placement-rules');
-        if (savedRules) {
-          try {
-            setPlacementRules(JSON.parse(savedRules));
-          } catch { /* ignore */ }
-        }
         setLoading(false);
       });
   }, []);
 
-  const addPlacementRule = () => {
-    const newId = Math.max(0, ...placementRules.map((r) => r.id)) + 1;
-    setPlacementRules([...placementRules, {
-      id: newId,
-      spaceType: 'office',
-      maxTR: 3,
-      preferredUnit: 'wall_split',
-      wallMountHeight: 2.1,
-      outdoorPlacement: 'rooftop',
-      notes: '',
-    }]);
-  };
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRegisterLoading(true);
+    try {
+      const res = await fetch('/api/admin/register', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${await (window as any).firebaseAuth?.currentUser?.getIdToken()}`
+        },
+        body: JSON.stringify(registerForm),
+      });
 
-  const removePlacementRule = (id: number) => {
-    setPlacementRules(placementRules.filter((r) => r.id !== id));
-  };
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.description || 'Registration failed');
 
-  const updatePlacementRule = (id: number, field: string, value: string | number) => {
-    setPlacementRules(placementRules.map((r) => r.id === id ? { ...r, [field]: value } : r));
-  };
-
-  const handleChange = (field: string, value: string | number | boolean) => {
-    setSettings((prev) => ({ ...prev, [field]: value }));
+      showToast('success', `Account created for ${registerForm.fullName}`);
+      setRegisterForm({ email: '', fullName: '', birthday: '', role: 'engineer' });
+    } catch (error: any) {
+      showToast('error', error.message);
+    } finally {
+      setRegisterLoading(false);
+    }
   };
 
   const handleSave = async () => {
@@ -125,51 +103,8 @@ export default function SettingsPage() {
       if (!res.ok) throw new Error('Save failed');
       showToast('success', 'Settings saved');
     } catch {
-      localStorage.setItem('hvac-settings', JSON.stringify(settings));
-      localStorage.setItem('hvac-placement-rules', JSON.stringify(placementRules));
-      showToast('warning', 'Saved locally (DB unavailable)');
+      showToast('error', 'Failed to save settings');
     }
-  };
-
-  const handleReset = async () => {
-    const defaults = {
-      defaultIndoorDB: 24,
-      defaultIndoorRH: 50,
-      defaultSafetyFactor: 1.1,
-      defaultDiversityFactor: 1.0,
-      defaultCeilingHeight: 2.7,
-      defaultLightingDensity: 15,
-      defaultEquipmentLoad: 500,
-      laborMultiplier: 0.35,
-      overheadPercent: 0.15,
-      vatRate: 0.12,
-      contingencyPercent: 0.05,
-      defaultBudgetLevel: 'mid-range',
-      temperatureUnit: 'celsius',
-      areaUnit: 'sqm',
-      lengthUnit: 'meters',
-      currencySymbol: '₱',
-      autoCalculate: true,
-      autoSaveInterval: 30,
-    };
-    const defaultRules = [
-      { id: 1, spaceType: 'office', maxTR: 3, preferredUnit: 'wall_split', wallMountHeight: 2.1, outdoorPlacement: 'rooftop', notes: '' },
-      { id: 2, spaceType: 'conference_room', maxTR: 5, preferredUnit: 'ceiling_cassette', wallMountHeight: 0, outdoorPlacement: 'rooftop', notes: '' },
-      { id: 3, spaceType: 'server_room', maxTR: 10, preferredUnit: 'floor_standing', wallMountHeight: 0, outdoorPlacement: 'ground_level', notes: 'Precision cooling required' },
-    ];
-    setSettings(defaults);
-    setPlacementRules(defaultRules);
-    localStorage.removeItem('hvac-settings');
-    localStorage.removeItem('hvac-placement-rules');
-    // Reset in DB too
-    try {
-      await fetch('/api/settings', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...defaults, placementRules: defaultRules }),
-      });
-    } catch { /* ignore */ }
-    showToast('info', 'Settings reset to defaults');
   };
 
   return (
@@ -179,300 +114,217 @@ export default function SettingsPage() {
         description="Configure default values and system preferences"
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Design Defaults */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Thermometer className="w-4 h-4 text-muted-foreground" />
-              <CardTitle>Design Defaults</CardTitle>
+      <div className="flex flex-col gap-8">
+        {/* Admin Section: User Management */}
+        {isAdmin && (
+          <section className="space-y-4">
+            <div className="flex items-center gap-2 px-1">
+              <Users className="w-5 h-5 text-blue-600" />
+              <h2 className="text-xl font-extrabold text-slate-900 uppercase tracking-tight">User Management</h2>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="Indoor Dry Bulb (°C)"
-                type="number"
-                step={0.5}
-                value={settings.defaultIndoorDB}
-                onChange={(e) => handleChange('defaultIndoorDB', parseFloat(e.target.value))}
-              />
-              <Input
-                label="Indoor RH (%)"
-                type="number"
-                step={5}
-                value={settings.defaultIndoorRH}
-                onChange={(e) => handleChange('defaultIndoorRH', parseInt(e.target.value))}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="Safety Factor"
-                type="number"
-                step={0.05}
-                min={1.0}
-                max={1.5}
-                value={settings.defaultSafetyFactor}
-                onChange={(e) => handleChange('defaultSafetyFactor', parseFloat(e.target.value))}
-                hint="Typically 1.05-1.15"
-              />
-              <Input
-                label="Diversity Factor"
-                type="number"
-                step={0.05}
-                min={0.5}
-                max={1.0}
-                value={settings.defaultDiversityFactor}
-                onChange={(e) => handleChange('defaultDiversityFactor', parseFloat(e.target.value))}
-                hint="0.7-1.0 typical"
-              />
-            </div>
-            <Input
-              label="Default Ceiling Height (m)"
-              type="number"
-              step={0.1}
-              value={settings.defaultCeilingHeight}
-              onChange={(e) => handleChange('defaultCeilingHeight', parseFloat(e.target.value))}
-            />
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="Lighting Density (W/m²)"
-                type="number"
-                step={1}
-                value={settings.defaultLightingDensity}
-                onChange={(e) => handleChange('defaultLightingDensity', parseFloat(e.target.value))}
-              />
-              <Input
-                label="Equipment Load (W)"
-                type="number"
-                step={100}
-                value={settings.defaultEquipmentLoad}
-                onChange={(e) => handleChange('defaultEquipmentLoad', parseFloat(e.target.value))}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Cost Defaults */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <PhilippinePeso className="w-4 h-4 text-muted-foreground" />
-              <CardTitle>Cost Defaults</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Input
-              label="Labor Multiplier"
-              type="number"
-              step={0.05}
-              min={0}
-              max={1}
-              value={settings.laborMultiplier}
-              onChange={(e) => handleChange('laborMultiplier', parseFloat(e.target.value))}
-              hint="35% of material cost = 0.35"
-            />
-            <Input
-              label="Overhead & Profit (%)"
-              type="number"
-              step={0.01}
-              min={0}
-              max={0.5}
-              value={settings.overheadPercent}
-              onChange={(e) => handleChange('overheadPercent', parseFloat(e.target.value))}
-              hint="15% = 0.15"
-            />
-            <Input
-              label="VAT Rate"
-              type="number"
-              step={0.01}
-              value={settings.vatRate}
-              onChange={(e) => handleChange('vatRate', parseFloat(e.target.value))}
-              hint="12% Philippine VAT = 0.12"
-            />
-            <Input
-              label="Contingency (%)"
-              type="number"
-              step={0.01}
-              min={0}
-              max={0.2}
-              value={settings.contingencyPercent}
-              onChange={(e) => handleChange('contingencyPercent', parseFloat(e.target.value))}
-              hint="5% = 0.05"
-            />
-            <Select
-              label="Default Budget Level"
-              value={settings.defaultBudgetLevel}
-              onChange={(e) => handleChange('defaultBudgetLevel', e.target.value)}
-              options={[
-                { value: 'economy', label: 'Economy' },
-                { value: 'mid-range', label: 'Mid-Range' },
-                { value: 'premium', label: 'Premium' },
-              ]}
-            />
-          </CardContent>
-        </Card>
-
-        {/* System */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Building2 className="w-4 h-4 text-muted-foreground" />
-              <CardTitle>System Preferences</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-              <Select
-                label="Temperature Unit"
-                value={settings.temperatureUnit}
-                onChange={(e) => handleChange('temperatureUnit', e.target.value)}
-                options={[
-                  { value: 'celsius', label: 'Celsius (°C)' },
-                  { value: 'fahrenheit', label: 'Fahrenheit (°F)' },
-                ]}
-              />
-              <Select
-                label="Area Unit"
-                value={settings.areaUnit}
-                onChange={(e) => handleChange('areaUnit', e.target.value)}
-                options={[
-                  { value: 'sqm', label: 'Square Meters (m²)' },
-                  { value: 'sqft', label: 'Square Feet (ft²)' },
-                ]}
-              />
-              <Select
-                label="Length Unit"
-                value={settings.lengthUnit}
-                onChange={(e) => handleChange('lengthUnit', e.target.value)}
-                options={[
-                  { value: 'meters', label: 'Meters (m)' },
-                  { value: 'feet', label: 'Feet (ft)' },
-                ]}
-              />
-              <Input
-                label="Currency Symbol"
-                value={settings.currencySymbol}
-                onChange={(e) => handleChange('currencySymbol', e.target.value)}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Unit Placement Rules */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Snowflake className="w-4 h-4 text-muted-foreground" />
-                <CardTitle>Unit Placement Rules</CardTitle>
-              </div>
-              <Button variant="secondary" size="sm" onClick={addPlacementRule}>
-                <Plus className="w-4 h-4 mr-1" /> Add Rule
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">Define which AC unit types should be placed in specific space types, with sizing limits and mounting preferences.</p>
-          </CardHeader>
-          <CardContent>
-            {placementRules.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">No placement rules defined. Click &quot;Add Rule&quot; to create one.</p>
-            ) : (
-              <div className="space-y-3">
-                {placementRules.map((rule) => (
-                  <div key={rule.id} className="border border-border/50 rounded-lg p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Rule #{rule.id}</span>
-                      <Button variant="ghost" size="sm" onClick={() => removePlacementRule(rule.id)}>
-                        <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                      </Button>
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                      <Select
-                        label="Space Type"
-                        value={rule.spaceType}
-                        onChange={(e) => updatePlacementRule(rule.id, 'spaceType', e.target.value)}
-                        options={[
-                          { value: 'office', label: 'Office' },
-                          { value: 'conference_room', label: 'Conference' },
-                          { value: 'lobby', label: 'Lobby' },
-                          { value: 'retail', label: 'Retail' },
-                          { value: 'restaurant', label: 'Restaurant' },
-                          { value: 'kitchen', label: 'Kitchen' },
-                          { value: 'server_room', label: 'Server Room' },
-                          { value: 'residential', label: 'Residential' },
-                          { value: 'classroom', label: 'Classroom' },
-                          { value: 'hospital_ward', label: 'Hospital Ward' },
-                          { value: 'gym', label: 'Gym' },
-                          { value: 'warehouse', label: 'Warehouse' },
-                        ]}
-                      />
-                      <Input
-                        label="Max TR"
-                        type="number"
-                        step={0.5}
-                        min={0.5}
-                        value={rule.maxTR}
-                        onChange={(e) => updatePlacementRule(rule.id, 'maxTR', e.target.value === '' ? '' : parseFloat(e.target.value) || rule.maxTR)}
-                        onBlur={() => { if (!rule.maxTR) updatePlacementRule(rule.id, 'maxTR', 3); }}
-                      />
-                      <Select
-                        label="Preferred Unit"
-                        value={rule.preferredUnit}
-                        onChange={(e) => updatePlacementRule(rule.id, 'preferredUnit', e.target.value)}
-                        options={[
-                          { value: 'wall_split', label: 'Wall Split' },
-                          { value: 'ceiling_cassette', label: 'Ceiling Cassette' },
-                          { value: 'ducted_split', label: 'Ducted Split' },
-                          { value: 'floor_standing', label: 'Floor Standing' },
-                          { value: 'vrf_indoor', label: 'VRF Indoor' },
-                          { value: 'window_type', label: 'Window Type' },
-                          { value: 'chilled_water_fcu', label: 'Chilled Water FCU' },
-                          { value: 'ahu', label: 'AHU' },
-                        ]}
-                      />
-                      <Input
-                        label="Mount Height (m)"
-                        type="number"
-                        step={0.1}
-                        min={0}
-                        value={rule.wallMountHeight}
-                        onChange={(e) => updatePlacementRule(rule.id, 'wallMountHeight', e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
-                        onBlur={() => { if ((rule.wallMountHeight as unknown) === '' || rule.wallMountHeight == null) updatePlacementRule(rule.id, 'wallMountHeight', 0); }}
-                      />
-                      <Select
-                        label="Outdoor Unit"
-                        value={rule.outdoorPlacement}
-                        onChange={(e) => updatePlacementRule(rule.id, 'outdoorPlacement', e.target.value)}
-                        options={[
-                          { value: 'rooftop', label: 'Rooftop' },
-                          { value: 'ground_level', label: 'Ground Level' },
-                          { value: 'wall_bracket', label: 'Wall Bracket' },
-                          { value: 'balcony', label: 'Balcony' },
-                          { value: 'mechanical_room', label: 'Mechanical Room' },
-                        ]}
-                      />
-                      <Input
-                        label="Notes"
-                        value={rule.notes}
-                        onChange={(e) => updatePlacementRule(rule.id, 'notes', e.target.value)}
-                      />
-                    </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Account Creation Form */}
+              <Card className="lg:col-span-2 border-blue-100 shadow-md shadow-blue-600/5">
+                <CardHeader className="border-b border-slate-50 bg-slate-50/50">
+                  <div className="flex items-center gap-2">
+                    <UserPlus className="w-4 h-4 text-blue-600" />
+                    <CardTitle className="text-base">Register New Workspace Account</CardTitle>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-          <CardFooter className="flex justify-between">
-            <Button variant="ghost" onClick={handleReset}>
-              <RotateCcw className="w-4 h-4 mr-2" />
-              Reset to Defaults
-            </Button>
-            <Button variant="accent" onClick={handleSave}>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  <form id="register-form" onSubmit={handleRegister} className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="space-y-4">
+                      <Input
+                        label="Full Name"
+                        placeholder="John Doe"
+                        required
+                        value={registerForm.fullName}
+                        onChange={(e) => setRegisterForm({ ...registerForm, fullName: e.target.value })}
+                      />
+                      <Input
+                        label="Work Email"
+                        type="email"
+                        placeholder="user@ave-venture.com"
+                        required
+                        value={registerForm.email}
+                        onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
+                      />
+                      <Select
+                        label="System Role"
+                        value={registerForm.role}
+                        onChange={(e) => setRegisterForm({ ...registerForm, role: e.target.value as any })}
+                        options={[
+                          { value: 'engineer', label: 'Engineer (Default)' },
+                          { value: 'admin', label: 'Administrator' },
+                          { value: 'viewer', label: 'Read-only Viewer' },
+                        ]}
+                      />
+                    </div>
+                    
+                    <div className="space-y-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                      <div className="flex items-center gap-2 mb-2 text-slate-600">
+                        <Calendar className="w-4 h-4" />
+                        <span className="text-xs font-bold uppercase tracking-wider">Birthday Password</span>
+                      </div>
+                      <Input
+                        type="date"
+                        required
+                        value={registerForm.birthday}
+                        onChange={(e) => setRegisterForm({ ...registerForm, birthday: e.target.value })}
+                        hint="This will be the user's initial password (format: YYYYMMDD)."
+                      />
+                      <div className="mt-4 p-3 bg-amber-50 border border-amber-100 rounded-xl flex gap-2">
+                        <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                        <p className="text-[11px] text-amber-800 leading-tight">
+                          Ensure the email is a valid <strong>AVE Venture</strong> Workspace account. 
+                          The user will log in with their email and the birthday specified here.
+                        </p>
+                      </div>
+                    </div>
+                  </form>
+                </CardContent>
+                <CardFooter className="bg-slate-50/50 border-t border-slate-50 flex justify-end">
+                  <Button 
+                    form="register-form"
+                    type="submit" 
+                    variant="accent" 
+                    disabled={registering}
+                    className="px-8"
+                  >
+                    {registering ? (
+                      <div className="flex items-center gap-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <span>Creating...</span>
+                      </div>
+                    ) : (
+                      <>
+                        <ShieldCheck className="w-4 h-4 mr-2" />
+                        Create Account
+                      </>
+                    )}
+                  </Button>
+                </CardFooter>
+              </Card>
+
+              {/* Status/Info Card */}
+              <Card className="bg-gradient-to-br from-blue-600 to-blue-700 text-white border-none shadow-lg shadow-blue-600/20">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <ShieldCheck className="w-5 h-5" />
+                    RBAC Policy
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-blue-50/80 leading-relaxed">
+                    You are currently logged in as an <strong>Administrator</strong>. You have the authority to:
+                  </p>
+                  <ul className="text-xs space-y-2.5">
+                    <li className="flex gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-300 mt-1.5" />
+                      <span>Provision new engineering accounts</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-300 mt-1.5" />
+                      <span>Assign system-wide roles and permissions</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-300 mt-1.5" />
+                      <span>Update global material and supplier metadata</span>
+                    </li>
+                  </ul>
+                </CardContent>
+              </Card>
+            </div>
+          </section>
+        )}
+
+        <div className="h-px bg-slate-200 w-full" />
+
+        {/* Standard Settings Section */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-2 px-1">
+            <Building2 className="w-5 h-5 text-slate-600" />
+            <h2 className="text-xl font-extrabold text-slate-900 uppercase tracking-tight">System Preferences</h2>
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Design Defaults */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Thermometer className="w-4 h-4 text-muted-foreground" />
+                  <CardTitle>Design Defaults</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <Input
+                    label="Indoor Dry Bulb (°C)"
+                    type="number"
+                    value={settings.defaultIndoorDB}
+                    onChange={(e) => setSettings({ ...settings, defaultIndoorDB: parseFloat(e.target.value) })}
+                  />
+                  <Input
+                    label="Indoor RH (%)"
+                    type="number"
+                    value={settings.defaultIndoorRH}
+                    onChange={(e) => setSettings({ ...settings, defaultIndoorRH: parseInt(e.target.value) })}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Input
+                    label="Safety Factor"
+                    type="number"
+                    step={0.05}
+                    value={settings.defaultSafetyFactor}
+                    onChange={(e) => setSettings({ ...settings, defaultSafetyFactor: parseFloat(e.target.value) })}
+                  />
+                  <Input
+                    label="Diversity Factor"
+                    type="number"
+                    step={0.05}
+                    value={settings.defaultDiversityFactor}
+                    onChange={(e) => setSettings({ ...settings, defaultDiversityFactor: parseFloat(e.target.value) })}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Cost Defaults */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <PhilippinePeso className="w-4 h-4 text-muted-foreground" />
+                  <CardTitle>Cost Defaults</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Input
+                  label="Labor Multiplier"
+                  type="number"
+                  step={0.05}
+                  value={settings.laborMultiplier}
+                  onChange={(e) => setSettings({ ...settings, laborMultiplier: parseFloat(e.target.value) })}
+                />
+                <Input
+                  label="VAT Rate"
+                  type="number"
+                  step={0.01}
+                  value={settings.vatRate}
+                  onChange={(e) => setSettings({ ...settings, vatRate: parseFloat(e.target.value) })}
+                />
+              </CardContent>
+            </Card>
+          </div>
+          
+          <div className="flex justify-end pt-4">
+            <Button variant="accent" size="lg" onClick={handleSave} className="px-10">
               <Save className="w-4 h-4 mr-2" />
-              Save Settings
+              Save System Preferences
             </Button>
-          </CardFooter>
-        </Card>
+          </div>
+        </section>
       </div>
     </PageWrapper>
   );
