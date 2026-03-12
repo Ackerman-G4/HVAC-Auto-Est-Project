@@ -78,6 +78,11 @@ export async function POST(request: NextRequest) {
       return errorResponse(401, 'Unauthorized', 'You must be logged in to create projects.', 'UNAUTHORIZED');
     }
 
+    if (!process.env.FIREBASE_PRIVATE_KEY) {
+       console.error("Missing FIREBASE_PRIVATE_KEY. Cannot write to Realtime Database.");
+       return errorResponse(500, 'Server Configuration Error', 'Missing Firebase Admin credentials (.env.local). Please configure FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY.', 'MISSING_ENV');
+    }
+
     const body = await request.json();
 
     if (!body.name) {
