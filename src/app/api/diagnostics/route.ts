@@ -56,6 +56,13 @@ export async function POST(request: NextRequest) {
 
     const result = runDiagnostic(input);
 
+    // Check for missing DB connection string
+    const dbUrl = process.env.NEON_DATABASE_URL || process.env.NETLIFY_NEON_DATABASE_URL;
+    if (!dbUrl) {
+      // Return result, but skip DB persistence
+      return NextResponse.json({ result, warning: 'Database not connected. History not saved.' });
+    }
+
     // Persist diagnostic run to history
     try {
       await neon.diagnosticHistory.create({
