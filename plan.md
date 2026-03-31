@@ -1,438 +1,122 @@
-HVAC AUTOCALC
-COMPLETE MASTER DEVELOPMENT PLAN
-
-Professional HVAC Engineering Design Platform
-
-Version: 1.0
-System Type: Web-Based Engineering Software
-Primary Purpose: HVAC Design, Airflow Simulation, and Data Center Cooling Optimization
-
-1. SYSTEM VISION
-
-HVAC AutoCalc will be a professional engineering platform designed to help engineers design and analyze HVAC systems with high accuracy.
-
-The system combines:
-
-• HVAC engineering calculations
-• CAD-style floor plan design
-• CFD airflow simulation
-• 3D airflow visualization
-• cooling optimization tools
-• engineering reports
-
-The goal is to create a complete engineering environment that engineers can use to design and evaluate HVAC cooling systems.
-
-2. CORE SYSTEM CAPABILITIES
-
-The platform must support the following engineering tasks:
-
-Design building layouts
-Place HVAC equipment
-Calculate cooling loads
-Simulate airflow distribution
-Detect hot spots
-Optimize cooling infrastructure
-Generate engineering reports
-
-3. SOFTWARE ARCHITECTURE
-
-The system follows a multi-layer engineering architecture.
-
-Client Interface
-↓
-Frontend Application
-↓
-Backend API
-↓
-Simulation Engine
-↓
-Database System
-4. TECHNOLOGY STACK
-Frontend
-
-Language
-TypeScript
-
-Framework
-React + Vite
-
-Rendering
-Three.js
-
-UI Framework
-TailwindCSS + ShadCN
-
-State Management
-Zustand
-
-Backend
-
-Language
-Node.js
-
-Framework
-Fastify
-
-Authentication
-JWT + bcrypt
-
-Database
-
-PostgreSQL hosted on NeonDB
-
-Deployment
-
-Frontend → Netlify
-Backend → Serverless functions
-Database → Neon
-
-5. DATABASE STRUCTURE
-
-Core database tables include:
-
-Users
-Projects
-Floors
-Structures
-HVAC Equipment
-Server Racks
-CFD Tiles
-Simulation Results
-Archives
-User Logs
-
-These tables store engineering data, designs, and simulation outputs.
-
-6. USER INTERFACE SYSTEM MAP
-
-The interface must provide a clear engineering workflow.
-
-Main navigation panels:
-
-Dashboard
-Project Workspace
-Floorplan Editor
-3D Viewer
-Simulation Control
-Results Analysis
-Reports
-
-7. DASHBOARD
-
-The dashboard provides system overview.
-
-Features:
-
-Recent projects
-Create new project
-Simulation summaries
-Quick access tools
-
-8. PROJECT WORKSPACE
-
-The project workspace is the central design environment.
-
-Panels:
-
-Left Sidebar
-Project assets
-
-Top Toolbar
-design tools
-
-Main Workspace
-floorplan canvas
-
-Right Panel
-object properties
-
-Bottom Panel
-simulation controls
-
-9. FLOORPLAN CAD ENGINE
-
-The CAD engine allows engineers to create building layouts.
-
-Capabilities:
-
-Draw walls
-Add doors and windows
-Define room dimensions
-Place equipment
-Edit objects
-
-Coordinate system uses meters.
-
-Snap-to-grid ensures accurate placement.
-
-10. HVAC EQUIPMENT LIBRARY
-
-Engineers can place HVAC components.
-
-Equipment types include:
-
-CRAC units
-CRAH units
-Air handling units
-In-row cooling systems
-Rear door heat exchangers
-Ventilation ducts
-
-Each object stores capacity and airflow.
-
-11. DATA CENTER EQUIPMENT MODEL
-
-Server racks generate heat.
-
-Typical rack power densities:
-
-Low density: 3–5 kW
-Medium density: 5–10 kW
-High density: 10–30 kW
-
-Heat conversion:
-
-1 watt = 3.412 BTU/hr
-
-12. HVAC LOAD CALCULATION ENGINE
-
-The calculation module determines cooling requirements.
-
-Heat transfer equation
-
-Q = U × A × ΔT
-
-Airflow requirement
-
-CFM = BTU / (1.08 × ΔT)
-
-Total heat load
-
-Qt = Qs + Ql
-
-Cooling tonnage
-
-Tons = BTU / 12000
-13. CFD AIRFLOW SIMULATION ENGINE
-
-The CFD module simulates airflow and heat distribution.
-
-The space is divided into a 3D voxel grid.
-
-Typical grid resolution:
-
-0.5m × 0.5m × 0.5m
-
-Each cell stores:
-
-velocity
-temperature
-pressure
-heat source
-
-14. AIRFLOW PHYSICS MODEL
-
-Simplified Navier–Stokes approximation.
-
-Momentum equation
-
-ρ (du/dt) = −∇P + μ∇²u + F
-
-Temperature equation
-
-dT/dt = α∇²T − (V·∇T) + Q
-15. RAISED FLOOR PLENUM MODEL
-
-Raised floor airflow is distributed through perforated tiles.
-
-Tile airflow equation
-
-V = sqrt((2 × ΔP) / ρ)
-
-Correction factor
-
-C ≈ 1.6
-
-Corrected airflow
-
-V_corrected = C × V
-16. RACK HEAT PLUME MODEL
-
-Hot air rises due to buoyancy.
-
-Buoyancy force
-
-F = ρ g β (T − T_ref)
-
-This generates upward airflow above racks.
-
-17. SIMULATION PROCESS
-
-Each simulation iteration performs:
-
-1 Apply airflow sources
-2 Apply heat sources
-3 Update velocity field
-4 Update pressure field
-5 Update temperature field
-6 Advect airflow through grid
-
-18. 3D VISUALIZATION SYSTEM
-
-Three.js renders the building model.
-
-Scene objects include:
-
-Floor mesh
-Wall mesh
-Rack models
-HVAC equipment
-Airflow particles
-
-19. AIRFLOW VISUALIZATION
-
-Airflow is shown using:
-
-Vector arrows
-Particle streams
-Temperature heatmaps
-
-Particles move according to velocity vectors.
-
-20. COOLING OPTIMIZATION ENGINE
-
-The optimizer tests design variations.
-
-Parameters adjusted:
-
-Tile placement
-CRAC position
-Rack layout
-
-Goal
-
-Minimize hotspot severity.
-
-21. AI ENGINEERING ASSISTANT
-
-The AI module analyzes simulation outputs.
-
-It detects:
-
-Cooling gaps
-Hotspots
-Airflow recirculation
-Insufficient cooling capacity
-
-It suggests design improvements.
-
-22. ASHRAE COMPLIANCE ENGINE
-
-The system validates designs against guidelines from the American Society of Heating, Refrigerating and Air-Conditioning Engineers.
-
-Checks include:
-
-Rack inlet temperature range
-Airflow per rack
-Cooling redundancy
-
-23. FAILURE SIMULATION
-
-Engineers can simulate system failures.
-
-Examples:
-
-CRAC failure
-Power loss
-Cooling restart
-
-Thermal rise equation
-
-dT/dt = Q / (m × Cp)
-24. ENERGY EFFICIENCY ANALYSIS
-
-Calculate Power Usage Effectiveness.
-
-PUE = Total Facility Power / IT Power
-
-Lower PUE indicates better efficiency.
-
-25. INTERACTIVE TUTORIAL SYSTEM
-
-New users are guided through the interface.
-
-Tutorial steps highlight UI elements while blurring the background.
-
-Each step explains:
-
-tool function
-engineering purpose
-recommended workflow
-
-26. CONTEXTUAL HINTS
-
-Hovering over tools shows explanations.
-
-Examples:
-
-CRAC placement
-tile placement
-rack layout best practices
-
-27. REPORT GENERATION
-
-The system generates professional engineering reports.
-
-Reports include:
-
-Cooling load calculations
-Equipment list
-CFD airflow results
-Optimization recommendations
-
-Export format:
-
-PDF engineering documentation.
-
-28. PERFORMANCE OPTIMIZATION
-
-Performance strategies include:
-
-GPU rendering
-WebGL acceleration
-worker threads for simulation
-geometry batching
-
-29. SECURITY SYSTEM
-
-Authentication uses:
-
-JWT tokens
-bcrypt password hashing
-
-User roles:
-
-Admin
-Engineer
-Viewer
-
-30. FUTURE EXTENSIONS
-
-Possible future upgrades include:
-
-Real sensor integration
-IoT HVAC monitoring
-Machine learning design optimization
-cloud-based CFD simulations
-
-FINAL OBJECTIVE
-
-The finished HVAC AutoCalc platform must function as a professional HVAC engineering software system capable of assisting engineers with:
-
-HVAC system design
-Cooling load calculations
-Airflow simulations
-Thermal risk assessment
-Data center cooling optimization
-
-The system must be accurate, stable, and visually professional, capable of being presented as a serious engineering tool developed by you.
+# HVAC Auto-Est Migration & Cleanup Plan
+
+This document outlines the strategy for migrating the HVAC Auto-Estimation project from its current Prisma/PostgreSQL architecture to a unified **Firebase** ecosystem (Realtime Database, Authentication, and Hosting).
+
+## 1. Current State Assessment
+The project currently uses a relational database (PostgreSQL via Neon) and Prisma ORM. 
+
+### Current Architecture:
+- **Database:** PostgreSQL (Neon)
+- **ORM:** Prisma
+- **Auth:** JWT-based custom auth (bcrypt, jwt, Prisma)
+- **Data Model:** Highly relational (Projects -> Floors -> Rooms -> Equipment/BOQ/Simulations)
+- **API Pattern:** RESTful Next.js Route Handlers (using `prisma.$transaction`, `include`, and `upsert`)
+
+### What is Missing/Incomplete:
+- **Real-time Synchronization:** The current architecture relies on standard HTTP request/response cycles.
+- **Google Authentication:** Current login is email/password-based with local database storage.
+- **Effortless Deployment:** Current setup might need complex environment variable management; Firebase Hosting offers a more integrated flow.
+- **Offline Capabilities:** No built-in support for offline data persistence or synchronization.
+- **Data Denormalization:** The SQL schema is normalized and needs transformation for NoSQL performance.
+
+---
+
+## 2. Migration Strategy: Firebase Ecosystem
+
+### Step 1: Firebase Environment Setup & Hosting
+- **Initialization:** Create a Firebase project and enable Realtime Database, Authentication, and Hosting.
+- **Firebase CLI:** Run `firebase init` to configure the workspace for hosting (targeting the Next.js build output).
+- **Security Rules:** Define JSON-based rules to restrict data access based on `auth.uid`.
+- **Dependencies:** 
+  - Install `firebase`, `firebase-admin`, and `react-firebase-hooks`.
+  - Uninstall `prisma`, `@prisma/client`, `bcryptjs`, and `jsonwebtoken`.
+
+### Step 2: Firebase Authentication (Google Login)
+- **Enable Google Provider:** Configure the Google sign-in provider in the Firebase Console.
+- **Client-Side Refactor:** 
+  - Replace `src/app/api/auth/login.ts` and `register.ts` logic with client-side `signInWithPopup(auth, googleProvider)`.
+  - Create a custom hook or context (`src/lib/auth/AuthContext.tsx`) to manage user session using `onAuthStateChanged`.
+  - Update `src/components/layout/app-shell.tsx` (or equivalent) to show/hide content based on auth state.
+
+### Step 3: Data Model Transformation (Relational to NoSQL)
+We will map the relational tables to a JSON tree:
+- `/users/{uid}/profile`: User-specific metadata.
+- `/users/{uid}/projects/{projectId}`: Core project data.
+- `/projects/{projectId}/floors/{floorId}`: Floor-specific layouts.
+- `/projects/{projectId}/rooms/{roomId}`: Detailed room calculations and equipment.
+- `/projects/{projectId}/boq`: Bill of Quantities.
+- `/simulations/{projectId}`: Heavy CFD data (tiled for performance).
+
+### Step 4: Infrastructure & API Refactor
+- **New DB Client:** Create `src/lib/db/firebase.ts` to export initialized `db` and `auth` objects.
+- **API Helpers:** Update `src/lib/utils/api-helpers.ts` to handle Firebase-specific exceptions and data mapping.
+- **CRUD Operations:** Replace Prisma calls (`findUnique`, `create`, `update`, `delete`) with Firebase equivalents (`get()`, `set()`, `update()`, `remove()`).
+
+### Step 5: Logic Refactoring
+- **Transactions:** Replace `prisma.$transaction` with Firebase's multi-path updates (using `update({ '/path1': data, '/path2': data })`) to ensure atomicity.
+- **Calculations:** Update `src/lib/functions/cooling-load.ts` and others to accept/return data in the new Firebase-friendly format.
+- **State Management:** Update `src/stores/project-store.ts` to use Firebase listeners (`onValue`) for truly real-time updates.
+
+---
+
+## 3. Cleanup & Dead Code Removal
+
+### Database & Auth Cleanup:
+1. **Remove Prisma:**
+   - Delete the `prisma/` directory entirely.
+   - Delete `prisma.config.ts`.
+   - Remove `POSTGRES_PRISMA_URL`, `POSTGRES_URL_NON_POOLING`, and `JWT_SECRET` from `.env`.
+2. **Remove Auth Routes:**
+   - Delete `src/app/api/auth/login.ts`.
+   - Delete `src/app/api/auth/register.ts`.
+   - Delete `src/app/api/auth/profile.ts` (migrate to Firebase Auth SDK client-side).
+3. **Update Scripts:**
+   - Remove `prisma generate` and `prisma db push` from `package.json`.
+   - Replace Next.js deployment scripts (e.g., Netlify) with `firebase deploy`.
+
+### Code Cleanup:
+1. **Remove Imports:** Global search and replace for `import { prisma } from '@/lib/db/prisma'` and remove the file `src/lib/db/prisma.ts`.
+2. **Standardize Data Access:** Ensure all data fetching goes through a single Firebase-based pattern.
+3. **Dead Code Elimination:** Remove any types in `src/types/` that were purely for Prisma compatibility but are no longer needed for the JSON-based data structure.
+
+---
+
+---
+
+## 5. Advanced Features for Full-Fledged Web App
+
+### Phase 7: Engineering & Commercial Enhancements
+1. **Advanced Reporting Engine:**
+   - Implement full PDF export using `pdf-make` with professional templates (Letterhead, Design Parameters, Summary Tables).
+   - Add Excel/CSV export for Bill of Quantities (BOQ) and detailed cooling load breakdowns.
+2. **Automated Equipment Selection:**
+   - Integrate a rule-based engine that suggests specific AC units from the catalog based on calculated TR/BTU load.
+   - Implement auto-matching for Multi-Split and VRF combinations.
+3. **Materials & Suppliers Marketplace:**
+   - Complete CRUD for global materials and Philippine-based suppliers.
+   - Add cost estimation logic that updates project totals in real-time based on selected equipment and material prices.
+4. **Project Dashboard & Analytics:**
+   - Create a central dashboard showing aggregate TR, total estimated cost, and project status distributions.
+   - Visual charts for energy efficiency (EER) across multiple projects.
+
+### Phase 8: Multi-User Collaboration & Security
+1. **User Role Management:**
+   - Implement `Admin`, `Engineer`, and `Viewer` roles using Firebase Auth Custom Claims.
+   - `Viewer`: Read-only access to projects.
+   - `Engineer`: Full project editing.
+   - `Admin`: User management and global material editing.
+2. **Project Sharing:**
+   - Allow users to "Invite" others to a project via email, creating a shared access list in RTDB: `/projects/{projectId}/collaborators/{uid}`.
+3. **Offline Persistence & Conflict Resolution:**
+   - Enable `db.enablePersistence()` for mobile/web offline support.
+   - Implement basic "Last Write Wins" or timestamp-based merging for simultaneous edits.
+4. **Production Security Rules:**
+   - Harden Firebase Security Rules to prevent unauthorized data scraping or spoofing.
+   - Validate data structures using RTDB `.validate` rules or a shared Zod schema layer in API routes.
+
+---
+
+## 6. Maintenance & DevOps
+1. **Firebase Hosting CI/CD:** Set up GitHub Actions to auto-deploy on `push` to `main`.
+2. **Environment Synchronization:** Use Firebase Remote Config for feature flags (e.g., enabling/disabling CFD simulation beta).
+3. **Error Tracking:** Integrate a tool like Sentry to monitor client-side Firebase and API route exceptions.

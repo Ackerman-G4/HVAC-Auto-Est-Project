@@ -5,11 +5,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import neon from '@/lib/db/prisma';
+import { adminDb } from '@/lib/db/firebase-admin';
 import { compileBOQ } from '@/lib/functions/cost-engine';
 import { sizeRefrigerantPipe, sizeCondensatePipe } from '@/lib/functions/pipe-sizing';
 import { sizeElectrical } from '@/lib/functions/electrical';
-import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
+import { errorResponse, getErrorDetails, getUserId, getAuthToken, checkProjectAccess } from '@/lib/utils/api-helpers';
 import type { BOQItem } from '@/types/material';
 
 /** Default estimated run lengths (metres) */
@@ -24,11 +24,22 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
-    const { id } = await context.params;
-    const items = await neon.bOQItem.findMany({
-      where: { projectId: id },
-      orderBy: { section: 'asc' },
-    });
+    const token = await getAuthToken(request);
+    if (!token) {
+      return errorResponse(401, 'Unauthorized', 'You must be logged in to access this resource.', 'UNAUTHORIZED');
+    }
+
+    const { id: projectId } = await context.params;
+    const ownerId = await checkProjectAccess(projectId, token);
+    
+    if (!ownerId) {
+      return errorResponse(403, 'Forbidden', 'You do not have access to this project.', 'FORBIDDEN');
+    }
+
+    const itemsSnap = await adminDb.ref(`projectData/${projectId}/boq`).once('value');
+    const itemsVal = itemsSnap.val() || {};
+    const items = Object.entries(itemsVal).map(([id, item]: [string, any]) => ({ id, ...item }));
+
     const sumByCategory = (cat: string) =>
       items.filter((i) => i.category === cat).reduce((s, i) => s + i.totalPrice, 0);
 
@@ -52,6 +63,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json({
       items: items.map((i) => ({
+        id: i.id,
         section: i.section,
         description: i.description,
         quantity: i.quantity,
@@ -138,28 +150,44 @@ function buildBOQInputs(selections: SelEquip[]) {
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
+    const token = await getAuthToken(request);
+    if (!token) {
+      return errorResponse(401, 'Unauthorized', 'You must be logged in to access this resource.', 'UNAUTHORIZED');
+    }
+
     const { id: projectId } = await context.params;
+    const ownerId = await checkProjectAccess(projectId, token);
+    
+    if (!ownerId) {
+      return errorResponse(403, 'Forbidden', 'You do not have access to this project.', 'FORBIDDEN');
+    }
 
-    const floors = await neon.floor.findMany({
-      where: { projectId },
-      orderBy: { floorNumber: 'asc' },
-      include: {
-        rooms: {
-          include: { selectedEquipment: { include: { equipment: true } } },
-        },
-      },
+    const uid = token.uid;
+
+    const [floorsSnap, roomsSnap, selectionsSnap, equipmentSnap] = await Promise.all([
+      adminDb.ref(`projectData/${projectId}/floors`).once('value'),
+      adminDb.ref(`projectData/${projectId}/rooms`).once('value'),
+      adminDb.ref(`projectData/${projectId}/equipmentSelection`).once('value'),
+      adminDb.ref(`projectData/${projectId}/equipment`).once('value'),
+    ]);
+
+    const floors = floorsSnap.val() || {};
+    const rooms = roomsSnap.val() || {};
+    const selections = selectionsSnap.val() || {};
+    const equipmentLib = equipmentSnap.val() || {};
+
+    const selectedEquipment = Object.entries(selections).map(([id, sel]: [string, any]) => {
+      const room = rooms[sel.roomId] || {};
+      const floor = floors[room.floorId] || {};
+      const equip = equipmentLib[sel.equipmentId] || {};
+      
+      return {
+        ...sel,
+        equipment: equip,
+        floorName: floor.name || 'Unknown Floor',
+        floorNumber: floor.floorNumber || 0,
+      };
     });
-
-    const selectedEquipment = floors.flatMap((f) =>
-      f.rooms.flatMap((r) =>
-        r.selectedEquipment.map((sel) => ({
-          ...sel,
-          equipment: sel.equipment,
-          floorName: f.name,
-          floorNumber: f.floorNumber,
-        }))
-      )
-    );
 
     if (selectedEquipment.length === 0) {
       return errorResponse(400, 'No equipment selected', 'Please select equipment first.', 'NO_EQUIPMENT');
@@ -184,47 +212,43 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const overallBOQ = compileBOQ(buildBOQInputs(selectedEquipment));
     const boqSummary = { ...overallBOQ, items: allItems };
 
-    // Persist — wrap delete+create in a transaction for atomicity
-    await neon.$transaction(async (tx) => {
-      await tx.bOQItem.deleteMany({ where: { projectId } });
+    // Persist
+    const updates: Record<string, any> = {};
+    updates[`projectData/${projectId}/boq`] = null; // Clear old items
 
-      await tx.bOQItem.createMany({
-        data: boqSummary.items.map((item) => ({
-          projectId,
-          section: item.section,
-          description: item.description,
-          quantity: item.quantity,
-          unit: item.unit,
-          unitPrice: item.unitPrice,
-          totalPrice: item.totalPrice,
-          category: item.category,
-        })),
-      });
-
-      // Update project total floor area
-      await tx.project.update({
-        where: { id: projectId },
-        data: {
-          totalFloorArea: (await tx.room.aggregate({
-            where: { floor: { projectId } },
-            _sum: { area: true },
-          }))._sum.area || 0,
-        },
-      });
-
-      await tx.auditLog.create({
-        data: {
-          projectId,
-          action: 'generated',
-          entity: 'boq',
-          entityId: projectId,
-          details: JSON.stringify({
-            itemCount: boqSummary.items.length,
-            grandTotal: boqSummary.grandTotal,
-          }),
-        },
-      });
+    boqSummary.items.forEach((item) => {
+      const itemRef = adminDb.ref(`projectData/${projectId}/boq`).push();
+      updates[`projectData/${projectId}/boq/${itemRef.key}`] = {
+        section: item.section,
+        description: item.description,
+        quantity: item.quantity,
+        unit: item.unit,
+        unitPrice: item.unitPrice,
+        totalPrice: item.totalPrice,
+        category: item.category,
+        notes: item.floorName,
+      };
     });
+
+    // Update project total floor area
+    const totalArea = Object.values(rooms).reduce((sum: number, r: any) => sum + (r.area || 0), 0);
+    updates[`projectData/${projectId}/metadata/totalFloorArea`] = totalArea;
+
+    // Audit log
+    const logRef = adminDb.ref(`auditLogs/${uid}`).push();
+    updates[`auditLogs/${uid}/${logRef.key}`] = {
+      projectId,
+      action: 'generated',
+      entity: 'boq',
+      entityId: projectId,
+      details: JSON.stringify({
+        itemCount: boqSummary.items.length,
+        grandTotal: boqSummary.grandTotal,
+      }),
+      timestamp: Date.now(),
+    };
+
+    await adminDb.ref().update(updates);
 
     return NextResponse.json({ boq: boqSummary }, { status: 201 });
   } catch (error) {

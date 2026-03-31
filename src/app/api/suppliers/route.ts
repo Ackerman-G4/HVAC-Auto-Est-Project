@@ -1,36 +1,47 @@
 /**
- * Suppliers API — DB-backed CRUD
+ * Suppliers API — Firebase-backed CRUD
  * GET  /api/suppliers — List suppliers
  * POST /api/suppliers — Create supplier
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import neon from '@/lib/db/prisma';
-import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
+import { adminDb } from '@/lib/db/firebase-admin';
+import { getUserId, getAuthToken, isAdmin, errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const type = searchParams.get('type');
-    const search = searchParams.get('search');
-
-    const where: Record<string, unknown> = {};
-    if (type) where.type = type;
-    if (search) {
-      where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { location: { contains: search, mode: 'insensitive' } },
-      ];
+    const uid = await getUserId(request);
+    if (!uid) {
+      return errorResponse(401, 'Unauthorized', 'You must be logged in to view suppliers.');
     }
 
-    const suppliers = await neon.supplier.findMany({
-      where,
-      include: { materials: true },
-      orderBy: { name: 'asc' },
-    });
+    const { searchParams } = new URL(request.url);
+    const type = searchParams.get('type');
+    const search = searchParams.get('search')?.toLowerCase();
 
-    const allSuppliers = await neon.supplier.findMany({ select: { type: true } });
-    const types = [...new Set(allSuppliers.map((s) => s.type))];
+    const snapshot = await adminDb.ref('metadata/suppliers').once('value');
+    const suppliersMap = snapshot.val() || {};
+    
+    let suppliers = Object.entries(suppliersMap).map(([id, data]) => ({
+      id,
+      ...(data as any),
+    }));
+
+    // Filtering
+    if (type) {
+      suppliers = suppliers.filter((s) => s.type === type);
+    }
+    if (search) {
+      suppliers = suppliers.filter((s) => 
+        s.name?.toLowerCase().includes(search) || 
+        s.location?.toLowerCase().includes(search)
+      );
+    }
+
+    // Sort: name ASC
+    suppliers.sort((a, b) => a.name.localeCompare(b.name));
+
+    const types = [...new Set(suppliers.map((s) => s.type))];
 
     return NextResponse.json({ suppliers, types });
   } catch (error) {
@@ -42,21 +53,36 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const token = await getAuthToken(request);
+    if (!token) {
+      return errorResponse(401, 'Unauthorized', 'You must be logged in to create suppliers.');
+    }
+
+    if (!isAdmin(token)) {
+      return errorResponse(403, 'Forbidden', 'Only administrators can create suppliers.');
+    }
+
+    const uid = token.uid;
     const body = await request.json();
+    const newRef = adminDb.ref('metadata/suppliers').push();
 
-    const supplier = await neon.supplier.create({
-      data: {
-        name: body.name || 'New Supplier',
-        type: body.type || 'local',
-        website: body.website || '',
-        location: body.location || '',
-        contactInfo: body.contactInfo || '',
-        coverageArea: body.coverageArea || '',
-        categories: body.categories ? JSON.stringify(body.categories) : '[]',
-      },
-    });
+    const supplierData = {
+      name: body.name || 'New Supplier',
+      type: body.type || 'local',
+      website: body.website || '',
+      location: body.location || '',
+      contactInfo: body.contactInfo || '',
+      coverageArea: body.coverageArea || '',
+      categories: body.categories || [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
 
-    return NextResponse.json({ supplier }, { status: 201 });
+    await newRef.set(supplierData);
+
+    return NextResponse.json({ 
+      supplier: { id: newRef.key, ...supplierData } 
+    }, { status: 201 });
   } catch (error) {
     console.error('POST /api/suppliers error:', error);
     const d = getErrorDetails(error, 'Failed to create supplier');

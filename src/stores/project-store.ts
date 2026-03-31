@@ -1,20 +1,32 @@
 import { create } from 'zustand';
+import { 
+  ref, 
+  onValue, 
+  off, 
+  push, 
+  set as firebaseSet, 
+  update as firebaseUpdate, 
+  remove as firebaseRemove,
+  serverTimestamp 
+} from 'firebase/database';
+import { db, auth } from '@/lib/db/firebase';
 import type { Project, ProjectFormData } from '@/types/project';
 import { showToast } from '@/components/ui/toast';
 
 interface ProjectStore {
   projects: Project[];
-  currentProject: Project | null;
+  currentProject: any | null; // Detailed project with floors/rooms
   isLoading: boolean;
   
-  fetchProjects: () => Promise<void>;
-  fetchProject: (id: string) => Promise<void>;
-  createProject: (data: ProjectFormData) => Promise<Project | null>;
+  // Real-time subscriptions
+  subscribeToProjects: () => () => void;
+  subscribeToProject: (id: string) => () => void;
+
+  // Actions
+  createProject: (data: ProjectFormData) => Promise<string | null>;
   updateProject: (id: string, data: Partial<Project>) => Promise<void>;
-  archiveProject: (id: string) => Promise<void>;
-  restoreProject: (id: string) => Promise<void>;
-  deleteProject: (id: string) => Promise<void>;
-  setCurrentProject: (project: Project | null) => void;
+  deleteProject: (id: string, permanent?: boolean) => Promise<void>;
+  setCurrentProject: (project: any | null) => void;
 }
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
@@ -22,47 +34,114 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   currentProject: null,
   isLoading: false,
 
-  fetchProjects: async () => {
+  subscribeToProjects: () => {
+    const user = auth.currentUser;
+    if (!user) return () => {};
+
     set({ isLoading: true });
-    try {
-      const res = await fetch('/api/projects');
-      if (!res.ok) throw new Error('Failed to fetch projects');
-      const data = await res.json();
-      set({ projects: data.projects || data, isLoading: false });
-    } catch (error) {
-      console.error(error);
+    const projectsRef = ref(db, `users/${user.uid}/projects`);
+    
+    const unsubscribe = onValue(projectsRef, (snapshot) => {
+      const data = snapshot.val() || {};
+      const projectsList = Object.keys(data)
+        .map(id => ({ id, ...data[id] }))
+        .filter(p => p.status !== 'deleted')
+        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+      
+      set({ projects: projectsList, isLoading: false });
+    }, (error) => {
+      console.error("Projects subscription error:", error);
       set({ isLoading: false });
-      showToast('error', 'Failed to load projects');
-    }
+      showToast('error', 'Failed to sync projects');
+    });
+
+    return () => off(projectsRef, 'value', unsubscribe);
   },
 
-  fetchProject: async (id: string) => {
+  subscribeToProject: (id: string) => {
+    const user = auth.currentUser;
+    if (!user) return () => {};
+
     set({ isLoading: true });
-    try {
-      const res = await fetch(`/api/projects/${id}`);
-      if (!res.ok) throw new Error('Failed to fetch project');
-      const data = await res.json();
-      set({ currentProject: data.project || data, isLoading: false });
-    } catch (error) {
-      console.error(error);
-      set({ isLoading: false });
-      showToast('error', 'Failed to load project');
-    }
+    
+    // We need both project metadata and the actual data (floors/rooms)
+    const projectMetaRef = ref(db, `users/${user.uid}/projects/${id}`);
+    const projectDataRef = ref(db, `projectData/${id}`);
+
+    const syncProject = () => {
+      onValue(projectMetaRef, (metaSnap) => {
+        if (!metaSnap.exists()) {
+          set({ currentProject: null, isLoading: false });
+          return;
+        }
+
+        onValue(projectDataRef, (dataSnap) => {
+          const meta = metaSnap.val();
+          const data = dataSnap.val() || {};
+          
+          // Structure the data to match what the UI expects (nested floors/rooms)
+          const floorsData = data.floors || {};
+          const roomsData = data.rooms || {};
+          const coolingLoadsData = data.coolingLoads || {};
+          
+          const floors = Object.keys(floorsData).map(fId => {
+            const floorRooms = Object.keys(roomsData)
+              .filter(rId => roomsData[rId].floorId === fId)
+              .map(rId => ({
+                id: rId,
+                ...roomsData[rId],
+                coolingLoad: coolingLoadsData[rId] || null
+              }));
+            
+            return {
+              id: fId,
+              ...floorsData[fId],
+              rooms: floorRooms
+            };
+          }).sort((a, b) => (a.floorNumber || 0) - (b.floorNumber || 0));
+
+          set({ 
+            currentProject: { 
+              id, 
+              ...meta, 
+              floors,
+              boqItems: data.boq || {},
+              selectedEquipment: data.selectedEquipment || {}
+            }, 
+            isLoading: false 
+          });
+        });
+      });
+    };
+
+    syncProject();
+
+    return () => {
+      off(projectMetaRef);
+      off(projectDataRef);
+    };
   },
 
   createProject: async (data: ProjectFormData) => {
+    const user = auth.currentUser;
+    if (!user) return null;
+
     try {
-      const res = await fetch('/api/projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error('Failed to create project');
-      const result = await res.json();
-      const project = result.project || result;
-      set((state) => ({ projects: [project, ...state.projects] }));
-      showToast('success', 'Project created', project.name);
-      return project;
+      const projectsRef = ref(db, `users/${user.uid}/projects`);
+      const newProjectRef = push(projectsRef);
+      const projectId = newProjectRef.key;
+      
+      const now = new Date().toISOString();
+      const projectData = {
+        ...data,
+        status: 'draft',
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      await firebaseSet(newProjectRef, projectData);
+      showToast('success', 'Project created', data.name);
+      return projectId;
     } catch (error) {
       console.error(error);
       showToast('error', 'Failed to create project');
@@ -71,19 +150,19 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
 
   updateProject: async (id: string, data: Partial<Project>) => {
+    const user = auth.currentUser;
+    if (!user) return;
+
     try {
-      const res = await fetch(`/api/projects/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+      const now = new Date().toISOString();
+      const updates: any = {};
+      
+      Object.keys(data).forEach(key => {
+        updates[`users/${user.uid}/projects/${id}/${key}`] = (data as any)[key];
       });
-      if (!res.ok) throw new Error('Failed to update project');
-      const result = await res.json();
-      const updated = result.project || result;
-      set((state) => ({
-        projects: state.projects.map((p) => (p.id === id ? updated : p)),
-        currentProject: state.currentProject?.id === id ? updated : state.currentProject,
-      }));
+      updates[`users/${user.uid}/projects/${id}/updatedAt`] = now;
+
+      await firebaseUpdate(ref(db), updates);
       showToast('success', 'Project updated');
     } catch (error) {
       console.error(error);
@@ -91,54 +170,23 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }
   },
 
-  archiveProject: async (id: string) => {
-    try {
-      const res = await fetch(`/api/projects/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'archived' }),
-      });
-      if (!res.ok) throw new Error('Failed to archive');
-      set((state) => ({
-        projects: state.projects.map((p) =>
-          p.id === id ? { ...p, status: 'archived' as const } : p
-        ),
-      }));
-      showToast('success', 'Project archived');
-    } catch (error) {
-      console.error(error);
-      showToast('error', 'Failed to archive project');
-    }
-  },
+  deleteProject: async (id: string, permanent = false) => {
+    const user = auth.currentUser;
+    if (!user) return;
 
-  restoreProject: async (id: string) => {
     try {
-      const res = await fetch(`/api/projects/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'active' }),
-      });
-      if (!res.ok) throw new Error('Failed to restore');
-      set((state) => ({
-        projects: state.projects.map((p) =>
-          p.id === id ? { ...p, status: 'active' as const } : p
-        ),
-      }));
-      showToast('success', 'Project restored');
-    } catch (error) {
-      console.error(error);
-      showToast('error', 'Failed to restore project');
-    }
-  },
-
-  deleteProject: async (id: string) => {
-    try {
-      const res = await fetch(`/api/projects/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete');
-      set((state) => ({
-        projects: state.projects.filter((p) => p.id !== id),
-        currentProject: state.currentProject?.id === id ? null : state.currentProject,
-      }));
+      if (permanent) {
+        const updates: any = {};
+        updates[`users/${user.uid}/projects/${id}`] = null;
+        updates[`projectData/${id}`] = null;
+        updates[`simulations/${id}`] = null;
+        await firebaseUpdate(ref(db), updates);
+      } else {
+        await firebaseUpdate(ref(db), {
+          [`users/${user.uid}/projects/${id}/status`]: 'deleted',
+          [`users/${user.uid}/projects/${id}/updatedAt`]: new Date().toISOString()
+        });
+      }
       showToast('success', 'Project deleted');
     } catch (error) {
       console.error(error);

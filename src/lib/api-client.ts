@@ -3,6 +3,10 @@
  * Provides consistent error handling and response unwrapping.
  */
 
+import { auth, db } from '@/lib/db/firebase';
+import { ref, get, set, push, update, remove, query, orderByChild, equalTo } from 'firebase/database';
+import { wetBulb as calcWetBulb } from '@/lib/functions/psychrometric';
+
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
 class ApiClientError extends Error {
@@ -17,14 +21,28 @@ class ApiClientError extends Error {
   }
 }
 
+// Keep the fetch wrapper for calculation/simulation APIs that actually need a backend
 async function request<T>(
   url: string,
   method: HttpMethod = 'GET',
   body?: unknown
 ): Promise<T> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (auth.currentUser) {
+    try {
+      const token = await auth.currentUser.getIdToken();
+      headers['Authorization'] = `Bearer ${token}`;
+    } catch (error) {
+      console.error('Error getting auth token:', error);
+    }
+  }
+
   const options: RequestInit = {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers,
   };
 
   if (body && method !== 'GET') {
@@ -39,9 +57,9 @@ async function request<T>(
     try {
       const data = await res.json();
       errorMsg = data.error || errorMsg;
-      details = data.details;
+      details = data.description || data.details;
     } catch {
-      // ignore parse errors for non-JSON responses
+      // ignore
     }
     throw new ApiClientError(errorMsg, res.status, details);
   }
@@ -50,19 +68,150 @@ async function request<T>(
   return res.json();
 }
 
-// ── Projects ─────────────────────────────────────────────────────────────
+// ── Projects (Client-Side DB) ─────────────────────────────────────────────
 
 export const projectsApi = {
-  list: (params?: Record<string, string>) => {
-    const qs = params ? '?' + new URLSearchParams(params).toString() : '';
-    return request<{ projects: unknown[] }>(`/api/projects${qs}`);
+  list: async (params?: Record<string, string>) => {
+    const user = auth.currentUser;
+    if (!user) throw new ApiClientError('Unauthorized', 401);
+
+    const projectsRef = ref(db, `users/${user.uid}/projects`);
+    const snapshot = await get(projectsRef);
+    const data = snapshot.val() || {};
+    
+    let projects = Object.keys(data).map(id => ({ id, ...data[id] }));
+
+    const status = params?.status;
+    const search = params?.search?.toLowerCase();
+
+    if (status && status !== 'all') {
+      projects = projects.filter(p => p.status === status);
+    } else {
+      projects = projects.filter(p => p.status !== 'archived' && p.status !== 'deleted');
+    }
+
+    if (search) {
+      projects = projects.filter(p => 
+        p.name?.toLowerCase().includes(search) || 
+        p.clientName?.toLowerCase().includes(search) ||
+        p.location?.toLowerCase().includes(search)
+      );
+    }
+
+    projects.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+    return { projects };
   },
-  get: (id: string) => request<{ project: unknown }>(`/api/projects/${id}`),
-  create: (data: unknown) => request<{ project: unknown }>('/api/projects', 'POST', data),
-  update: (id: string, data: unknown) => request<{ project: unknown }>(`/api/projects/${id}`, 'PUT', data),
-  delete: (id: string, permanent = false) =>
-    request<{ message: string }>(`/api/projects/${id}${permanent ? '?permanent=true' : ''}`, 'DELETE'),
+
+  get: async (id: string) => {
+    const user = auth.currentUser;
+    if (!user) throw new ApiClientError('Unauthorized', 401);
+
+    const projectRef = ref(db, `users/${user.uid}/projects/${id}`);
+    const snapshot = await get(projectRef);
+    
+    if (!snapshot.exists()) {
+      throw new ApiClientError('Project not found', 404);
+    }
+
+    // Also fetch deep data (floors, rooms, equipment)
+    const deepRef = ref(db, `projectData/${id}`);
+    const deepSnap = await get(deepRef);
+    const deepData = deepSnap.val() || {};
+
+    const project = {
+      id,
+      ...snapshot.val(),
+      floors: deepData.floors ? Object.values(deepData.floors).map((f: any) => ({
+        ...f,
+        rooms: f.rooms ? Object.values(f.rooms) : []
+      })) : [],
+      selectedEquipment: deepData.equipment ? Object.values(deepData.equipment) : [],
+      boqItems: deepData.boq ? Object.values(deepData.boq) : []
+    };
+
+    return { project };
+  },
+
+  create: async (data: any) => {
+    const user = auth.currentUser;
+    if (!user) throw new ApiClientError('Unauthorized', 401);
+
+    const finalDB = Number(data.outdoorDB) || 35;
+    const finalRH = Number(data.outdoorRH) || 50;
+    const computedWB = Number.isFinite(Number(data.outdoorWB))
+      ? Number(data.outdoorWB)
+      : calcWetBulb(finalDB, finalRH);
+
+    const now = new Date().toISOString();
+    const newProjectRef = push(ref(db, `users/${user.uid}/projects`));
+    const projectId = newProjectRef.key;
+
+    const projectData = {
+      name: data.name,
+      clientName: data.clientName || '',
+      buildingType: data.buildingType || 'commercial',
+      location: data.location || '',
+      city: data.city || 'Manila',
+      totalFloorArea: Number(data.totalFloorArea) || 0,
+      floorsAboveGrade: Math.trunc(Number(data.floorsAboveGrade) || 1),
+      floorsBelowGrade: Math.trunc(Number(data.floorsBelowGrade) || 0),
+      outdoorDB: finalDB,
+      outdoorWB: computedWB,
+      outdoorRH: finalRH,
+      indoorDB: Number(data.indoorDB) || 24,
+      indoorRH: Number(data.indoorRH) || 50,
+      notes: data.notes || '',
+      status: 'draft',
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    try {
+      // 1. Create the project metadata in the user's project list.
+      // This satisfies the "users/$uid/projects" rule.
+      await set(newProjectRef, projectData);
+      
+      // 2. Add the owner mapping.
+      // This satisfies the "projectOwners" rule.
+      await set(ref(db, `projectOwners/${projectId}`), user.uid);
+
+      // Note: We intentionally DO NOT eagerly create `projectData/${projectId}` here.
+      // The security rules for projectData require the project to ALREADY exist in the user's
+      // project list. By not initializing it here, we avoid race conditions with the rules engine.
+      // Deep data (rooms, floors) will be created naturally when the user adds them.
+    } catch (e: any) {
+      console.error("Firebase write error:", e);
+      throw new ApiClientError('Database error', 500, e.message);
+    }
+
+    return { project: { id: projectId, ...projectData } };
+  },
+
+  update: async (id: string, data: any) => {
+    const user = auth.currentUser;
+    if (!user) throw new ApiClientError('Unauthorized', 401);
+
+    const updates = { ...data, updatedAt: new Date().toISOString() };
+    await update(ref(db, `users/${user.uid}/projects/${id}`), updates);
+    return { project: { id, ...updates } };
+  },
+
+  delete: async (id: string, permanent = false) => {
+    const user = auth.currentUser;
+    if (!user) throw new ApiClientError('Unauthorized', 401);
+
+    if (permanent) {
+      await remove(ref(db, `users/${user.uid}/projects/${id}`));
+      await remove(ref(db, `projectData/${id}`));
+      await remove(ref(db, `projectOwners/${id}`));
+    } else {
+      await update(ref(db, `users/${user.uid}/projects/${id}`), { status: 'deleted', updatedAt: new Date().toISOString() });
+    }
+    return { message: 'Project deleted' };
+  },
 };
+
 
 // ── Rooms ────────────────────────────────────────────────────────────────
 

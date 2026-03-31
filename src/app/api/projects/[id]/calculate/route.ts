@@ -1,77 +1,100 @@
 /**
- * Calculation API — Run or re-run cooling load calculations
+ * Calculation API — Firebase RTDB implementation
  * POST /api/projects/[id]/calculate
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import neon from '@/lib/db/prisma';
+import { adminDb } from '@/lib/db/firebase-admin';
 import { calculateCoolingLoad } from '@/lib/functions/cooling-load';
 import {
   errorResponse,
   getErrorDetails,
   buildCoolingLoadInput,
   coolingLoadToDbFields,
+  getUserId,
+  getAuthToken,
+  checkProjectAccess,
 } from '@/lib/utils/api-helpers';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
-    const { id: projectId } = await context.params;
-
-    const project = await neon.project.findUnique({
-      where: { id: projectId },
-      include: { floors: { include: { rooms: true } } },
-    });
-
-    if (!project) {
-      return errorResponse(404, 'Project not found', 'The project ID does not match any existing project.', 'PROJECT_NOT_FOUND');
+    const token = await getAuthToken(request);
+    if (!token) {
+      return errorResponse(401, 'Unauthorized', 'You must be logged in to run calculations.', 'UNAUTHORIZED');
     }
 
-    const allRooms = project.floors.flatMap((f) => f.rooms);
+    const { id: projectId } = await context.params;
+    const ownerId = await checkProjectAccess(projectId, token);
+    
+    if (!ownerId) {
+      return errorResponse(403, 'Forbidden', 'You do not have access to this project.', 'FORBIDDEN');
+    }
+
+    // Get project metadata
+    const projectRef = adminDb.ref(`users/${ownerId}/projects/${projectId}`);
+    const projectSnapshot = await projectRef.once('value');
+    if (!projectSnapshot.exists()) {
+      return errorResponse(404, 'Project not found', 'The project metadata was not found.', 'PROJECT_NOT_FOUND');
+    }
+    const project = projectSnapshot.val();
+
+    // Fetch all rooms for this project
+    const roomsRef = adminDb.ref(`projectData/${projectId}/rooms`);
+    const roomsSnapshot = await roomsRef.once('value');
+    const roomsData = roomsSnapshot.val() || {};
+    const allRooms = Object.keys(roomsData).map(id => ({ id, ...roomsData[id] }));
+
     if (allRooms.length === 0) {
       return errorResponse(400, 'No rooms to calculate', 'Add rooms to the project before running cooling load calculations.', 'NO_ROOMS');
     }
 
-    const results: ReturnType<typeof calculateCoolingLoad>[] = [];
+    const results: any[] = [];
     let totalProjectLoad = 0;
     let totalProjectTR = 0;
 
-    // Wrap all upserts in a transaction for atomicity
-    await neon.$transaction(async (tx) => {
-      for (const floor of project.floors) {
-        for (const room of floor.rooms) {
-          if (room.area <= 0) continue;
+    const updates: Record<string, any> = {};
+    const now = new Date().toISOString();
 
-          const loadInput = buildCoolingLoadInput(room, project);
-          const loadResult = calculateCoolingLoad(loadInput, room.id, room.name);
-          const fields = coolingLoadToDbFields(loadResult);
+    for (const room of allRooms) {
+      if (!room.area || room.area <= 0) continue;
 
-          await tx.coolingLoad.upsert({
-            where: { roomId: room.id },
-            create: { roomId: room.id, ...fields },
-            update: fields,
-          });
+      // Ensure room has all required fields for calculation, using project defaults if missing
+      const loadInput = buildCoolingLoadInput(room as any, project as any);
+      const loadResult = calculateCoolingLoad(loadInput, room.id, room.name);
+      const fields = coolingLoadToDbFields(loadResult);
 
-          totalProjectLoad += loadResult.totalLoad;
-          totalProjectTR += loadResult.trValue;
-          results.push(loadResult);
-        }
-      }
+      // Path for cooling load: projectData/[projectId]/coolingLoads/[roomId]
+      updates[`projectData/${projectId}/coolingLoads/${room.id}`] = {
+        ...fields,
+        updatedAt: now
+      };
 
-      await tx.auditLog.create({
-        data: {
-          projectId,
-          action: 'calculated',
-          entity: 'cooling_load',
-          entityId: projectId,
-          details: JSON.stringify({
-            roomCount: results.length,
-            totalTR: totalProjectTR,
-          }),
-        },
-      });
-    });
+      totalProjectLoad += loadResult.totalLoad;
+      totalProjectTR += loadResult.trValue;
+      results.push(loadResult);
+    }
+
+    // Add audit log to updates (use current user's UID)
+    const auditRef = adminDb.ref(`auditLogs/${token.uid}`).push();
+    updates[`auditLogs/${token.uid}/${auditRef.key}`] = {
+      projectId,
+      action: 'calculated',
+      entity: 'cooling_load',
+      entityId: projectId,
+      details: {
+        roomCount: results.length,
+        totalTR: totalProjectTR,
+      },
+      timestamp: now
+    };
+
+    // Update project timestamp (on the owner's project record)
+    updates[`users/${ownerId}/projects/${projectId}/updatedAt`] = now;
+
+    // Execute all updates atomically
+    await adminDb.ref().update(updates);
 
     return NextResponse.json({
       results,

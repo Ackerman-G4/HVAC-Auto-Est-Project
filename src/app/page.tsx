@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
 import {
   Building2,
   Plus,
@@ -9,9 +8,6 @@ import {
   Thermometer,
   FolderOpen,
   ArrowRight,
-  ReceiptText,
-  Boxes,
-  FileSpreadsheet,
 } from 'lucide-react';
 import { PageWrapper, PageHeader } from '@/components/ui/page-wrapper';
 import { StatCard } from '@/components/ui/stat-card';
@@ -21,7 +17,11 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { listContainerVariants, listItemVariants } from '@/animations/list-variants';
+import { projectsApi } from '@/lib/api-client';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
+
+const MotionDiv = dynamic(() => import('framer-motion').then((mod) => mod.motion.div), { ssr: true });
 
 interface DashboardProject {
   id: string;
@@ -41,10 +41,9 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/projects')
-      .then((r) => r.json())
+    projectsApi.list()
       .then((data) => {
-        setProjects(data.projects || []);
+        setProjects(data.projects as DashboardProject[] || []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -105,7 +104,6 @@ export default function DashboardPage() {
                 Streamline your HVAC estimation workflow with intelligent load calculations, automated equipment sizing, and professional BOQ generation.
               </p>
             </div>
-            
           </div>
         </CardContent>
       </Card>
@@ -169,7 +167,7 @@ export default function DashboardPage() {
                 }
               />
             ) : (
-              <motion.div
+              <MotionDiv
                 variants={listContainerVariants}
                 initial="hidden"
                 animate="visible"
@@ -181,7 +179,7 @@ export default function DashboardPage() {
                   }, 0) || 0;
 
                   return (
-                    <motion.div key={project.id} variants={listItemVariants}>
+                    <MotionDiv key={project.id} variants={listItemVariants}>
                       <Link
                         href={`/projects/${project.id}`}
                         className="flex items-center justify-between p-4 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-100 hover:border-slate-300 hover:shadow-sm transition-all duration-200 group"
@@ -208,17 +206,15 @@ export default function DashboardPage() {
                           </p>
                         </div>
                       </Link>
-                    </motion.div>
+                    </MotionDiv>
                   );
                 })}
-              </motion.div>
+              </MotionDiv>
             )}
           </CardContent>
         </Card>
 
         <div className="space-y-6">
-          
-
           <Card className="border-blue-200 bg-gradient-to-br from-blue-50/80 to-indigo-50/50">
             <CardHeader>
               <CardTitle className="text-base font-bold">Portfolio Snapshot</CardTitle>
@@ -245,6 +241,3 @@ export default function DashboardPage() {
     </PageWrapper>
   );
 }
-
-
-
