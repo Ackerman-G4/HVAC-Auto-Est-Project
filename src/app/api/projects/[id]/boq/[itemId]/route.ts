@@ -5,13 +5,15 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import neon from '@/lib/db/prisma';
+import { getNeon } from '@/lib/db/prisma';
 import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
+import { finalizeDualValue } from '@/lib/utils/dual-control';
 
 type RouteContext = { params: Promise<{ id: string; itemId: string }> };
 
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
+    const neon = getNeon();
     const { id: projectId, itemId } = await context.params;
     const body = await request.json();
 
@@ -21,7 +23,15 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     }
 
     const quantity = body.quantity ?? existing.quantity;
-    const unitPrice = body.unitPrice ?? existing.unitPrice;
+    const suggestedUnitPrice = body.suggestedUnitPrice ?? existing.suggestedUnitPrice ?? existing.unitPrice;
+    const clearOverride = body.useSuggested === true || body.userUnitPriceOverride === null || body.unitPrice === null;
+    const userUnitPriceOverride = clearOverride
+      ? null
+      : (body.userUnitPriceOverride ?? body.unitPrice ?? existing.userUnitPriceOverride);
+    const resolvedUnitPrice = finalizeDualValue(suggestedUnitPrice, userUnitPriceOverride);
+    const suggestedTotalPrice = suggestedUnitPrice * quantity;
+    const userTotalPriceOverride = resolvedUnitPrice.isOverridden ? resolvedUnitPrice.final * quantity : null;
+    const finalTotalPrice = resolvedUnitPrice.final * quantity;
 
     const item = await neon.bOQItem.update({
       where: { id: itemId },
@@ -30,9 +40,40 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         specification: body.specification ?? existing.specification,
         quantity,
         unit: body.unit ?? existing.unit,
-        unitPrice,
-        totalPrice: quantity * unitPrice,
+        suggestedUnitPrice,
+        suggestedTotalPrice,
+        userUnitPriceOverride,
+        userTotalPriceOverride,
+        finalUnitPrice: resolvedUnitPrice.final,
+        finalTotalPrice,
+        unitPrice: resolvedUnitPrice.final,
+        totalPrice: finalTotalPrice,
+        sourceState: resolvedUnitPrice.source,
+        isOverridden: resolvedUnitPrice.isOverridden,
+        overrideReason: resolvedUnitPrice.isOverridden ? (body.overrideReason ?? existing.overrideReason) : '',
+        overrideUpdatedAt: resolvedUnitPrice.isOverridden ? new Date() : null,
         notes: body.notes ?? existing.notes,
+      },
+    });
+
+    await neon.auditLog.create({
+      data: {
+        projectId,
+        action: 'updated',
+        entity: 'boq_item',
+        entityId: itemId,
+        previousValue: JSON.stringify({
+          quantity: existing.quantity,
+          unitPrice: existing.finalUnitPrice ?? existing.unitPrice,
+          totalPrice: existing.finalTotalPrice ?? existing.totalPrice,
+          isOverridden: existing.isOverridden,
+        }),
+        newValue: JSON.stringify({
+          quantity: item.quantity,
+          unitPrice: item.finalUnitPrice ?? item.unitPrice,
+          totalPrice: item.finalTotalPrice ?? item.totalPrice,
+          isOverridden: item.isOverridden,
+        }),
       },
     });
 
@@ -46,6 +87,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
+    const neon = getNeon();
     const { id: projectId, itemId } = await context.params;
 
     const existing = await neon.bOQItem.findUnique({ where: { id: itemId } });

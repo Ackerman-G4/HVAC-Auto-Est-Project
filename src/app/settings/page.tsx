@@ -179,9 +179,25 @@ export default function SettingsPage() {
         description="Configure default values and system preferences"
       />
 
+      <Card className="mb-6 border-border/70 bg-[linear-gradient(160deg,rgba(15,139,141,0.12),rgba(255,255,255,0.9))]">
+        <CardContent className="py-4">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Configuration Workspace</p>
+              <p className="mt-0.5 text-sm font-medium text-foreground">
+                Tune default design assumptions, costing factors, and unit-placement rules to match your firm standards.
+              </p>
+            </div>
+            <div className="text-xs text-muted-foreground tabular-nums">
+              {placementRules.length} placement rule{placementRules.length !== 1 ? 's' : ''}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Design Defaults */}
-        <Card>
+        <Card className="border-border/70 bg-card/85">
           <CardHeader>
             <div className="flex items-center gap-2">
               <Thermometer className="w-4 h-4 text-muted-foreground" />
@@ -254,7 +270,7 @@ export default function SettingsPage() {
         </Card>
 
         {/* Cost Defaults */}
-        <Card>
+        <Card className="border-border/70 bg-card/85">
           <CardHeader>
             <div className="flex items-center gap-2">
               <PhilippinePeso className="w-4 h-4 text-muted-foreground" />
@@ -314,7 +330,7 @@ export default function SettingsPage() {
         </Card>
 
         {/* System */}
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 border-border/70 bg-card/85">
           <CardHeader>
             <div className="flex items-center gap-2">
               <Building2 className="w-4 h-4 text-muted-foreground" />
@@ -360,7 +376,7 @@ export default function SettingsPage() {
         </Card>
 
         {/* Unit Placement Rules */}
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 border-border/70 bg-card/85">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -379,7 +395,7 @@ export default function SettingsPage() {
             ) : (
               <div className="space-y-3">
                 {placementRules.map((rule) => (
-                  <div key={rule.id} className="border border-border/50 rounded-lg p-4 space-y-3">
+                  <div key={rule.id} className="space-y-3 rounded-lg border border-border/55 bg-background/75 p-4">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Rule #{rule.id}</span>
                       <Button variant="ghost" size="sm" onClick={() => removePlacementRule(rule.id)}>
@@ -462,7 +478,7 @@ export default function SettingsPage() {
               </div>
             )}
           </CardContent>
-          <CardFooter className="flex justify-between">
+          <CardFooter className="flex justify-between border-t border-border/55 bg-background/70">
             <Button variant="ghost" onClick={handleReset}>
               <RotateCcw className="w-4 h-4 mr-2" />
               Reset to Defaults

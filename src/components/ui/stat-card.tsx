@@ -16,26 +16,26 @@ interface StatCardProps {
 export function StatCard({ title, value, subtitle, icon: Icon, trend, className }: StatCardProps) {
   return (
     <div className={cn(
-      'bg-white border border-slate-200/80 rounded-xl p-6 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-300 group',
+      'group rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)] p-5 shadow-[0_16px_32px_-26px_rgba(19,32,51,0.55)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[rgba(15,139,141,0.44)] hover:shadow-[0_20px_36px_-26px_rgba(15,139,141,0.8)]',
       className
     )}>
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{title}</p>
-          <p className="text-3xl font-extrabold text-slate-900 mt-2 tabular-nums truncate leading-none">{value}</p>
-          {subtitle && <p className="text-xs font-medium text-slate-500 mt-2">{subtitle}</p>}
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--muted-foreground)]">{title}</p>
+          <p className="mt-2 truncate text-3xl font-extrabold leading-none tabular-nums text-[color:var(--foreground)]">{value}</p>
+          {subtitle && <p className="mt-2 text-xs font-medium text-[color:var(--muted-foreground)]">{subtitle}</p>}
           {trend && (
             <p className={cn(
-              'text-xs font-bold mt-2.5 tabular-nums',
-              trend.value >= 0 ? 'text-emerald-600' : 'text-red-600'
+              'mt-2.5 text-xs font-bold tabular-nums',
+              trend.value >= 0 ? 'text-[color:var(--success)]' : 'text-[color:var(--destructive)]'
             )}>
               {trend.value >= 0 ? '+' : ''}{trend.value} {trend.label}
             </p>
           )}
         </div>
         {Icon && (
-          <div className="w-12 h-12 rounded-lg bg-blue-50/50 border border-blue-100 flex items-center justify-center shrink-0 group-hover:scale-105 group-hover:bg-blue-50 transition-all duration-300">
-            <Icon size={22} className="text-blue-600" />
+          <div className="h-11 w-11 shrink-0 rounded-2xl border border-[rgba(15,139,141,0.24)] bg-[rgba(15,139,141,0.1)] flex items-center justify-center transition-all duration-300 group-hover:scale-105 group-hover:bg-[rgba(15,139,141,0.16)]">
+            <Icon size={20} className="text-[color:var(--accent-dark)]" />
           </div>
         )}
       </div>

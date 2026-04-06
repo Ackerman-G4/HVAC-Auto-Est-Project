@@ -13,6 +13,7 @@ import {
   buildCoolingLoadInput,
   coolingLoadToDbFields,
 } from '@/lib/utils/api-helpers';
+import { finalizeDualValue } from '@/lib/utils/dual-control';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -85,9 +86,36 @@ export async function POST(request: NextRequest, context: RouteContext) {
     if (room.area > 0) {
       const loadInput = buildCoolingLoadInput(room, project);
       const result = calculateCoolingLoad(loadInput, room.id, room.name);
+      const trSelection = finalizeDualValue(result.trValue, body.userTrOverride);
+      const btuSelection = finalizeDualValue(result.btuPerHour, body.userBtuOverride);
 
       await neon.coolingLoad.create({
-        data: { roomId: room.id, ...coolingLoadToDbFields(result) },
+        data: {
+          roomId: room.id,
+          ...coolingLoadToDbFields(result),
+          suggestedTrValue: result.trValue,
+          userTrOverride: trSelection.override,
+          finalTrValue: trSelection.final,
+          trValue: trSelection.final,
+          suggestedBtuPerHour: result.btuPerHour,
+          userBtuOverride: btuSelection.override,
+          finalBtuPerHour: btuSelection.final,
+          btuPerHour: btuSelection.final,
+          isOverridden: trSelection.isOverridden || btuSelection.isOverridden,
+          overrideReason: body.overrideReason || '',
+          overrideUpdatedAt:
+            trSelection.isOverridden || btuSelection.isOverridden ? new Date() : null,
+        },
+      });
+
+      await neon.project.update({
+        where: { id: projectId },
+        data: {
+          isEquipmentStale: true,
+          isBoqStale: true,
+          lastBoqGeneratedAt: null,
+          lastCoolingLoadAt: new Date(),
+        },
       });
     }
 

@@ -27,21 +27,36 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
     const equipment = floors.flatMap((f) => 
       f.rooms.flatMap((r) =>
-        r.selectedEquipment.map((sel) => ({
-          id: sel.id,
-          roomId: sel.roomId,
-          brand: sel.equipment.manufacturer,
-          model: sel.equipment.model,
-          type: sel.equipment.type,
-          capacityTR: sel.equipment.capacityTR,
-          capacityBTU: sel.equipment.capacityBTU,
-          quantity: sel.quantity,
-          unitPrice: sel.equipment.unitPricePHP,
-          totalPrice: sel.equipment.unitPricePHP * sel.quantity,
-          eer: sel.equipment.eer,
-          isInverter: sel.equipment.eer >= INVERTER_EER_THRESHOLD,
-          refrigerant: sel.equipment.refrigerant,
-        }))
+        r.selectedEquipment.map((sel) => {
+          const suggestedQuantity = sel.suggestedQuantity > 0 ? sel.suggestedQuantity : sel.quantity;
+          const quantity = sel.userQuantityOverride ?? suggestedQuantity;
+          const suggestedUnitPrice = sel.suggestedUnitPrice || sel.equipment.unitPricePHP;
+          const finalUnitPrice =
+            sel.userUnitPriceOverride ??
+            (sel.finalUnitPrice > 0 ? sel.finalUnitPrice : suggestedUnitPrice);
+
+          return {
+            id: sel.id,
+            roomId: sel.roomId,
+            brand: sel.equipment.manufacturer,
+            model: sel.equipment.model,
+            type: sel.equipment.type,
+            capacityTR: sel.equipment.capacityTR,
+            capacityBTU: sel.equipment.capacityBTU,
+            quantity,
+            suggestedQuantity,
+            userQuantityOverride: sel.userQuantityOverride,
+            suggestedUnitPrice,
+            userUnitPriceOverride: sel.userUnitPriceOverride,
+            unitPrice: finalUnitPrice,
+            totalPrice: finalUnitPrice * quantity,
+            eer: sel.equipment.eer,
+            isInverter: sel.equipment.eer >= INVERTER_EER_THRESHOLD,
+            refrigerant: sel.equipment.refrigerant,
+            isOverridden: sel.isOverridden,
+            sourceState: sel.isOverridden ? 'override' : 'suggested',
+          };
+        })
       )
     );
 
@@ -131,6 +146,15 @@ export async function POST(request: NextRequest, context: RouteContext) {
                   roomId: room.id,
                   equipmentId: equipmentRecord.id,
                   quantity: top.quantity,
+                  suggestedBrand: top.equipment.brand,
+                  suggestedModel: top.equipment.model,
+                  suggestedType: top.equipment.type,
+                  suggestedCapacityTR: top.equipment.capacityTR,
+                  suggestedCapacityBTU: top.equipment.capacityBTU,
+                  suggestedUnitPrice: avgPrice,
+                  suggestedQuantity: top.quantity,
+                  finalUnitPrice: avgPrice,
+                  isOverridden: false,
                 },
               });
 
@@ -149,6 +173,16 @@ export async function POST(request: NextRequest, context: RouteContext) {
             }
           }
         }
+
+        await tx.project.update({
+          where: { id: projectId },
+          data: {
+            isEquipmentStale: false,
+            isBoqStale: true,
+            lastBoqGeneratedAt: null,
+            lastEquipmentSyncAt: new Date(),
+          },
+        });
       });
 
       return NextResponse.json({ results }, { status: 201 });
@@ -180,6 +214,25 @@ export async function POST(request: NextRequest, context: RouteContext) {
         roomId: body.roomId,
         equipmentId: equipmentRecord.id,
         quantity: body.quantity || 1,
+        suggestedBrand: body.brand || '',
+        suggestedModel: body.model || '',
+        suggestedType: body.type || 'wall_split',
+        suggestedCapacityTR: body.capacityTR || body.capacityBTU / 12000,
+        suggestedCapacityBTU: body.capacityBTU || 0,
+        suggestedUnitPrice: body.unitPrice || 0,
+        suggestedQuantity: body.quantity || 1,
+        finalUnitPrice: body.unitPrice || 0,
+        isOverridden: false,
+      },
+    });
+
+    await neon.project.update({
+      where: { id: projectId },
+      data: {
+        isEquipmentStale: false,
+        isBoqStale: true,
+        lastBoqGeneratedAt: null,
+        lastEquipmentSyncAt: new Date(),
       },
     });
 

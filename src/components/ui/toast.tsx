@@ -41,28 +41,38 @@ export function ToastContainer() {
   }, []);
 
   useEffect(() => {
-    toasts.forEach((toast) => {
-      const timer = setTimeout(() => removeToast(toast.id), toast.duration || 4000);
-      return () => clearTimeout(timer);
-    });
+    const timers = toasts.map((toast) =>
+      window.setTimeout(() => removeToast(toast.id), toast.duration || 4000)
+    );
+
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
   }, [toasts, removeToast]);
 
   const icons = {
-    success: <CheckCircle size={18} className="text-emerald-500" />,
-    error: <AlertCircle size={18} className="text-red-500" />,
-    warning: <AlertTriangle size={18} className="text-amber-500" />,
-    info: <Info size={18} className="text-blue-500" />,
+    success: <CheckCircle size={18} className="text-[color:var(--success)]" />,
+    error: <AlertCircle size={18} className="text-[color:var(--destructive)]" />,
+    warning: <AlertTriangle size={18} className="text-[color:var(--warning)]" />,
+    info: <Info size={18} className="text-[color:var(--accent)]" />,
   };
 
   const borderColors = {
-    success: 'border-l-emerald-500',
-    error: 'border-l-red-500',
-    warning: 'border-l-amber-500',
-    info: 'border-l-blue-500',
+    success: 'border-l-[color:var(--success)]',
+    error: 'border-l-[color:var(--destructive)]',
+    warning: 'border-l-[color:var(--warning)]',
+    info: 'border-l-[color:var(--accent)]',
+  };
+
+  const iconCapsules = {
+    success: 'border-[rgba(43,159,115,0.35)] bg-[rgba(43,159,115,0.12)]',
+    error: 'border-[rgba(216,77,87,0.35)] bg-[rgba(216,77,87,0.12)]',
+    warning: 'border-[rgba(219,142,47,0.35)] bg-[rgba(219,142,47,0.12)]',
+    info: 'border-[rgba(15,139,141,0.32)] bg-[rgba(15,139,141,0.12)]',
   };
 
   return (
-    <div className="fixed top-4 right-4 z-[100] flex flex-col gap-3 max-w-sm w-full pointer-events-none">
+    <div className="pointer-events-none fixed right-4 top-4 z-[100] flex w-full max-w-sm flex-col gap-3 sm:right-6 sm:top-6">
       <AnimatePresence>
         {toasts.map((toast) => (
           <motion.div
@@ -71,17 +81,24 @@ export function ToastContainer() {
             initial="initial"
             animate="animate"
             exit="exit"
+            role="status"
+            aria-live="polite"
             className={cn(
-              'pointer-events-auto bg-white/95 backdrop-blur-md border border-slate-200/50 rounded-2xl shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] p-4 flex items-start gap-3 border-l-4',
+              'pointer-events-auto flex items-start gap-3 rounded-2xl border border-border/70 bg-background/95 p-4 shadow-[0_20px_34px_-24px_rgba(19,32,51,0.72)] backdrop-blur-md border-l-4',
               borderColors[toast.type]
             )}
           >
-            <div className="flex-shrink-0 mt-0.5">{icons[toast.type]}</div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-slate-900">{toast.title}</p>
-              {toast.message && <p className="text-xs text-slate-500 mt-1 leading-relaxed">{toast.message}</p>}
+            <div className={cn('mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border', iconCapsules[toast.type])}>
+              {icons[toast.type]}
             </div>
-            <button onClick={() => removeToast(toast.id)} className="text-slate-500 hover:text-slate-900 p-1 rounded-lg hover:bg-slate-100 transition-colors">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-[color:var(--foreground)]">{toast.title}</p>
+              {toast.message && <p className="mt-1 text-xs leading-relaxed text-[color:var(--muted-foreground)]">{toast.message}</p>}
+            </div>
+            <button
+              onClick={() => removeToast(toast.id)}
+              className="rounded-lg border border-transparent p-1 text-[color:var(--muted-foreground)] transition-colors hover:border-border/60 hover:bg-[color:var(--secondary)] hover:text-[color:var(--foreground)]"
+            >
               <X size={14} />
             </button>
           </motion.div>

@@ -5,11 +5,12 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import neon from '@/lib/db/prisma';
+import { getNeon } from '@/lib/db/prisma';
 import { compileBOQ } from '@/lib/functions/cost-engine';
 import { sizeRefrigerantPipe, sizeCondensatePipe } from '@/lib/functions/pipe-sizing';
 import { sizeElectrical } from '@/lib/functions/electrical';
 import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
+import { finalizeDualValue } from '@/lib/utils/dual-control';
 import type { BOQItem } from '@/types/material';
 
 /** Default estimated run lengths (metres) */
@@ -18,28 +19,104 @@ const DEFAULT_ELEVATION_DIFF_M = 3;
 const DEFAULT_ELECTRICAL_RUN_M = 15;
 const DEFAULT_CONDENSATE_RUN_M = 5;
 
+const DEFAULT_PRICING_POLICY = {
+  laborMultiplier: 0.35,
+  overheadPercent: 0.15,
+  contingencyPercent: 0.05,
+  vatRate: 0.12,
+} as const;
+
 type RouteContext = { params: Promise<{ id: string }> };
+
+type ProjectPricing = {
+  suggestedLaborMultiplier: number;
+  laborMultiplierOverride: number | null;
+  suggestedOverheadPercent: number;
+  overheadPercentOverride: number | null;
+  suggestedContingencyPercent: number;
+  contingencyPercentOverride: number | null;
+  suggestedVatRate: number;
+  vatRateOverride: number | null;
+};
+
+function resolvePricingPolicy(project: ProjectPricing | null) {
+  return {
+    laborMultiplier: finalizeDualValue(
+      project?.suggestedLaborMultiplier ?? DEFAULT_PRICING_POLICY.laborMultiplier,
+      project?.laborMultiplierOverride
+    ),
+    overheadPercent: finalizeDualValue(
+      project?.suggestedOverheadPercent ?? DEFAULT_PRICING_POLICY.overheadPercent,
+      project?.overheadPercentOverride
+    ),
+    contingencyPercent: finalizeDualValue(
+      project?.suggestedContingencyPercent ?? DEFAULT_PRICING_POLICY.contingencyPercent,
+      project?.contingencyPercentOverride
+    ),
+    vatRate: finalizeDualValue(
+      project?.suggestedVatRate ?? DEFAULT_PRICING_POLICY.vatRate,
+      project?.vatRateOverride
+    ),
+  };
+}
 
 /* ──────────────────────── GET ──────────────────────── */
 
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
+    const neon = getNeon();
     const { id } = await context.params;
-    const items = await neon.bOQItem.findMany({
-      where: { projectId: id },
-      orderBy: { section: 'asc' },
-    });
+    const [project, items] = await Promise.all([
+      neon.project.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          suggestedLaborMultiplier: true,
+          laborMultiplierOverride: true,
+          suggestedOverheadPercent: true,
+          overheadPercentOverride: true,
+          suggestedContingencyPercent: true,
+          contingencyPercentOverride: true,
+          suggestedVatRate: true,
+          vatRateOverride: true,
+        },
+      }),
+      neon.bOQItem.findMany({
+        where: { projectId: id },
+        orderBy: { section: 'asc' },
+      }),
+    ]);
+
+    if (!project) {
+      return errorResponse(404, 'Project not found', 'The project does not exist.', 'PROJECT_NOT_FOUND');
+    }
+
+    const pricingPolicy = resolvePricingPolicy(project);
+
+    const getSuggestedUnitPrice = (item: (typeof items)[number]) =>
+      item.suggestedUnitPrice === 0 ? item.unitPrice : item.suggestedUnitPrice;
+    const getFinalUnitPrice = (item: (typeof items)[number]) =>
+      item.finalUnitPrice === 0
+        ? (item.userUnitPriceOverride ?? item.unitPrice)
+        : item.finalUnitPrice;
+    const getFinalTotalPrice = (item: (typeof items)[number]) =>
+      item.finalTotalPrice === 0
+        ? getFinalUnitPrice(item) * item.quantity
+        : item.finalTotalPrice;
+
     const sumByCategory = (cat: string) =>
-      items.filter((i) => i.category === cat).reduce((s, i) => s + i.totalPrice, 0);
+      items
+        .filter((i) => i.category === cat)
+        .reduce((sum, i) => sum + getFinalTotalPrice(i), 0);
 
     const equipmentCost = sumByCategory('equipment');
     const materialCost = sumByCategory('material');
     const laborCost = sumByCategory('labor');
     const subtotal = equipmentCost + materialCost + laborCost;
-    const overhead = subtotal * 0.15;
-    const contingency = subtotal * 0.05;
+    const overhead = subtotal * pricingPolicy.overheadPercent.final;
+    const contingency = subtotal * pricingPolicy.contingencyPercent.final;
     const beforeVAT = subtotal + overhead + contingency;
-    const vat = beforeVAT * 0.12;
+    const vat = beforeVAT * pricingPolicy.vatRate.final;
     const grandTotal = beforeVAT + vat;
 
     // TR from equipment description strings
@@ -52,12 +129,25 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json({
       items: items.map((i) => ({
+        id: i.id,
         section: i.section,
         description: i.description,
         quantity: i.quantity,
         unit: i.unit,
-        unitPrice: i.unitPrice,
-        totalPrice: i.totalPrice,
+        suggestedUnitPrice: getSuggestedUnitPrice(i),
+        suggestedTotalPrice:
+          i.suggestedTotalPrice === 0
+            ? getSuggestedUnitPrice(i) * i.quantity
+            : i.suggestedTotalPrice,
+        userUnitPriceOverride: i.userUnitPriceOverride,
+        userTotalPriceOverride: i.userTotalPriceOverride,
+        finalUnitPrice: getFinalUnitPrice(i),
+        finalTotalPrice: getFinalTotalPrice(i),
+        unitPrice: getFinalUnitPrice(i),
+        totalPrice: getFinalTotalPrice(i),
+        sourceState: i.sourceState,
+        isOverridden: i.isOverridden,
+        overrideReason: i.overrideReason,
         category: i.category,
         floorName: i.notes || '',
       })),
@@ -70,6 +160,32 @@ export async function GET(request: NextRequest, context: RouteContext) {
       vat: Math.round(vat),
       grandTotal: Math.round(grandTotal),
       costPerTR: Math.round(costPerTR),
+      pricingPolicy: {
+        laborMultiplier: {
+          suggested: pricingPolicy.laborMultiplier.suggested,
+          override: pricingPolicy.laborMultiplier.override,
+          final: pricingPolicy.laborMultiplier.final,
+          isOverridden: pricingPolicy.laborMultiplier.isOverridden,
+        },
+        overheadPercent: {
+          suggested: pricingPolicy.overheadPercent.suggested,
+          override: pricingPolicy.overheadPercent.override,
+          final: pricingPolicy.overheadPercent.final,
+          isOverridden: pricingPolicy.overheadPercent.isOverridden,
+        },
+        contingencyPercent: {
+          suggested: pricingPolicy.contingencyPercent.suggested,
+          override: pricingPolicy.contingencyPercent.override,
+          final: pricingPolicy.contingencyPercent.final,
+          isOverridden: pricingPolicy.contingencyPercent.isOverridden,
+        },
+        vatRate: {
+          suggested: pricingPolicy.vatRate.suggested,
+          override: pricingPolicy.vatRate.override,
+          final: pricingPolicy.vatRate.final,
+          isOverridden: pricingPolicy.vatRate.isOverridden,
+        },
+      },
     });
   } catch (error) {
     console.error('GET BOQ error:', error);
@@ -138,7 +254,29 @@ function buildBOQInputs(selections: SelEquip[]) {
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
+    const neon = getNeon();
     const { id: projectId } = await context.params;
+
+    const project = await neon.project.findUnique({
+      where: { id: projectId },
+      select: {
+        id: true,
+        suggestedLaborMultiplier: true,
+        laborMultiplierOverride: true,
+        suggestedOverheadPercent: true,
+        overheadPercentOverride: true,
+        suggestedContingencyPercent: true,
+        contingencyPercentOverride: true,
+        suggestedVatRate: true,
+        vatRateOverride: true,
+      },
+    });
+
+    if (!project) {
+      return errorResponse(404, 'Project not found', 'The project does not exist.', 'PROJECT_NOT_FOUND');
+    }
+
+    const pricingPolicy = resolvePricingPolicy(project);
 
     const floors = await neon.floor.findMany({
       where: { projectId },
@@ -174,14 +312,26 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     for (const [floorName, floorEquipment] of floorGroups) {
-      const floorBOQ = compileBOQ(buildBOQInputs(floorEquipment));
+      const floorBOQ = compileBOQ({
+        ...buildBOQInputs(floorEquipment),
+        laborMultiplier: pricingPolicy.laborMultiplier.final,
+        overheadPercent: pricingPolicy.overheadPercent.final,
+        contingencyPercent: pricingPolicy.contingencyPercent.final,
+        vatRate: pricingPolicy.vatRate.final,
+      });
       for (const item of floorBOQ.items) {
         allItems.push({ ...item, floorName });
       }
     }
 
     // Build overall summary once (reuse same helper)
-    const overallBOQ = compileBOQ(buildBOQInputs(selectedEquipment));
+    const overallBOQ = compileBOQ({
+      ...buildBOQInputs(selectedEquipment),
+      laborMultiplier: pricingPolicy.laborMultiplier.final,
+      overheadPercent: pricingPolicy.overheadPercent.final,
+      contingencyPercent: pricingPolicy.contingencyPercent.final,
+      vatRate: pricingPolicy.vatRate.final,
+    });
     const boqSummary = { ...overallBOQ, items: allItems };
 
     // Persist — wrap delete+create in a transaction for atomicity
@@ -195,8 +345,15 @@ export async function POST(request: NextRequest, context: RouteContext) {
           description: item.description,
           quantity: item.quantity,
           unit: item.unit,
+          suggestedUnitPrice: item.unitPrice,
+          suggestedTotalPrice: item.totalPrice,
+          finalUnitPrice: item.unitPrice,
+          finalTotalPrice: item.totalPrice,
           unitPrice: item.unitPrice,
           totalPrice: item.totalPrice,
+          sourceState: 'suggested',
+          isOverridden: false,
+          notes: item.floorName || '',
           category: item.category,
         })),
       });
@@ -209,6 +366,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
             where: { floor: { projectId } },
             _sum: { area: true },
           }))._sum.area || 0,
+          isBoqStale: false,
+          lastBoqGeneratedAt: new Date(),
         },
       });
 
@@ -221,6 +380,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
           details: JSON.stringify({
             itemCount: boqSummary.items.length,
             grandTotal: boqSummary.grandTotal,
+            pricingPolicy: {
+              laborMultiplier: pricingPolicy.laborMultiplier.final,
+              overheadPercent: pricingPolicy.overheadPercent.final,
+              contingencyPercent: pricingPolicy.contingencyPercent.final,
+              vatRate: pricingPolicy.vatRate.final,
+            },
           }),
         },
       });

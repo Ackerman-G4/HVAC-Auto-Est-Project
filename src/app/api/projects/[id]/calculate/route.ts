@@ -12,6 +12,7 @@ import {
   buildCoolingLoadInput,
   coolingLoadToDbFields,
 } from '@/lib/utils/api-helpers';
+import { finalizeDualValue } from '@/lib/utils/dual-control';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -45,7 +46,35 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
           const loadInput = buildCoolingLoadInput(room, project);
           const loadResult = calculateCoolingLoad(loadInput, room.id, room.name);
-          const fields = coolingLoadToDbFields(loadResult);
+          const existingLoad = await tx.coolingLoad.findUnique({
+            where: { roomId: room.id },
+            select: {
+              userTrOverride: true,
+              userBtuOverride: true,
+              overrideReason: true,
+              overrideUpdatedAt: true,
+            },
+          });
+          const trSelection = finalizeDualValue(loadResult.trValue, existingLoad?.userTrOverride);
+          const btuSelection = finalizeDualValue(loadResult.btuPerHour, existingLoad?.userBtuOverride);
+
+          const fields = {
+            ...coolingLoadToDbFields(loadResult),
+            suggestedTrValue: loadResult.trValue,
+            userTrOverride: trSelection.override,
+            finalTrValue: trSelection.final,
+            trValue: trSelection.final,
+            suggestedBtuPerHour: loadResult.btuPerHour,
+            userBtuOverride: btuSelection.override,
+            finalBtuPerHour: btuSelection.final,
+            btuPerHour: btuSelection.final,
+            isOverridden: trSelection.isOverridden || btuSelection.isOverridden,
+            overrideReason: existingLoad?.overrideReason || '',
+            overrideUpdatedAt:
+              trSelection.isOverridden || btuSelection.isOverridden
+                ? (existingLoad?.overrideUpdatedAt ?? new Date())
+                : null,
+          };
 
           await tx.coolingLoad.upsert({
             where: { roomId: room.id },
@@ -54,10 +83,20 @@ export async function POST(request: NextRequest, context: RouteContext) {
           });
 
           totalProjectLoad += loadResult.totalLoad;
-          totalProjectTR += loadResult.trValue;
+          totalProjectTR += trSelection.final;
           results.push(loadResult);
         }
       }
+
+      await tx.project.update({
+        where: { id: projectId },
+        data: {
+          isEquipmentStale: true,
+          isBoqStale: true,
+          lastBoqGeneratedAt: null,
+          lastCoolingLoadAt: new Date(),
+        },
+      });
 
       await tx.auditLog.create({
         data: {

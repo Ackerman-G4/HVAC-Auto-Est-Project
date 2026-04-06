@@ -105,10 +105,26 @@ export default function NewProjectPage() {
         ]}
       />
 
+      <Card className="mb-6 border-border/70 bg-[linear-gradient(162deg,rgba(206,161,74,0.15),rgba(255,255,255,0.92))] shadow-[0_14px_28px_-24px_rgba(19,32,51,0.68)]">
+        <CardContent className="py-4">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Project Setup Workspace</p>
+              <p className="mt-0.5 text-sm font-medium text-foreground">
+                Define design conditions, building profile, and psychrometric inputs before room modeling.
+              </p>
+            </div>
+            <div className="text-xs tabular-nums text-muted-foreground">
+              Draft mode · unsaved
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <form onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Project Details */}
-          <Card>
+          <Card className="border-border/65 bg-card/90 shadow-[0_14px_28px_-24px_rgba(19,32,51,0.66)]">
             <CardHeader>
               <CardTitle>Project Details</CardTitle>
             </CardHeader>
@@ -173,12 +189,12 @@ export default function NewProjectPage() {
           </Card>
 
           {/* Design Conditions */}
-          <Card>
+          <Card className="border-border/65 bg-card/90 shadow-[0_14px_28px_-24px_rgba(19,32,51,0.66)]">
             <CardHeader>
               <CardTitle>Design Conditions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="p-3 bg-secondary rounded-lg">
+              <div className="rounded-lg border border-border/55 bg-secondary/45 p-3">
                 <p className="text-sm font-medium text-muted-foreground mb-1">
                   Carrier Psychrometric Chart
                 </p>
@@ -211,27 +227,27 @@ export default function NewProjectPage() {
                 const ps = psychrometricState(Number(form.outdoorDB) || 35, Number(form.outdoorRH) || 50);
                 return (
                   <div className="grid grid-cols-3 gap-2 text-center">
-                    <div className="bg-blue-50 rounded-lg py-1.5 px-1">
+                    <div className="rounded-lg border border-border/60 bg-background/90 px-1 py-1.5 shadow-[0_8px_16px_-18px_rgba(19,32,51,0.9)]">
                       <p className="text-sm font-semibold tabular-nums">{ps.wetBulb}°C</p>
                       <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Wet Bulb</p>
                     </div>
-                    <div className="bg-blue-50 rounded-lg py-1.5 px-1">
+                    <div className="rounded-lg border border-border/60 bg-background/90 px-1 py-1.5 shadow-[0_8px_16px_-18px_rgba(19,32,51,0.9)]">
                       <p className="text-sm font-semibold tabular-nums">{ps.dewPoint}°C</p>
                       <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Dew Point</p>
                     </div>
-                    <div className="bg-blue-50 rounded-lg py-1.5 px-1">
+                    <div className="rounded-lg border border-border/60 bg-background/90 px-1 py-1.5 shadow-[0_8px_16px_-18px_rgba(19,32,51,0.9)]">
                       <p className="text-sm font-semibold tabular-nums">{(ps.humidityRatio * 1000).toFixed(1)} g/kg</p>
                       <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Humidity Ratio</p>
                     </div>
-                    <div className="bg-blue-50 rounded-lg py-1.5 px-1">
+                    <div className="rounded-lg border border-border/60 bg-background/90 px-1 py-1.5 shadow-[0_8px_16px_-18px_rgba(19,32,51,0.9)]">
                       <p className="text-sm font-semibold tabular-nums">{ps.enthalpy} kJ/kg</p>
                       <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Enthalpy</p>
                     </div>
-                    <div className="bg-blue-50 rounded-lg py-1.5 px-1">
+                    <div className="rounded-lg border border-border/60 bg-background/90 px-1 py-1.5 shadow-[0_8px_16px_-18px_rgba(19,32,51,0.9)]">
                       <p className="text-sm font-semibold tabular-nums">{ps.specificVolume} m³/kg</p>
                       <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Sp. Volume</p>
                     </div>
-                    <div className="bg-blue-50 rounded-lg py-1.5 px-1">
+                    <div className="rounded-lg border border-border/60 bg-background/90 px-1 py-1.5 shadow-[0_8px_16px_-18px_rgba(19,32,51,0.9)]">
                       <p className="text-sm font-semibold tabular-nums">{ps.density} kg/m³</p>
                       <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Density</p>
                     </div>
@@ -265,7 +281,7 @@ export default function NewProjectPage() {
                 onChange={(e) => handleChange('notes', e.target.value)}
               />
             </CardContent>
-            <CardFooter className="flex justify-between">
+            <CardFooter className="flex justify-between border-t border-border/55 bg-card/80">
               <Link href="/projects">
                 <Button variant="ghost" type="button">
                   <ArrowLeft className="w-4 h-4 mr-2" />

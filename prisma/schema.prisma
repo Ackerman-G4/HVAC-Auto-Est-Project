@@ -42,11 +42,25 @@ model Project {
   safetyFactor         Float    @default(1.1)
   diversityFactor      Float    @default(0.85)
   notes                String   @default("")
+  suggestedLaborMultiplier Float @default(0.35)
+  laborMultiplierOverride  Float?
+  suggestedOverheadPercent Float @default(0.15)
+  overheadPercentOverride  Float?
+  suggestedContingencyPercent Float @default(0.05)
+  contingencyPercentOverride  Float?
+  suggestedVatRate Float @default(0.12)
+  vatRateOverride  Float?
+  isEquipmentStale Boolean @default(false)
+  isBoqStale       Boolean @default(false)
+  lastCoolingLoadAt DateTime?
+  lastEquipmentSyncAt DateTime?
+  lastBoqGeneratedAt DateTime?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
   floors            Floor[]
   boqItems          BOQItem[]
+  retrofitDecisions RetrofitDecision[]
   pipeRoutes        PipeRoute[]
   ductSegments      DuctSegment[]
   electricalLoads   ElectricalLoad[]
@@ -99,6 +113,7 @@ model Room {
   floor             Floor              @relation(fields: [floorId], references: [id], onDelete: Cascade)
   coolingLoad       CoolingLoad?
   selectedEquipment SelectedEquipment[]
+  retrofitDecisions RetrofitDecision[]
 
   @@index([floorId])
 }
@@ -121,7 +136,13 @@ model CoolingLoad {
   totalSensibleLoad        Float    @default(0)
   totalLatentLoad          Float    @default(0)
   totalLoad                Float    @default(0)
+  suggestedTrValue         Float    @default(0)
+  userTrOverride           Float?
+  finalTrValue             Float    @default(0)
   trValue                  Float    @default(0)
+  suggestedBtuPerHour      Float    @default(0)
+  userBtuOverride          Float?
+  finalBtuPerHour          Float    @default(0)
   btuPerHour               Float    @default(0)
   cfmSupply                Float    @default(0)
   cfmFreshAir              Float    @default(0)
@@ -130,6 +151,9 @@ model CoolingLoad {
   safetyFactor             Float    @default(1.1)
   diversityFactor          Float    @default(0.85)
   calculationMethod        String   @default("CLTD_CLF")
+  isOverridden             Boolean  @default(false)
+  overrideReason           String   @default("")
+  overrideUpdatedAt        DateTime?
   inputSnapshot            String   @default("{}") // JSON
   timestamp                DateTime @default(now())
 
@@ -171,6 +195,19 @@ model SelectedEquipment {
   roomId      String
   equipmentId String
   quantity    Int    @default(1)
+  suggestedBrand       String @default("")
+  suggestedModel       String @default("")
+  suggestedType        String @default("")
+  suggestedCapacityTR  Float  @default(0)
+  suggestedCapacityBTU Float  @default(0)
+  suggestedUnitPrice   Float  @default(0)
+  suggestedQuantity    Int    @default(1)
+  userQuantityOverride Int?
+  userUnitPriceOverride Float?
+  finalUnitPrice       Float  @default(0)
+  isOverridden         Boolean @default(false)
+  overrideReason       String @default("")
+  overrideUpdatedAt    DateTime?
   positionX   Float  @default(0)
   positionY   Float  @default(0)
   derating    String @default("{}") // JSON: pipeLengthFactor, elevationFactor, etc.
@@ -226,8 +263,18 @@ model BOQItem {
   specification String   @default("")
   quantity      Float    @default(0)
   unit          String   @default("pc")
+  suggestedUnitPrice Float @default(0) // PHP
+  suggestedTotalPrice Float @default(0) // PHP
+  userUnitPriceOverride Float?
+  userTotalPriceOverride Float?
+  finalUnitPrice Float @default(0) // PHP
+  finalTotalPrice Float @default(0) // PHP
   unitPrice     Float    @default(0) // PHP
   totalPrice    Float    @default(0) // PHP
+  sourceState   String   @default("suggested") // suggested, override
+  isOverridden  Boolean  @default(false)
+  overrideReason String  @default("")
+  overrideUpdatedAt DateTime?
   materialId    String?
   notes         String   @default("")
   createdAt     DateTime @default(now())
@@ -238,6 +285,26 @@ model BOQItem {
 
   @@index([projectId])
   @@index([category])
+}
+
+model RetrofitDecision {
+  id                 String   @id @default(uuid())
+  projectId          String
+  roomId             String?
+  category           String   @default("general")
+  suggestedDecision  String   @default("")
+  userDecisionOverride String?
+  finalDecision      String   @default("")
+  isOverridden       Boolean  @default(false)
+  justification      String   @default("")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  room    Room?   @relation(fields: [roomId], references: [id], onDelete: SetNull)
+
+  @@index([projectId])
+  @@index([roomId])
 }
 
 model PipeRoute {

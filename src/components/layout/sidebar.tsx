@@ -26,8 +26,8 @@ const navItems = [
   { href: '/', label: 'Overview', icon: LayoutDashboard },
   { href: '/projects', label: 'Projects', icon: FolderOpen },
   { href: '/simulation', label: 'CFD Simulation', icon: Wind },
-  { href: '/materials', label: 'Materials \& Suppliers', icon: Package },
-  { href: '/reports', label: 'Reports \& Export', icon: FileText },
+  { href: '/materials', label: 'Materials & Suppliers', icon: Package },
+  { href: '/reports', label: 'Reports & Export', icon: FileText },
   { href: '/quotation', label: 'Quotation', icon: Receipt },
   { href: '/diagnostics', label: 'Diagnostics', icon: Stethoscope },
   { href: '/settings', label: 'Settings', icon: Settings },
@@ -44,20 +44,29 @@ export function Sidebar() {
   };
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-white border-r border-slate-200 shadow-[4px_0_24px_-4px_rgba(0,0,0,0.02)] z-10 relative">
-      {/* Logo */}
-      <div className={cn(
-        'flex items-center gap-4 px-6 h-[80px] shrink-0 border-b border-slate-100 bg-white/50 backdrop-blur-xl',
-        collapsed && 'justify-center px-0'
-      )}>
-        <div className="flex items-center justify-center p-2.5 bg-blue-600 rounded-xl shadow-lg shadow-blue-600/20">
-          <Zap size={24} className="text-white" />
+    <div className="relative z-10 flex h-full flex-col border-r border-[color:var(--border)] bg-[rgba(255,255,255,0.92)] shadow-[12px_0_44px_-32px_rgba(19,32,51,0.52)] backdrop-blur-xl">
+      <div
+        className={cn(
+          'flex h-[86px] shrink-0 items-center gap-3 border-b border-[color:var(--border)] px-6',
+          collapsed && 'justify-center px-0'
+        )}
+      >
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(140deg,var(--accent),var(--accent-dark))] text-[color:var(--accent-foreground)] shadow-[0_10px_25px_-10px_rgba(15,139,141,0.8)]">
+          <Zap size={24} />
         </div>
-        {!collapsed && <span className="font-extrabold text-2xl tracking-tighter text-slate-900">HVAC<span className="text-blue-600">APP</span></span>}
+        {!collapsed && (
+          <div className="leading-tight">
+            <span className="block text-[10px] font-semibold uppercase tracking-[0.26em] text-[color:var(--muted-foreground)]">
+              Field Studio
+            </span>
+            <span className="block text-xl font-black tracking-tight text-[color:var(--foreground)]">
+              HVAC Estimator
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* Nav Links */}
-      <nav className="flex-1 py-8 flex flex-col gap-2 px-4 overflow-y-auto">
+      <nav className="flex flex-1 flex-col gap-2 overflow-y-auto px-4 py-8">
         {navItems.map((item) => {
           const active = isActive(item.href);
           return (
@@ -65,25 +74,33 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                'group relative flex items-center gap-3.5 px-3 py-3 rounded-xl text-[15px] font-bold transition-all duration-300',
+                'group relative flex items-center gap-3.5 rounded-2xl border px-3.5 py-3 text-[14px] font-semibold tracking-[0.01em] transition-all duration-300',
                 collapsed ? 'justify-center' : '',
                 active
-                  ? 'bg-blue-50 text-blue-700 shadow-sm border border-blue-100/50'
-                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 border border-transparent hover:border-slate-200/50'
+                  ? 'border-[rgba(15,139,141,0.3)] bg-[rgba(15,139,141,0.12)] text-[color:var(--accent-dark)] shadow-[0_10px_22px_-18px_rgba(15,139,141,0.95)]'
+                  : 'border-transparent text-[color:var(--muted-foreground)] hover:border-[color:var(--border)] hover:bg-[rgba(233,237,240,0.7)] hover:text-[color:var(--foreground)]'
               )}
             >
-              <item.icon size={20} className={cn('shrink-0 transition-transform duration-300 group-hover:scale-110', active ? 'text-blue-600' : 'text-slate-400 group-hover:text-blue-600')} strokeWidth={active ? 2.5 : 2} />
+              <item.icon
+                size={20}
+                className={cn(
+                  'shrink-0 transition-transform duration-300 group-hover:scale-110',
+                  active
+                    ? 'text-[color:var(--accent)]'
+                    : 'text-[color:var(--silver)] group-hover:text-[color:var(--accent)]'
+                )}
+                strokeWidth={active ? 2.4 : 2}
+              />
               {!collapsed && <span className="truncate tracking-wide">{item.label}</span>}
             </Link>
           );
         })}
       </nav>
 
-      {/* Collapse button (desktop only) */}
-      <div className="hidden lg:flex p-5 border-t border-slate-100 bg-slate-50/50">
+      <div className="hidden border-t border-[color:var(--border)] p-5 lg:flex">
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold text-slate-500 hover:text-slate-900 hover:bg-white border border-transparent hover:border-slate-200 hover:shadow-sm transition-all duration-300"
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-3 text-sm font-semibold text-[color:var(--muted-foreground)] transition-all duration-300 hover:border-[color:var(--border)] hover:bg-[color:var(--secondary)] hover:text-[color:var(--foreground)]"
         >
           {collapsed ? <ChevronRight size={20} /> : <><ChevronLeft size={20} /><span>Collapse Setup</span></>}
         </button>
@@ -95,7 +112,7 @@ export function Sidebar() {
     <>
       <button
         onClick={() => setMobileOpen(true)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2.5 rounded-lg bg-white border border-slate-200 shadow-sm text-slate-900 hover:bg-slate-50 transition-colors"
+        className="fixed left-4 top-4 z-50 rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] p-2.5 text-[color:var(--foreground)] shadow-[0_10px_24px_-16px_rgba(19,32,51,0.5)] transition-colors hover:bg-[color:var(--secondary)] lg:hidden"
       >
         <Menu size={20} />
       </button>
@@ -104,14 +121,14 @@ export function Sidebar() {
         {mobileOpen && (
           <>
             <motion.div
-              className="lg:hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40"
+              className="fixed inset-0 z-40 bg-[rgba(19,32,51,0.45)] backdrop-blur-sm lg:hidden"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setMobileOpen(false)}
             />
             <motion.aside
-              className="lg:hidden fixed left-0 top-0 bottom-0 w-[280px] bg-white z-50 shadow-2xl"
+              className="fixed bottom-0 left-0 top-0 z-50 w-[288px] bg-[color:var(--card)] shadow-2xl lg:hidden"
               variants={sidebarVariants}
               initial="closed"
               animate="open"
@@ -119,7 +136,7 @@ export function Sidebar() {
             >
               <button
                 onClick={() => setMobileOpen(false)}
-                className="absolute top-5 right-5 p-2 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-colors z-50"
+                className="absolute right-5 top-5 z-50 rounded-lg p-2 text-[color:var(--muted-foreground)] transition-colors hover:bg-[color:var(--secondary)] hover:text-[color:var(--foreground)]"
               >
                 <X size={20} />
               </button>

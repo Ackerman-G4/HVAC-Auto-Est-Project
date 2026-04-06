@@ -1,31 +1,31 @@
 @import "tailwindcss";
 
 :root {
-  --background: #F8FAFC;
-  --foreground: #0F172A;
-  --card: #FFFFFF;
-  --card-foreground: #0F172A;
-  --primary: #0F172A;
-  --primary-foreground: #FFFFFF;
-  --secondary: #F1F5F9;
-  --secondary-foreground: #334155;
-  --muted: #E2E8F0;
-  --muted-foreground: #64748B;
-  --accent: #2563EB;
-  --accent-light: #60A5FA;
-  --accent-dark: #1D4ED8;
-  --accent-foreground: #FFFFFF;
-  --border: #E2E8F0;
-  --input: #E2E8F0;
-  --ring: #2563EB;
-  --destructive: #EF4444;
-  --destructive-foreground: #FFFFFF;
-  --success: #10B981;
-  --warning: #F59E0B;
-  --silver: #94A3B8;
-  --silver-light: #F1F5F9;
-  --silver-dark: #475569;
-  --radius: 0.5rem;
+  --background: #f6f4ef;
+  --foreground: #132033;
+  --card: #ffffff;
+  --card-foreground: #132033;
+  --primary: #1f3658;
+  --primary-foreground: #f8fafc;
+  --secondary: #e9edf0;
+  --secondary-foreground: #2f435d;
+  --muted: #dbe2e8;
+  --muted-foreground: #5e7086;
+  --accent: #0f8b8d;
+  --accent-light: #4db9b3;
+  --accent-dark: #0a6a71;
+  --accent-foreground: #f5fffe;
+  --border: #d2dbe3;
+  --input: #d2dbe3;
+  --ring: #0f8b8d;
+  --destructive: #d84d57;
+  --destructive-foreground: #fff7f8;
+  --success: #2b9f73;
+  --warning: #db8e2f;
+  --silver: #8ca0b4;
+  --silver-light: #eff3f6;
+  --silver-dark: #455b73;
+  --radius: 0.75rem;
 }
 
 @theme inline {
@@ -53,8 +53,8 @@
   --color-silver: var(--silver);
   --color-silver-light: var(--silver-light);
   --color-silver-dark: var(--silver-dark);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-space-grotesk);
+  --font-mono: var(--font-ibm-plex-mono);
 }
 
 * {
@@ -64,11 +64,40 @@
 }
 
 body {
-  background: var(--background);
+  position: relative;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 12% 10%, color-mix(in oklab, var(--accent-light) 18%, transparent) 0%, transparent 38%),
+    radial-gradient(circle at 88% 16%, color-mix(in oklab, var(--warning) 14%, transparent) 0%, transparent 42%),
+    linear-gradient(180deg, #f9f7f1 0%, var(--background) 38%, #f2f5f8 100%);
   color: var(--foreground);
-  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans), "Trebuchet MS", "Segoe UI", sans-serif;
+  letter-spacing: 0.005em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0,
+      transparent 27px,
+      color-mix(in oklab, var(--accent) 9%, transparent) 28px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0,
+      transparent 27px,
+      color-mix(in oklab, var(--accent) 9%, transparent) 28px
+    );
+  mask-image: radial-gradient(circle at center, black 24%, transparent 78%);
+  z-index: -1;
 }
 
 ::selection {
@@ -94,10 +123,11 @@ body {
 
 /* Base utilities */
 .glass {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid var(--border);
+  background: color-mix(in oklab, var(--card) 88%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid color-mix(in oklab, var(--border) 88%, white);
+  box-shadow: 0 14px 34px -22px color-mix(in oklab, var(--accent-dark) 45%, transparent);
 }
 
 .tabular-nums {

@@ -787,42 +787,42 @@ export default function ReportsPage() {
         </div>
 
         <div className="space-y-5">
-          <Card className="border-accent/20 bg-accent/5">
+          <Card className="border-border/65 bg-[linear-gradient(165deg,rgba(206,161,74,0.14),rgba(255,255,255,0.92))] shadow-[0_14px_28px_-24px_rgba(19,32,51,0.68)]">
             <CardHeader>
               <CardTitle className="text-[13px] flex items-center gap-2">
                 <Info className="w-4 h-4 text-accent" /> Report Snapshot
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <div className="rounded-lg border border-border/70 bg-card p-3">
+              <div className="rounded-lg border border-border/70 bg-card/90 p-3">
                 <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Selected Project</p>
                 <p className="text-sm font-semibold truncate">{selectedProject?.name || 'None'}</p>
               </div>
-              <div className="rounded-lg border border-border/70 bg-card p-3">
+              <div className="rounded-lg border border-border/70 bg-card/90 p-3">
                 <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">BOQ Sections</p>
                 <p className="text-2xl font-semibold tabular-nums">{boqData ? boqSectionCount : '—'}</p>
               </div>
-              <div className="rounded-lg border border-border/70 bg-card p-3">
+              <div className="rounded-lg border border-border/70 bg-card/90 p-3">
                 <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Equipment Lines</p>
                 <p className="text-2xl font-semibold tabular-nums">{boqData ? equipment.length : '—'}</p>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-border/65 bg-card/90 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.66)]">
             <CardHeader>
               <CardTitle className="text-[13px]">Export Readiness</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-[12px]">
-              <div className="flex items-center justify-between rounded-lg bg-secondary/50 px-3 py-2">
+              <div className="flex items-center justify-between rounded-lg border border-border/55 bg-secondary/45 px-3 py-2">
                 <span className="flex items-center gap-2 text-muted-foreground"><CheckCircle2 className="w-3.5 h-3.5 text-success" /> BOQ Data</span>
                 <span className="font-medium">{boqData ? 'Ready' : 'Pending'}</span>
               </div>
-              <div className="flex items-center justify-between rounded-lg bg-secondary/50 px-3 py-2">
+              <div className="flex items-center justify-between rounded-lg border border-border/55 bg-secondary/45 px-3 py-2">
                 <span className="flex items-center gap-2 text-muted-foreground"><CheckCircle2 className="w-3.5 h-3.5 text-success" /> Room Loads</span>
                 <span className="font-medium">{rooms.length > 0 ? 'Ready' : 'Pending'}</span>
               </div>
-              <div className="flex items-center justify-between rounded-lg bg-secondary/50 px-3 py-2">
+              <div className="flex items-center justify-between rounded-lg border border-border/55 bg-secondary/45 px-3 py-2">
                 <span className="flex items-center gap-2 text-muted-foreground"><CheckCircle2 className="w-3.5 h-3.5 text-success" /> Equipment</span>
                 <span className="font-medium">{equipment.length > 0 ? 'Ready' : 'Pending'}</span>
               </div>

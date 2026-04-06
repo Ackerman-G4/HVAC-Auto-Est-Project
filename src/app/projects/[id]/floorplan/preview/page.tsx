@@ -406,18 +406,18 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
       ) : (
         <div className="space-y-4">
           {/* Controls bar */}
-          <div className="no-print flex flex-wrap items-center gap-3">
+          <div className="no-print flex flex-wrap items-center gap-3 rounded-xl border border-border/65 bg-card/85 px-3 py-2 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.68)]">
             {/* Floor selector */}
             {floors.length > 1 && (
-              <div className="flex items-center gap-1 bg-secondary rounded-lg p-0.5">
+              <div className="flex items-center gap-1 rounded-lg border border-border/55 bg-card/80 p-0.5">
                 {floors.map((floor, idx) => (
                   <button
                     key={floor.id}
                     onClick={() => setActiveFloor(idx)}
                     className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
                       idx === activeFloor
-                        ? 'bg-white text-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
+                        ? 'bg-accent text-accent-foreground shadow-[0_8px_18px_-14px_rgba(206,161,74,0.9)]'
+                        : 'text-muted-foreground hover:bg-secondary/70 hover:text-foreground'
                     }`}
                   >
                     {floor.name}
@@ -427,11 +427,13 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
             )}
 
             {/* Toggle buttons */}
-            <div className="flex items-center gap-1 bg-secondary rounded-lg p-0.5">
+            <div className="flex items-center gap-1 rounded-lg border border-border/55 bg-card/80 p-0.5">
               <button
                 onClick={() => setShowLabels(!showLabels)}
                 className={`px-2.5 py-1.5 text-xs rounded-md transition-colors ${
-                  showLabels ? 'bg-white text-foreground shadow-sm' : 'text-muted-foreground'
+                  showLabels
+                    ? 'bg-accent text-accent-foreground shadow-[0_8px_18px_-14px_rgba(206,161,74,0.9)]'
+                    : 'text-muted-foreground hover:bg-secondary/70 hover:text-foreground'
                 }`}
               >
                 Labels
@@ -439,7 +441,9 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
               <button
                 onClick={() => setShowDimensions(!showDimensions)}
                 className={`px-2.5 py-1.5 text-xs rounded-md transition-colors ${
-                  showDimensions ? 'bg-white text-foreground shadow-sm' : 'text-muted-foreground'
+                  showDimensions
+                    ? 'bg-accent text-accent-foreground shadow-[0_8px_18px_-14px_rgba(206,161,74,0.9)]'
+                    : 'text-muted-foreground hover:bg-secondary/70 hover:text-foreground'
                 }`}
               >
                 Areas
@@ -447,7 +451,9 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
               <button
                 onClick={() => setShowLoads(!showLoads)}
                 className={`px-2.5 py-1.5 text-xs rounded-md transition-colors ${
-                  showLoads ? 'bg-white text-foreground shadow-sm' : 'text-muted-foreground'
+                  showLoads
+                    ? 'bg-accent text-accent-foreground shadow-[0_8px_18px_-14px_rgba(206,161,74,0.9)]'
+                    : 'text-muted-foreground hover:bg-secondary/70 hover:text-foreground'
                 }`}
               >
                 Loads
@@ -458,7 +464,7 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setZoom(z => Math.max(0.5, z - 0.1))}
-                className="p-1.5 rounded-md text-muted-foreground hover:bg-secondary transition-colors"
+                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary/75 hover:text-foreground"
                 title="Zoom out"
               >
                 <ZoomOut className="w-4 h-4" />
@@ -468,14 +474,14 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
               </span>
               <button
                 onClick={() => setZoom(z => Math.min(2, z + 0.1))}
-                className="p-1.5 rounded-md text-muted-foreground hover:bg-secondary transition-colors"
+                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary/75 hover:text-foreground"
                 title="Zoom in"
               >
                 <ZoomIn className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setZoom(1)}
-                className="p-1.5 rounded-md text-muted-foreground hover:bg-secondary transition-colors"
+                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary/75 hover:text-foreground"
                 title="Reset zoom"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
@@ -484,14 +490,14 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
           </div>
 
           {/* Canvas area */}
-          <Card className="p-0 print-full">
+          <Card className="print-full overflow-hidden border border-border/65 bg-card/90 p-0 shadow-[0_16px_30px_-24px_rgba(19,32,51,0.72)]">
             <div ref={containerRef} className="w-full h-125 relative">
               <canvas ref={canvasRef} className="w-full h-full" />
             </div>
           </Card>
 
           {/* Room summary table */}
-          <Card>
+          <Card className="border border-border/65 bg-card/90 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.68)]">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-sm">
                 <Layers className="w-4 h-4 text-muted-foreground" />

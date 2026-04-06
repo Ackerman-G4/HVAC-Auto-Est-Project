@@ -13,6 +13,7 @@ import {
   buildCoolingLoadInput,
   coolingLoadToDbFields,
 } from '@/lib/utils/api-helpers';
+import { finalizeDualValue } from '@/lib/utils/dual-control';
 
 type RouteContext = { params: Promise<{ id: string; roomId: string }> };
 
@@ -56,11 +57,71 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       if (project) {
         const loadInput = buildCoolingLoadInput(room, project);
         const result = calculateCoolingLoad(loadInput, room.id, room.name);
+        const existingLoad = await neon.coolingLoad.findUnique({
+          where: { roomId: room.id },
+          select: {
+            userTrOverride: true,
+            userBtuOverride: true,
+            overrideReason: true,
+            overrideUpdatedAt: true,
+          },
+        });
+        const trSelection = finalizeDualValue(
+          result.trValue,
+          body.userTrOverride !== undefined ? body.userTrOverride : existingLoad?.userTrOverride,
+        );
+        const btuSelection = finalizeDualValue(
+          result.btuPerHour,
+          body.userBtuOverride !== undefined ? body.userBtuOverride : existingLoad?.userBtuOverride,
+        );
 
         await neon.coolingLoad.upsert({
           where: { roomId: room.id },
-          create: { roomId: room.id, ...coolingLoadToDbFields(result) },
-          update: coolingLoadToDbFields(result),
+          create: {
+            roomId: room.id,
+            ...coolingLoadToDbFields(result),
+            suggestedTrValue: result.trValue,
+            userTrOverride: trSelection.override,
+            finalTrValue: trSelection.final,
+            trValue: trSelection.final,
+            suggestedBtuPerHour: result.btuPerHour,
+            userBtuOverride: btuSelection.override,
+            finalBtuPerHour: btuSelection.final,
+            btuPerHour: btuSelection.final,
+            isOverridden: trSelection.isOverridden || btuSelection.isOverridden,
+            overrideReason: body.overrideReason ?? existingLoad?.overrideReason ?? '',
+            overrideUpdatedAt:
+              trSelection.isOverridden || btuSelection.isOverridden
+                ? (existingLoad?.overrideUpdatedAt ?? new Date())
+                : null,
+          },
+          update: {
+            ...coolingLoadToDbFields(result),
+            suggestedTrValue: result.trValue,
+            userTrOverride: trSelection.override,
+            finalTrValue: trSelection.final,
+            trValue: trSelection.final,
+            suggestedBtuPerHour: result.btuPerHour,
+            userBtuOverride: btuSelection.override,
+            finalBtuPerHour: btuSelection.final,
+            btuPerHour: btuSelection.final,
+            isOverridden: trSelection.isOverridden || btuSelection.isOverridden,
+            overrideReason: body.overrideReason ?? existingLoad?.overrideReason ?? '',
+            overrideUpdatedAt:
+              trSelection.isOverridden || btuSelection.isOverridden
+                ? (existingLoad?.overrideUpdatedAt ?? new Date())
+                : null,
+          },
+        });
+
+        await neon.project.update({
+          where: { id: projectId },
+          data: {
+            isEquipmentStale: true,
+            isBoqStale: true,
+            lastBoqGeneratedAt: null,
+            lastCoolingLoadAt: new Date(),
+          },
         });
       }
     }
@@ -91,6 +152,16 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     }
 
     await neon.room.delete({ where: { id: roomId } });
+
+    await neon.project.update({
+      where: { id: projectId },
+      data: {
+        isEquipmentStale: true,
+        isBoqStale: true,
+        lastBoqGeneratedAt: null,
+        lastCoolingLoadAt: new Date(),
+      },
+    });
 
     return NextResponse.json({ message: 'Room deleted successfully' });
   } catch (error) {

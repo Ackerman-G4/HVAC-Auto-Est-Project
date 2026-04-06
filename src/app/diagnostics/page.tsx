@@ -284,7 +284,7 @@ export default function DiagnosticsPage() {
         )}
 
         {/* Row 2: Symptoms */}
-        <Card>
+        <Card className="border-border/65 bg-card/90 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.62)]">
           <CardContent className="py-3 px-4">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Symptoms</p>
             <div className="flex flex-wrap gap-1.5">
@@ -309,7 +309,7 @@ export default function DiagnosticsPage() {
         </button>
 
         {showMeasurements && (
-          <Card>
+          <Card className="border-border/65 bg-card/90 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.62)]">
             <CardContent className="py-3 px-4">
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-x-3 gap-y-2">
                 <NumField label="Supply (cold)" field="supplyTempCold" unit="°C" ph="14" />
@@ -342,7 +342,7 @@ export default function DiagnosticsPage() {
 
           {/* Summary row */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-            <Card className="lg:col-span-2">
+            <Card className="lg:col-span-2 border-border/65 bg-card/90 shadow-[0_14px_28px_-24px_rgba(19,32,51,0.66)]">
               <CardContent className="py-3 px-4">
                 <p className="text-sm font-semibold text-foreground">{result.summaryTitle}</p>
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{result.summaryDescription}</p>
@@ -355,7 +355,7 @@ export default function DiagnosticsPage() {
 
             <div className="flex flex-col gap-3">
               {result.deltaT && (
-                <Card>
+                <Card className="border-border/65 bg-card/90 shadow-[0_12px_22px_-22px_rgba(19,32,51,0.62)]">
                   <CardContent className="py-2.5 px-4 flex items-center justify-between">
                     <div>
                       <p className="text-[10px] font-medium text-muted-foreground">ΔT</p>
@@ -369,7 +369,7 @@ export default function DiagnosticsPage() {
                 </Card>
               )}
               {result.sensibleHeatRatio && (
-                <Card>
+                <Card className="border-border/65 bg-card/90 shadow-[0_12px_22px_-22px_rgba(19,32,51,0.62)]">
                   <CardContent className="py-2.5 px-4 flex items-center justify-between">
                     <div>
                       <p className="text-[10px] font-medium text-muted-foreground">SHR</p>
@@ -386,7 +386,7 @@ export default function DiagnosticsPage() {
           </div>
 
           {/* Immediate actions */}
-          <Card>
+          <Card className="border-border/65 bg-card/90 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.62)]">
             <CardContent className="py-2.5 px-4">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Immediate Actions</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
@@ -411,7 +411,7 @@ export default function DiagnosticsPage() {
           </div>
 
           {/* Preventive */}
-          <Card>
+          <Card className="border-border/65 bg-card/90 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.62)]">
             <CardContent className="py-2.5 px-4">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Preventive Maintenance</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
@@ -446,8 +446,8 @@ function FaultRow({ fault, expanded, onToggle }: { fault: DiagnosticFault; expan
   const conf = confidenceConfig[fault.probability];
 
   return (
-    <Card className="overflow-hidden p-0">
-      <button type="button" onClick={onToggle} className="w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-secondary/40 transition-colors">
+    <Card className="overflow-hidden border-border/65 bg-card/90 p-0 shadow-[0_10px_20px_-20px_rgba(19,32,51,0.62)]">
+      <button type="button" onClick={onToggle} className="w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-secondary/45 transition-colors">
         <span className="flex items-center justify-center w-6 h-6 rounded-full bg-secondary text-[10px] font-bold shrink-0">{fault.rank}</span>
         <div className="flex-1 min-w-0">
           <p className="text-xs font-semibold text-foreground truncate">{fault.title}</p>

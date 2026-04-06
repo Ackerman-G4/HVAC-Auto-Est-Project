@@ -90,18 +90,18 @@ export default function DashboardPage() {
       />
 
       {/* Hero Card */}
-      <Card className="mb-8 border-0 bg-slate-900 text-white overflow-hidden relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-purple-600/20" />
-        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+      <Card className="relative mb-8 overflow-hidden border border-border/65 bg-[linear-gradient(138deg,rgba(19,32,51,0.98),rgba(27,46,71,0.95))] text-white shadow-[0_22px_38px_-30px_rgba(19,32,51,0.9)]">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_24%,rgba(15,139,141,0.26),transparent_48%)]" />
+        <div className="absolute right-0 top-0 h-96 w-96 -translate-y-1/2 translate-x-1/2 rounded-full bg-[rgba(228,220,184,0.18)] blur-3xl" />
         <CardContent className="py-8 relative z-10">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-500/20 border border-blue-400/30 rounded-full mb-4">
-                <span className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
-                <span className="text-xs font-medium text-blue-300">Engineering Automation Platform</span>
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[rgba(228,220,184,0.32)] bg-[rgba(228,220,184,0.16)] px-3 py-1">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-[color:var(--gold)]" />
+                <span className="text-xs font-medium text-[rgba(245,238,211,0.92)]">Engineering Automation Platform</span>
               </div>
               <h2 className="text-2xl lg:text-3xl font-bold text-white tracking-tight">Welcome to HVAC-AEST-EA</h2>
-              <p className="mt-2 text-sm text-slate-300 max-w-lg">
+              <p className="mt-2 max-w-lg text-sm text-[rgba(255,255,255,0.76)]">
                 Streamline your HVAC estimation workflow with intelligent load calculations, automated equipment sizing, and professional BOQ generation.
               </p>
             </div>
@@ -136,7 +136,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 border-border/65 bg-card/90 shadow-[0_14px_28px_-24px_rgba(19,32,51,0.68)]">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Recent Projects</CardTitle>
@@ -184,26 +184,26 @@ export default function DashboardPage() {
                     <motion.div key={project.id} variants={listItemVariants}>
                       <Link
                         href={`/projects/${project.id}`}
-                        className="flex items-center justify-between p-4 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-100 hover:border-slate-300 hover:shadow-sm transition-all duration-200 group"
+                        className="group flex items-center justify-between rounded-xl border border-border/60 bg-card/75 p-4 transition-all duration-200 hover:border-border hover:bg-card hover:shadow-[0_14px_24px_-22px_rgba(19,32,51,0.72)]"
                       >
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2.5">
-                            <h3 className="text-sm font-semibold text-slate-900 truncate group-hover:text-accent transition-colors">
+                            <h3 className="truncate text-sm font-semibold text-foreground transition-colors group-hover:text-[color:var(--accent-dark)]">
                               {project.name}
                             </h3>
                             <Badge variant={statusColor[project.status] || 'default'} size="sm">
                               {project.status}
                             </Badge>
                           </div>
-                          <p className="text-xs text-slate-500 mt-1">
+                          <p className="mt-1 text-xs text-muted-foreground">
                             {project.clientName || 'No client'} · {project.buildingType} · {project.location || 'No location'}
                           </p>
                         </div>
                         <div className="text-right ml-4 shrink-0">
-                          <p className="text-sm font-bold tabular-nums text-slate-900">
+                          <p className="text-sm font-bold tabular-nums text-foreground">
                             {projectTR.toFixed(1)} TR
                           </p>
-                          <p className="text-[11px] text-slate-500 tabular-nums">
+                          <p className="text-[11px] text-muted-foreground tabular-nums">
                             {new Date(project.updatedAt).toLocaleDateString()}
                           </p>
                         </div>
@@ -219,22 +219,22 @@ export default function DashboardPage() {
         <div className="space-y-6">
           
 
-          <Card className="border-blue-200 bg-gradient-to-br from-blue-50/80 to-indigo-50/50">
+          <Card className="border-border/70 bg-[linear-gradient(162deg,rgba(15,139,141,0.14),rgba(255,255,255,0.9))] shadow-[0_14px_28px_-24px_rgba(19,32,51,0.68)]">
             <CardHeader>
               <CardTitle className="text-base font-bold">Portfolio Snapshot</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="rounded-xl border border-white bg-white/70 p-4 shadow-sm">
-                <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Selected Equipment</p>
-                <p className="text-2xl font-bold text-slate-900 mt-1">{loading ? '—' : totalEquipment}</p>
+              <div className="rounded-xl border border-border/60 bg-background/80 p-4 shadow-[0_14px_24px_-24px_rgba(19,32,51,0.7)]">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Selected Equipment</p>
+                <p className="mt-1 text-2xl font-bold text-foreground">{loading ? '—' : totalEquipment}</p>
               </div>
-              <div className="rounded-xl border border-white bg-white/70 p-4 shadow-sm">
-                <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">BOQ Line Items</p>
-                <p className="text-2xl font-bold text-slate-900 mt-1">{loading ? '—' : totalBOQItems}</p>
+              <div className="rounded-xl border border-border/60 bg-background/80 p-4 shadow-[0_14px_24px_-24px_rgba(19,32,51,0.7)]">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">BOQ Line Items</p>
+                <p className="mt-1 text-2xl font-bold text-foreground">{loading ? '—' : totalBOQItems}</p>
               </div>
-              <div className="rounded-xl border border-white bg-white/70 p-4 shadow-sm">
-                <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Avg Items / Project</p>
-                <p className="text-2xl font-bold text-slate-900 mt-1">
+              <div className="rounded-xl border border-border/60 bg-background/80 p-4 shadow-[0_14px_24px_-24px_rgba(19,32,51,0.7)]">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Avg Items / Project</p>
+                <p className="mt-1 text-2xl font-bold text-foreground">
                   {loading ? '—' : totalProjects > 0 ? (totalBOQItems / totalProjects).toFixed(1) : '0.0'}
                 </p>
               </div>

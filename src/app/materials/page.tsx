@@ -119,7 +119,7 @@ export default function MaterialsPage() {
       />
 
       <Tabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab}>
-      <Card className="mb-5 border-accent/20 bg-linear-to-r from-accent/10 via-primary/5 to-secondary/40">
+      <Card className="mb-5 border-border/70 bg-[linear-gradient(162deg,rgba(206,161,74,0.15),rgba(255,255,255,0.92))] shadow-[0_14px_28px_-24px_rgba(19,32,51,0.7)]">
         <CardContent className="py-4">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -139,7 +139,7 @@ export default function MaterialsPage() {
 
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
         <div className="xl:col-span-3">
-          <div className="flex flex-col sm:flex-row gap-3 mt-4 mb-4">
+          <div className="mt-4 mb-4 flex flex-col gap-3 rounded-xl border border-border/65 bg-card/85 px-3 py-3 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.65)] sm:flex-row">
             <div className="flex gap-2 flex-1">
               <Input
                 placeholder={activeTab === 'materials' ? 'Search materials...' : 'Search suppliers...'}
@@ -196,7 +196,7 @@ export default function MaterialsPage() {
                   description="Try a different search term or category"
                 />
               ) : (
-                <Card>
+                <Card className="border-border/65 bg-card/90 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.66)]">
                   <CardContent className="p-0 overflow-x-auto">
                     <table className="w-full text-[13px]">
                       <thead>
@@ -266,10 +266,10 @@ export default function MaterialsPage() {
                 >
                   {suppliers.map((supplier, idx) => (
                     <motion.div key={`${supplier.name}-${idx}`} variants={cardItemVariants}>
-                      <Card className="h-full">
+                      <Card className="h-full border-border/65 bg-card/90 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.64)]">
                         <CardContent className="p-5">
                           <div className="flex items-start gap-3 mb-3">
-                            <div className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border/55 bg-secondary/60">
                               <Store className="w-4 h-4 text-muted-foreground" />
                             </div>
                             <div className="flex-1 min-w-0">
@@ -332,40 +332,40 @@ export default function MaterialsPage() {
         </div>
 
         <div className="space-y-4">
-          <Card className="border-accent/20 bg-accent/5">
+          <Card className="border-border/65 bg-[linear-gradient(165deg,rgba(206,161,74,0.14),rgba(255,255,255,0.92))] shadow-[0_14px_28px_-24px_rgba(19,32,51,0.68)]">
             <CardHeader>
               <CardTitle className="text-[13px] flex items-center gap-2">
                 <ClipboardList className="w-4 h-4 text-accent" /> Catalog Snapshot
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <div className="rounded-lg border border-border/70 bg-card p-3">
+              <div className="rounded-lg border border-border/70 bg-card/90 p-3">
                 <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Materials</p>
                 <p className="text-xl font-semibold tabular-nums">{loading ? '—' : materials.length}</p>
               </div>
-              <div className="rounded-lg border border-border/70 bg-card p-3">
+              <div className="rounded-lg border border-border/70 bg-card/90 p-3">
                 <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Suppliers</p>
                 <p className="text-xl font-semibold tabular-nums">{loading ? '—' : suppliers.length}</p>
               </div>
-              <div className="rounded-lg border border-border/70 bg-card p-3">
+              <div className="rounded-lg border border-border/70 bg-card/90 p-3">
                 <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Avg Material Price</p>
                 <p className="text-xl font-semibold tabular-nums">{loading ? '—' : formatPHP(averageMaterialPrice)}</p>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-border/65 bg-card/90 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.66)]">
             <CardHeader>
               <CardTitle className="text-[13px] flex items-center gap-2">
                 <Layers3 className="w-4 h-4 text-muted-foreground" /> Coverage
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-[12px] text-muted-foreground">
-              <div className="flex items-center justify-between rounded-lg bg-secondary/50 px-3 py-2">
+              <div className="flex items-center justify-between rounded-lg border border-border/55 bg-secondary/45 px-3 py-2">
                 <span className="flex items-center gap-2"><Package className="w-3.5 h-3.5" /> Categories</span>
                 <span className="font-medium tabular-nums text-foreground">{categories.length}</span>
               </div>
-              <div className="flex items-center justify-between rounded-lg bg-secondary/50 px-3 py-2">
+              <div className="flex items-center justify-between rounded-lg border border-border/55 bg-secondary/45 px-3 py-2">
                 <span className="flex items-center gap-2"><Factory className="w-3.5 h-3.5" /> Supplier Types</span>
                 <span className="font-medium tabular-nums text-foreground">{supplierTypes.length}</span>
               </div>
