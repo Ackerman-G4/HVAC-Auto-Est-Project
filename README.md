@@ -439,9 +439,9 @@ npm run dev          # Idempotent Next.js dev launcher (Turbopack)
 npm run dev:no-turbo # Idempotent Next.js dev launcher without Turbopack
 npm run dev:raw      # Raw Next.js dev server (Turbopack)
 npm run dev:raw:no-turbo # Raw Next.js dev server without Turbopack
-npm run dev:stack    # One command: preflight, start Firestore emulator, then start app
-npm run dev:stack:no-turbo # One-command stack startup without Turbopack
-npm run dev:stack:reuse # Reuse running app/emulator processes for this workspace
+npm run dev:stack    # One command: preflight, start-or-reuse Firestore emulator, then start-or-reuse app
+npm run dev:stack:no-turbo # One-command stack startup without Turbopack (also reuses running processes)
+npm run dev:stack:reuse # Explicit alias for reusing running app/emulator processes
 npm run dev:emulator # Next.js dev server with Firestore emulator env wiring
 npm run dev:emulator:no-turbo # Emulator env wiring without Turbopack
 npm run emulator:firestore # Start Firestore emulator (port 9080)
@@ -483,15 +483,15 @@ One-command local runtime (recommended):
 npm run dev:stack
 ```
 
-This command performs preflight checks, verifies app/emulator port conflicts, starts Firestore emulator, wires required env vars, and then starts Next.js.
+This command performs preflight checks, verifies app/emulator ownership, starts Firestore emulator and Next.js when needed, or reuses already-running workspace processes.
 
-If Firestore emulator is already running and you want to reuse it:
+If you want to explicitly force emulator-only reuse behavior:
 
 ```bash
 npm run dev:stack -- -ReuseRunningEmulator
 ```
 
-If both Next.js and Firestore emulator are already running and should be reused:
+If both Next.js and Firestore emulator are already running and should be reused explicitly:
 
 ```bash
 npm run dev:stack:reuse

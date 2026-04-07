@@ -48,7 +48,7 @@ Start full local stack (recommended):
 npm run dev:stack
 ```
 
-The command runs preflight checks, validates port usage, starts Firestore emulator, sets emulator env vars, and then starts Next.js.
+The command runs preflight checks, validates process ownership, starts Firestore emulator/Next.js when needed, and reuses already-running workspace processes by default.
 
 If emulator is already running and should be reused:
 
