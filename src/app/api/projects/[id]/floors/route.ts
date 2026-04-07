@@ -5,8 +5,12 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import neon from '@/lib/db/prisma';
-import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
+import {
+  createFloorRecord,
+  getFloorsWithRooms,
+  getProjectRecord,
+} from '@/lib/firebase/projects-store';
+import { errorResponse, getErrorDetails, resourceNotFound } from '@/lib/utils/api-helpers';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -14,14 +18,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
   try {
     const { id: projectId } = await context.params;
 
-    const floors = await neon.floor.findMany({
-      where: { projectId },
-      include: {
-        rooms: {
-          include: { coolingLoad: true, selectedEquipment: true },
-        },
-      },
-      orderBy: { floorNumber: 'asc' },
+    const floors = await getFloorsWithRooms(projectId, {
+      includeRoomEquipment: true,
+      includeRoomEquipmentCount: false,
     });
 
     return NextResponse.json({ floors });
@@ -37,20 +36,17 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const { id: projectId } = await context.params;
     const body = await request.json();
 
-    const project = await neon.project.findUnique({ where: { id: projectId } });
+    const project = await getProjectRecord(projectId);
     if (!project) {
-      return errorResponse(404, 'Project not found', 'The project does not exist.', 'PROJECT_NOT_FOUND');
+      return resourceNotFound('Project', 'The project does not exist.', 'PROJECT_NOT_FOUND');
     }
 
-    const floor = await neon.floor.create({
-      data: {
-        projectId,
-        floorNumber: body.floorNumber ?? 1,
-        name: body.name || `Floor ${body.floorNumber ?? 1}`,
-        ceilingHeight: body.ceilingHeight ?? 3.0,
-        scale: body.scale ?? 50,
-        floorPlanImage: body.floorPlanImage ?? null,
-      },
+    const floor = await createFloorRecord(projectId, {
+      floorNumber: body.floorNumber ?? 1,
+      name: body.name || `Floor ${body.floorNumber ?? 1}`,
+      ceilingHeight: body.ceilingHeight ?? 3.0,
+      scale: body.scale ?? 50,
+      floorPlanImage: body.floorPlanImage ?? null,
     });
 
     return NextResponse.json({ floor }, { status: 201 });

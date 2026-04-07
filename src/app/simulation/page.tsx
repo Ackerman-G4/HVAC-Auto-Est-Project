@@ -4,9 +4,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 import {
-  Wind, Thermometer, Gauge, Plus, Trash2, Play, ShieldCheck,
+  Wind, Thermometer, Plus, Trash2, Play, ShieldCheck,
   AlertTriangle, Zap, TrendingUp, Server, AirVent, Grid3x3,
-  ChevronDown, RotateCcw, Settings2, BarChart3, Activity, Box,
+  RotateCcw, Settings2, BarChart3, Box,
 } from 'lucide-react';
 import { PageWrapper, PageHeader } from '@/components/ui/page-wrapper';
 import { StatCard } from '@/components/ui/stat-card';
@@ -16,7 +16,6 @@ import type {
   RackDensity, HVACUnitType, FailureScenario,
 } from '@/types/simulation';
 import type { Project } from '@/types/project';
-import { demoProject } from '../projects/demo-project';
 
 const AirflowViewer3D = dynamic(
   () => import('@/components/building/AirflowViewer3D').then(mod => mod.default),
@@ -298,7 +297,7 @@ function EquipmentPanel() {
 // ─── Simulation Config Panel ────────────────────────────────────────
 
 function ConfigPanel() {
-  const { config, setConfig, raisedFloorHeight } = useSimulationStore();
+  const { config, setConfig } = useSimulationStore();
 
   return (
     <div className="grid grid-cols-2 gap-4 rounded-2xl border border-border/70 bg-card/80 p-5 shadow-[0_14px_26px_-24px_rgba(19,32,51,0.68)] md:grid-cols-4">
@@ -675,19 +674,19 @@ interface ProjectDropdownProps {
 // Project dropdown now fetches from API
 
 export default function SimulationPage() {
-    const [simError, setSimError] = useState<string | null>(null);
+  const [simError, setSimError] = useState<string | null>(null);
   const [projectList, setProjectList] = useState<Project[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [activeTab, setActiveTab] = useState('equipment');
   const {
     racks, hvacUnits, isRunning, result,
-    runSimulation, runCompliance, runPUE, runOptimization, clearResults,
+    runSimulation, runCompliance, runPUE, runOptimization,
+    activeView, showHotspots, showAirflow, selectedSliceZ,
+    setActiveView, setShowHotspots, setShowAirflow, setSelectedSliceZ,
   } = useSimulationStore();
   const [selectedProjectId, setSelectedProjectId] = useState('');
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   useEffect(() => {
-    setLoadingProjects(true);
     fetch('/api/projects')
       .then(res => res.json())
       .then(data => {
@@ -695,7 +694,6 @@ export default function SimulationPage() {
           setProjectList(data.projects);
           if (data.projects.length > 0) {
             setSelectedProjectId(data.projects[0].id);
-            setSelectedProject(data.projects[0]);
           }
         }
         setLoadingProjects(false);
@@ -705,11 +703,6 @@ export default function SimulationPage() {
         setSimError('Failed to load projects: ' + err?.message);
       });
   }, []);
-
-  useEffect(() => {
-    const proj = projectList.find(p => p.id === selectedProjectId);
-    setSelectedProject(proj || null);
-  }, [selectedProjectId, projectList]);
   const totalHeatKW = useMemo(() => racks.reduce((s, r) => s + r.powerKW, 0), [racks]);
   const totalCoolingKW = useMemo(() => hvacUnits.filter(u => u.status !== 'failed').reduce((s, u) => s + u.capacityKW, 0), [hvacUnits]);
 
@@ -754,7 +747,7 @@ export default function SimulationPage() {
               <TrendingUp size={16} /> Optimize
             </button>
             <button
-              onClick={() => runSimulation('', '')}
+              onClick={() => runSimulation(selectedProjectId || '', '')}
               disabled={racks.length === 0 || isRunning}
               className="flex items-center gap-2 rounded-xl bg-[color:var(--accent)] px-5 py-2.5 text-sm font-semibold text-[color:var(--accent-foreground)] shadow-[0_12px_22px_-16px_rgba(15,139,141,0.9)] transition-colors hover:bg-[color:var(--accent-dark)] disabled:opacity-50"
             >
@@ -809,13 +802,75 @@ export default function SimulationPage() {
         </TabPanel>
         <TabPanel tabId="3d" activeTab={activeTab}>
           {result ? (
-            <AirflowViewer3D
-              result={result}
-              racks={racks}
-              hvacUnits={hvacUnits}
-              showHotspots
-              showAirflow
-            />
+            <>
+              <div className="mb-4 rounded-2xl border border-border/70 bg-card/85 p-4 shadow-[0_14px_26px_-24px_rgba(19,32,51,0.68)]">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="mr-1 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                    View Mode
+                  </span>
+                  {(['temperature', 'velocity', 'pressure'] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      onClick={() => setActiveView(mode)}
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] transition-colors ${
+                        activeView === mode
+                          ? 'border-[color:var(--accent)] bg-[color:var(--accent)]/15 text-[color:var(--accent-dark)]'
+                          : 'border-border/70 bg-background text-muted-foreground hover:border-border'
+                      }`}
+                    >
+                      {mode}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center gap-4">
+                  <div className="flex min-w-[260px] flex-1 items-center gap-3">
+                    <label className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                      Slice Z
+                    </label>
+                    <input
+                      type="range"
+                      min={0}
+                      max={Math.max(0, result.config.gridSizeZ - 1)}
+                      value={Math.max(0, Math.min(selectedSliceZ, result.config.gridSizeZ - 1))}
+                      onChange={(event) => setSelectedSliceZ(Number(event.target.value))}
+                      className="w-full"
+                    />
+                    <span className="w-20 text-right text-xs font-semibold tabular-nums text-foreground">
+                      {Math.max(0, Math.min(selectedSliceZ, result.config.gridSizeZ - 1))} ({(Math.max(0, Math.min(selectedSliceZ, result.config.gridSizeZ - 1)) * result.config.gridResolution).toFixed(1)}m)
+                    </span>
+                  </div>
+
+                  <label className="flex items-center gap-2 rounded-lg border border-border/65 bg-background px-3 py-1.5 text-xs font-semibold text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={showHotspots}
+                      onChange={(event) => setShowHotspots(event.target.checked)}
+                    />
+                    Hotspots
+                  </label>
+
+                  <label className="flex items-center gap-2 rounded-lg border border-border/65 bg-background px-3 py-1.5 text-xs font-semibold text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={showAirflow}
+                      onChange={(event) => setShowAirflow(event.target.checked)}
+                    />
+                    Airflow Particles
+                  </label>
+                </div>
+              </div>
+
+              <AirflowViewer3D
+                result={result}
+                racks={racks}
+                hvacUnits={hvacUnits}
+                showHotspots={showHotspots}
+                showAirflow={showAirflow}
+                selectedSliceZ={selectedSliceZ}
+                viewMode={activeView}
+              />
+            </>
           ) : (
             <div className="flex h-[500px] flex-col items-center justify-center rounded-2xl border border-border/70 bg-card/80 shadow-[0_14px_26px_-24px_rgba(19,32,51,0.68)]">
               <Box size={48} className="mb-4 text-muted-foreground/45" />

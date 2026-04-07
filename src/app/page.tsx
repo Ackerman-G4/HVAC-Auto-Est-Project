@@ -9,9 +9,6 @@ import {
   Thermometer,
   FolderOpen,
   ArrowRight,
-  ReceiptText,
-  Boxes,
-  FileSpreadsheet,
 } from 'lucide-react';
 import { PageWrapper, PageHeader } from '@/components/ui/page-wrapper';
 import { StatCard } from '@/components/ui/stat-card';

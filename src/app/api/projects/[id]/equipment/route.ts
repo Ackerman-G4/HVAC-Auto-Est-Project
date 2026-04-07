@@ -5,10 +5,15 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import neon from '@/lib/db/prisma';
 import { sizeEquipment } from '@/lib/functions/equipment-sizing';
-import { INVERTER_EER_THRESHOLD } from '@/lib/utils/constants';
-import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
+import {
+  clearSelectedEquipmentForProject,
+  createSelectedEquipmentRecord,
+  listSelectedEquipmentForProject,
+  toApiEquipment,
+} from '@/lib/firebase/project-estimation-store';
+import { getFloorsWithRooms, updateProjectRecord } from '@/lib/firebase/projects-store';
+import { errorResponse, getErrorDetails, resourceNotFound, toNumber } from '@/lib/utils/api-helpers';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -16,49 +21,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
 
-    const floors = await neon.floor.findMany({
-      where: { projectId: id },
-      include: {
-        rooms: {
-          include: { selectedEquipment: { include: { equipment: true } } },
-        },
-      },
-    });
-
-    const equipment = floors.flatMap((f) => 
-      f.rooms.flatMap((r) =>
-        r.selectedEquipment.map((sel) => {
-          const suggestedQuantity = sel.suggestedQuantity > 0 ? sel.suggestedQuantity : sel.quantity;
-          const quantity = sel.userQuantityOverride ?? suggestedQuantity;
-          const suggestedUnitPrice = sel.suggestedUnitPrice || sel.equipment.unitPricePHP;
-          const finalUnitPrice =
-            sel.userUnitPriceOverride ??
-            (sel.finalUnitPrice > 0 ? sel.finalUnitPrice : suggestedUnitPrice);
-
-          return {
-            id: sel.id,
-            roomId: sel.roomId,
-            brand: sel.equipment.manufacturer,
-            model: sel.equipment.model,
-            type: sel.equipment.type,
-            capacityTR: sel.equipment.capacityTR,
-            capacityBTU: sel.equipment.capacityBTU,
-            quantity,
-            suggestedQuantity,
-            userQuantityOverride: sel.userQuantityOverride,
-            suggestedUnitPrice,
-            userUnitPriceOverride: sel.userUnitPriceOverride,
-            unitPrice: finalUnitPrice,
-            totalPrice: finalUnitPrice * quantity,
-            eer: sel.equipment.eer,
-            isInverter: sel.equipment.eer >= INVERTER_EER_THRESHOLD,
-            refrigerant: sel.equipment.refrigerant,
-            isOverridden: sel.isOverridden,
-            sourceState: sel.isOverridden ? 'override' : 'suggested',
-          };
-        })
-      )
-    );
+    const selections = await listSelectedEquipmentForProject(id);
+    const equipment = selections.map((selection) => toApiEquipment(selection));
 
     return NextResponse.json({ equipment });
   } catch (error) {
@@ -74,9 +38,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const body = await request.json();
 
     if (body.autoSize) {
-      const floors = await neon.floor.findMany({
-        where: { projectId },
-        include: { rooms: { include: { coolingLoad: true } } },
+      const floors = await getFloorsWithRooms(projectId, {
+        includeRoomEquipment: false,
+        includeRoomEquipmentCount: false,
       });
 
       const allRooms = floors.flatMap((f) => f.rooms);
@@ -84,159 +48,126 @@ export async function POST(request: NextRequest, context: RouteContext) {
         return errorResponse(400, 'No rooms found', 'Add rooms to the project before auto-sizing equipment.', 'NO_ROOMS');
       }
 
-      const roomsWithLoads = allRooms.filter((r) => r.coolingLoad);
+      const roomsWithLoads = allRooms.filter((r) => r.coolingLoad && typeof r.coolingLoad === 'object');
       if (roomsWithLoads.length === 0) {
         return errorResponse(400, 'No cooling loads calculated', 'Run "Calculate" first to compute cooling loads for all rooms before auto-sizing equipment.', 'NO_LOADS');
       }
 
-      // Batch-clear existing selected equipment for every room in the project
-      const roomIds = allRooms.map((r) => r.id);
-
-      // Wrap delete + re-create in a transaction for atomicity
       const results: { room: string; equipment: { id: string; brand: string; model: string; type: string; capacityTR: number; quantity: number }; alternatives: ReturnType<typeof sizeEquipment>['alternatives'] }[] = [];
 
-      await neon.$transaction(async (tx) => {
-        await tx.selectedEquipment.deleteMany({ where: { roomId: { in: roomIds } } });
+      await clearSelectedEquipmentForProject(projectId);
 
-        for (const floor of floors) {
-          for (const room of floor.rooms) {
-            if (!room.coolingLoad) continue;
+      for (const floor of floors) {
+        for (const room of floor.rooms) {
+          if (!room.coolingLoad || typeof room.coolingLoad !== 'object') continue;
+          const load = room.coolingLoad as Record<string, unknown>;
 
-            const sizing = sizeEquipment({
-              totalLoadWatts: room.coolingLoad.totalLoad,
-              trValue: room.coolingLoad.trValue,
-              btuPerHour: room.coolingLoad.btuPerHour,
-              spaceType: room.spaceType,
-              roomArea: room.area,
-              ceilingHeight: room.ceilingHeight,
-              budgetLevel: body.budgetLevel || 'mid-range',
-              preferredBrand: body.preferredBrand,
-              preferredType: body.preferredType,
-            });
+          const sizing = sizeEquipment({
+            totalLoadWatts: toNumber(load.totalLoad, 0),
+            trValue: toNumber(load.trValue, 0),
+            btuPerHour: toNumber(load.btuPerHour, 0),
+            spaceType: room.spaceType,
+            roomArea: room.area,
+            ceilingHeight: room.ceilingHeight,
+            budgetLevel: body.budgetLevel || 'mid-range',
+            preferredBrand: body.preferredBrand,
+            preferredType: body.preferredType,
+          });
 
-            if (sizing.recommended.length > 0) {
-              const top = sizing.recommended[0];
-              const avgPrice = (top.equipment.priceMin + top.equipment.priceMax) / 2;
-              const eer = top.equipment.eer || 10;
+          if (sizing.recommended.length === 0) continue;
 
-              const equipmentRecord = await tx.equipment.upsert({
-                where: { id: top.equipment.id },
-                update: {},
-                create: {
-                  id: top.equipment.id,
-                  manufacturer: top.equipment.brand,
-                  model: top.equipment.model,
-                  type: top.equipment.type,
-                  capacityTR: top.equipment.capacityTR,
-                  capacityBTU: top.equipment.capacityBTU,
-                  capacityKW: top.equipment.capacityKW,
-                  powerInputKW: top.equipment.capacityKW / eer,
-                  currentAmps: 0,
-                  phase: top.equipment.powerSupply?.includes('3') ? '3-phase' : '1-phase',
-                  voltage: top.equipment.powerSupply?.includes('380') ? 380 : 220,
-                  refrigerant: top.equipment.refrigerant || 'R32',
-                  eer,
-                  cop: eer / 3.412,
-                  unitPricePHP: avgPrice,
-                },
-              });
+          const top = sizing.recommended[0];
+          const avgPrice = (top.equipment.priceMin + top.equipment.priceMax) / 2;
+          const eer = top.equipment.eer || 10;
 
-              const sel = await tx.selectedEquipment.create({
-                data: {
-                  roomId: room.id,
-                  equipmentId: equipmentRecord.id,
-                  quantity: top.quantity,
-                  suggestedBrand: top.equipment.brand,
-                  suggestedModel: top.equipment.model,
-                  suggestedType: top.equipment.type,
-                  suggestedCapacityTR: top.equipment.capacityTR,
-                  suggestedCapacityBTU: top.equipment.capacityBTU,
-                  suggestedUnitPrice: avgPrice,
-                  suggestedQuantity: top.quantity,
-                  finalUnitPrice: avgPrice,
-                  isOverridden: false,
-                },
-              });
+          const selection = await createSelectedEquipmentRecord({
+            projectId,
+            roomId: room.id,
+            quantity: top.quantity,
+            suggestedQuantity: top.quantity,
+            suggestedUnitPrice: avgPrice,
+            finalUnitPrice: avgPrice,
+            isOverridden: false,
+            equipment: {
+              manufacturer: top.equipment.brand,
+              model: top.equipment.model,
+              type: top.equipment.type,
+              capacityTR: top.equipment.capacityTR,
+              capacityBTU: top.equipment.capacityBTU,
+              capacityKW: top.equipment.capacityKW,
+              unitPricePHP: avgPrice,
+              eer,
+              refrigerant: top.equipment.refrigerant || 'R32',
+              powerSupply: top.equipment.powerSupply || '',
+            },
+          });
 
-              results.push({
-                room: room.name,
-                equipment: {
-                  id: sel.id,
-                  brand: top.equipment.brand,
-                  model: top.equipment.model,
-                  type: top.equipment.type,
-                  capacityTR: top.equipment.capacityTR,
-                  quantity: top.quantity,
-                },
-                alternatives: sizing.alternatives.slice(0, 3),
-              });
-            }
-          }
+          results.push({
+            room: room.name,
+            equipment: {
+              id: selection.id,
+              brand: top.equipment.brand,
+              model: top.equipment.model,
+              type: top.equipment.type,
+              capacityTR: top.equipment.capacityTR,
+              quantity: top.quantity,
+            },
+            alternatives: sizing.alternatives.slice(0, 3),
+          });
         }
+      }
 
-        await tx.project.update({
-          where: { id: projectId },
-          data: {
-            isEquipmentStale: false,
-            isBoqStale: true,
-            lastBoqGeneratedAt: null,
-            lastEquipmentSyncAt: new Date(),
-          },
-        });
+      await updateProjectRecord(projectId, {
+        isEquipmentStale: false,
+        isBoqStale: true,
+        lastBoqGeneratedAt: null,
+        lastEquipmentSyncAt: new Date().toISOString(),
       });
 
       return NextResponse.json({ results }, { status: 201 });
     }
 
     // Manual equipment selection
+    const floors = await getFloorsWithRooms(projectId, {
+      includeRoomEquipment: false,
+      includeRoomEquipmentCount: false,
+    });
+    const roomExists = floors.some((floor) => floor.rooms.some((room) => room.id === body.roomId));
+    if (!roomExists) {
+      return resourceNotFound('Room', 'The room does not exist in this project.', 'ROOM_NOT_FOUND');
+    }
+
     const eer = body.eer || 10;
-    const equipmentRecord = await neon.equipment.upsert({
-      where: { id: body.equipmentId || 'new' },
-      update: {},
-      create: {
+    const selection = await createSelectedEquipmentRecord({
+      projectId,
+      roomId: body.roomId,
+      quantity: body.quantity || 1,
+      suggestedQuantity: body.quantity || 1,
+      suggestedUnitPrice: body.unitPrice || 0,
+      finalUnitPrice: body.unitPrice || 0,
+      isOverridden: false,
+      equipment: {
         manufacturer: body.brand || '',
         model: body.model || '',
         type: body.type || 'wall_split',
         capacityTR: body.capacityTR || body.capacityBTU / 12000,
         capacityBTU: body.capacityBTU || 0,
         capacityKW: (body.capacityBTU || 0) * 0.000293,
-        powerInputKW: 0,
-        currentAmps: 0,
-        refrigerant: body.refrigerant || 'R32',
-        eer,
-        cop: eer / 3.412,
         unitPricePHP: body.unitPrice || 0,
+        eer,
+        refrigerant: body.refrigerant || 'R32',
+        powerSupply: body.powerSupply || '',
       },
     });
 
-    const sel = await neon.selectedEquipment.create({
-      data: {
-        roomId: body.roomId,
-        equipmentId: equipmentRecord.id,
-        quantity: body.quantity || 1,
-        suggestedBrand: body.brand || '',
-        suggestedModel: body.model || '',
-        suggestedType: body.type || 'wall_split',
-        suggestedCapacityTR: body.capacityTR || body.capacityBTU / 12000,
-        suggestedCapacityBTU: body.capacityBTU || 0,
-        suggestedUnitPrice: body.unitPrice || 0,
-        suggestedQuantity: body.quantity || 1,
-        finalUnitPrice: body.unitPrice || 0,
-        isOverridden: false,
-      },
+    await updateProjectRecord(projectId, {
+      isEquipmentStale: false,
+      isBoqStale: true,
+      lastBoqGeneratedAt: null,
+      lastEquipmentSyncAt: new Date().toISOString(),
     });
 
-    await neon.project.update({
-      where: { id: projectId },
-      data: {
-        isEquipmentStale: false,
-        isBoqStale: true,
-        lastBoqGeneratedAt: null,
-        lastEquipmentSyncAt: new Date(),
-      },
-    });
-
-    return NextResponse.json({ equipment: sel }, { status: 201 });
+    return NextResponse.json({ equipment: selection }, { status: 201 });
   } catch (error) {
     console.error('POST equipment error:', error);
     const d = getErrorDetails(error, 'Failed to select equipment');

@@ -9,5 +9,19 @@
     "frameworksBackend": {
       "region": "asia-southeast1"
     }
+  },
+  "firestore": {
+    "rules": "config/firebase/firestore.rules",
+    "indexes": "config/firebase/firestore.indexes.json"
+  },
+  "emulators": {
+    "firestore": {
+      "port": 9080
+    },
+    "ui": {
+      "enabled": false,
+      "port": 4000
+    },
+    "singleProjectMode": true
   }
 }

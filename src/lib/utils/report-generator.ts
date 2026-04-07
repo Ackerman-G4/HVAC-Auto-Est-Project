@@ -4,7 +4,14 @@ import pdfMake from 'pdfmake/build/pdfmake';
 import pdfFonts from 'pdfmake/build/vfs_fonts';
 import type { TDocumentDefinitions } from 'pdfmake/interfaces';
 
-(pdfMake as any).vfs = (pdfFonts as any).pdfMake.vfs;
+type PdfMakeWithVfs = {
+  vfs: Record<string, string>;
+  createPdf: typeof pdfMake.createPdf;
+};
+
+const pdfMakeWithVfs = pdfMake as unknown as PdfMakeWithVfs;
+const pdfFontsWithVfs = pdfFonts as unknown as { pdfMake: { vfs: Record<string, string> } };
+pdfMakeWithVfs.vfs = pdfFontsWithVfs.pdfMake.vfs;
 
 interface Metric {
   name: string;
@@ -50,10 +57,12 @@ export async function generatePDFReport(project: Project, results: Results) {
     pageSize: 'A4',
     defaultStyle: { font: 'Roboto' },
   } as TDocumentDefinitions;
-  return pdfMake.createPdf(docDefinition);
+  return pdfMakeWithVfs.createPdf(docDefinition);
 }
 
 export async function generateExcelReport(project: Project, results: Results) {
+  void project;
+  void results;
   // Placeholder: implement Excel export using SheetJS or ExcelJS
   // ...existing code...
 }

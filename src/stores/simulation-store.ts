@@ -2,9 +2,7 @@ import { create } from 'zustand';
 import { showToast } from '@/components/ui/toast';
 import type {
   SimulationConfig,
-  SimulationInput,
   SimulationResult,
-  SimulationMetrics,
   ServerRack,
   HVACUnit,
   PerforatedTile,
@@ -14,8 +12,6 @@ import type {
   PUEAnalysis,
   OptimizationResult,
   OptimizationConfig,
-  HVACUnitType,
-  RackDensity,
 } from '@/types/simulation';
 
 interface SimulationStore {

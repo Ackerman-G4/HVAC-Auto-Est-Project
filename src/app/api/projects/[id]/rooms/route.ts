@@ -5,13 +5,23 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import neon from '@/lib/db/prisma';
+import {
+  createFloorRecord,
+  createRoomRecord,
+  findFloorByProjectAndNumber,
+  getFloorsWithRooms,
+  getProjectRecord,
+  getRoomRecord,
+  setRoomCoolingLoad,
+  updateProjectRecord,
+} from '@/lib/firebase/projects-store';
 import { calculateCoolingLoad } from '@/lib/functions/cooling-load';
 import {
   errorResponse,
   getErrorDetails,
   buildCoolingLoadInput,
   coolingLoadToDbFields,
+  resourceNotFound,
 } from '@/lib/utils/api-helpers';
 import { finalizeDualValue } from '@/lib/utils/dual-control';
 
@@ -21,10 +31,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
 
-    const floors = await neon.floor.findMany({
-      where: { projectId: id },
-      include: { rooms: { include: { coolingLoad: true } } },
-      orderBy: { floorNumber: 'asc' },
+    const floors = await getFloorsWithRooms(id, {
+      includeRoomEquipment: false,
+      includeRoomEquipmentCount: false,
     });
 
     return NextResponse.json({ floors });
@@ -40,46 +49,38 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const { id: projectId } = await context.params;
     const body = await request.json();
 
-    const project = await neon.project.findUnique({ where: { id: projectId } });
+    const project = await getProjectRecord(projectId);
     if (!project) {
-      return errorResponse(404, 'Project not found', 'The project does not exist.', 'PROJECT_NOT_FOUND');
+      return resourceNotFound('Project', 'The project does not exist.', 'PROJECT_NOT_FOUND');
     }
 
     // Find or create floor
-    let floor = await neon.floor.findFirst({
-      where: { projectId, floorNumber: body.floorNumber || 1 },
-    });
+    let floor = await findFloorByProjectAndNumber(projectId, body.floorNumber || 1);
     if (!floor) {
-      floor = await neon.floor.create({
-        data: {
-          projectId,
-          floorNumber: body.floorNumber || 1,
-          name: body.floorName || `Floor ${body.floorNumber || 1}`,
-          ceilingHeight: body.ceilingHeight || 2.7,
-        },
+      floor = await createFloorRecord(projectId, {
+        floorNumber: body.floorNumber || 1,
+        name: body.floorName || `Floor ${body.floorNumber || 1}`,
+        ceilingHeight: body.ceilingHeight || 2.7,
       });
     }
 
     // Create room
-    const room = await neon.room.create({
-      data: {
-        floorId: floor.id,
-        name: body.name || 'New Room',
-        spaceType: body.spaceType || 'office',
-        area: body.area || 0,
-        perimeter: body.perimeter || (body.area > 0 ? Math.sqrt(body.area) * 4 : 0),
-        polygon: body.polygon ? JSON.stringify(body.polygon) : '[]',
-        ceilingHeight: body.ceilingHeight || floor.ceilingHeight,
-        wallConstruction: body.wallConstruction || 'concrete_block_200mm',
-        windowType: body.windowType || 'single_clear_6mm',
-        windowArea: body.windowArea || 0,
-        windowOrientation: body.windowOrientation || 'N',
-        occupantCount: body.occupantCount || 0,
-        lightingDensity: body.lightingDensity || 15,
-        equipmentLoad: body.equipmentLoad || 10,
-        hasRoofExposure: body.hasRoofExposure || false,
-        notes: body.notes || '',
-      },
+    const room = await createRoomRecord(projectId, floor.id, {
+      name: body.name || 'New Room',
+      spaceType: body.spaceType || 'office',
+      area: body.area || 0,
+      perimeter: body.perimeter || (body.area > 0 ? Math.sqrt(body.area) * 4 : 0),
+      polygon: body.polygon ? JSON.stringify(body.polygon) : '[]',
+      ceilingHeight: body.ceilingHeight || floor.ceilingHeight,
+      wallConstruction: body.wallConstruction || 'concrete_block_200mm',
+      windowType: body.windowType || 'single_clear_6mm',
+      windowArea: body.windowArea || 0,
+      windowOrientation: body.windowOrientation || 'N',
+      occupantCount: body.occupantCount || 0,
+      lightingDensity: body.lightingDensity || 15,
+      equipmentLoad: body.equipmentLoad || 10,
+      hasRoofExposure: body.hasRoofExposure || false,
+      notes: body.notes || '',
     });
 
     // Auto‑calculate cooling load when room has an area
@@ -89,40 +90,33 @@ export async function POST(request: NextRequest, context: RouteContext) {
       const trSelection = finalizeDualValue(result.trValue, body.userTrOverride);
       const btuSelection = finalizeDualValue(result.btuPerHour, body.userBtuOverride);
 
-      await neon.coolingLoad.create({
-        data: {
-          roomId: room.id,
-          ...coolingLoadToDbFields(result),
-          suggestedTrValue: result.trValue,
-          userTrOverride: trSelection.override,
-          finalTrValue: trSelection.final,
-          trValue: trSelection.final,
-          suggestedBtuPerHour: result.btuPerHour,
-          userBtuOverride: btuSelection.override,
-          finalBtuPerHour: btuSelection.final,
-          btuPerHour: btuSelection.final,
-          isOverridden: trSelection.isOverridden || btuSelection.isOverridden,
-          overrideReason: body.overrideReason || '',
-          overrideUpdatedAt:
-            trSelection.isOverridden || btuSelection.isOverridden ? new Date() : null,
-        },
+      await setRoomCoolingLoad(room.id, {
+        roomId: room.id,
+        ...coolingLoadToDbFields(result),
+        suggestedTrValue: result.trValue,
+        userTrOverride: trSelection.override,
+        finalTrValue: trSelection.final,
+        trValue: trSelection.final,
+        suggestedBtuPerHour: result.btuPerHour,
+        userBtuOverride: btuSelection.override,
+        finalBtuPerHour: btuSelection.final,
+        btuPerHour: btuSelection.final,
+        isOverridden: trSelection.isOverridden || btuSelection.isOverridden,
+        overrideReason: body.overrideReason || '',
+        overrideUpdatedAt:
+          trSelection.isOverridden || btuSelection.isOverridden ? new Date().toISOString() : null,
+        timestamp: new Date().toISOString(),
       });
 
-      await neon.project.update({
-        where: { id: projectId },
-        data: {
-          isEquipmentStale: true,
-          isBoqStale: true,
-          lastBoqGeneratedAt: null,
-          lastCoolingLoadAt: new Date(),
-        },
+      await updateProjectRecord(projectId, {
+        isEquipmentStale: true,
+        isBoqStale: true,
+        lastBoqGeneratedAt: null,
+        lastCoolingLoadAt: new Date().toISOString(),
       });
     }
 
-    const createdRoom = await neon.room.findUnique({
-      where: { id: room.id },
-      include: { coolingLoad: true },
-    });
+    const createdRoom = await getRoomRecord(room.id);
 
     return NextResponse.json({ room: createdRoom }, { status: 201 });
   } catch (error) {

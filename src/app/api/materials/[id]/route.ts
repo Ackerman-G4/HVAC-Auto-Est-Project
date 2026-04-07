@@ -5,8 +5,13 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import neon from '@/lib/db/prisma';
-import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
+import {
+  deleteMaterialRecord,
+  getMaterialRecord,
+  getSupplierRecord,
+  updateMaterialRecord,
+} from '@/lib/firebase/catalog-store';
+import { errorResponse, getErrorDetails, resourceNotFound } from '@/lib/utils/api-helpers';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -15,23 +20,26 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     const { id } = await context.params;
     const body = await request.json();
 
-    const existing = await neon.material.findUnique({ where: { id } });
+    const existing = await getMaterialRecord(id);
     if (!existing) {
-      return errorResponse(404, 'Material not found', 'The material does not exist.', 'MATERIAL_NOT_FOUND');
+      return resourceNotFound('Material', 'The material does not exist.', 'MATERIAL_NOT_FOUND');
     }
 
-    const material = await neon.material.update({
-      where: { id },
-      data: {
-        category: body.category ?? existing.category,
-        name: body.name ?? existing.name,
-        specification: body.specification ?? existing.specification,
-        unit: body.unit ?? existing.unit,
-        unitPricePHP: body.unitPricePHP ?? existing.unitPricePHP,
-        supplierId: body.supplierId !== undefined ? body.supplierId : existing.supplierId,
-      },
-      include: { supplier: true },
+    const updated = await updateMaterialRecord(id, {
+      category: body.category ?? existing.category,
+      name: body.name ?? existing.name,
+      specification: body.specification ?? existing.specification,
+      unit: body.unit ?? existing.unit,
+      unitPricePHP: body.unitPricePHP ?? existing.unitPricePHP,
+      supplierId: body.supplierId !== undefined ? body.supplierId : existing.supplierId,
     });
+
+    if (!updated) {
+      return resourceNotFound('Material', 'The material does not exist.', 'MATERIAL_NOT_FOUND');
+    }
+
+    const supplier = updated.supplierId ? await getSupplierRecord(updated.supplierId) : null;
+    const material = { ...updated, supplier };
 
     return NextResponse.json({ material });
   } catch (error) {
@@ -45,12 +53,12 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
 
-    const existing = await neon.material.findUnique({ where: { id } });
+    const existing = await getMaterialRecord(id);
     if (!existing) {
-      return errorResponse(404, 'Material not found', 'The material does not exist.', 'MATERIAL_NOT_FOUND');
+      return resourceNotFound('Material', 'The material does not exist.', 'MATERIAL_NOT_FOUND');
     }
 
-    await neon.material.delete({ where: { id } });
+    await deleteMaterialRecord(id);
 
     return NextResponse.json({ message: 'Material deleted' });
   } catch (error) {

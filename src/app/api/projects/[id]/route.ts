@@ -6,15 +6,20 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import neon from '@/lib/db/prisma';
+import {
+  deleteProjectRecordPermanently,
+  getProjectRecord,
+  getProjectWithDetails,
+  updateProjectRecord,
+  writeAuditLog,
+} from '@/lib/firebase/projects-store';
 import { wetBulb as calcWetBulb } from '@/lib/functions/psychrometric';
-import { INVERTER_EER_THRESHOLD } from '@/lib/utils/constants';
-import { finalizeDualValue } from '@/lib/utils/dual-control';
 import {
   toNumber,
   toInt,
   errorResponse,
   getErrorDetails,
+  resourceNotFound,
 } from '@/lib/utils/api-helpers';
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -30,115 +35,18 @@ export async function GET(request: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
 
-    const project = await neon.project.findUnique({
-      where: { id },
-      include: {
-        floors: {
-          include: {
-            rooms: {
-              include: {
-                coolingLoad: true,
-              },
-            },
-          },
-          orderBy: { floorNumber: 'asc' },
-        },
-        boqItems: true,
-      },
-    });
+    const project = await getProjectWithDetails(id);
 
     if (!project) {
-      return errorResponse(404, 'Project not found', 'The project ID does not match any existing project record.', 'PROJECT_NOT_FOUND');
+      return resourceNotFound(
+        'Project',
+        'The project ID does not match any existing project record.',
+        'PROJECT_NOT_FOUND',
+      );
     }
 
-    // Fetch selected equipment in a focused query to keep detail endpoint responsive.
-    const selectedEquipment = await neon.selectedEquipment.findMany({
-      where: {
-        room: {
-          floor: {
-            projectId: id,
-          },
-        },
-      },
-      include: {
-        equipment: {
-          select: {
-            manufacturer: true,
-            model: true,
-            type: true,
-            capacityTR: true,
-            capacityBTU: true,
-            unitPricePHP: true,
-            eer: true,
-            refrigerant: true,
-          },
-        },
-      },
-    });
-
-    const allSelectedEquipment = selectedEquipment.map((sel) => {
-      const suggestedQuantity = sel.suggestedQuantity > 0 ? sel.suggestedQuantity : sel.quantity;
-      const quantity = sel.userQuantityOverride ?? suggestedQuantity;
-      const suggestedUnitPrice = sel.suggestedUnitPrice || sel.equipment.unitPricePHP;
-      const finalUnitPrice =
-        sel.userUnitPriceOverride ??
-        (sel.finalUnitPrice > 0 ? sel.finalUnitPrice : suggestedUnitPrice);
-
-      return {
-        id: sel.id,
-        roomId: sel.roomId,
-        brand: sel.equipment.manufacturer,
-        model: sel.equipment.model,
-        type: sel.equipment.type,
-        capacityTR: sel.equipment.capacityTR,
-        capacityBTU: sel.equipment.capacityBTU,
-        quantity,
-        suggestedQuantity,
-        userQuantityOverride: sel.userQuantityOverride,
-        suggestedUnitPrice,
-        userUnitPriceOverride: sel.userUnitPriceOverride,
-        unitPrice: finalUnitPrice,
-        totalPrice: finalUnitPrice * quantity,
-        eer: sel.equipment.eer,
-        isInverter: sel.equipment.eer >= INVERTER_EER_THRESHOLD,
-        refrigerant: sel.equipment.refrigerant,
-        isOverridden: sel.isOverridden,
-        sourceState: sel.isOverridden ? 'override' : 'suggested',
-      };
-    });
-
-    const boqItems = project.boqItems.map((item) => {
-      const suggestedUnitPrice = item.suggestedUnitPrice > 0 ? item.suggestedUnitPrice : item.unitPrice;
-      const finalUnitPrice = item.finalUnitPrice > 0 ? item.finalUnitPrice : item.unitPrice;
-      const suggestedTotalPrice = item.suggestedTotalPrice > 0 ? item.suggestedTotalPrice : suggestedUnitPrice * item.quantity;
-      const finalTotalPrice = item.finalTotalPrice > 0 ? item.finalTotalPrice : finalUnitPrice * item.quantity;
-
-      return {
-        ...item,
-        suggestedUnitPrice,
-        suggestedTotalPrice,
-        finalUnitPrice,
-        finalTotalPrice,
-        unitPrice: finalUnitPrice,
-        totalPrice: finalTotalPrice,
-        sourceState: item.isOverridden ? 'override' : 'suggested',
-      };
-    });
-
-    const pricingPolicy = {
-      laborMultiplier: finalizeDualValue(project.suggestedLaborMultiplier, project.laborMultiplierOverride),
-      overheadPercent: finalizeDualValue(project.suggestedOverheadPercent, project.overheadPercentOverride),
-      contingencyPercent: finalizeDualValue(project.suggestedContingencyPercent, project.contingencyPercentOverride),
-      vatRate: finalizeDualValue(project.suggestedVatRate, project.vatRateOverride),
-    };
-
     return NextResponse.json({
-      project: {
-        ...project,
-        boqItems,
-        selectedEquipment: allSelectedEquipment,
-        pricingPolicy,
-      },
+      project,
     });
   } catch (error) {
     console.error('GET /api/projects/[id] error:', error);
@@ -152,9 +60,13 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     const { id } = await context.params;
     const body = await request.json();
 
-    const existing = await neon.project.findUnique({ where: { id } });
+    const existing = await getProjectRecord(id);
     if (!existing) {
-      return errorResponse(404, 'Project not found', 'The project you are trying to update no longer exists.', 'PROJECT_NOT_FOUND');
+      return resourceNotFound(
+        'Project',
+        'The project you are trying to update no longer exists.',
+        'PROJECT_NOT_FOUND',
+      );
     }
 
     const finalOutdoorDB = toNumber(body.outdoorDB, existing.outdoorDB);
@@ -186,49 +98,52 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       nextSuggestedVatRate !== existing.suggestedVatRate ||
       nextVatRateOverride !== existing.vatRateOverride;
 
-    const project = await neon.project.update({
-      where: { id },
-      data: {
-        name: body.name ?? existing.name,
-        clientName: body.clientName ?? existing.clientName,
-        buildingType: body.buildingType ?? existing.buildingType,
-        location: body.location ?? existing.location,
-        city: body.city ?? existing.city,
-        totalFloorArea: toNumber(body.totalFloorArea, existing.totalFloorArea),
-        floorsAboveGrade: toInt(body.floorsAboveGrade, existing.floorsAboveGrade),
-        floorsBelowGrade: toInt(body.floorsBelowGrade, existing.floorsBelowGrade),
-        outdoorDB: finalOutdoorDB,
-        outdoorWB: Math.round(computedWB * 100) / 100,
-        outdoorRH: finalOutdoorRH,
-        indoorDB: toNumber(body.indoorDB, existing.indoorDB),
-        indoorRH: toNumber(body.indoorRH, existing.indoorRH),
-        safetyFactor: toNumber(body.safetyFactor, existing.safetyFactor),
-        diversityFactor: toNumber(body.diversityFactor, existing.diversityFactor),
-        suggestedLaborMultiplier: nextSuggestedLaborMultiplier,
-        laborMultiplierOverride: nextLaborMultiplierOverride,
-        suggestedOverheadPercent: nextSuggestedOverheadPercent,
-        overheadPercentOverride: nextOverheadPercentOverride,
-        suggestedContingencyPercent: nextSuggestedContingencyPercent,
-        contingencyPercentOverride: nextContingencyPercentOverride,
-        suggestedVatRate: nextSuggestedVatRate,
-        vatRateOverride: nextVatRateOverride,
-        isBoqStale: pricingChanged ? true : existing.isBoqStale,
-        lastBoqGeneratedAt: pricingChanged ? null : existing.lastBoqGeneratedAt,
-        notes: body.notes ?? existing.notes,
-        status: body.status ?? existing.status,
-      },
-      include: { floors: { include: { rooms: true } } },
+    await updateProjectRecord(id, {
+      name: body.name ?? existing.name,
+      clientName: body.clientName ?? existing.clientName,
+      buildingType: body.buildingType ?? existing.buildingType,
+      location: body.location ?? existing.location,
+      city: body.city ?? existing.city,
+      totalFloorArea: toNumber(body.totalFloorArea, existing.totalFloorArea),
+      floorsAboveGrade: toInt(body.floorsAboveGrade, existing.floorsAboveGrade),
+      floorsBelowGrade: toInt(body.floorsBelowGrade, existing.floorsBelowGrade),
+      outdoorDB: finalOutdoorDB,
+      outdoorWB: Math.round(computedWB * 100) / 100,
+      outdoorRH: finalOutdoorRH,
+      indoorDB: toNumber(body.indoorDB, existing.indoorDB),
+      indoorRH: toNumber(body.indoorRH, existing.indoorRH),
+      safetyFactor: toNumber(body.safetyFactor, existing.safetyFactor),
+      diversityFactor: toNumber(body.diversityFactor, existing.diversityFactor),
+      suggestedLaborMultiplier: nextSuggestedLaborMultiplier,
+      laborMultiplierOverride: nextLaborMultiplierOverride,
+      suggestedOverheadPercent: nextSuggestedOverheadPercent,
+      overheadPercentOverride: nextOverheadPercentOverride,
+      suggestedContingencyPercent: nextSuggestedContingencyPercent,
+      contingencyPercentOverride: nextContingencyPercentOverride,
+      suggestedVatRate: nextSuggestedVatRate,
+      vatRateOverride: nextVatRateOverride,
+      isBoqStale: pricingChanged ? true : existing.isBoqStale,
+      lastBoqGeneratedAt: pricingChanged ? null : existing.lastBoqGeneratedAt,
+      notes: body.notes ?? existing.notes,
+      status: body.status ?? existing.status,
     });
 
-    await neon.auditLog.create({
-      data: {
-        projectId: id,
-        action: 'updated',
-        entity: 'project',
-        entityId: id,
-        details: JSON.stringify(body),
-      },
+    await writeAuditLog({
+      projectId: id,
+      action: 'updated',
+      entity: 'project',
+      entityId: id,
+      details: JSON.stringify(body),
     });
+
+    const project = await getProjectWithDetails(id);
+    if (!project) {
+      return resourceNotFound(
+        'Project',
+        'The project you are trying to update no longer exists.',
+        'PROJECT_NOT_FOUND',
+      );
+    }
 
     return NextResponse.json({ project });
   } catch (error) {
@@ -243,22 +158,24 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     const { id } = await context.params;
     const permanent = new URL(request.url).searchParams.get('permanent') === 'true';
 
-    const existing = await neon.project.findUnique({ where: { id } });
+    const existing = await getProjectRecord(id);
     if (!existing) {
-      return errorResponse(404, 'Project not found', 'The project you are trying to delete no longer exists.', 'PROJECT_NOT_FOUND');
+      return resourceNotFound(
+        'Project',
+        'The project you are trying to delete no longer exists.',
+        'PROJECT_NOT_FOUND',
+      );
     }
 
     if (permanent) {
-      await neon.project.delete({ where: { id } });
+      await deleteProjectRecordPermanently(id);
     } else {
-      await neon.project.update({ where: { id }, data: { status: 'deleted' } });
-      await neon.auditLog.create({
-        data: {
-          projectId: id,
-          action: 'deleted',
-          entity: 'project',
-          entityId: id,
-        },
+      await updateProjectRecord(id, { status: 'deleted' });
+      await writeAuditLog({
+        projectId: id,
+        action: 'deleted',
+        entity: 'project',
+        entityId: id,
       });
     }
 

@@ -5,7 +5,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getNeon } from '@/lib/db/prisma';
+import {
+  createProjectRecord,
+  listProjectsForApi,
+  writeAuditLog,
+} from '@/lib/firebase/projects-store';
 import { wetBulb as calcWetBulb } from '@/lib/functions/psychrometric';
 import {
   toNumber,
@@ -22,54 +26,14 @@ export async function GET(request: NextRequest) {
     const sortBy = searchParams.get('sortBy') || 'updatedAt';
     const sortOrder = searchParams.get('sortOrder') || 'desc';
 
-    const where: Record<string, unknown> = {};
-
-    if (status && status !== 'all') {
-      where.status = status;
-    } else {
-      where.status = { notIn: ['archived', 'deleted'] };
-    }
-
-    if (search) {
-      where.OR = [
-        { name: { contains: search } },
-        { clientName: { contains: search } },
-        { buildingType: { contains: search } },
-        { location: { contains: search } },
-      ];
-    }
-
-    const neon = getNeon();
-    const projects = await neon.project.findMany({
-      where,
-      include: {
-        floors: {
-          include: {
-            rooms: {
-              include: {
-                coolingLoad: true,
-                _count: { select: { selectedEquipment: true } },
-              },
-            },
-          },
-        },
-        _count: { select: { boqItems: true } },
-      },
-      orderBy: { [sortBy]: sortOrder },
+    const projects = await listProjectsForApi({
+      status,
+      search,
+      sortBy,
+      sortOrder,
     });
 
-    const transformedProjects = projects.map((p) => ({
-      ...p,
-      _count: {
-        ...p._count,
-        selectedEquipment: p.floors.reduce(
-          (sum, f) => sum + f.rooms.reduce((rSum, r) => rSum + r._count.selectedEquipment, 0),
-          0,
-        ),
-      },
-    }));
-
-    return NextResponse.json({ projects: transformedProjects });
+    return NextResponse.json({ projects });
   } catch (error) {
     console.error('GET /api/projects error:', error);
     const d = getErrorDetails(error, 'Failed to fetch projects');
@@ -92,39 +56,33 @@ export async function POST(request: NextRequest) {
       ? toNumber(body.outdoorWB, 0)
       : calcWetBulb(finalDB, finalRH);
 
-    const neon = getNeon();
-    const project = await neon.project.create({
-      data: {
-        name: body.name,
-        clientName: body.clientName || '',
-        buildingType: body.buildingType || 'commercial',
-        location: body.location || '',
-        city: body.city || 'Manila',
-        totalFloorArea: toNumber(body.totalFloorArea, 0),
-        floorsAboveGrade: toInt(body.floorsAboveGrade, 1),
-        floorsBelowGrade: toInt(body.floorsBelowGrade, 0),
-        outdoorDB: finalDB,
-        outdoorWB: computedWB,
-        outdoorRH: finalRH,
-        indoorDB: toNumber(body.indoorDB, 24),
-        indoorRH: toNumber(body.indoorRH, 50),
-        notes: body.notes || '',
-        status: 'draft',
-      },
-      include: { floors: true },
+    const project = await createProjectRecord({
+      name: body.name,
+      clientName: body.clientName || '',
+      buildingType: body.buildingType || 'commercial',
+      location: body.location || '',
+      city: body.city || 'Manila',
+      totalFloorArea: toNumber(body.totalFloorArea, 0),
+      floorsAboveGrade: toInt(body.floorsAboveGrade, 1),
+      floorsBelowGrade: toInt(body.floorsBelowGrade, 0),
+      outdoorDB: finalDB,
+      outdoorWB: computedWB,
+      outdoorRH: finalRH,
+      indoorDB: toNumber(body.indoorDB, 24),
+      indoorRH: toNumber(body.indoorRH, 50),
+      notes: body.notes || '',
+      status: 'draft',
     });
 
-    await neon.auditLog.create({
-      data: {
-        projectId: project.id,
-        action: 'created',
-        entity: 'project',
-        entityId: project.id,
-        details: JSON.stringify({ name: body.name }),
-      },
+    await writeAuditLog({
+      projectId: project.id,
+      action: 'created',
+      entity: 'project',
+      entityId: project.id,
+      details: JSON.stringify({ name: body.name }),
     });
 
-    return NextResponse.json({ project }, { status: 201 });
+    return NextResponse.json({ project: { ...project, floors: [] } }, { status: 201 });
   } catch (error) {
     console.error('POST /api/projects error:', error);
     const d = getErrorDetails(error, 'Failed to create project');

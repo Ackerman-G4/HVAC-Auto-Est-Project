@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { showToast } from '@/components/ui/toast';
+import { TermHint } from '@/components/ui/term-hint';
 import { getCityOptions } from '@/constants/climate-data';
 import { psychrometricState } from '@/lib/functions/psychrometric';
 import { Save, ArrowLeft } from 'lucide-react';
@@ -22,6 +23,45 @@ const BUILDING_TYPES = [
   { value: 'hospitality', label: 'Hospitality' },
   { value: 'retail', label: 'Retail' },
   { value: 'mixed_use', label: 'Mixed Use' },
+];
+
+type PsychrometricSnapshot = ReturnType<typeof psychrometricState>;
+
+const NEW_PROJECT_PSYCHRO_METRICS: Array<{
+  term: string;
+  definition: string;
+  formatValue: (state: PsychrometricSnapshot) => string;
+}> = [
+  {
+    term: 'WB',
+    definition: 'Wet-bulb temperature: indicates evaporative cooling potential and moisture influence.',
+    formatValue: (state) => `${state.wetBulb}°C`,
+  },
+  {
+    term: 'Dew Pt',
+    definition: 'Dew point temperature: point where air becomes saturated and condensation begins.',
+    formatValue: (state) => `${state.dewPoint}°C`,
+  },
+  {
+    term: 'W (g/kg)',
+    definition: 'Humidity ratio: grams of water vapor per kilogram of dry air.',
+    formatValue: (state) => `${(state.humidityRatio * 1000).toFixed(1)} g/kg`,
+  },
+  {
+    term: 'h (kJ/kg)',
+    definition: 'Specific enthalpy: total heat content per kilogram of dry air.',
+    formatValue: (state) => `${state.enthalpy} kJ/kg`,
+  },
+  {
+    term: 'v (m3/kg)',
+    definition: 'Specific volume: air volume occupied by one kilogram of dry air.',
+    formatValue: (state) => `${state.specificVolume} m³/kg`,
+  },
+  {
+    term: 'rho (kg/m3)',
+    definition: 'Air density: mass of air per unit volume at current conditions.',
+    formatValue: (state) => `${state.density} kg/m³`,
+  },
 ];
 
 export default function NewProjectPage() {
@@ -44,6 +84,12 @@ export default function NewProjectPage() {
   });
 
   const cityOptions = getCityOptions();
+  const outdoorDbValue = Number(form.outdoorDB) || 35;
+  const indoorDbValue = Number(form.indoorDB) || 24;
+  const crossFieldError =
+    outdoorDbValue <= indoorDbValue
+      ? 'Outdoor dry bulb should be greater than indoor dry bulb for cooling design calculations.'
+      : undefined;
 
   const handleChange = (field: string, value: string | number) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -65,6 +111,11 @@ export default function NewProjectPage() {
     e.preventDefault();
     if (!String(form.name).trim()) {
       showToast('error', 'Project name is required', 'Enter a project name before creating the project.');
+      return;
+    }
+
+    if (crossFieldError) {
+      showToast('error', 'Invalid design temperatures', crossFieldError);
       return;
     }
 
@@ -133,6 +184,7 @@ export default function NewProjectPage() {
                 label="Project Name *"
                 placeholder="e.g., ABC Office Tower HVAC"
                 value={form.name}
+                hint="Use a unique, client-facing project identifier"
                 onChange={(e) => handleChange('name', e.target.value)}
               />
               <Input
@@ -164,6 +216,8 @@ export default function NewProjectPage() {
                   label="Floors Above Grade"
                   type="number"
                   min={1}
+                  max={200}
+                  unit="floors"
                   value={form.floorsAboveGrade}
                   onChange={(e) => handleNumChange('floorsAboveGrade', e.target.value)}
                   onBlur={() => handleNumBlur('floorsAboveGrade', 1)}
@@ -172,6 +226,8 @@ export default function NewProjectPage() {
                   label="Floors Below Grade"
                   type="number"
                   min={0}
+                  max={20}
+                  unit="floors"
                   value={form.floorsBelowGrade}
                   onChange={(e) => handleNumChange('floorsBelowGrade', e.target.value)}
                   onBlur={() => handleNumBlur('floorsBelowGrade', 0)}
@@ -181,6 +237,8 @@ export default function NewProjectPage() {
                 label="Total Floor Area (sqm)"
                 type="number"
                 min={0}
+                max={500000}
+                unit="m²"
                 value={form.totalFloorArea}
                 onChange={(e) => handleNumChange('totalFloorArea', e.target.value)}
                 onBlur={() => handleNumBlur('totalFloorArea', 0)}
@@ -207,6 +265,10 @@ export default function NewProjectPage() {
                   label="Outdoor Dry Bulb (°C)"
                   type="number"
                   step={0.1}
+                  min={20}
+                  max={50}
+                  unit="°C"
+                  error={crossFieldError}
                   value={form.outdoorDB}
                   onChange={(e) => handleNumChange('outdoorDB', e.target.value)}
                   onBlur={() => handleNumBlur('outdoorDB', 35)}
@@ -217,6 +279,7 @@ export default function NewProjectPage() {
                   step={1}
                   min={10}
                   max={100}
+                  unit="%"
                   value={form.outdoorRH}
                   onChange={(e) => handleNumChange('outdoorRH', e.target.value)}
                   onBlur={() => handleNumBlur('outdoorRH', 50)}
@@ -227,30 +290,22 @@ export default function NewProjectPage() {
                 const ps = psychrometricState(Number(form.outdoorDB) || 35, Number(form.outdoorRH) || 50);
                 return (
                   <div className="grid grid-cols-3 gap-2 text-center">
-                    <div className="rounded-lg border border-border/60 bg-background/90 px-1 py-1.5 shadow-[0_8px_16px_-18px_rgba(19,32,51,0.9)]">
-                      <p className="text-sm font-semibold tabular-nums">{ps.wetBulb}°C</p>
-                      <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Wet Bulb</p>
-                    </div>
-                    <div className="rounded-lg border border-border/60 bg-background/90 px-1 py-1.5 shadow-[0_8px_16px_-18px_rgba(19,32,51,0.9)]">
-                      <p className="text-sm font-semibold tabular-nums">{ps.dewPoint}°C</p>
-                      <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Dew Point</p>
-                    </div>
-                    <div className="rounded-lg border border-border/60 bg-background/90 px-1 py-1.5 shadow-[0_8px_16px_-18px_rgba(19,32,51,0.9)]">
-                      <p className="text-sm font-semibold tabular-nums">{(ps.humidityRatio * 1000).toFixed(1)} g/kg</p>
-                      <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Humidity Ratio</p>
-                    </div>
-                    <div className="rounded-lg border border-border/60 bg-background/90 px-1 py-1.5 shadow-[0_8px_16px_-18px_rgba(19,32,51,0.9)]">
-                      <p className="text-sm font-semibold tabular-nums">{ps.enthalpy} kJ/kg</p>
-                      <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Enthalpy</p>
-                    </div>
-                    <div className="rounded-lg border border-border/60 bg-background/90 px-1 py-1.5 shadow-[0_8px_16px_-18px_rgba(19,32,51,0.9)]">
-                      <p className="text-sm font-semibold tabular-nums">{ps.specificVolume} m³/kg</p>
-                      <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Sp. Volume</p>
-                    </div>
-                    <div className="rounded-lg border border-border/60 bg-background/90 px-1 py-1.5 shadow-[0_8px_16px_-18px_rgba(19,32,51,0.9)]">
-                      <p className="text-sm font-semibold tabular-nums">{ps.density} kg/m³</p>
-                      <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Density</p>
-                    </div>
+                    {NEW_PROJECT_PSYCHRO_METRICS.map((metric) => (
+                      <div
+                        key={metric.term}
+                        className="rounded-lg border border-border/60 bg-background/90 px-1 py-1.5 shadow-[0_8px_16px_-18px_rgba(19,32,51,0.9)]"
+                      >
+                        <p className="text-sm font-semibold tabular-nums">{metric.formatValue(ps)}</p>
+                        <div className="text-[9px] uppercase tracking-wider text-muted-foreground">
+                          <TermHint
+                            term={metric.term}
+                            definition={metric.definition}
+                            compact
+                            className="justify-center"
+                          />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 );
               })()}
@@ -259,6 +314,9 @@ export default function NewProjectPage() {
                   label="Indoor Dry Bulb (°C)"
                   type="number"
                   step={0.1}
+                  min={16}
+                  max={30}
+                  unit="°C"
                   value={form.indoorDB}
                   onChange={(e) => handleNumChange('indoorDB', e.target.value)}
                   onBlur={() => handleNumBlur('indoorDB', 24)}
@@ -269,6 +327,7 @@ export default function NewProjectPage() {
                   step={1}
                   min={30}
                   max={70}
+                  unit="%"
                   value={form.indoorRH}
                   onChange={(e) => handleNumChange('indoorRH', e.target.value)}
                   onBlur={() => handleNumBlur('indoorRH', 50)}

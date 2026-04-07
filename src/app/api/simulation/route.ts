@@ -9,7 +9,7 @@ import { runCFDSimulation } from '@/lib/functions/cfd-simulation';
 import { checkASHRAECompliance } from '@/lib/functions/ashrae-compliance';
 import { simulateFailure, calculatePUE } from '@/lib/functions/failure-simulation';
 import { runOptimization } from '@/lib/functions/cooling-optimization';
-import type { SimulationInput, FailureConfig, OptimizationConfig } from '@/types/simulation';
+import type { SimulationInput, FailureConfig } from '@/types/simulation';
 
 type SimAction = 'cfd' | 'compliance' | 'failure' | 'pue' | 'optimize';
 

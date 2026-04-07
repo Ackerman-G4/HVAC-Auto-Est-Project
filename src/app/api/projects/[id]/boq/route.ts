@@ -5,11 +5,21 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getNeon } from '@/lib/db/prisma';
+import {
+  listBoqItemsForProject,
+  listSelectedEquipmentForProject,
+  replaceBoqItemsForProject,
+} from '@/lib/firebase/project-estimation-store';
+import {
+  getFloorsWithRooms,
+  getProjectRecord,
+  updateProjectRecord,
+  writeAuditLog,
+} from '@/lib/firebase/projects-store';
 import { compileBOQ } from '@/lib/functions/cost-engine';
 import { sizeRefrigerantPipe, sizeCondensatePipe } from '@/lib/functions/pipe-sizing';
 import { sizeElectrical } from '@/lib/functions/electrical';
-import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
+import { errorResponse, getErrorDetails, resourceNotFound } from '@/lib/utils/api-helpers';
 import { finalizeDualValue } from '@/lib/utils/dual-control';
 import type { BOQItem } from '@/types/material';
 
@@ -64,31 +74,14 @@ function resolvePricingPolicy(project: ProjectPricing | null) {
 
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
-    const neon = getNeon();
     const { id } = await context.params;
     const [project, items] = await Promise.all([
-      neon.project.findUnique({
-        where: { id },
-        select: {
-          id: true,
-          suggestedLaborMultiplier: true,
-          laborMultiplierOverride: true,
-          suggestedOverheadPercent: true,
-          overheadPercentOverride: true,
-          suggestedContingencyPercent: true,
-          contingencyPercentOverride: true,
-          suggestedVatRate: true,
-          vatRateOverride: true,
-        },
-      }),
-      neon.bOQItem.findMany({
-        where: { projectId: id },
-        orderBy: { section: 'asc' },
-      }),
+      getProjectRecord(id),
+      listBoqItemsForProject(id),
     ]);
 
     if (!project) {
-      return errorResponse(404, 'Project not found', 'The project does not exist.', 'PROJECT_NOT_FOUND');
+      return resourceNotFound('Project', 'The project does not exist.', 'PROJECT_NOT_FOUND');
     }
 
     const pricingPolicy = resolvePricingPolicy(project);
@@ -209,6 +202,7 @@ interface SelEquip {
     unitPricePHP: number;
   };
   quantity: number;
+  floorName: string;
 }
 
 function buildBOQInputs(selections: SelEquip[]) {
@@ -254,50 +248,33 @@ function buildBOQInputs(selections: SelEquip[]) {
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
-    const neon = getNeon();
     const { id: projectId } = await context.params;
 
-    const project = await neon.project.findUnique({
-      where: { id: projectId },
-      select: {
-        id: true,
-        suggestedLaborMultiplier: true,
-        laborMultiplierOverride: true,
-        suggestedOverheadPercent: true,
-        overheadPercentOverride: true,
-        suggestedContingencyPercent: true,
-        contingencyPercentOverride: true,
-        suggestedVatRate: true,
-        vatRateOverride: true,
-      },
-    });
+    const project = await getProjectRecord(projectId);
 
     if (!project) {
-      return errorResponse(404, 'Project not found', 'The project does not exist.', 'PROJECT_NOT_FOUND');
+      return resourceNotFound('Project', 'The project does not exist.', 'PROJECT_NOT_FOUND');
     }
 
     const pricingPolicy = resolvePricingPolicy(project);
 
-    const floors = await neon.floor.findMany({
-      where: { projectId },
-      orderBy: { floorNumber: 'asc' },
-      include: {
-        rooms: {
-          include: { selectedEquipment: { include: { equipment: true } } },
-        },
-      },
+    const [floors, selectedRecords] = await Promise.all([
+      getFloorsWithRooms(projectId),
+      listSelectedEquipmentForProject(projectId),
+    ]);
+
+    const roomFloorMap = new Map<string, string>();
+    floors.forEach((floor) => {
+      floor.rooms.forEach((room) => {
+        roomFloorMap.set(room.id, floor.name || 'Unassigned');
+      });
     });
 
-    const selectedEquipment = floors.flatMap((f) =>
-      f.rooms.flatMap((r) =>
-        r.selectedEquipment.map((sel) => ({
-          ...sel,
-          equipment: sel.equipment,
-          floorName: f.name,
-          floorNumber: f.floorNumber,
-        }))
-      )
-    );
+    const selectedEquipment: SelEquip[] = selectedRecords.map((sel) => ({
+      equipment: sel.equipment,
+      quantity: sel.quantity,
+      floorName: roomFloorMap.get(sel.roomId) || 'Unassigned',
+    }));
 
     if (selectedEquipment.length === 0) {
       return errorResponse(400, 'No equipment selected', 'Please select equipment first.', 'NO_EQUIPMENT');
@@ -334,61 +311,56 @@ export async function POST(request: NextRequest, context: RouteContext) {
     });
     const boqSummary = { ...overallBOQ, items: allItems };
 
-    // Persist — wrap delete+create in a transaction for atomicity
-    await neon.$transaction(async (tx) => {
-      await tx.bOQItem.deleteMany({ where: { projectId } });
+    await replaceBoqItemsForProject(
+      projectId,
+      boqSummary.items.map((item) => ({
+        section: item.section,
+        description: item.description,
+        specification: item.specification || '',
+        quantity: item.quantity,
+        unit: item.unit,
+        suggestedUnitPrice: item.unitPrice,
+        suggestedTotalPrice: item.totalPrice,
+        userUnitPriceOverride: null,
+        userTotalPriceOverride: null,
+        finalUnitPrice: item.unitPrice,
+        finalTotalPrice: item.totalPrice,
+        unitPrice: item.unitPrice,
+        totalPrice: item.totalPrice,
+        sourceState: 'suggested',
+        isOverridden: false,
+        overrideReason: '',
+        notes: item.floorName || '',
+        category: item.category,
+      })),
+    );
 
-      await tx.bOQItem.createMany({
-        data: boqSummary.items.map((item) => ({
-          projectId,
-          section: item.section,
-          description: item.description,
-          quantity: item.quantity,
-          unit: item.unit,
-          suggestedUnitPrice: item.unitPrice,
-          suggestedTotalPrice: item.totalPrice,
-          finalUnitPrice: item.unitPrice,
-          finalTotalPrice: item.totalPrice,
-          unitPrice: item.unitPrice,
-          totalPrice: item.totalPrice,
-          sourceState: 'suggested',
-          isOverridden: false,
-          notes: item.floorName || '',
-          category: item.category,
-        })),
-      });
+    const totalFloorArea = floors.reduce(
+      (acc, floor) => acc + floor.rooms.reduce((roomSum, room) => roomSum + (room.area || 0), 0),
+      0,
+    );
 
-      // Update project total floor area
-      await tx.project.update({
-        where: { id: projectId },
-        data: {
-          totalFloorArea: (await tx.room.aggregate({
-            where: { floor: { projectId } },
-            _sum: { area: true },
-          }))._sum.area || 0,
-          isBoqStale: false,
-          lastBoqGeneratedAt: new Date(),
+    await updateProjectRecord(projectId, {
+      totalFloorArea,
+      isBoqStale: false,
+      lastBoqGeneratedAt: new Date().toISOString(),
+    });
+
+    await writeAuditLog({
+      projectId,
+      action: 'generated',
+      entity: 'boq',
+      entityId: projectId,
+      details: JSON.stringify({
+        itemCount: boqSummary.items.length,
+        grandTotal: boqSummary.grandTotal,
+        pricingPolicy: {
+          laborMultiplier: pricingPolicy.laborMultiplier.final,
+          overheadPercent: pricingPolicy.overheadPercent.final,
+          contingencyPercent: pricingPolicy.contingencyPercent.final,
+          vatRate: pricingPolicy.vatRate.final,
         },
-      });
-
-      await tx.auditLog.create({
-        data: {
-          projectId,
-          action: 'generated',
-          entity: 'boq',
-          entityId: projectId,
-          details: JSON.stringify({
-            itemCount: boqSummary.items.length,
-            grandTotal: boqSummary.grandTotal,
-            pricingPolicy: {
-              laborMultiplier: pricingPolicy.laborMultiplier.final,
-              overheadPercent: pricingPolicy.overheadPercent.final,
-              contingencyPercent: pricingPolicy.contingencyPercent.final,
-              vatRate: pricingPolicy.vatRate.final,
-            },
-          }),
-        },
-      });
+      }),
     });
 
     return NextResponse.json({ boq: boqSummary }, { status: 201 });

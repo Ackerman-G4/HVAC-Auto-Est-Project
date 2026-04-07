@@ -77,13 +77,11 @@ function calcVoltageDrop(
   current: number,
   length: number,
   wireSqMM: number,
-  voltage: number,
-  phase: number
+  voltage: number
 ): number {
   // Resistivity of copper at 75°C = 0.0214 Ω·mm²/m
   const resistivity = 0.0214;
   const resistance = (resistivity * length * 2) / wireSqMM; // round trip
-  const factor = phase === 3 ? Math.sqrt(3) : 2;
   const vDrop = current * resistance;
   return (vDrop / voltage) * 100;
 }
@@ -127,14 +125,14 @@ export function sizeElectrical(input: ElectricalInput): ElectricalResult {
     || WIRE_AMPACITY[WIRE_AMPACITY.length - 1];
 
   // Voltage drop check
-  const vDrop = calcVoltageDrop(fla, runLength, selectedWire.sqmm, voltage, phase);
+  const vDrop = calcVoltageDrop(fla, runLength, selectedWire.sqmm, voltage);
   
   let finalWire = selectedWire;
   if (vDrop > 3) {
     // Upsize wire for voltage drop
     const upsizedIdx = WIRE_AMPACITY.indexOf(selectedWire);
     for (let i = upsizedIdx + 1; i < WIRE_AMPACITY.length; i++) {
-      const newVDrop = calcVoltageDrop(fla, runLength, WIRE_AMPACITY[i].sqmm, voltage, phase);
+      const newVDrop = calcVoltageDrop(fla, runLength, WIRE_AMPACITY[i].sqmm, voltage);
       if (newVDrop <= 3) {
         finalWire = WIRE_AMPACITY[i];
         notes.push(`Wire upsized from ${selectedWire.sqmm}mm² to ${finalWire.sqmm}mm² for voltage drop.`);
@@ -143,7 +141,7 @@ export function sizeElectrical(input: ElectricalInput): ElectricalResult {
     }
   }
 
-  const finalVDrop = calcVoltageDrop(fla, runLength, finalWire.sqmm, voltage, phase);
+  const finalVDrop = calcVoltageDrop(fla, runLength, finalWire.sqmm, voltage);
 
   // Ground wire (per PEC Table 2.50.1)
   let groundWire: string;

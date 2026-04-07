@@ -4,7 +4,7 @@ Scope: Suggested -> Override -> Final behavior across pricing, room loads, equip
 
 ## Pre-checks
 - [ ] App is running locally on http://127.0.0.1:3000
-- [ ] Database is reachable
+- [ ] Firebase credentials are configured and Firestore is reachable
 
 ## Flow
 - [ ] Create a new project

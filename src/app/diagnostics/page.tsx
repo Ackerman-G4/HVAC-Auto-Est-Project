@@ -12,7 +12,6 @@ import {
   Stethoscope,
   Play,
   RotateCcw,
-  AlertTriangle,
   Thermometer,
   Wind,
   Droplets,
@@ -195,7 +194,15 @@ export default function DiagnosticsPage() {
     }
   };
 
-  const toggleFault = (id: string) => setExpandedFaults((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleFault = (id: string) => setExpandedFaults((prev) => {
+    const n = new Set(prev);
+    if (n.has(id)) {
+      n.delete(id);
+    } else {
+      n.add(id);
+    }
+    return n;
+  });
   const updateInput = useCallback(<K extends keyof DiagnosticInput>(k: K, v: DiagnosticInput[K]) => setInput((p) => ({ ...p, [k]: v })), []);
   const updateNum = useCallback((k: keyof DiagnosticInput, raw: string) => setInput((p) => ({ ...p, [k]: raw === '' ? undefined : parseFloat(raw) })), []);
   const toggleSym = useCallback((k: keyof DiagnosticInput) => setInput((p) => ({ ...p, [k]: !p[k] })), []);

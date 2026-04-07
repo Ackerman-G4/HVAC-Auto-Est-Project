@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
+import { parseRoomPolygonRect } from '@/lib/utils/room-polygon';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -133,23 +134,13 @@ function layoutFloor(rooms: RoomData[], floorY: number, floorNum: number): RoomB
   if (!rooms.length) return [];
 
   // Check if any rooms have polygon data — if so, use real positions
-  const hasPolygon = rooms.some(r => {
-    if (!r.polygon) return false;
-    try {
-      const p = JSON.parse(r.polygon);
-      return p && typeof p === 'object' && !Array.isArray(p) && p.width > 0;
-    } catch { return false; }
-  });
+  const hasPolygon = rooms.some((r) => !!parseRoomPolygonRect(r.polygon));
 
   if (hasPolygon) {
     // Use persisted pixel positions, converting to meters via stored scale
     const boxes: RoomBox[] = [];
     for (const r of rooms) {
-      let poly: { x: number; y: number; width: number; height: number; scale?: number } | null = null;
-      try {
-        const p = JSON.parse(r.polygon || '[]');
-        if (p && typeof p === 'object' && !Array.isArray(p) && p.width > 0) poly = p;
-      } catch { /* no-op */ }
+      const poly = parseRoomPolygonRect(r.polygon);
 
       const dims = roomDims(r);
       if (poly) {

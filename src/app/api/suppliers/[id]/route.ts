@@ -5,8 +5,12 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import neon from '@/lib/db/prisma';
-import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
+import {
+  deleteSupplierRecord,
+  getSupplierRecord,
+  updateSupplierRecord,
+} from '@/lib/firebase/catalog-store';
+import { errorResponse, getErrorDetails, resourceNotFound } from '@/lib/utils/api-helpers';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -15,23 +19,24 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     const { id } = await context.params;
     const body = await request.json();
 
-    const existing = await neon.supplier.findUnique({ where: { id } });
+    const existing = await getSupplierRecord(id);
     if (!existing) {
-      return errorResponse(404, 'Supplier not found', 'The supplier does not exist.', 'SUPPLIER_NOT_FOUND');
+      return resourceNotFound('Supplier', 'The supplier does not exist.', 'SUPPLIER_NOT_FOUND');
     }
 
-    const supplier = await neon.supplier.update({
-      where: { id },
-      data: {
-        name: body.name ?? existing.name,
-        type: body.type ?? existing.type,
-        website: body.website ?? existing.website,
-        location: body.location ?? existing.location,
-        contactInfo: body.contactInfo ?? existing.contactInfo,
-        coverageArea: body.coverageArea ?? existing.coverageArea,
-        categories: body.categories ? JSON.stringify(body.categories) : existing.categories,
-      },
+    const supplier = await updateSupplierRecord(id, {
+      name: body.name ?? existing.name,
+      type: body.type ?? existing.type,
+      website: body.website ?? existing.website,
+      location: body.location ?? existing.location,
+      contactInfo: body.contactInfo ?? existing.contactInfo,
+      coverageArea: body.coverageArea ?? existing.coverageArea,
+      categories: body.categories ? JSON.stringify(body.categories) : existing.categories,
     });
+
+    if (!supplier) {
+      return resourceNotFound('Supplier', 'The supplier does not exist.', 'SUPPLIER_NOT_FOUND');
+    }
 
     return NextResponse.json({ supplier });
   } catch (error) {
@@ -45,12 +50,12 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
 
-    const existing = await neon.supplier.findUnique({ where: { id } });
+    const existing = await getSupplierRecord(id);
     if (!existing) {
-      return errorResponse(404, 'Supplier not found', 'The supplier does not exist.', 'SUPPLIER_NOT_FOUND');
+      return resourceNotFound('Supplier', 'The supplier does not exist.', 'SUPPLIER_NOT_FOUND');
     }
 
-    await neon.supplier.delete({ where: { id } });
+    await deleteSupplierRecord(id);
 
     return NextResponse.json({ message: 'Supplier deleted' });
   } catch (error) {

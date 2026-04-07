@@ -4,25 +4,19 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import neon from '@/lib/db/prisma';
-import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
+import { listDiagnosticHistory } from '@/lib/firebase/catalog-store';
+import { errorResponse, getErrorDetails, parseBoundedInt } from '@/lib/utils/api-helpers';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 200);
-
-    const history = await neon.diagnosticHistory.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-      select: {
-        id: true,
-        systemType: true,
-        faultCount: true,
-        maxSeverity: true,
-        createdAt: true,
-      },
+    const limit = parseBoundedInt(searchParams.get('limit'), {
+      defaultValue: 50,
+      min: 1,
+      max: 200,
     });
+
+    const history = await listDiagnosticHistory(limit);
 
     return NextResponse.json({ history });
   } catch (error) {

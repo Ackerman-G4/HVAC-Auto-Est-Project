@@ -1,21 +1,17 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
+import { useCallback, useEffect, useState, use } from 'react';
 import { motion } from 'framer-motion';
 import {
   Plus,
   Thermometer,
-  Settings2,
   Calculator,
   Package,
   FileText,
   MapPin,
   Building2,
   Trash2,
-  Edit3,
   Save,
-  ArrowLeft,
-  Play,
   Zap,
   Box,
   Download,
@@ -32,15 +28,16 @@ import { Tabs } from '@/components/ui/tabs';
 import { StatCard } from '@/components/ui/stat-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
-import { ConfirmDialog } from '@/components/ui/dialog';
 import { showToast } from '@/components/ui/toast';
+import { DualValueExplainer } from '@/components/ui/dual-value-explainer';
+import { TermHint } from '@/components/ui/term-hint';
 import { listContainerVariants, listItemVariants } from '@/animations/list-variants';
 import { formatPHP } from '@/lib/utils/format-currency';
-import { feetToMeters, sqftToSqm, metersToFeet, sqmToSqft, formatFtM, formatSqFtSqM } from '@/lib/utils/unit-conversion';
+import { feetToMeters, sqftToSqm, metersToFeet, sqmToSqft } from '@/lib/utils/unit-conversion';
 import { psychrometricState, psychrometricACRecommendation } from '@/lib/functions/psychrometric';
 import { EQUIPMENT_CATALOG } from '@/constants/equipment-catalog';
+import { safeJsonParse } from '@/lib/utils/safe-json';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { exportProjectPDF, exportProjectDXF, exportProjectCSV, exportProjectExcel } from '@/lib/utils/project-export';
 import dynamic from 'next/dynamic';
 
@@ -106,6 +103,63 @@ const ORIENTATIONS = [
   { value: 'W', label: 'West' },
   { value: 'NW', label: 'Northwest' },
 ];
+
+type PsychrometricSnapshot = ReturnType<typeof psychrometricState>;
+
+const PSYCHROMETRIC_METRICS: Array<{
+  term: string;
+  definition: string;
+  formatValue: (state: PsychrometricSnapshot) => string;
+}> = [
+  {
+    term: 'DB',
+    definition: 'Dry-bulb temperature: the actual air temperature measured by a standard thermometer.',
+    formatValue: (state) => `${state.dryBulb}°C`,
+  },
+  {
+    term: 'WB',
+    definition: 'Wet-bulb temperature: indicates evaporative cooling potential and moisture influence.',
+    formatValue: (state) => `${state.wetBulb}°C`,
+  },
+  {
+    term: 'RH',
+    definition: 'Relative humidity: percentage of moisture in air relative to saturation at the same temperature.',
+    formatValue: (state) => `${state.relativeHumidity}%`,
+  },
+  {
+    term: 'Dew Pt',
+    definition: 'Dew point temperature: point where air becomes saturated and condensation begins.',
+    formatValue: (state) => `${state.dewPoint}°C`,
+  },
+  {
+    term: 'W (g/kg)',
+    definition: 'Humidity ratio: grams of water vapor per kilogram of dry air.',
+    formatValue: (state) => (state.humidityRatio * 1000).toFixed(1),
+  },
+  {
+    term: 'h (kJ/kg)',
+    definition: 'Specific enthalpy: total heat content per kilogram of dry air.',
+    formatValue: (state) => String(state.enthalpy),
+  },
+];
+
+function renderPsychrometricMetricGrid(
+  state: PsychrometricSnapshot,
+  toneClassName: string,
+) {
+  return (
+    <div className="grid grid-cols-3 gap-1.5 text-center">
+      {PSYCHROMETRIC_METRICS.map((metric) => (
+        <div key={metric.term} className={`rounded py-1.5 ${toneClassName}`}>
+          <p className="text-sm font-bold tabular-nums">{metric.formatValue(state)}</p>
+          <p className="text-[8px] uppercase tracking-wider text-muted-foreground">
+            <TermHint term={metric.term} definition={metric.definition} compact />
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 interface ProjectData {
   id: string;
@@ -282,7 +336,6 @@ const parsePricingDraftValue = (value: string): { valid: boolean; value: number 
 
 export default function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const router = useRouter();
   const [project, setProject] = useState<ProjectData | null>(null);
   const [loading, setLoading] = useState(true);
   const [calculating, setCalculating] = useState(false);
@@ -348,7 +401,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const effectiveWindowArea = roomForm.useFootInput && numVal(roomForm.windowLengthFt) > 0 && numVal(roomForm.windowWidthFt) > 0 ? computedWindowSqm : numVal(roomForm.windowArea);
   const effectivePerimeterM = roomForm.useFootInput && numVal(roomForm.lengthFt) > 0 && numVal(roomForm.widthFt) > 0 ? feetToMeters(2 * (numVal(roomForm.lengthFt) + numVal(roomForm.widthFt))) : 0;
 
-  const fetchProject = () => {
+  const fetchProject = useCallback(() => {
     setLoading(true);
     fetch(`/api/projects/${id}`)
       .then((r) => {
@@ -434,31 +487,45 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         showToast('error', 'Failed to load project', 'Network error or server unreachable.');
         setLoading(false);
       });
-  };
+  }, [id]);
 
   useEffect(() => {
     fetchProject();
-  }, [id]);
+  }, [fetchProject]);
 
   const snapshotStorageKey = `hvac-project-snapshot:${id}`;
 
-  const readSnapshotMeta = () => {
-    if (typeof window === 'undefined') return;
+  const readLocalSnapshot = useCallback((): {
+    raw: string | null;
+    parsed: Partial<LocalProjectSnapshot> | null;
+  } => {
+    if (typeof window === 'undefined') {
+      return { raw: null, parsed: null };
+    }
+
     const raw = window.localStorage.getItem(snapshotStorageKey);
+    return {
+      raw,
+      parsed: safeJsonParse<Partial<LocalProjectSnapshot>>(raw),
+    };
+  }, [snapshotStorageKey]);
+
+  const readSnapshotMeta = useCallback(() => {
+    const { raw, parsed } = readLocalSnapshot();
     if (!raw) {
       setSnapshotSavedAt(null);
       return;
     }
 
-    try {
-      const parsed = JSON.parse(raw) as Partial<LocalProjectSnapshot>;
-      setSnapshotSavedAt(typeof parsed.savedAt === 'string' ? parsed.savedAt : null);
-    } catch {
+    if (!parsed) {
       setSnapshotSavedAt(null);
+      return;
     }
-  };
 
-  const buildSnapshotPayload = (): LocalProjectSnapshot | null => {
+    setSnapshotSavedAt(typeof parsed.savedAt === 'string' ? parsed.savedAt : null);
+  }, [readLocalSnapshot]);
+
+  const buildSnapshotPayload = useCallback((): LocalProjectSnapshot | null => {
     if (!project) return null;
 
     return {
@@ -471,9 +538,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       roomLoadDrafts,
       equipmentDrafts,
     };
-  };
+  }, [project, id, boqDraftPrices, pricingDraft, roomLoadDrafts, equipmentDrafts]);
 
-  const saveLocalSnapshot = (showSuccessToast: boolean) => {
+  const saveLocalSnapshot = useCallback((showSuccessToast: boolean) => {
     if (typeof window === 'undefined') return;
     const payload = buildSnapshotPayload();
     if (!payload) return;
@@ -484,34 +551,33 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     if (showSuccessToast) {
       showToast('success', 'Local snapshot saved', 'You can restore this project state from the Export tab.');
     }
-  };
+  }, [buildSnapshotPayload, snapshotStorageKey]);
 
   const restoreLocalSnapshot = () => {
-    if (typeof window === 'undefined') return;
-    const raw = window.localStorage.getItem(snapshotStorageKey);
+    const { raw, parsed } = readLocalSnapshot();
     if (!raw) {
       showToast('error', 'No local snapshot found', 'Create a snapshot first before restoring.');
       return;
     }
 
-    try {
-      const parsed = JSON.parse(raw) as Partial<LocalProjectSnapshot>;
-      if (parsed.projectId && parsed.projectId !== id) {
-        showToast('error', 'Snapshot mismatch', 'The saved snapshot belongs to a different project.');
-        return;
-      }
-
-      if (parsed.project) setProject(parsed.project as ProjectData);
-      if (parsed.boqDraftPrices) setBoqDraftPrices(parsed.boqDraftPrices);
-      if (parsed.pricingDraft) setPricingDraft(parsed.pricingDraft);
-      if (parsed.roomLoadDrafts) setRoomLoadDrafts(parsed.roomLoadDrafts);
-      if (parsed.equipmentDrafts) setEquipmentDrafts(parsed.equipmentDrafts);
-      setSnapshotSavedAt(typeof parsed.savedAt === 'string' ? parsed.savedAt : null);
-
-      showToast('success', 'Local snapshot restored', 'Review restored values, then save overrides to sync with the server.');
-    } catch {
+    if (!parsed) {
       showToast('error', 'Snapshot is invalid', 'Unable to parse local snapshot data.');
+      return;
     }
+
+    if (parsed.projectId && parsed.projectId !== id) {
+      showToast('error', 'Snapshot mismatch', 'The saved snapshot belongs to a different project.');
+      return;
+    }
+
+    if (parsed.project) setProject(parsed.project as ProjectData);
+    if (parsed.boqDraftPrices) setBoqDraftPrices(parsed.boqDraftPrices);
+    if (parsed.pricingDraft) setPricingDraft(parsed.pricingDraft);
+    if (parsed.roomLoadDrafts) setRoomLoadDrafts(parsed.roomLoadDrafts);
+    if (parsed.equipmentDrafts) setEquipmentDrafts(parsed.equipmentDrafts);
+    setSnapshotSavedAt(typeof parsed.savedAt === 'string' ? parsed.savedAt : null);
+
+    showToast('success', 'Local snapshot restored', 'Review restored values, then save overrides to sync with the server.');
   };
 
   const clearLocalSnapshot = () => {
@@ -523,7 +589,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   useEffect(() => {
     readSnapshotMeta();
-  }, [id]);
+  }, [readSnapshotMeta]);
 
   useEffect(() => {
     if (!project) return;
@@ -532,7 +598,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     }, 1000);
 
     return () => window.clearTimeout(timeoutId);
-  }, [project, boqDraftPrices, pricingDraft, roomLoadDrafts, equipmentDrafts]);
+  }, [project, saveLocalSnapshot]);
 
   const handleAddRoom = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -972,7 +1038,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   const allRooms = project.floors.flatMap((f) => f.rooms);
   const totalTR = allRooms.reduce((sum, r) => sum + (r.coolingLoad?.trValue || 0), 0);
-  const totalBTU = allRooms.reduce((sum, r) => sum + (r.coolingLoad?.btuPerHour || 0), 0);
   const totalArea = allRooms.reduce((sum, r) => sum + r.area, 0);
   const equipmentCost = project.selectedEquipment.reduce((sum, e) => sum + e.totalPrice, 0);
   const boqTotal = project.boqItems.reduce((sum, b) => sum + b.totalPrice, 0);
@@ -1066,62 +1131,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 {/* Outdoor */}
                 <div>
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">Outdoor Air</p>
-                  <div className="grid grid-cols-3 gap-1.5 text-center">
-                    <div className="rounded py-1.5 bg-[rgba(219,142,47,0.14)]">
-                      <p className="text-sm font-bold tabular-nums">{outdoorPS.dryBulb}°C</p>
-                      <p className="text-[8px] uppercase tracking-wider text-muted-foreground">DB</p>
-                    </div>
-                    <div className="rounded py-1.5 bg-[rgba(219,142,47,0.14)]">
-                      <p className="text-sm font-bold tabular-nums">{outdoorPS.wetBulb}°C</p>
-                      <p className="text-[8px] uppercase tracking-wider text-muted-foreground">WB</p>
-                    </div>
-                    <div className="rounded py-1.5 bg-[rgba(219,142,47,0.14)]">
-                      <p className="text-sm font-bold tabular-nums">{outdoorPS.relativeHumidity}%</p>
-                      <p className="text-[8px] uppercase tracking-wider text-muted-foreground">RH</p>
-                    </div>
-                    <div className="rounded py-1.5 bg-[rgba(219,142,47,0.14)]">
-                      <p className="text-sm font-bold tabular-nums">{outdoorPS.dewPoint}°C</p>
-                      <p className="text-[8px] uppercase tracking-wider text-muted-foreground">Dew Pt</p>
-                    </div>
-                    <div className="rounded py-1.5 bg-[rgba(219,142,47,0.14)]">
-                      <p className="text-sm font-bold tabular-nums">{(outdoorPS.humidityRatio * 1000).toFixed(1)}</p>
-                      <p className="text-[8px] uppercase tracking-wider text-muted-foreground">W (g/kg)</p>
-                    </div>
-                    <div className="rounded py-1.5 bg-[rgba(219,142,47,0.14)]">
-                      <p className="text-sm font-bold tabular-nums">{outdoorPS.enthalpy}</p>
-                      <p className="text-[8px] uppercase tracking-wider text-muted-foreground">h (kJ/kg)</p>
-                    </div>
-                  </div>
+                  {renderPsychrometricMetricGrid(outdoorPS, 'bg-[rgba(219,142,47,0.14)]')}
                 </div>
                 {/* Indoor */}
                 <div>
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">Indoor Air (Design)</p>
-                  <div className="grid grid-cols-3 gap-1.5 text-center">
-                    <div className="rounded py-1.5 bg-[rgba(15,139,141,0.14)]">
-                      <p className="text-sm font-bold tabular-nums">{indoorPS.dryBulb}°C</p>
-                      <p className="text-[8px] uppercase tracking-wider text-muted-foreground">DB</p>
-                    </div>
-                    <div className="rounded py-1.5 bg-[rgba(15,139,141,0.14)]">
-                      <p className="text-sm font-bold tabular-nums">{indoorPS.wetBulb}°C</p>
-                      <p className="text-[8px] uppercase tracking-wider text-muted-foreground">WB</p>
-                    </div>
-                    <div className="rounded py-1.5 bg-[rgba(15,139,141,0.14)]">
-                      <p className="text-sm font-bold tabular-nums">{indoorPS.relativeHumidity}%</p>
-                      <p className="text-[8px] uppercase tracking-wider text-muted-foreground">RH</p>
-                    </div>
-                    <div className="rounded py-1.5 bg-[rgba(15,139,141,0.14)]">
-                      <p className="text-sm font-bold tabular-nums">{indoorPS.dewPoint}°C</p>
-                      <p className="text-[8px] uppercase tracking-wider text-muted-foreground">Dew Pt</p>
-                    </div>
-                    <div className="rounded py-1.5 bg-[rgba(15,139,141,0.14)]">
-                      <p className="text-sm font-bold tabular-nums">{(indoorPS.humidityRatio * 1000).toFixed(1)}</p>
-                      <p className="text-[8px] uppercase tracking-wider text-muted-foreground">W (g/kg)</p>
-                    </div>
-                    <div className="rounded py-1.5 bg-[rgba(15,139,141,0.14)]">
-                      <p className="text-sm font-bold tabular-nums">{indoorPS.enthalpy}</p>
-                      <p className="text-[8px] uppercase tracking-wider text-muted-foreground">h (kJ/kg)</p>
-                    </div>
-                  </div>
+                  {renderPsychrometricMetricGrid(indoorPS, 'bg-[rgba(15,139,141,0.14)]')}
                 </div>
               </div>
             </CardContent>
@@ -1180,14 +1195,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                         <Input label="Room Name *" value={strVal(roomForm.name)} onChange={(e) => setRoomForm({ ...roomForm, name: e.target.value })} />
-                        <Input label="Floor Number" type="number" min={1} value={numVal(roomForm.floorNumber) || ''} onChange={(e) => handleRoomNumChange('floorNumber', e.target.value)} onBlur={() => handleRoomNumBlur('floorNumber', 1)} />
+                        <Input label="Floor Number" type="number" min={1} max={200} unit="floors" value={numVal(roomForm.floorNumber) || ''} onChange={(e) => handleRoomNumChange('floorNumber', e.target.value)} onBlur={() => handleRoomNumBlur('floorNumber', 1)} />
                         <Select label="Space Type" value={strVal(roomForm.spaceType)} onChange={(e) => setRoomForm({ ...roomForm, spaceType: e.target.value })} options={SPACE_TYPES} />
 
                         {/* Measurements section */}
                         {roomForm.useFootInput ? (
                           <>
-                            <Input label="Room Length (ft) *" type="number" step={0.1} min={0} value={numVal(roomForm.lengthFt) || ''} onChange={(e) => handleRoomNumChange('lengthFt', e.target.value)} onBlur={() => handleRoomNumBlur('lengthFt', 0)} hint={numVal(roomForm.lengthFt) > 0 ? `= ${feetToMeters(numVal(roomForm.lengthFt)).toFixed(2)} m` : ''} />
-                            <Input label="Room Width (ft) *" type="number" step={0.1} min={0} value={numVal(roomForm.widthFt) || ''} onChange={(e) => handleRoomNumChange('widthFt', e.target.value)} onBlur={() => handleRoomNumBlur('widthFt', 0)} hint={numVal(roomForm.widthFt) > 0 ? `= ${feetToMeters(numVal(roomForm.widthFt)).toFixed(2)} m` : ''} />
+                            <Input label="Room Length (ft) *" type="number" step={0.1} min={0} max={1000} unit="ft" value={numVal(roomForm.lengthFt) || ''} onChange={(e) => handleRoomNumChange('lengthFt', e.target.value)} onBlur={() => handleRoomNumBlur('lengthFt', 0)} hint={numVal(roomForm.lengthFt) > 0 ? `= ${feetToMeters(numVal(roomForm.lengthFt)).toFixed(2)} m` : ''} />
+                            <Input label="Room Width (ft) *" type="number" step={0.1} min={0} max={1000} unit="ft" value={numVal(roomForm.widthFt) || ''} onChange={(e) => handleRoomNumChange('widthFt', e.target.value)} onBlur={() => handleRoomNumBlur('widthFt', 0)} hint={numVal(roomForm.widthFt) > 0 ? `= ${feetToMeters(numVal(roomForm.widthFt)).toFixed(2)} m` : ''} />
                             <div>
                               <label className="block text-xs font-medium text-foreground mb-1.5">Area (auto)</label>
                               <div className="h-9 px-3 rounded-lg border border-border/60 bg-secondary/50 flex items-center text-[13px] tabular-nums">
@@ -1200,28 +1215,28 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                             </div>
                           </>
                         ) : (
-                          <Input label="Area (m²) *" type="number" step={0.1} min={0} value={numVal(roomForm.area) || ''} onChange={(e) => handleRoomNumChange('area', e.target.value)} onBlur={() => handleRoomNumBlur('area', 0)} hint={numVal(roomForm.area) > 0 ? `= ${sqmToSqft(numVal(roomForm.area)).toFixed(1)} ft²` : ''} />
+                          <Input label="Area (m²) *" type="number" step={0.1} min={0} max={100000} unit="m²" value={numVal(roomForm.area) || ''} onChange={(e) => handleRoomNumChange('area', e.target.value)} onBlur={() => handleRoomNumBlur('area', 0)} hint={numVal(roomForm.area) > 0 ? `= ${sqmToSqft(numVal(roomForm.area)).toFixed(1)} ft²` : ''} />
                         )}
 
-                        <Input label="Ceiling Height (m)" type="number" step={0.1} value={numVal(roomForm.ceilingHeight) || ''} onChange={(e) => handleRoomNumChange('ceilingHeight', e.target.value)} onBlur={() => handleRoomNumBlur('ceilingHeight', 2.7)} hint={`= ${metersToFeet(numVal(roomForm.ceilingHeight)).toFixed(1)} ft`} />
+                        <Input label="Ceiling Height (m)" type="number" step={0.1} min={2} max={8} unit="m" value={numVal(roomForm.ceilingHeight) || ''} onChange={(e) => handleRoomNumChange('ceilingHeight', e.target.value)} onBlur={() => handleRoomNumBlur('ceilingHeight', 2.7)} hint={`= ${metersToFeet(numVal(roomForm.ceilingHeight)).toFixed(1)} ft`} />
                         <Select label="Wall Construction" value={strVal(roomForm.wallConstruction)} onChange={(e) => setRoomForm({ ...roomForm, wallConstruction: e.target.value })} options={WALL_TYPES} />
                         <Select label="Glass Type" value={strVal(roomForm.windowType)} onChange={(e) => setRoomForm({ ...roomForm, windowType: e.target.value })} options={GLASS_TYPES} />
 
                         {/* Window measurements */}
                         {roomForm.useFootInput ? (
                           <>
-                            <Input label="Window Qty" type="number" min={0} value={numVal(roomForm.windowQty) || ''} onChange={(e) => handleRoomNumChange('windowQty', e.target.value)} onBlur={() => handleRoomNumBlur('windowQty', 0)} />
-                            <Input label="Window Length (ft)" type="number" step={0.1} min={0} value={numVal(roomForm.windowLengthFt) || ''} onChange={(e) => handleRoomNumChange('windowLengthFt', e.target.value)} onBlur={() => handleRoomNumBlur('windowLengthFt', 0)} />
-                            <Input label="Window Width (ft)" type="number" step={0.1} min={0} value={numVal(roomForm.windowWidthFt) || ''} onChange={(e) => handleRoomNumChange('windowWidthFt', e.target.value)} onBlur={() => handleRoomNumBlur('windowWidthFt', 0)} hint={computedWindowSqm > 0 ? `= ${computedWindowSqm.toFixed(2)} m²` : ''} />
+                            <Input label="Window Qty" type="number" min={0} max={100} unit="pcs" value={numVal(roomForm.windowQty) || ''} onChange={(e) => handleRoomNumChange('windowQty', e.target.value)} onBlur={() => handleRoomNumBlur('windowQty', 0)} />
+                            <Input label="Window Length (ft)" type="number" step={0.1} min={0} max={100} unit="ft" value={numVal(roomForm.windowLengthFt) || ''} onChange={(e) => handleRoomNumChange('windowLengthFt', e.target.value)} onBlur={() => handleRoomNumBlur('windowLengthFt', 0)} />
+                            <Input label="Window Width (ft)" type="number" step={0.1} min={0} max={100} unit="ft" value={numVal(roomForm.windowWidthFt) || ''} onChange={(e) => handleRoomNumChange('windowWidthFt', e.target.value)} onBlur={() => handleRoomNumBlur('windowWidthFt', 0)} hint={computedWindowSqm > 0 ? `= ${computedWindowSqm.toFixed(2)} m²` : ''} />
                           </>
                         ) : (
-                          <Input label="Window Area (m²)" type="number" step={0.1} min={0} value={numVal(roomForm.windowArea) || ''} onChange={(e) => handleRoomNumChange('windowArea', e.target.value)} onBlur={() => handleRoomNumBlur('windowArea', 0)} hint={numVal(roomForm.windowArea) > 0 ? `= ${sqmToSqft(numVal(roomForm.windowArea)).toFixed(1)} ft²` : ''} />
+                          <Input label="Window Area (m²)" type="number" step={0.1} min={0} max={10000} unit="m²" value={numVal(roomForm.windowArea) || ''} onChange={(e) => handleRoomNumChange('windowArea', e.target.value)} onBlur={() => handleRoomNumBlur('windowArea', 0)} hint={numVal(roomForm.windowArea) > 0 ? `= ${sqmToSqft(numVal(roomForm.windowArea)).toFixed(1)} ft²` : ''} />
                         )}
 
                         <Select label="Window Orientation" value={strVal(roomForm.windowOrientation)} onChange={(e) => setRoomForm({ ...roomForm, windowOrientation: e.target.value })} options={ORIENTATIONS} />
-                        <Input label="Occupants" type="number" min={0} value={numVal(roomForm.occupantCount) || ''} onChange={(e) => handleRoomNumChange('occupantCount', e.target.value)} onBlur={() => handleRoomNumBlur('occupantCount', 0)} />
-                        <Input label="Lighting (W/m²)" type="number" step={0.1} value={numVal(roomForm.lightingDensity) || ''} onChange={(e) => handleRoomNumChange('lightingDensity', e.target.value)} onBlur={() => handleRoomNumBlur('lightingDensity', 15)} />
-                        <Input label="Equipment Load (W)" type="number" step={1} value={numVal(roomForm.equipmentLoad) || ''} onChange={(e) => handleRoomNumChange('equipmentLoad', e.target.value)} onBlur={() => handleRoomNumBlur('equipmentLoad', 0)} />
+                        <Input label="Occupants" type="number" min={0} max={1000} unit="pax" value={numVal(roomForm.occupantCount) || ''} onChange={(e) => handleRoomNumChange('occupantCount', e.target.value)} onBlur={() => handleRoomNumBlur('occupantCount', 0)} />
+                        <Input label="Lighting (W/m²)" type="number" step={0.1} min={5} max={60} unit="W/m²" value={numVal(roomForm.lightingDensity) || ''} onChange={(e) => handleRoomNumChange('lightingDensity', e.target.value)} onBlur={() => handleRoomNumBlur('lightingDensity', 15)} />
+                        <Input label="Equipment Load (W)" type="number" step={1} min={0} max={50000} unit="W" value={numVal(roomForm.equipmentLoad) || ''} onChange={(e) => handleRoomNumChange('equipmentLoad', e.target.value)} onBlur={() => handleRoomNumBlur('equipmentLoad', 0)} />
                         <div className="flex items-end">
                           <label className="flex items-center gap-2 text-sm">
                             <input
@@ -1333,12 +1348,84 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                       </div>
                                       <div className="rounded-lg border border-border/55 bg-secondary/35 px-3 py-1.5">
                                         <p className="text-base font-semibold">{room.coolingLoad.cfmSupply} CFM</p>
-                                        <p className="text-xs text-muted-foreground">Supply Air</p>
+                                        <p className="text-xs text-muted-foreground">
+                                          <TermHint
+                                            term="Supply Air"
+                                            definition="CFM is cubic feet per minute of airflow delivered to the room to offset sensible and latent heat."
+                                            compact
+                                          />
+                                        </p>
                                       </div>
                                       <div className="rounded-lg border border-border/55 bg-secondary/35 px-3 py-1.5">
                                         <p className="text-base font-semibold">{(room.coolingLoad.totalLoad / room.area).toFixed(0)} W/m²</p>
-                                        <p className="text-xs text-muted-foreground">Load Density</p>
+                                        <p className="text-xs text-muted-foreground">
+                                          <TermHint
+                                            term="Load Density"
+                                            definition="Cooling load per floor area. Higher W/m² indicates heavier internal or envelope gains."
+                                            compact
+                                          />
+                                        </p>
                                       </div>
+                                    </div>
+
+                                    <div className="grid w-full grid-cols-2 gap-2 sm:w-[430px]">
+                                      <div className="rounded-lg border border-border/55 bg-secondary/35 px-3 py-1.5 text-right">
+                                        <p className="text-sm font-semibold tabular-nums">
+                                          {Math.round(room.coolingLoad.totalSensibleLoad).toLocaleString()} W
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                          <TermHint
+                                            term="Sensible"
+                                            definition="Sensible load changes dry-bulb temperature and is primarily handled by airflow and coil temperature difference."
+                                            compact
+                                          />
+                                        </p>
+                                      </div>
+                                      <div className="rounded-lg border border-border/55 bg-secondary/35 px-3 py-1.5 text-right">
+                                        <p className="text-sm font-semibold tabular-nums">
+                                          {Math.round(room.coolingLoad.totalLatentLoad).toLocaleString()} W
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                          <TermHint
+                                            term="Latent"
+                                            definition="Latent load removes moisture from air and is linked to humidity control and dehumidification performance."
+                                            compact
+                                          />
+                                        </p>
+                                      </div>
+                                    </div>
+
+                                    <div className="mt-2 grid w-full gap-2 sm:w-[430px]">
+                                      <DualValueExplainer
+                                        compact
+                                        title="TR Decision"
+                                        term="TR"
+                                        definition="Tons of Refrigeration. 1 TR equals 12,000 BTU/h or about 3.517 kW of cooling capacity."
+                                        suggested={`${(room.coolingLoad.suggestedTrValue ?? room.coolingLoad.trValue).toFixed(2)} TR`}
+                                        override={
+                                          room.coolingLoad.userTrOverride !== null && room.coolingLoad.userTrOverride !== undefined
+                                            ? `${room.coolingLoad.userTrOverride.toFixed(2)} TR`
+                                            : null
+                                        }
+                                        final={`${(room.coolingLoad.finalTrValue ?? room.coolingLoad.trValue).toFixed(2)} TR`}
+                                        formula="Final TR = override TR when provided, otherwise suggested TR."
+                                        note="Suggested TR is derived from envelope, people, lighting, equipment, and ventilation loads."
+                                      />
+                                      <DualValueExplainer
+                                        compact
+                                        title="BTU/h Decision"
+                                        term="BTU/h"
+                                        definition="British Thermal Units per hour, a cooling capacity rate used for HVAC equipment sizing."
+                                        suggested={`${Math.round(room.coolingLoad.suggestedBtuPerHour ?? room.coolingLoad.btuPerHour).toLocaleString()} BTU/h`}
+                                        override={
+                                          room.coolingLoad.userBtuOverride !== null && room.coolingLoad.userBtuOverride !== undefined
+                                            ? `${Math.round(room.coolingLoad.userBtuOverride).toLocaleString()} BTU/h`
+                                            : null
+                                        }
+                                        final={`${Math.round(room.coolingLoad.finalBtuPerHour ?? room.coolingLoad.btuPerHour).toLocaleString()} BTU/h`}
+                                        formula="Final BTU/h = override BTU/h when provided, otherwise suggested BTU/h."
+                                        note="BTU/h is synchronized with TR override decisions for downstream equipment sizing."
+                                      />
                                     </div>
 
                                     <div className="w-full sm:w-[360px] rounded-lg border border-border/65 bg-card/80 p-2.5 shadow-[0_10px_20px_-22px_rgba(19,32,51,0.72)]">
@@ -1523,7 +1610,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                       <th className="text-left py-2 px-3">State</th>
                       <th className="text-right py-2 px-3">Capacity</th>
                       <th className="text-right py-2 px-3">Qty</th>
-                      <th className="text-right py-2 px-3">EER</th>
+                      <th className="text-right py-2 px-3">
+                        <TermHint
+                          term="EER"
+                          definition="Energy Efficiency Ratio. Higher EER indicates better efficiency at rated operating conditions."
+                        />
+                      </th>
                       <th className="text-right py-2 px-3">Unit Price</th>
                       <th className="text-right py-2 px-3">Total</th>
                       <th className="text-right py-2 px-3">Actions</th>
@@ -1556,81 +1648,108 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                           : eq.unitPrice;
                       const previewTotal = previewQuantity * previewUnitPrice;
 
-                      return (
-                      <tr key={eq.id} className="border-b border-border/30">
-                        <td className="py-2 px-3">
-                          <div className="font-medium">{eq.brand}</div>
-                          <div className="text-xs text-muted-foreground">{eq.model}</div>
-                        </td>
-                        <td className="py-2 px-3">
-                          <Badge size="sm">{eq.type.replace(/_/g, ' ')}</Badge>
-                          {eq.isInverter && <Badge size="sm" variant="success" className="ml-1">INV</Badge>}
-                        </td>
-                        <td className="py-2 px-3">
-                          <Badge size="sm" variant={eq.isOverridden ? 'accent' : 'secondary'}>
-                            {eq.isOverridden ? 'Override' : 'Suggested'}
-                          </Badge>
-                        </td>
-                        <td className="text-right py-2 px-3">{eq.capacityTR.toFixed(1)} TR</td>
-                        <td className="text-right py-2 px-3">
-                          <div className="flex justify-end">
-                            <input
-                              type="number"
-                              min={0}
-                              step="1"
-                              value={draft.quantity}
-                              onChange={(event) => handleEquipmentDraftChange(eq.id, 'quantity', event.target.value)}
-                              placeholder={String(eq.suggestedQuantity ?? eq.quantity)}
-                              className="w-20 rounded-md border border-border bg-background px-2 py-1 text-right text-sm"
-                            />
-                          </div>
-                          <p className="mt-1 text-[10px] text-muted-foreground">
-                            Suggested: {eq.suggestedQuantity ?? eq.quantity}
-                          </p>
-                        </td>
-                        <td className="text-right py-2 px-3">{eq.eer.toFixed(1)}</td>
-                        <td className="text-right py-2 px-3">
-                          <div className="flex justify-end">
-                            <input
-                              type="number"
-                              min={0}
-                              step="0.01"
-                              value={draft.unitPrice}
-                              onChange={(event) => handleEquipmentDraftChange(eq.id, 'unitPrice', event.target.value)}
-                              placeholder={String(eq.suggestedUnitPrice ?? eq.unitPrice)}
-                              className="w-28 rounded-md border border-border bg-background px-2 py-1 text-right text-sm"
-                            />
-                          </div>
-                          <p className="mt-1 text-[10px] text-muted-foreground">
-                            Suggested: {formatPHP(eq.suggestedUnitPrice ?? eq.unitPrice)}
-                          </p>
-                        </td>
-                        <td className="text-right py-2 px-3 font-medium">{formatPHP(previewTotal)}</td>
-                        <td className="text-right py-2 px-3">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              isLoading={isSaving}
-                              disabled={isSaving || hasInvalid || !isDirty}
-                              onClick={() => handleEquipmentSave(eq)}
-                            >
-                              Save
-                            </Button>
-                            {eq.isOverridden && (
+                      return [
+                        <tr key={`${eq.id}-main`} className="border-b border-border/30">
+                          <td className="py-2 px-3">
+                            <div className="font-medium">{eq.brand}</div>
+                            <div className="text-xs text-muted-foreground">{eq.model}</div>
+                          </td>
+                          <td className="py-2 px-3">
+                            <Badge size="sm">{eq.type.replace(/_/g, ' ')}</Badge>
+                            {eq.isInverter && <Badge size="sm" variant="success" className="ml-1">INV</Badge>}
+                          </td>
+                          <td className="py-2 px-3">
+                            <Badge size="sm" variant={eq.isOverridden ? 'accent' : 'secondary'}>
+                              {eq.isOverridden ? 'Override' : 'Suggested'}
+                            </Badge>
+                          </td>
+                          <td className="text-right py-2 px-3">{eq.capacityTR.toFixed(1)} TR</td>
+                          <td className="text-right py-2 px-3">
+                            <div className="flex justify-end">
+                              <input
+                                type="number"
+                                min={0}
+                                step="1"
+                                value={draft.quantity}
+                                onChange={(event) => handleEquipmentDraftChange(eq.id, 'quantity', event.target.value)}
+                                placeholder={String(eq.suggestedQuantity ?? eq.quantity)}
+                                className="w-20 rounded-md border border-border bg-background px-2 py-1 text-right text-sm"
+                              />
+                            </div>
+                            <p className="mt-1 text-[10px] text-muted-foreground">
+                              Suggested: {eq.suggestedQuantity ?? eq.quantity}
+                            </p>
+                          </td>
+                          <td className="text-right py-2 px-3">{eq.eer.toFixed(1)}</td>
+                          <td className="text-right py-2 px-3">
+                            <div className="flex justify-end">
+                              <input
+                                type="number"
+                                min={0}
+                                step="0.01"
+                                value={draft.unitPrice}
+                                onChange={(event) => handleEquipmentDraftChange(eq.id, 'unitPrice', event.target.value)}
+                                placeholder={String(eq.suggestedUnitPrice ?? eq.unitPrice)}
+                                className="w-28 rounded-md border border-border bg-background px-2 py-1 text-right text-sm"
+                              />
+                            </div>
+                            <p className="mt-1 text-[10px] text-muted-foreground">
+                              Suggested: {formatPHP(eq.suggestedUnitPrice ?? eq.unitPrice)}
+                            </p>
+                          </td>
+                          <td className="text-right py-2 px-3 font-medium">{formatPHP(previewTotal)}</td>
+                          <td className="text-right py-2 px-3">
+                            <div className="flex justify-end gap-2">
                               <Button
-                                variant="ghost"
+                                variant="secondary"
                                 size="sm"
-                                disabled={isSaving}
-                                onClick={() => handleEquipmentUseSuggested(eq)}
+                                isLoading={isSaving}
+                                disabled={isSaving || hasInvalid || !isDirty}
+                                onClick={() => handleEquipmentSave(eq)}
                               >
-                                Use Suggested
+                                Save
                               </Button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                      );
+                              {eq.isOverridden && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled={isSaving}
+                                  onClick={() => handleEquipmentUseSuggested(eq)}
+                                >
+                                  Use Suggested
+                                </Button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>,
+                        <tr key={`${eq.id}-explain`} className="border-b border-border/20 bg-secondary/20">
+                          <td colSpan={9} className="px-3 pb-3 pt-1">
+                            <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
+                              <DualValueExplainer
+                                compact
+                                title="Quantity Decision"
+                                suggested={eq.suggestedQuantity ?? eq.quantity}
+                                override={eq.userQuantityOverride}
+                                final={previewQuantity}
+                                formula="Final quantity = override quantity when provided, otherwise suggested quantity."
+                              />
+                              <DualValueExplainer
+                                compact
+                                title="Unit Price Decision"
+                                suggested={formatPHP(eq.suggestedUnitPrice ?? eq.unitPrice)}
+                                override={
+                                  eq.userUnitPriceOverride !== null && eq.userUnitPriceOverride !== undefined
+                                    ? formatPHP(eq.userUnitPriceOverride)
+                                    : null
+                                }
+                                final={formatPHP(previewUnitPrice)}
+                                formula="Final unit price = override price when provided, otherwise suggested catalog price."
+                                note="Line total preview = final quantity × final unit price."
+                              />
+                            </div>
+                          </td>
+                        </tr>,
+                      ];
                     })}
                   </tbody>
                   <tfoot>
@@ -1772,9 +1891,13 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                       const parsedDraft = parseFloat(draftValue);
                       const isDirty = Number.isFinite(parsedDraft) && Math.abs(parsedDraft - item.unitPrice) > 0.0001;
                       const isSaving = boqSavingItemId === item.id;
+                      const suggestedUnitPrice = item.suggestedUnitPrice ?? item.unitPrice;
+                      const finalUnitPrice = item.finalUnitPrice ?? item.unitPrice;
+                      const suggestedTotalPrice = item.suggestedTotalPrice ?? suggestedUnitPrice * item.quantity;
+                      const finalTotalPrice = item.finalTotalPrice ?? item.totalPrice;
 
-                      return (
-                        <tr key={item.id} className="border-b border-border/30">
+                      return [
+                        <tr key={`${item.id}-main`} className="border-b border-border/30">
                           <td className="py-2 px-3 text-xs text-muted-foreground">{item.section}</td>
                           <td className="py-2 px-3">{item.description}</td>
                           <td className="py-2 px-3">
@@ -1828,8 +1951,38 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                               )}
                             </div>
                           </td>
-                        </tr>
-                      );
+                        </tr>,
+                        <tr key={`${item.id}-explain`} className="border-b border-border/20 bg-secondary/20">
+                          <td colSpan={8} className="px-3 pb-3 pt-1">
+                            <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
+                              <DualValueExplainer
+                                compact
+                                title="Unit Price Decision"
+                                suggested={formatPHP(suggestedUnitPrice)}
+                                override={
+                                  item.userUnitPriceOverride !== null && item.userUnitPriceOverride !== undefined
+                                    ? formatPHP(item.userUnitPriceOverride)
+                                    : null
+                                }
+                                final={formatPHP(finalUnitPrice)}
+                                formula="Final unit price = override when provided, otherwise suggested unit price."
+                              />
+                              <DualValueExplainer
+                                compact
+                                title="Total Price Decision"
+                                suggested={formatPHP(suggestedTotalPrice)}
+                                override={
+                                  item.userTotalPriceOverride !== null && item.userTotalPriceOverride !== undefined
+                                    ? formatPHP(item.userTotalPriceOverride)
+                                    : null
+                                }
+                                final={formatPHP(finalTotalPrice)}
+                                formula="Final total price is quantity × final unit price; override fields track source state."
+                              />
+                            </div>
+                          </td>
+                        </tr>,
+                      ];
                     })}
                   </tbody>
                   <tfoot>

@@ -15,7 +15,6 @@ import {
   Printer,
   ChevronDown,
   ChevronUp,
-  AlertTriangle,
   CheckCircle2,
   Info,
 } from 'lucide-react';
@@ -353,17 +352,6 @@ export default function ReportsPage() {
       return acc;
     },
     {} as Record<string, Record<string, typeof boqData.items>>
-  );
-
-  // Flat grouped items by section (for backward compat)
-  const groupedItems = boqData?.items.reduce(
-    (acc, item) => {
-      const key = item.section || 'Other';
-      if (!acc[key]) acc[key] = [];
-      acc[key].push(item);
-      return acc;
-    },
-    {} as Record<string, typeof boqData.items>
   );
 
   const totalCoolingLoad = rooms.reduce((sum, r) => sum + (r.coolingLoad?.totalLoad || 0), 0);

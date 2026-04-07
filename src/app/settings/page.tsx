@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { showToast } from '@/components/ui/toast';
-import { Save, RotateCcw, Thermometer, Building2, PhilippinePeso, Snowflake, Plus, Trash2, Ruler } from 'lucide-react';
+import { safeJsonParse } from '@/lib/utils/safe-json';
+import { Save, RotateCcw, Thermometer, Building2, PhilippinePeso, Snowflake, Plus, Trash2 } from 'lucide-react';
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState({
@@ -55,8 +56,6 @@ export default function SettingsPage() {
     { id: 5, spaceType: 'retail', maxTR: 5, preferredUnit: 'ceiling_cassette', wallMountHeight: 0, outdoorPlacement: 'rooftop', notes: '' },
   ]);
 
-  const [loading, setLoading] = useState(true);
-
   // Load settings from DB on mount, fallback to localStorage
   useEffect(() => {
     fetch('/api/settings')
@@ -68,24 +67,23 @@ export default function SettingsPage() {
             setPlacementRules(data.settings.placementRules);
           }
         }
-        setLoading(false);
       })
       .catch(() => {
         // Fallback to localStorage
         const saved = localStorage.getItem('hvac-settings');
         if (saved) {
-          try {
-            const parsed = JSON.parse(saved);
+          const parsed = safeJsonParse<Record<string, unknown>>(saved);
+          if (parsed) {
             setSettings((prev) => ({ ...prev, ...parsed }));
-          } catch { /* ignore */ }
+          }
         }
         const savedRules = localStorage.getItem('hvac-placement-rules');
         if (savedRules) {
-          try {
-            setPlacementRules(JSON.parse(savedRules));
-          } catch { /* ignore */ }
+          const parsedRules = safeJsonParse<typeof placementRules>(savedRules);
+          if (Array.isArray(parsedRules)) {
+            setPlacementRules(parsedRules);
+          }
         }
-        setLoading(false);
       });
   }, []);
 
@@ -210,6 +208,9 @@ export default function SettingsPage() {
                 label="Indoor Dry Bulb (°C)"
                 type="number"
                 step={0.5}
+                min={16}
+                max={30}
+                unit="°C"
                 value={settings.defaultIndoorDB}
                 onChange={(e) => handleChange('defaultIndoorDB', parseFloat(e.target.value))}
               />
@@ -217,6 +218,9 @@ export default function SettingsPage() {
                 label="Indoor RH (%)"
                 type="number"
                 step={5}
+                min={30}
+                max={70}
+                unit="%"
                 value={settings.defaultIndoorRH}
                 onChange={(e) => handleChange('defaultIndoorRH', parseInt(e.target.value))}
               />
@@ -228,6 +232,7 @@ export default function SettingsPage() {
                 step={0.05}
                 min={1.0}
                 max={1.5}
+                unit="x"
                 value={settings.defaultSafetyFactor}
                 onChange={(e) => handleChange('defaultSafetyFactor', parseFloat(e.target.value))}
                 hint="Typically 1.05-1.15"
@@ -238,6 +243,7 @@ export default function SettingsPage() {
                 step={0.05}
                 min={0.5}
                 max={1.0}
+                unit="x"
                 value={settings.defaultDiversityFactor}
                 onChange={(e) => handleChange('defaultDiversityFactor', parseFloat(e.target.value))}
                 hint="0.7-1.0 typical"
@@ -247,6 +253,9 @@ export default function SettingsPage() {
               label="Default Ceiling Height (m)"
               type="number"
               step={0.1}
+              min={2.2}
+              max={6}
+              unit="m"
               value={settings.defaultCeilingHeight}
               onChange={(e) => handleChange('defaultCeilingHeight', parseFloat(e.target.value))}
             />
@@ -255,6 +264,9 @@ export default function SettingsPage() {
                 label="Lighting Density (W/m²)"
                 type="number"
                 step={1}
+                min={5}
+                max={40}
+                unit="W/m²"
                 value={settings.defaultLightingDensity}
                 onChange={(e) => handleChange('defaultLightingDensity', parseFloat(e.target.value))}
               />
@@ -262,6 +274,9 @@ export default function SettingsPage() {
                 label="Equipment Load (W)"
                 type="number"
                 step={100}
+                min={0}
+                max={10000}
+                unit="W"
                 value={settings.defaultEquipmentLoad}
                 onChange={(e) => handleChange('defaultEquipmentLoad', parseFloat(e.target.value))}
               />
@@ -284,6 +299,7 @@ export default function SettingsPage() {
               step={0.05}
               min={0}
               max={1}
+              unit="x"
               value={settings.laborMultiplier}
               onChange={(e) => handleChange('laborMultiplier', parseFloat(e.target.value))}
               hint="35% of material cost = 0.35"
@@ -294,6 +310,7 @@ export default function SettingsPage() {
               step={0.01}
               min={0}
               max={0.5}
+              unit="ratio"
               value={settings.overheadPercent}
               onChange={(e) => handleChange('overheadPercent', parseFloat(e.target.value))}
               hint="15% = 0.15"
@@ -302,6 +319,9 @@ export default function SettingsPage() {
               label="VAT Rate"
               type="number"
               step={0.01}
+              min={0}
+              max={0.2}
+              unit="ratio"
               value={settings.vatRate}
               onChange={(e) => handleChange('vatRate', parseFloat(e.target.value))}
               hint="12% Philippine VAT = 0.12"
@@ -312,6 +332,7 @@ export default function SettingsPage() {
               step={0.01}
               min={0}
               max={0.2}
+              unit="ratio"
               value={settings.contingencyPercent}
               onChange={(e) => handleChange('contingencyPercent', parseFloat(e.target.value))}
               hint="5% = 0.05"
@@ -427,6 +448,8 @@ export default function SettingsPage() {
                         type="number"
                         step={0.5}
                         min={0.5}
+                        max={50}
+                        unit="TR"
                         value={rule.maxTR}
                         onChange={(e) => updatePlacementRule(rule.id, 'maxTR', e.target.value === '' ? '' : parseFloat(e.target.value) || rule.maxTR)}
                         onBlur={() => { if (!rule.maxTR) updatePlacementRule(rule.id, 'maxTR', 3); }}
@@ -451,6 +474,8 @@ export default function SettingsPage() {
                         type="number"
                         step={0.1}
                         min={0}
+                        max={6}
+                        unit="m"
                         value={rule.wallMountHeight}
                         onChange={(e) => updatePlacementRule(rule.id, 'wallMountHeight', e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
                         onBlur={() => { if ((rule.wallMountHeight as unknown) === '' || rule.wallMountHeight == null) updatePlacementRule(rule.id, 'wallMountHeight', 0); }}

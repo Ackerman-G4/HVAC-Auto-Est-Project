@@ -17,7 +17,7 @@ interface ProjectStore {
   setCurrentProject: (project: Project | null) => void;
 }
 
-export const useProjectStore = create<ProjectStore>((set, get) => ({
+export const useProjectStore = create<ProjectStore>((set) => ({
   projects: [],
   currentProject: null,
   isLoading: false,

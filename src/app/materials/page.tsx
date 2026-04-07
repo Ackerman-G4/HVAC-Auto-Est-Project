@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Search,
@@ -22,8 +22,9 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
-import { cardGridVariants, cardItemVariants, listContainerVariants, listItemVariants } from '@/animations/list-variants';
+import { cardGridVariants, cardItemVariants } from '@/animations/list-variants';
 import { formatPHP } from '@/lib/utils/format-currency';
+import { safeJsonParse } from '@/lib/utils/safe-json';
 
 interface MaterialItem {
   id: string;
@@ -46,6 +47,14 @@ interface SupplierItem {
   coverageArea?: string;
 }
 
+function parseSupplierCategories(categories: SupplierItem['categories']): string[] {
+  if (Array.isArray(categories)) return categories;
+  if (typeof categories !== 'string') return [];
+
+  const parsed = safeJsonParse<unknown>(categories);
+  return Array.isArray(parsed) ? parsed : [];
+}
+
 export default function MaterialsPage() {
   const [activeTab, setActiveTab] = useState('materials');
   const [materials, setMaterials] = useState<MaterialItem[]>([]);
@@ -57,42 +66,61 @@ export default function MaterialsPage() {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [supplierTypeFilter, setSupplierTypeFilter] = useState('');
 
-  const fetchMaterials = () => {
-    setLoading(true);
-    const params = new URLSearchParams();
-    if (search) params.set('search', search);
-    if (categoryFilter) params.set('category', categoryFilter);
+  const fetchCatalogData = useCallback(
+    async (
+      endpoint: string,
+      filters: Record<string, string>,
+      showLoading = true,
+    ) => {
+      if (showLoading) setLoading(true);
 
-    fetch(`/api/materials?${params}`)
-      .then((r) => r.json())
-      .then((data) => {
-        setMaterials(data.materials || []);
-        setCategories(data.categories || []);
+      const params = new URLSearchParams();
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value) params.set(key, value);
+      });
+
+      try {
+        const response = await fetch(`${endpoint}?${params}`);
+        return await response.json();
+      } finally {
         setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  };
+      }
+    },
+    [],
+  );
 
-  const fetchSuppliers = () => {
-    setLoading(true);
-    const params = new URLSearchParams();
-    if (search) params.set('search', search);
-    if (supplierTypeFilter) params.set('type', supplierTypeFilter);
+  const fetchMaterials = useCallback(async (showLoading = true) => {
+    const data = await fetchCatalogData(
+      '/api/materials',
+      {
+        search,
+        category: categoryFilter,
+      },
+      showLoading,
+    );
 
-    fetch(`/api/suppliers?${params}`)
-      .then((r) => r.json())
-      .then((data) => {
-        setSuppliers(data.suppliers || []);
-        setSupplierTypes(data.types || []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  };
+    setMaterials(data.materials || []);
+    setCategories(data.categories || []);
+  }, [categoryFilter, fetchCatalogData, search]);
+
+  const fetchSuppliers = useCallback(async (showLoading = true) => {
+    const data = await fetchCatalogData(
+      '/api/suppliers',
+      {
+        search,
+        type: supplierTypeFilter,
+      },
+      showLoading,
+    );
+
+    setSuppliers(data.suppliers || []);
+    setSupplierTypes(data.types || []);
+  }, [fetchCatalogData, search, supplierTypeFilter]);
 
   useEffect(() => {
-    if (activeTab === 'materials') fetchMaterials();
-    else fetchSuppliers();
-  }, [activeTab, categoryFilter, supplierTypeFilter]);
+    if (activeTab === 'materials') fetchMaterials(false);
+    else fetchSuppliers(false);
+  }, [activeTab, fetchMaterials, fetchSuppliers]);
 
   const handleSearch = () => {
     if (activeTab === 'materials') fetchMaterials();
@@ -264,10 +292,13 @@ export default function MaterialsPage() {
                   animate="visible"
                   className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4"
                 >
-                  {suppliers.map((supplier, idx) => (
-                    <motion.div key={`${supplier.name}-${idx}`} variants={cardItemVariants}>
-                      <Card className="h-full border-border/65 bg-card/90 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.64)]">
-                        <CardContent className="p-5">
+                  {suppliers.map((supplier, idx) => {
+                    const cats = parseSupplierCategories(supplier.categories);
+
+                    return (
+                      <motion.div key={`${supplier.name}-${idx}`} variants={cardItemVariants}>
+                        <Card className="h-full border-border/65 bg-card/90 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.64)]">
+                          <CardContent className="p-5">
                           <div className="flex items-start gap-3 mb-3">
                             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border/55 bg-secondary/60">
                               <Store className="w-4 h-4 text-muted-foreground" />
@@ -304,13 +335,7 @@ export default function MaterialsPage() {
                               </div>
                             )}
                           </div>
-                          {(() => {
-                            const cats = Array.isArray(supplier.categories)
-                              ? supplier.categories
-                              : typeof supplier.categories === 'string'
-                                ? (() => { try { return JSON.parse(supplier.categories); } catch { return []; } })()
-                                : [];
-                            return cats.length > 0 && (
+                          {cats.length > 0 && (
                             <div className="mt-3 flex flex-wrap gap-1">
                               {cats.slice(0, 5).map((cat: string) => (
                                 <Badge key={cat} size="sm" variant="outline">{cat.replace(/_/g, ' ')}</Badge>
@@ -319,12 +344,12 @@ export default function MaterialsPage() {
                                 <Badge size="sm" variant="outline">+{cats.length - 5}</Badge>
                               )}
                             </div>
-                            );
-                          })()}
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  ))}
+                          )}
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    );
+                  })}
                 </motion.div>
               )}
             </>

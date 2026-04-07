@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Plus,
@@ -27,6 +27,7 @@ import { showToast } from '@/components/ui/toast';
 import { getCityOptions } from '@/constants/climate-data';
 import { psychrometricState } from '@/lib/functions/psychrometric';
 import { cardGridVariants, cardItemVariants } from '@/animations/list-variants';
+import { safeJsonParse } from '@/lib/utils/safe-json';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -84,7 +85,7 @@ export default function ProjectsPage() {
   const router = useRouter();
   const cityOptions = getCityOptions();
 
-  const fetchProjects = () => {
+  const fetchProjects = useCallback(() => {
     setLoading(true);
     const params = new URLSearchParams();
     if (search) params.set('search', search);
@@ -99,40 +100,36 @@ export default function ProjectsPage() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  };
+  }, [search, statusFilter, sortBy, sortOrder]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    try {
-      const raw = window.localStorage.getItem(DASHBOARD_PREFS_KEY);
-      if (!raw) {
-        setPrefsHydrated(true);
-        return;
-      }
+    const raw = window.localStorage.getItem(DASHBOARD_PREFS_KEY);
+    const parsed = safeJsonParse<{
+      search?: string;
+      statusFilter?: string;
+      sortBy?: string;
+      sortOrder?: string;
+    }>(raw);
 
-      const parsed = JSON.parse(raw) as {
-        search?: string;
-        statusFilter?: string;
-        sortBy?: string;
-        sortOrder?: string;
-      };
-
-      if (typeof parsed.search === 'string') setSearch(parsed.search);
-      if (typeof parsed.statusFilter === 'string' && DASHBOARD_STATUSES.includes(parsed.statusFilter as typeof DASHBOARD_STATUSES[number])) {
-        setStatusFilter(parsed.statusFilter);
-      }
-      if (typeof parsed.sortBy === 'string' && DASHBOARD_SORT_FIELDS.some((f) => f.value === parsed.sortBy)) {
-        setSortBy(parsed.sortBy as (typeof DASHBOARD_SORT_FIELDS)[number]['value']);
-      }
-      if (parsed.sortOrder === 'asc' || parsed.sortOrder === 'desc') {
-        setSortOrder(parsed.sortOrder);
-      }
-    } catch {
-      // Ignore invalid local preference payloads.
-    } finally {
+    if (!parsed) {
       setPrefsHydrated(true);
+      return;
     }
+
+    if (typeof parsed.search === 'string') setSearch(parsed.search);
+    if (typeof parsed.statusFilter === 'string' && DASHBOARD_STATUSES.includes(parsed.statusFilter as typeof DASHBOARD_STATUSES[number])) {
+      setStatusFilter(parsed.statusFilter);
+    }
+    if (typeof parsed.sortBy === 'string' && DASHBOARD_SORT_FIELDS.some((f) => f.value === parsed.sortBy)) {
+      setSortBy(parsed.sortBy as (typeof DASHBOARD_SORT_FIELDS)[number]['value']);
+    }
+    if (parsed.sortOrder === 'asc' || parsed.sortOrder === 'desc') {
+      setSortOrder(parsed.sortOrder);
+    }
+
+    setPrefsHydrated(true);
   }, []);
 
   useEffect(() => {
@@ -152,7 +149,7 @@ export default function ProjectsPage() {
   useEffect(() => {
     if (!prefsHydrated) return;
     fetchProjects();
-  }, [statusFilter, sortBy, sortOrder, prefsHydrated]);
+  }, [fetchProjects, prefsHydrated]);
 
   const handleSearch = () => fetchProjects();
 

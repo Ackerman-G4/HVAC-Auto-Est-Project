@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getNeon } from '@/lib/db/prisma';
+import { createSupplierRecord, listSuppliersForApi } from '@/lib/firebase/catalog-store';
 import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
 
 export async function GET(request: NextRequest) {
@@ -14,26 +14,9 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type');
     const search = searchParams.get('search');
 
-    const where: Record<string, unknown> = {};
-    if (type) where.type = type;
-    if (search) {
-      where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { location: { contains: search, mode: 'insensitive' } },
-      ];
-    }
+    const payload = await listSuppliersForApi({ type, search });
 
-    const neon = getNeon();
-    const suppliers = await neon.supplier.findMany({
-      where,
-      include: { materials: true },
-      orderBy: { name: 'asc' },
-    });
-
-    const allSuppliers = await neon.supplier.findMany({ select: { type: true } });
-    const types = [...new Set(allSuppliers.map((s) => s.type))];
-
-    return NextResponse.json({ suppliers, types });
+    return NextResponse.json(payload);
   } catch (error) {
     console.error('GET /api/suppliers error:', error);
     const d = getErrorDetails(error, 'Failed to fetch suppliers');
@@ -45,17 +28,14 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    const neon = getNeon();
-    const supplier = await neon.supplier.create({
-      data: {
-        name: body.name || 'New Supplier',
-        type: body.type || 'local',
-        website: body.website || '',
-        location: body.location || '',
-        contactInfo: body.contactInfo || '',
-        coverageArea: body.coverageArea || '',
-        categories: body.categories ? JSON.stringify(body.categories) : '[]',
-      },
+    const supplier = await createSupplierRecord({
+      name: body.name || 'New Supplier',
+      type: body.type || 'local',
+      website: body.website || '',
+      location: body.location || '',
+      contactInfo: body.contactInfo || '',
+      coverageArea: body.coverageArea || '',
+      categories: body.categories ? JSON.stringify(body.categories) : '[]',
     });
 
     return NextResponse.json({ supplier }, { status: 201 });

@@ -71,20 +71,20 @@ Language
 Node.js
 
 Framework
-Fastify
+Next.js App Router API routes
 
 Authentication
-JWT + bcrypt
+Firebase Auth (Admin + Identity Toolkit)
 
 Database
 
-PostgreSQL hosted on NeonDB
+Firebase Firestore (via firebase-admin)
 
 Deployment
 
 Frontend → Netlify
 Backend → Serverless functions
-Database → Neon
+Database → Firebase Firestore
 
 5. DATABASE STRUCTURE
 

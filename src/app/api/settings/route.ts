@@ -5,7 +5,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { getNeon } from '@/lib/db/prisma';
+import { getMergedSettings, upsertSettings } from '@/lib/firebase/catalog-store';
 import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
 
 const DEFAULT_SETTINGS = {
@@ -26,17 +26,7 @@ const DEFAULT_SETTINGS = {
 
 export async function GET() {
   try {
-    const neon = getNeon();
-    const record = await neon.appSettings.findUnique({ where: { id: 'global' } });
-
-    let settings = DEFAULT_SETTINGS;
-    if (record) {
-      try {
-        settings = { ...DEFAULT_SETTINGS, ...JSON.parse(record.data) };
-      } catch {
-        // fallback to defaults if JSON is invalid
-      }
-    }
+    const settings = await getMergedSettings(DEFAULT_SETTINGS);
 
     return NextResponse.json({ settings });
   } catch (error) {
@@ -50,27 +40,9 @@ export async function PUT(request: Request) {
   try {
     const body = await request.json();
 
-    // Merge with existing settings
-    const neon = getNeon();
-    const existing = await neon.appSettings.findUnique({ where: { id: 'global' } });
-    let current = DEFAULT_SETTINGS;
-    if (existing) {
-      try {
-        current = { ...DEFAULT_SETTINGS, ...JSON.parse(existing.data) };
-      } catch {
-        // fallback
-      }
-    }
+    const settings = await upsertSettings(DEFAULT_SETTINGS, body || {});
 
-    const merged = { ...current, ...body };
-
-    const record = await neon.appSettings.upsert({
-      where: { id: 'global' },
-      create: { id: 'global', data: JSON.stringify(merged) },
-      update: { data: JSON.stringify(merged) },
-    });
-
-    return NextResponse.json({ settings: JSON.parse(record.data) });
+    return NextResponse.json({ settings });
   } catch (error) {
     console.error('PUT /api/settings error:', error);
     const d = getErrorDetails(error, 'Failed to update settings');

@@ -45,9 +45,45 @@ export function errorResponse(
   );
 }
 
+/** Return a standardized 404 response for a resource. */
+export function resourceNotFound(
+  resource: string,
+  description?: string,
+  code?: string,
+) {
+  const trimmed = resource.trim();
+  const fallbackCode = `${trimmed.toUpperCase().replace(/[^A-Z0-9]+/g, '_')}_NOT_FOUND`;
+
+  return errorResponse(
+    404,
+    `${trimmed} not found`,
+    description ?? `The ${trimmed.toLowerCase()} does not exist.`,
+    code ?? fallbackCode,
+  );
+}
+
+interface BoundedIntOptions {
+  defaultValue: number;
+  min?: number;
+  max?: number;
+}
+
+/** Parse a bounded integer with a fallback for invalid input. */
+export function parseBoundedInt(
+  rawValue: string | null | undefined,
+  options: BoundedIntOptions,
+): number {
+  const parsed = Number.parseInt(rawValue ?? '', 10);
+  const value = Number.isFinite(parsed) ? parsed : options.defaultValue;
+  const min = options.min ?? Number.MIN_SAFE_INTEGER;
+  const max = options.max ?? Number.MAX_SAFE_INTEGER;
+
+  return Math.min(max, Math.max(min, value));
+}
+
 /**
  * Extract a structured error from an unknown catch value.
- * Handles Prisma error codes (P2002 / P2003 / P2025),
+ * Handles known database error codes (P2002 / P2003 / P2025),
  * JSON parse errors, and generic Error objects.
  */
 export function getErrorDetails(
@@ -67,14 +103,14 @@ export function getErrorDetails(
     const code = typeof obj.code === 'string' ? obj.code : '';
     const msg = typeof obj.message === 'string' ? obj.message : '';
 
-    const prismaMap: Record<string, { error: string; description: string }> = {
+    const knownDbErrorMap: Record<string, { error: string; description: string }> = {
       P2002: { error: 'Duplicate record', description: 'A record with the same unique value already exists.' },
       P2003: { error: 'Invalid relation reference', description: 'A related record referenced by this request does not exist.' },
       P2025: { error: 'Record not found', description: 'The target record was not found.' },
     };
 
-    if (code in prismaMap) {
-      return { ...prismaMap[code], code };
+    if (code in knownDbErrorMap) {
+      return { ...knownDbErrorMap[code], code };
     }
 
     if (msg) {
@@ -161,7 +197,7 @@ export function buildCoolingLoadInput(
 
 /**
  * Map a `CoolingLoadResult` to a flat object suitable for
- * `prisma.coolingLoad.create / update / upsert`.
+ * persisted cooling-load records.
  */
 export function coolingLoadToDbFields(r: {
   wallLoad: number;

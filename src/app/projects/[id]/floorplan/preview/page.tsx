@@ -1,13 +1,12 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback, use } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo, use } from 'react';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft,
   Printer,
   Download,
   Layers,
-  Eye,
   Building2,
   Ruler,
   Maximize2,
@@ -117,7 +116,7 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
   }, [id]);
 
   const currentFloor = floors[activeFloor];
-  const rooms = currentFloor?.rooms || [];
+  const rooms = useMemo(() => currentFloor?.rooms || [], [currentFloor]);
 
   // Calculate room layout positions based on area
   const generateLayout = useCallback((roomList: RoomData[], canvasW: number, canvasH: number) => {
