@@ -4,6 +4,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { pageVariants } from '@/animations/page-transitions';
 import { cn } from '@/lib/utils/cn';
+import { useUIStore } from '@/stores/ui-store';
 
 interface PageWrapperProps {
   children: React.ReactNode;
@@ -32,6 +33,8 @@ interface PageHeaderProps {
 }
 
 export function PageHeader({ title, description, actions, breadcrumbs }: PageHeaderProps) {
+  const workspaceMode = useUIStore((state) => state.workspaceMode);
+
   return (
     <div className="mb-10 lg:mb-12">
       {breadcrumbs && (
@@ -53,6 +56,9 @@ export function PageHeader({ title, description, actions, breadcrumbs }: PageHea
       <div className="flex flex-col gap-6 rounded-2xl border border-transparent pb-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-black tracking-[-0.03em] text-[color:var(--foreground)] lg:text-4xl">{title}</h1>
+          <div className="mt-2 inline-flex items-center rounded-lg border border-[color:var(--border)] bg-[color:var(--card)]/75 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[color:var(--muted-foreground)]">
+            {workspaceMode === 'beginner' ? 'Beginner Mode: Guided Inputs' : 'Professional Mode: Full Controls'}
+          </div>
           {description && (
             <p className="mt-2 max-w-3xl text-base font-medium text-[color:var(--muted-foreground)]">{description}</p>
           )}

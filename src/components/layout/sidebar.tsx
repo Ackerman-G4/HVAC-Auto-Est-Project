@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -21,30 +21,33 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { sidebarVariants } from '@/animations/shared';
+import { useUIStore } from '@/stores/ui-store';
 
 const navItems = [
   { href: '/', label: 'Overview', icon: LayoutDashboard },
-  { href: '/projects', label: 'Projects', icon: FolderOpen },
-  { href: '/simulation', label: 'CFD Simulation', icon: Wind },
+  { href: '/projects', label: 'Load Calculation', icon: FolderOpen },
+  { href: '/simulation', label: 'Ducting & CFD', icon: Wind },
+  { href: '/quotation', label: 'Equipment & BOQ', icon: Receipt },
+  { href: '/reports', label: 'Reports', icon: FileText },
   { href: '/materials', label: 'Materials & Suppliers', icon: Package },
-  { href: '/reports', label: 'Reports & Export', icon: FileText },
-  { href: '/quotation', label: 'Quotation', icon: Receipt },
   { href: '/diagnostics', label: 'Diagnostics', icon: Stethoscope },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const collapsed = useUIStore((state) => state.sidebarCollapsed);
+  const mobileOpen = useUIStore((state) => state.mobileSidebarOpen);
+  const toggleSidebar = useUIStore((state) => state.toggleSidebar);
+  const setMobileSidebar = useUIStore((state) => state.setMobileSidebar);
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
     return pathname.startsWith(href);
   };
 
-  const SidebarContent = () => (
-    <div className="relative z-10 flex h-full flex-col border-r border-[color:var(--border)] bg-[rgba(255,255,255,0.92)] shadow-[12px_0_44px_-32px_rgba(19,32,51,0.52)] backdrop-blur-xl">
+  const sidebarContent = (
+    <div className="relative z-10 flex h-full flex-col border-r border-[color:var(--border)] bg-[color:var(--card)]/92 shadow-[12px_0_44px_-32px_rgba(19,32,51,0.52)] backdrop-blur-xl">
       <div
         className={cn(
           'flex h-[86px] shrink-0 items-center gap-3 border-b border-[color:var(--border)] px-6',
@@ -78,7 +81,7 @@ export function Sidebar() {
                 collapsed ? 'justify-center' : '',
                 active
                   ? 'border-[rgba(15,139,141,0.3)] bg-[rgba(15,139,141,0.12)] text-[color:var(--accent-dark)] shadow-[0_10px_22px_-18px_rgba(15,139,141,0.95)]'
-                  : 'border-transparent text-[color:var(--muted-foreground)] hover:border-[color:var(--border)] hover:bg-[rgba(233,237,240,0.7)] hover:text-[color:var(--foreground)]'
+                  : 'border-transparent text-[color:var(--muted-foreground)] hover:border-[color:var(--border)] hover:bg-[color:var(--secondary)]/75 hover:text-[color:var(--foreground)]'
               )}
             >
               <item.icon
@@ -99,7 +102,7 @@ export function Sidebar() {
 
       <div className="hidden border-t border-[color:var(--border)] p-5 lg:flex">
         <button
-          onClick={() => setCollapsed(!collapsed)}
+          onClick={toggleSidebar}
           className="flex w-full items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-3 text-sm font-semibold text-[color:var(--muted-foreground)] transition-all duration-300 hover:border-[color:var(--border)] hover:bg-[color:var(--secondary)] hover:text-[color:var(--foreground)]"
         >
           {collapsed ? <ChevronRight size={20} /> : <><ChevronLeft size={20} /><span>Collapse Setup</span></>}
@@ -111,7 +114,7 @@ export function Sidebar() {
   return (
     <>
       <button
-        onClick={() => setMobileOpen(true)}
+        onClick={() => setMobileSidebar(true)}
         className="fixed left-4 top-4 z-50 rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] p-2.5 text-[color:var(--foreground)] shadow-[0_10px_24px_-16px_rgba(19,32,51,0.5)] transition-colors hover:bg-[color:var(--secondary)] lg:hidden"
       >
         <Menu size={20} />
@@ -125,7 +128,7 @@ export function Sidebar() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setMobileOpen(false)}
+              onClick={() => setMobileSidebar(false)}
             />
             <motion.aside
               className="fixed bottom-0 left-0 top-0 z-50 w-[288px] bg-[color:var(--card)] shadow-2xl lg:hidden"
@@ -135,12 +138,12 @@ export function Sidebar() {
               exit="closed"
             >
               <button
-                onClick={() => setMobileOpen(false)}
+                onClick={() => setMobileSidebar(false)}
                 className="absolute right-5 top-5 z-50 rounded-lg p-2 text-[color:var(--muted-foreground)] transition-colors hover:bg-[color:var(--secondary)] hover:text-[color:var(--foreground)]"
               >
                 <X size={20} />
               </button>
-              <SidebarContent />
+              {sidebarContent}
             </motion.aside>
           </>
         )}
@@ -152,7 +155,7 @@ export function Sidebar() {
           collapsed ? 'w-[80px]' : 'w-[280px]'
         )}
       >
-        <SidebarContent />
+        {sidebarContent}
       </aside>
     </>
   );
