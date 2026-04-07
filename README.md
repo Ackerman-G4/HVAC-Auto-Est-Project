@@ -435,10 +435,13 @@ Open http://localhost:3000
 ## NPM Scripts
 
 ```bash
-npm run dev          # Next.js dev server (Turbopack)
-npm run dev:no-turbo # Next.js dev server without Turbopack
+npm run dev          # Idempotent Next.js dev launcher (Turbopack)
+npm run dev:no-turbo # Idempotent Next.js dev launcher without Turbopack
+npm run dev:raw      # Raw Next.js dev server (Turbopack)
+npm run dev:raw:no-turbo # Raw Next.js dev server without Turbopack
 npm run dev:stack    # One command: preflight, start Firestore emulator, then start app
 npm run dev:stack:no-turbo # One-command stack startup without Turbopack
+npm run dev:stack:reuse # Reuse running app/emulator processes for this workspace
 npm run dev:emulator # Next.js dev server with Firestore emulator env wiring
 npm run dev:emulator:no-turbo # Emulator env wiring without Turbopack
 npm run emulator:firestore # Start Firestore emulator (port 9080)
@@ -486,6 +489,12 @@ If Firestore emulator is already running and you want to reuse it:
 
 ```bash
 npm run dev:stack -- -ReuseRunningEmulator
+```
+
+If both Next.js and Firestore emulator are already running and should be reused:
+
+```bash
+npm run dev:stack:reuse
 ```
 
 If Java is installed but not in PATH, provide JAVA_HOME explicitly:
@@ -607,7 +616,7 @@ Current Firestore rules in config/firebase/firestore.rules are permissive for de
 - API error ECONNREFUSED 127.0.0.1:8080:
 	Set FIRESTORE_EMULATOR_HOST=127.0.0.1:9080 (matches firebase.json emulator port).
 - App port conflict (3000 already in use):
-	Use the process id shown by `npm run dev:stack` and stop it (for example: taskkill /PID <pid> /F), then retry.
+	`npm run dev` now reuses an existing workspace Next.js process automatically. If the port is owned by a different process, stop that process (for example: taskkill /PID <pid> /F), then retry.
 - Missing Firebase Web API key:
 	Set FIREBASE_WEB_API_KEY or NEXT_PUBLIC_FIREBASE_API_KEY.
 - Firestore emulator fails on startup:

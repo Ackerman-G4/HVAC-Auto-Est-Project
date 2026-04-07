@@ -15,9 +15,50 @@ function Assert-True {
   }
 }
 
-function To-JsonBody {
+function ConvertTo-JsonBody {
   param([object]$Object)
   return ($Object | ConvertTo-Json -Depth 12)
+}
+
+function Get-HttpErrorDetail {
+  param([System.Management.Automation.ErrorRecord]$ErrorRecord)
+
+  $statusCode = $null
+  $body = $null
+
+  try {
+    $response = $ErrorRecord.Exception.Response
+    if ($null -ne $response) {
+      try {
+        $statusCode = [int]$response.StatusCode
+      }
+      catch {
+        $statusCode = $null
+      }
+
+      try {
+        $stream = $response.GetResponseStream()
+        if ($null -ne $stream) {
+          $reader = New-Object System.IO.StreamReader($stream)
+          $body = $reader.ReadToEnd()
+          $reader.Dispose()
+          $stream.Dispose()
+        }
+      }
+      catch {
+        $body = $null
+      }
+    }
+  }
+  catch {
+    $statusCode = $null
+    $body = $null
+  }
+
+  return [pscustomobject]@{
+    StatusCode = $statusCode
+    Body = $body
+  }
 }
 
 $projectId = $null
@@ -27,7 +68,7 @@ $itemId = $null
 
 try {
   Write-Host '[1/14] Creating project...'
-  $projectResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects" -Method Post -ContentType 'application/json' -Body (To-JsonBody @{
+  $projectResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects" -Method Post -ContentType 'application/json' -Body (ConvertTo-JsonBody @{
     name = "Smoke DualControl $(Get-Date -Format 'yyyyMMddHHmmss')"
     clientName = 'Smoke Client'
     buildingType = 'commercial'
@@ -44,7 +85,7 @@ try {
   Write-Host 'PASS create project'
 
   Write-Host '[2/14] Adding room with cooling load...'
-  $roomResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId/rooms" -Method Post -ContentType 'application/json' -Body (To-JsonBody @{
+  $roomResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId/rooms" -Method Post -ContentType 'application/json' -Body (ConvertTo-JsonBody @{
     name = 'Smoke Room'
     floorNumber = 1
     spaceType = 'office'
@@ -61,11 +102,11 @@ try {
     hasRoofExposure = $false
   })
   $roomId = $roomResp.room.id
-  Assert-True ($roomResp.room.coolingLoad -ne $null) 'Cooling load not created'
+  Assert-True ($null -ne $roomResp.room.coolingLoad) 'Cooling load not created'
   Write-Host 'PASS add room + cooling load'
 
   Write-Host '[3/14] Auto-sizing equipment...'
-  $autoResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId/equipment" -Method Post -ContentType 'application/json' -Body (To-JsonBody @{
+  $autoResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId/equipment" -Method Post -ContentType 'application/json' -Body (ConvertTo-JsonBody @{
     autoSize = $true
     budgetLevel = 'mid-range'
   })
@@ -87,7 +128,7 @@ try {
   Write-Host 'PASS load project detail'
 
   Write-Host '[6/14] Saving pricing overrides...'
-  $pricingResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId" -Method Put -ContentType 'application/json' -Body (To-JsonBody @{
+  $pricingResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId" -Method Put -ContentType 'application/json' -Body (ConvertTo-JsonBody @{
     laborMultiplierOverride = 0.42
     overheadPercentOverride = 0.18
     contingencyPercentOverride = 0.07
@@ -97,7 +138,7 @@ try {
   Write-Host 'PASS pricing overrides'
 
   Write-Host '[7/14] Saving room load overrides...'
-  $roomOverrideResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId/rooms/$roomId" -Method Put -ContentType 'application/json' -Body (To-JsonBody @{
+  $roomOverrideResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId/rooms/$roomId" -Method Put -ContentType 'application/json' -Body (ConvertTo-JsonBody @{
     userTrOverride = 2.5
     userBtuOverride = 30000
     overrideReason = 'Smoke test room override'
@@ -106,7 +147,7 @@ try {
   Write-Host 'PASS room load override'
 
   Write-Host '[8/14] Saving equipment overrides...'
-  $equipOverrideResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId/equipment/$selectionId" -Method Put -ContentType 'application/json' -Body (To-JsonBody @{
+  $equipOverrideResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId/equipment/$selectionId" -Method Put -ContentType 'application/json' -Body (ConvertTo-JsonBody @{
     userQuantityOverride = 2
     userUnitPriceOverride = 12345.67
     overrideReason = 'Smoke test equipment override'
@@ -124,7 +165,7 @@ try {
   Write-Host 'PASS regenerate BOQ'
 
   Write-Host '[10/14] Overriding BOQ item...'
-  $boqItemOverrideResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId/boq/$itemId" -Method Put -ContentType 'application/json' -Body (To-JsonBody @{
+  $boqItemOverrideResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId/boq/$itemId" -Method Put -ContentType 'application/json' -Body (ConvertTo-JsonBody @{
     unitPrice = 999.99
     overrideReason = 'Smoke test BOQ override'
   })
@@ -132,7 +173,7 @@ try {
   Write-Host 'PASS BOQ item override'
 
   Write-Host '[11/14] Resetting BOQ item to suggested...'
-  $boqItemResetResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId/boq/$itemId" -Method Put -ContentType 'application/json' -Body (To-JsonBody @{
+  $boqItemResetResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId/boq/$itemId" -Method Put -ContentType 'application/json' -Body (ConvertTo-JsonBody @{
     useSuggested = $true
     userUnitPriceOverride = $null
   })
@@ -140,7 +181,7 @@ try {
   Write-Host 'PASS BOQ item reset'
 
   Write-Host '[12/14] Resetting room load to suggested...'
-  $roomResetResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId/rooms/$roomId" -Method Put -ContentType 'application/json' -Body (To-JsonBody @{
+  $roomResetResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId/rooms/$roomId" -Method Put -ContentType 'application/json' -Body (ConvertTo-JsonBody @{
     userTrOverride = $null
     userBtuOverride = $null
   })
@@ -148,7 +189,7 @@ try {
   Write-Host 'PASS room load reset'
 
   Write-Host '[13/14] Resetting equipment to suggested...'
-  $equipResetResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId/equipment/$selectionId" -Method Put -ContentType 'application/json' -Body (To-JsonBody @{
+  $equipResetResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId/equipment/$selectionId" -Method Put -ContentType 'application/json' -Body (ConvertTo-JsonBody @{
     useSuggested = $true
     userQuantityOverride = $null
     userUnitPriceOverride = $null
@@ -166,8 +207,29 @@ try {
   exit 0
 }
 catch {
+  $detail = Get-HttpErrorDetail -ErrorRecord $_
+  $message = $_.Exception.Message
+
   Write-Host ''
-  Write-Host "DUAL-CONTROL SMOKE FAILED: $($_.Exception.Message)"
+  Write-Host "DUAL-CONTROL SMOKE FAILED: $message"
+
+  if ($null -ne $detail.StatusCode) {
+    Write-Host "HTTP status: $($detail.StatusCode)"
+  }
+
+  if (-not [string]::IsNullOrWhiteSpace($detail.Body)) {
+    Write-Host "HTTP body: $($detail.Body)"
+  }
+
+  $errorBlob = "$message`n$($detail.Body)"
+  if ($errorBlob -match 'Could not load the default credentials') {
+    Write-Host 'Hint: Firebase Admin credentials are missing for the running API process.'
+    Write-Host 'Set one of the following before running npm run dev:'
+    Write-Host '  1) FIREBASE_PROJECT_ID + FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY'
+    Write-Host '  2) FIREBASE_SERVICE_ACCOUNT_JSON'
+    Write-Host '  3) GOOGLE_APPLICATION_CREDENTIALS (path to service-account JSON)'
+  }
+
   exit 1
 }
 finally {

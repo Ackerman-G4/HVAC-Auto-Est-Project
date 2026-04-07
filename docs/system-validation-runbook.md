@@ -56,6 +56,12 @@ If emulator is already running and should be reused:
 npm run dev:stack -- -ReuseRunningEmulator
 ```
 
+If both Next.js and Firestore emulator are already running and should be reused:
+
+```bash
+npm run dev:stack:reuse
+```
+
 If Java is installed but not in PATH:
 
 ```powershell
