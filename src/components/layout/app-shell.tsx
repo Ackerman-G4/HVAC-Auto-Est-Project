@@ -2,11 +2,12 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { ClipboardCheck, MoonStar, Plus, Sun, UserCircle2 } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { ClipboardCheck, FileSpreadsheet, MoonStar, Sun, UserCircle2 } from 'lucide-react';
 import { Sidebar } from './sidebar';
 import { ToastContainer } from '@/components/ui/toast';
 import { Button } from '@/components/ui/button';
+import { useAuthStore } from '@/stores/auth-store';
 import { useUIStore } from '@/stores/ui-store';
 
 interface AppShellProps {
@@ -17,32 +18,43 @@ const UI_THEME_STORAGE_KEY = 'hvac-ui-theme';
 const UI_MODE_STORAGE_KEY = 'hvac-ui-mode';
 
 function resolveWorkspaceTitle(pathname: string): string {
-  if (pathname === '/') return 'Operations Overview';
-  if (pathname.startsWith('/projects/')) return 'Project Engineering Workspace';
-  if (pathname.startsWith('/projects')) return 'Load Calculation Workspace';
-  if (pathname.startsWith('/simulation')) return 'Ducting & CFD Workspace';
-  if (pathname.startsWith('/quotation')) return 'Equipment & BOQ Workspace';
-  if (pathname.startsWith('/reports')) return 'Reporting Workspace';
-  if (pathname.startsWith('/materials')) return 'Materials & Supplier Workspace';
-  if (pathname.startsWith('/diagnostics')) return 'Diagnostics Workspace';
-  if (pathname.startsWith('/settings')) return 'Settings & Defaults Workspace';
-  return 'HVAC Engineering Workspace';
+  if (pathname === '/') return 'Dashboard';
+  if (pathname.startsWith('/load-calculation')) return 'Load Calculation Workspace';
+  if (pathname.startsWith('/airflow-duct-design')) return 'Airflow And Duct Design Workspace';
+  if (pathname.startsWith('/equipment-selection')) return 'Equipment Selection Workspace';
+  if (pathname.startsWith('/reports')) return 'Engineering Reports Workspace';
+  return 'HVAC Engineering Platform';
 }
 
 function resolveWorkspaceSubtitle(pathname: string): string {
-  if (pathname.startsWith('/projects')) return 'Engineer lane';
-  if (pathname.startsWith('/quotation')) return 'Estimator lane';
-  if (pathname.startsWith('/reports')) return 'Client lane';
-  return 'Control center';
+  if (pathname.startsWith('/load-calculation')) return 'Thermal analytics';
+  if (pathname.startsWith('/airflow-duct-design')) return 'Air distribution';
+  if (pathname.startsWith('/equipment-selection')) return 'Plant optimization';
+  if (pathname.startsWith('/reports')) return 'Decision reporting';
+  return 'Program cockpit';
 }
 
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const theme = useUIStore((state) => state.theme);
   const workspaceMode = useUIStore((state) => state.workspaceMode);
   const setTheme = useUIStore((state) => state.setTheme);
   const toggleTheme = useUIStore((state) => state.toggleTheme);
   const setWorkspaceMode = useUIStore((state) => state.setWorkspaceMode);
+  const user = useAuthStore((state) => state.user);
+  const initializeAuth = useAuthStore((state) => state.initialize);
+  const logout = useAuthStore((state) => state.logout);
+
+  const isAuthRoute = pathname.startsWith('/auth');
+
+  React.useEffect(() => {
+    if (isAuthRoute) {
+      return;
+    }
+
+    void initializeAuth();
+  }, [initializeAuth, isAuthRoute]);
 
   React.useEffect(() => {
     const savedTheme = window.localStorage.getItem(UI_THEME_STORAGE_KEY);
@@ -65,35 +77,49 @@ export function AppShell({ children }: AppShellProps) {
     window.localStorage.setItem(UI_MODE_STORAGE_KEY, workspaceMode);
   }, [workspaceMode]);
 
+  if (isAuthRoute) {
+    return (
+      <div className="relative min-h-screen overflow-hidden font-sans text-[color:var(--foreground)]">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_14%_10%,rgba(20,134,115,0.16),transparent_38%),radial-gradient(circle_at_86%_0%,rgba(202,123,46,0.16),transparent_32%),radial-gradient(circle_at_50%_100%,rgba(31,63,98,0.16),transparent_44%)]" />
+        <div className="pointer-events-none absolute -left-24 top-[-120px] h-[360px] w-[360px] rounded-full bg-[rgba(20,134,115,0.2)] blur-3xl animate-soft-float" />
+        <div className="pointer-events-none absolute -right-24 bottom-[-120px] h-[360px] w-[360px] rounded-full bg-[rgba(202,123,46,0.2)] blur-3xl animate-soft-float" />
+        <div className="pointer-events-none absolute inset-0 opacity-[0.2] [background-image:linear-gradient(to_right,rgba(31,63,98,0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgba(31,63,98,0.08)_1px,transparent_1px)] [background-size:36px_36px] [mask-image:radial-gradient(circle_at_center,black_34%,transparent_82%)]" />
+        <div className="relative z-10 animate-fade-rise">{children}</div>
+        <ToastContainer />
+      </div>
+    );
+  }
+
   const workspaceTitle = resolveWorkspaceTitle(pathname);
   const workspaceSubtitle = resolveWorkspaceSubtitle(pathname);
 
   return (
-    <div className="relative flex h-screen overflow-hidden font-sans text-[color:var(--foreground)]">
+    <div className="relative flex min-h-screen overflow-hidden font-sans text-[color:var(--foreground)]">
       <Sidebar />
       <main className="relative w-full flex-1 overflow-y-auto">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_8%,rgba(11,127,145,0.14),transparent_34%),radial-gradient(circle_at_86%_4%,rgba(196,122,27,0.12),transparent_30%)]" />
-        <div className="pointer-events-none absolute inset-0 opacity-[0.25] [background-image:linear-gradient(to_right,rgba(15,28,43,0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgba(15,28,43,0.08)_1px,transparent_1px)] [background-size:34px_34px] [mask-image:radial-gradient(circle_at_center,black_28%,transparent_84%)]" />
-        <div className="relative z-10 mx-auto min-h-screen w-full max-w-[1800px] px-4 pb-8 pt-5 sm:px-8 lg:px-12">
-          <header className="sticky top-3 z-30 mb-5 rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/85 shadow-[0_18px_34px_-26px_rgba(15,28,43,0.55)] backdrop-blur-xl">
-            <div className="flex items-center justify-between gap-3 p-3 sm:p-4">
-              <div className="min-w-0 pl-14 lg:pl-1">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[color:var(--muted-foreground)]">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_8%,rgba(20,134,115,0.12),transparent_36%),radial-gradient(circle_at_90%_2%,rgba(202,123,46,0.14),transparent_34%),radial-gradient(circle_at_50%_100%,rgba(31,63,98,0.16),transparent_44%)]" />
+        <div className="pointer-events-none absolute inset-0 opacity-[0.24] [background-image:linear-gradient(to_right,rgba(31,63,98,0.07)_1px,transparent_1px),linear-gradient(to_bottom,rgba(31,63,98,0.07)_1px,transparent_1px)] [background-size:36px_36px] [mask-image:radial-gradient(circle_at_center,black_30%,transparent_84%)]" />
+        <div className="relative z-10 mx-auto min-h-screen w-full max-w-[var(--content-max-width)] px-[var(--space-page-x)] pb-16 pt-[var(--space-page-y)] lg:pb-20">
+          <header className="animate-fade-rise sticky top-4 z-30 mb-8 overflow-hidden rounded-[1.5rem] border border-[color:var(--border)] bg-[linear-gradient(125deg,color-mix(in_oklab,var(--card)_88%,transparent),color-mix(in_oklab,var(--brand-paper)_70%,transparent))] shadow-[0_26px_48px_-32px_rgba(31,63,98,0.7)] backdrop-blur-xl">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(20,134,115,0.55),transparent)]" />
+            <div className="flex items-center justify-between gap-4 p-4 sm:p-5">
+              <div className="min-w-0 pl-16 lg:pl-2">
+                <p className="text-[11px] font-bold uppercase tracking-[0.26em] text-[color:var(--muted-foreground)]">
                   {workspaceSubtitle}
                 </p>
-                <h1 className="truncate text-lg font-extrabold tracking-tight text-[color:var(--foreground)] sm:text-xl">
+                <h1 className="display-heading truncate text-[1.55rem] font-extrabold tracking-[-0.03em] text-[color:var(--foreground)] sm:text-[1.85rem]">
                   {workspaceTitle}
                 </h1>
               </div>
 
-              <div className="flex items-center gap-2">
-                <div className="hidden items-center rounded-xl border border-[color:var(--border)] bg-[color:var(--secondary)]/60 p-1 md:flex">
+              <div className="flex items-center gap-3">
+                <div className="hidden items-center rounded-xl border border-[color:var(--border)] bg-[color:var(--secondary)]/68 p-1.5 md:flex">
                   <button
                     type="button"
                     onClick={() => setWorkspaceMode('beginner')}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                    className={`rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
                       workspaceMode === 'beginner'
-                        ? 'bg-[color:var(--card)] text-[color:var(--foreground)] shadow-[0_8px_18px_-14px_rgba(15,28,43,0.65)]'
+                        ? 'bg-[color:var(--card)] text-[color:var(--foreground)] shadow-[0_12px_22px_-16px_rgba(31,63,98,0.68)]'
                         : 'text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]'
                     }`}
                   >
@@ -102,9 +128,9 @@ export function AppShell({ children }: AppShellProps) {
                   <button
                     type="button"
                     onClick={() => setWorkspaceMode('professional')}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                    className={`rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
                       workspaceMode === 'professional'
-                        ? 'bg-[color:var(--card)] text-[color:var(--foreground)] shadow-[0_8px_18px_-14px_rgba(15,28,43,0.65)]'
+                        ? 'bg-[color:var(--card)] text-[color:var(--foreground)] shadow-[0_12px_22px_-16px_rgba(31,63,98,0.68)]'
                         : 'text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]'
                     }`}
                   >
@@ -112,10 +138,10 @@ export function AppShell({ children }: AppShellProps) {
                   </button>
                 </div>
 
-                <Link href="/projects/new" className="hidden sm:block">
+                <Link href="/load-calculation" className="hidden sm:block">
                   <Button size="sm" variant="accent">
-                    <Plus size={14} className="mr-1.5" />
-                    New Project
+                    <FileSpreadsheet size={14} className="mr-1.5" />
+                    Open Calculator
                   </Button>
                 </Link>
 
@@ -132,22 +158,36 @@ export function AppShell({ children }: AppShellProps) {
                   variant="outline"
                   onClick={toggleTheme}
                   aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+                  className="hidden sm:inline-flex"
                 >
                   {theme === 'dark' ? <Sun size={16} /> : <MoonStar size={16} />}
                 </Button>
 
                 <button
                   type="button"
-                  className="hidden h-11 items-center rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] px-3 text-sm font-semibold text-[color:var(--foreground)] shadow-[0_10px_20px_-20px_rgba(15,28,43,0.6)] transition-colors hover:bg-[color:var(--secondary)] md:flex"
+                  className="hidden h-12 items-center rounded-xl border border-[color:var(--border)] bg-[linear-gradient(125deg,color-mix(in_oklab,var(--card)_92%,transparent),color-mix(in_oklab,var(--secondary)_58%,transparent))] px-4 text-[15px] font-semibold text-[color:var(--foreground)] shadow-[0_14px_24px_-20px_rgba(31,63,98,0.74)] transition-colors hover:bg-[color:var(--secondary)] md:flex"
                 >
                   <UserCircle2 size={16} className="mr-1.5 text-[color:var(--muted-foreground)]" />
-                  Engineer
+                  {user?.name || user?.email || 'Engineer'}
                 </button>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="border border-transparent hover:border-[color:var(--border)]"
+                  onClick={async () => {
+                    await logout();
+                    router.replace('/auth/login');
+                  }}
+                >
+                  Sign out
+                </Button>
               </div>
             </div>
           </header>
 
-          <div className="relative pb-2">
+          <div className="relative pb-4">
             {children}
           </div>
         </div>

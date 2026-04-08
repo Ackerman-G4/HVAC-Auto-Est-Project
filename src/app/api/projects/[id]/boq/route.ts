@@ -5,6 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth/guard';
 import {
   listBoqItemsForProject,
   listSelectedEquipmentForProject,
@@ -74,6 +75,11 @@ function resolvePricingPolicy(project: ProjectPricing | null) {
 
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
+    const auth = await requireAuth(request);
+    if (!auth.authorized) {
+      return auth.response;
+    }
+
     const { id } = await context.params;
     const [project, items] = await Promise.all([
       getProjectRecord(id),
@@ -248,6 +254,11 @@ function buildBOQInputs(selections: SelEquip[]) {
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
+    const auth = await requireAuth(request);
+    if (!auth.authorized) {
+      return auth.response;
+    }
+
     const { id: projectId } = await context.params;
 
     const project = await getProjectRecord(projectId);

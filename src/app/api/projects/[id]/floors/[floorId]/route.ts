@@ -5,6 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth/guard';
 import {
   deleteFloorRecord,
   getFloorRecord,
@@ -16,6 +17,11 @@ type RouteContext = { params: Promise<{ id: string; floorId: string }> };
 
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
+    const auth = await requireAuth(request);
+    if (!auth.authorized) {
+      return auth.response;
+    }
+
     const { id: projectId, floorId } = await context.params;
     const body = await request.json();
 
@@ -47,6 +53,11 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
+    const auth = await requireAuth(request);
+    if (!auth.authorized) {
+      return auth.response;
+    }
+
     const { id: projectId, floorId } = await context.params;
 
     const existing = await getFloorRecord(floorId);

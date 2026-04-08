@@ -4,11 +4,17 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth/guard';
 import { listDiagnosticHistory } from '@/lib/firebase/catalog-store';
 import { errorResponse, getErrorDetails, parseBoundedInt } from '@/lib/utils/api-helpers';
 
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requireAuth(request);
+    if (!auth.authorized) {
+      return auth.response;
+    }
+
     const { searchParams } = new URL(request.url);
     const limit = parseBoundedInt(searchParams.get('limit'), {
       defaultValue: 50,

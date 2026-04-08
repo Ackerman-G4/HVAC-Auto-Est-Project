@@ -4,9 +4,15 @@
  * PUT /api/settings — Update settings
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth/guard';
 import { getMergedSettings, upsertSettings } from '@/lib/firebase/catalog-store';
+import { writeAuditLog } from '@/lib/firebase/projects-store';
 import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
+import {
+  getCatalogValidationError,
+  settingsUpdateSchema,
+} from '@/lib/validation/catalog';
 
 const DEFAULT_SETTINGS = {
   companyName: '',
@@ -24,8 +30,13 @@ const DEFAULT_SETTINGS = {
   vatPercent: 12,
 };
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const auth = await requireAuth(request);
+    if (!auth.authorized) {
+      return auth.response;
+    }
+
     const settings = await getMergedSettings(DEFAULT_SETTINGS);
 
     return NextResponse.json({ settings });
@@ -36,11 +47,36 @@ export async function GET() {
   }
 }
 
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
   try {
-    const body = await request.json();
+    const auth = await requireAuth(request, { allowedRoles: ['admin'] });
+    if (!auth.authorized) {
+      return auth.response;
+    }
 
-    const settings = await upsertSettings(DEFAULT_SETTINGS, body || {});
+    const body = await request.json();
+    const parsed = settingsUpdateSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json({ error: getCatalogValidationError(parsed.error) }, { status: 400 });
+    }
+
+    const previousSettings = await getMergedSettings(DEFAULT_SETTINGS);
+
+    const settings = await upsertSettings(DEFAULT_SETTINGS, parsed.data || {});
+
+    await writeAuditLog({
+      projectId: 'system',
+      action: 'updated',
+      entity: 'settings',
+      entityId: 'global',
+      details: JSON.stringify({
+        actorId: auth.user.id,
+        actorEmail: auth.user.email,
+      }),
+      previousValue: JSON.stringify(previousSettings),
+      newValue: JSON.stringify(settings),
+    });
 
     return NextResponse.json({ settings });
   } catch (error) {

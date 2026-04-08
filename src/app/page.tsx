@@ -1,247 +1,169 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
-  Building2,
-  Plus,
-  TrendingUp,
-  Thermometer,
-  FolderOpen,
-  ArrowRight,
+  Activity,
+  BarChart3,
+  Calculator,
+  Cpu,
+  FileText,
+  Wind,
 } from 'lucide-react';
-import { PageWrapper, PageHeader } from '@/components/ui/page-wrapper';
-import { StatCard } from '@/components/ui/stat-card';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { EmptyState } from '@/components/ui/empty-state';
-import { listContainerVariants, listItemVariants } from '@/animations/list-variants';
-import Link from 'next/link';
+import { Card } from '@/components/rebuild/Card';
+import { Button } from '@/components/rebuild/Button';
+import { useLoadWorkspaceStore } from '@/stores/load-workspace-store';
 
-interface DashboardProject {
-  id: string;
-  name: string;
-  clientName: string;
-  buildingType: string;
-  status: string;
-  location: string;
-  totalFloorArea: number;
-  updatedAt: string;
-  floors: { rooms: { coolingLoad?: { trValue: number; totalLoad: number } | null }[] }[];
-  _count: { selectedEquipment: number; boqItems: number };
-}
+const modules = [
+  {
+    title: 'Load Calculation',
+    description: 'Compute design BTU, TR, and ventilation CFM in real time with transparent formulas.',
+    href: '/load-calculation',
+    icon: Calculator,
+  },
+  {
+    title: 'Airflow / Duct Design',
+    description: 'Balance zone distribution and validate velocity targets before final layout release.',
+    href: '/airflow-duct-design',
+    icon: Wind,
+  },
+  {
+    title: 'Equipment Selection',
+    description: 'Compare capacity, efficiency, quantity, and annual energy impact across options.',
+    href: '/equipment-selection',
+    icon: Cpu,
+  },
+  {
+    title: 'Reports',
+    description: 'Compile engineering snapshots, sizing outputs, and recommendation summaries.',
+    href: '/reports',
+    icon: FileText,
+  },
+];
 
 export default function DashboardPage() {
-  const [projects, setProjects] = useState<DashboardProject[]>([]);
-  const [loading, setLoading] = useState(true);
+  const result = useLoadWorkspaceStore((state) => state.result);
 
-  useEffect(() => {
-    fetch('/api/projects')
-      .then((r) => r.json())
-      .then((data) => {
-        setProjects(data.projects || []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, []);
-
-  const totalProjects = projects.length;
-  const activeProjects = projects.filter((p) => p.status === 'active' || p.status === 'draft').length;
-
-  const totalTR = projects.reduce((sum, p) => {
-    const projectTR = p.floors?.reduce((fSum, f) => {
-      return fSum + f.rooms.reduce((rSum, r) => rSum + (r.coolingLoad?.trValue || 0), 0);
-    }, 0) || 0;
-    return sum + projectTR;
-  }, 0);
-
-  const recentProjects = [...projects]
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-    .slice(0, 6);
-
-  const totalEquipment = projects.reduce((sum, p) => sum + (p._count?.selectedEquipment || 0), 0);
-  const totalBOQItems = projects.reduce((sum, p) => sum + (p._count?.boqItems || 0), 0);
-
-  const statusColor: Record<string, 'default' | 'success' | 'warning' | 'accent'> = {
-    draft: 'default',
-    active: 'accent',
-    completed: 'success',
-    archived: 'warning',
-  };
+  const metrics = [
+    {
+      label: 'Design Load',
+      value: `${result.breakdown.totalBtuAfterFactors.toLocaleString()} BTU/h`,
+    },
+    {
+      label: 'Cooling Tonnage',
+      value: `${result.breakdown.trRequired.toFixed(2)} TR`,
+    },
+    {
+      label: 'Airflow Demand',
+      value: `${result.breakdown.cfmRequired.toLocaleString()} CFM`,
+    },
+  ];
 
   return (
-    <PageWrapper>
-      <PageHeader
-        title="Dashboard"
-        description="Overview of your HVAC estimation projects"
-        actions={
-          <Link href="/projects/new">
-            <Button variant="accent" size="sm">
-              <Plus className="w-4 h-4 mr-2" />
-              New Project
+    <div className="space-y-8 lg:space-y-10">
+      <motion.section
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2, ease: 'easeOut' }}
+        className="rounded-3xl border border-[color:var(--border)] bg-[linear-gradient(140deg,color-mix(in_oklab,var(--surface-1)_92%,transparent),color-mix(in_oklab,var(--surface-2)_62%,transparent))] px-7 py-8 shadow-[0_20px_32px_-24px_rgba(11,16,15,0.8)] sm:px-9 sm:py-10"
+      >
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-[12px] font-bold uppercase tracking-[0.2em] text-[color:var(--muted-foreground)]">
+              HVAC Automation Platform
+            </p>
+            <h2 className="display-heading mt-2 text-[2.3rem] font-black tracking-[-0.04em] text-[color:var(--foreground)] md:text-[2.8rem]">
+              Engineering Workspace Rebuild V1
+            </h2>
+            <p className="mt-3 max-w-3xl text-base leading-relaxed text-[color:var(--muted-foreground)]">
+              This release introduces a from-scratch architecture for calculation-driven workflows with explicit formula traceability and fast module navigation.
+            </p>
+          </div>
+          <Link href="/load-calculation">
+            <Button>
+              <Activity size={16} />
+              Launch Load Calculation
             </Button>
           </Link>
-        }
-      />
+        </div>
+      </motion.section>
 
-      {/* Hero Card */}
-      <Card className="relative mb-8 overflow-hidden border border-border/65 bg-[linear-gradient(138deg,rgba(19,32,51,0.98),rgba(27,46,71,0.95))] text-white shadow-[0_22px_38px_-30px_rgba(19,32,51,0.9)]">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_24%,rgba(15,139,141,0.26),transparent_48%)]" />
-        <div className="absolute right-0 top-0 h-96 w-96 -translate-y-1/2 translate-x-1/2 rounded-full bg-[rgba(228,220,184,0.18)] blur-3xl" />
-        <CardContent className="py-8 relative z-10">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[rgba(228,220,184,0.32)] bg-[rgba(228,220,184,0.16)] px-3 py-1">
-                <span className="h-2 w-2 animate-pulse rounded-full bg-[color:var(--gold)]" />
-                <span className="text-xs font-medium text-[rgba(245,238,211,0.92)]">Engineering Automation Platform</span>
-              </div>
-              <h2 className="text-2xl lg:text-3xl font-bold text-white tracking-tight">Welcome to HVAC-AEST-EA</h2>
-              <p className="mt-2 max-w-lg text-sm text-[rgba(255,255,255,0.76)]">
-                Streamline your HVAC estimation workflow with intelligent load calculations, automated equipment sizing, and professional BOQ generation.
+      <section className="grid gap-6 md:grid-cols-3">
+        {metrics.map((metric) => (
+          <Card key={metric.label} className="h-full">
+            <div className="space-y-2">
+              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[color:var(--muted-foreground)]">
+                {metric.label}
+              </p>
+              <p className="text-[2.1rem] font-extrabold tracking-[-0.02em] tabular-nums text-[color:var(--foreground)]">
+                {metric.value}
               </p>
             </div>
-            
-          </div>
-        </CardContent>
-      </Card>
+          </Card>
+        ))}
+      </section>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-        <StatCard
-          title="Total Projects"
-          value={loading ? '—' : totalProjects}
-          icon={FolderOpen}
-        />
-        <StatCard
-          title="Active Projects"
-          value={loading ? '—' : activeProjects}
-          icon={Building2}
-          trend={activeProjects > 0 ? { value: activeProjects, label: 'active' } : undefined}
-        />
-        <StatCard
-          title="Total Cooling Load"
-          value={loading ? '—' : `${totalTR.toFixed(1)} TR`}
-          icon={Thermometer}
-        />
-        <StatCard
-          title="Avg Load / Project"
-          value={loading ? '—' : totalProjects > 0 ? `${(totalTR / totalProjects).toFixed(1)} TR` : '0 TR'}
-          icon={TrendingUp}
-        />
-      </div>
+      <section className="grid gap-6 md:grid-cols-2">
+        {modules.map((module, index) => {
+          const Icon = module.icon;
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2 border-border/65 bg-card/90 shadow-[0_14px_28px_-24px_rgba(19,32,51,0.68)]">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Recent Projects</CardTitle>
-              <Link href="/projects">
-                <Button variant="ghost" size="sm">
-                  View All <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
-                </Button>
-              </Link>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="space-y-3">
-                {[1, 2, 3, 4].map((i) => (
-                  <Skeleton key={i} className="h-16 w-full rounded-xl" />
-                ))}
-              </div>
-            ) : recentProjects.length === 0 ? (
-              <EmptyState
-                icon={<Building2 className="w-12 h-12" />}
-                title="No projects yet"
-                description="Create your first HVAC estimation project to get started"
-                action={
-                  <Link href="/projects/new">
-                    <Button variant="accent" size="sm">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Create Project
+          return (
+            <motion.div
+              key={module.title}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2, delay: index * 0.04, ease: 'easeOut' }}
+            >
+              <Card
+                title={module.title}
+                subtitle={module.description}
+                actions={
+                  <Link href={module.href}>
+                    <Button variant="secondary" size="sm">
+                      Open
                     </Button>
                   </Link>
                 }
-              />
-            ) : (
-              <motion.div
-                variants={listContainerVariants}
-                initial="hidden"
-                animate="visible"
-                className="space-y-2"
               >
-                {recentProjects.map((project) => {
-                  const projectTR = project.floors?.reduce((fSum, f) => {
-                    return fSum + f.rooms.reduce((rSum, r) => rSum + (r.coolingLoad?.trValue || 0), 0);
-                  }, 0) || 0;
+                <div className="flex items-center gap-3">
+                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-2)] text-[color:var(--accent)]">
+                    <Icon size={21} />
+                  </div>
+                  <div className="text-sm leading-relaxed text-[color:var(--muted-foreground)]">
+                    Module-ready and integrated with the new state and engineering core.
+                  </div>
+                </div>
+              </Card>
+            </motion.div>
+          );
+        })}
+      </section>
 
-                  return (
-                    <motion.div key={project.id} variants={listItemVariants}>
-                      <Link
-                        href={`/projects/${project.id}`}
-                        className="group flex items-center justify-between rounded-xl border border-border/60 bg-card/75 p-4 transition-all duration-200 hover:border-border hover:bg-card hover:shadow-[0_14px_24px_-22px_rgba(19,32,51,0.72)]"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2.5">
-                            <h3 className="truncate text-sm font-semibold text-foreground transition-colors group-hover:text-[color:var(--accent-dark)]">
-                              {project.name}
-                            </h3>
-                            <Badge variant={statusColor[project.status] || 'default'} size="sm">
-                              {project.status}
-                            </Badge>
-                          </div>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {project.clientName || 'No client'} · {project.buildingType} · {project.location || 'No location'}
-                          </p>
-                        </div>
-                        <div className="text-right ml-4 shrink-0">
-                          <p className="text-sm font-bold tabular-nums text-foreground">
-                            {projectTR.toFixed(1)} TR
-                          </p>
-                          <p className="text-[11px] text-muted-foreground tabular-nums">
-                            {new Date(project.updatedAt).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </Link>
-                    </motion.div>
-                  );
-                })}
-              </motion.div>
-            )}
-          </CardContent>
-        </Card>
-
-        <div className="space-y-6">
-          
-
-          <Card className="border-border/70 bg-[linear-gradient(162deg,rgba(15,139,141,0.14),rgba(255,255,255,0.9))] shadow-[0_14px_28px_-24px_rgba(19,32,51,0.68)]">
-            <CardHeader>
-              <CardTitle className="text-base font-bold">Portfolio Snapshot</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="rounded-xl border border-border/60 bg-background/80 p-4 shadow-[0_14px_24px_-24px_rgba(19,32,51,0.7)]">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Selected Equipment</p>
-                <p className="mt-1 text-2xl font-bold text-foreground">{loading ? '—' : totalEquipment}</p>
-              </div>
-              <div className="rounded-xl border border-border/60 bg-background/80 p-4 shadow-[0_14px_24px_-24px_rgba(19,32,51,0.7)]">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">BOQ Line Items</p>
-                <p className="mt-1 text-2xl font-bold text-foreground">{loading ? '—' : totalBOQItems}</p>
-              </div>
-              <div className="rounded-xl border border-border/60 bg-background/80 p-4 shadow-[0_14px_24px_-24px_rgba(19,32,51,0.7)]">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Avg Items / Project</p>
-                <p className="mt-1 text-2xl font-bold text-foreground">
-                  {loading ? '—' : totalProjects > 0 ? (totalBOQItems / totalProjects).toFixed(1) : '0.0'}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+      <Card title="System Direction" subtitle="Architecture goals in active implementation">
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-2)] px-5 py-4 text-sm text-[color:var(--muted-foreground)]">
+            <p className="mb-1 font-bold uppercase tracking-[0.12em] text-[color:var(--foreground)]">UI Foundation</p>
+            Dark-first design system with 8px spacing discipline and modular primitives.
+          </div>
+          <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-2)] px-5 py-4 text-sm text-[color:var(--muted-foreground)]">
+            <p className="mb-1 font-bold uppercase tracking-[0.12em] text-[color:var(--foreground)]">Calculation Core</p>
+            Separated engine modules for BTU, CFM, and equipment sizing with formula traceability.
+          </div>
+          <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-2)] px-5 py-4 text-sm text-[color:var(--muted-foreground)]">
+            <p className="mb-1 font-bold uppercase tracking-[0.12em] text-[color:var(--foreground)]">Data Visualization</p>
+            Recharts-backed breakdowns for load, airflow distribution, and equipment fit comparisons.
+          </div>
         </div>
+      </Card>
+
+      <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-1)] px-5 py-4 text-sm text-[color:var(--muted-foreground)]">
+        <span className="font-semibold text-[color:var(--foreground)]">Note:</span> This is phase-one implementation. Remaining modules will be expanded with full workflow depth in the next passes.
       </div>
-    </PageWrapper>
+
+      <div className="flex items-center gap-2.5 text-sm text-[color:var(--muted-foreground)]">
+        <BarChart3 size={14} />
+        Visualization stack: Recharts + Framer Motion + Zustand live state.
+      </div>
+    </div>
   );
 }
-
-
-

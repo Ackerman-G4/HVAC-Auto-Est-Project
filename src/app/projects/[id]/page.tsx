@@ -1093,14 +1093,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           { label: project.name },
         ]}
         actions={
-          <div className="flex flex-wrap gap-2 rounded-xl border border-border/70 bg-card/75 p-1.5">
-            <Button variant="secondary" size="sm" onClick={runCalculation} isLoading={calculating}>
+          <div className="flex flex-wrap gap-2.5 rounded-xl border border-border/70 bg-card/75 p-2">
+            <Button variant="secondary" size="md" onClick={runCalculation} isLoading={calculating}>
               <Calculator className="w-4 h-4 mr-1" /> Calculate
             </Button>
-            <Button variant="secondary" size="sm" onClick={autoSizeEquipment} isLoading={autoSizing}>
+            <Button variant="secondary" size="md" onClick={autoSizeEquipment} isLoading={autoSizing}>
               <Zap className="w-4 h-4 mr-1" /> Auto-Size
             </Button>
-            <Button variant="accent" size="sm" onClick={generateBOQ} isLoading={generatingBOQ}>
+            <Button variant="accent" size="md" onClick={generateBOQ} isLoading={generatingBOQ}>
               <FileText className="w-4 h-4 mr-1" /> Generate BOQ
             </Button>
           </div>
@@ -1108,7 +1108,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       />
 
       {/* Stats */}
-      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-5">
+      <div className="mb-7 grid grid-cols-2 gap-5 sm:grid-cols-5">
         <StatCard title="Rooms" value={allRooms.length} icon={MapPin} />
         <StatCard title="Total TR" value={totalTR.toFixed(1)} icon={Thermometer} />
         <StatCard title="Total Area" value={`${totalArea.toFixed(0)} m²`} icon={Building2} />
@@ -1122,20 +1122,20 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         const indoorPS = psychrometricState(project.indoorDB, project.indoorRH);
         return (
           <Card className="mb-6 border-border/70 bg-[linear-gradient(162deg,rgba(15,139,141,0.12),rgba(255,255,255,0.94))] shadow-[0_14px_28px_-24px_rgba(19,32,51,0.66)]">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-3">
+            <CardContent className="p-5">
+              <div className="mb-4 flex items-center gap-2">
                 <Thermometer className="w-4 h-4 text-[color:var(--accent)]" />
-                <h3 className="text-sm font-semibold">Carrier Psychrometric Chart — Design Conditions</h3>
+                <h3 className="text-base font-semibold">Carrier Psychrometric Chart — Design Conditions</h3>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                 {/* Outdoor */}
                 <div>
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">Outdoor Air</p>
+                  <p className="mb-2 text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Outdoor Air</p>
                   {renderPsychrometricMetricGrid(outdoorPS, 'bg-[rgba(219,142,47,0.14)]')}
                 </div>
                 {/* Indoor */}
                 <div>
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">Indoor Air (Design)</p>
+                  <p className="mb-2 text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Indoor Air (Design)</p>
                   {renderPsychrometricMetricGrid(indoorPS, 'bg-[rgba(15,139,141,0.14)]')}
                 </div>
               </div>
@@ -1156,7 +1156,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           <div>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Rooms & Cooling Loads</h3>
-              <Button variant="accent" size="sm" onClick={() => setShowAddRoom(!showAddRoom)}>
+              <Button variant="accent" size="md" onClick={() => setShowAddRoom(!showAddRoom)}>
                 <Plus className="w-4 h-4 mr-1" /> Add Room
               </Button>
             </div>
@@ -1173,27 +1173,27 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     <CardTitle>Add New Room</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <form onSubmit={handleAddRoom} className="space-y-4">
+                    <form onSubmit={handleAddRoom} className="space-y-5">
                       {/* Unit toggle */}
-                      <div className="flex items-center gap-3 border-b border-border/60 pb-2">
-                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Input Unit:</label>
+                      <div className="flex items-center gap-4 border-b border-border/60 pb-3">
+                        <label className="text-sm font-medium uppercase tracking-[0.08em] text-muted-foreground">Input Unit:</label>
                         <button
                           type="button"
                           onClick={() => setRoomForm({ ...roomForm, useFootInput: !roomForm.useFootInput })}
-                          className={`rounded-md border px-3 py-1 text-xs font-medium transition-colors ${roomForm.useFootInput ? 'border-accent/35 bg-accent text-accent-foreground' : 'border-border/55 bg-secondary/45 text-muted-foreground hover:bg-secondary/70 hover:text-foreground'}`}
+                          className={`rounded-md border px-3.5 py-1.5 text-sm font-medium transition-colors ${roomForm.useFootInput ? 'border-accent/35 bg-accent text-accent-foreground' : 'border-border/55 bg-secondary/45 text-muted-foreground hover:bg-secondary/70 hover:text-foreground'}`}
                         >
                           Feet (ft)
                         </button>
                         <button
                           type="button"
                           onClick={() => setRoomForm({ ...roomForm, useFootInput: !roomForm.useFootInput })}
-                          className={`rounded-md border px-3 py-1 text-xs font-medium transition-colors ${!roomForm.useFootInput ? 'border-accent/35 bg-accent text-accent-foreground' : 'border-border/55 bg-secondary/45 text-muted-foreground hover:bg-secondary/70 hover:text-foreground'}`}
+                          className={`rounded-md border px-3.5 py-1.5 text-sm font-medium transition-colors ${!roomForm.useFootInput ? 'border-accent/35 bg-accent text-accent-foreground' : 'border-border/55 bg-secondary/45 text-muted-foreground hover:bg-secondary/70 hover:text-foreground'}`}
                         >
                           Meters (m)
                         </button>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         <Input label="Room Name *" value={strVal(roomForm.name)} onChange={(e) => setRoomForm({ ...roomForm, name: e.target.value })} />
                         <Input label="Floor Number" type="number" min={1} max={200} unit="floors" value={numVal(roomForm.floorNumber) || ''} onChange={(e) => handleRoomNumChange('floorNumber', e.target.value)} onBlur={() => handleRoomNumBlur('floorNumber', 1)} />
                         <Select label="Space Type" value={strVal(roomForm.spaceType)} onChange={(e) => setRoomForm({ ...roomForm, spaceType: e.target.value })} options={SPACE_TYPES} />
@@ -1204,8 +1204,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                             <Input label="Room Length (ft) *" type="number" step={0.1} min={0} max={1000} unit="ft" value={numVal(roomForm.lengthFt) || ''} onChange={(e) => handleRoomNumChange('lengthFt', e.target.value)} onBlur={() => handleRoomNumBlur('lengthFt', 0)} hint={numVal(roomForm.lengthFt) > 0 ? `= ${feetToMeters(numVal(roomForm.lengthFt)).toFixed(2)} m` : ''} />
                             <Input label="Room Width (ft) *" type="number" step={0.1} min={0} max={1000} unit="ft" value={numVal(roomForm.widthFt) || ''} onChange={(e) => handleRoomNumChange('widthFt', e.target.value)} onBlur={() => handleRoomNumBlur('widthFt', 0)} hint={numVal(roomForm.widthFt) > 0 ? `= ${feetToMeters(numVal(roomForm.widthFt)).toFixed(2)} m` : ''} />
                             <div>
-                              <label className="block text-xs font-medium text-foreground mb-1.5">Area (auto)</label>
-                              <div className="h-9 px-3 rounded-lg border border-border/60 bg-secondary/50 flex items-center text-[13px] tabular-nums">
+                              <label className="mb-1.5 block text-sm font-medium text-foreground">Area (auto)</label>
+                              <div className="flex h-10 items-center rounded-lg border border-border/60 bg-secondary/50 px-3.5 text-sm tabular-nums">
                                 {computedAreaSqft > 0 ? (
                                   <span>{computedAreaSqft.toFixed(1)} ft² <span className="text-muted-foreground">({computedAreaSqm.toFixed(1)} m²)</span></span>
                                 ) : (
@@ -1249,7 +1249,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                           </label>
                         </div>
                       </div>
-                      <div className="flex gap-2 justify-end">
+                      <div className="flex justify-end gap-3">
                         <Button type="button" variant="ghost" onClick={() => setShowAddRoom(false)}>Cancel</Button>
                         <Button type="submit" variant="accent"><Save className="w-4 h-4 mr-1" /> Add Room</Button>
                       </div>
@@ -1283,7 +1283,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                       <Badge size="sm" variant="default">Floor {floor.floorNumber}</Badge>
                       <span className="text-sm text-muted-foreground ml-auto">{floor.rooms.length} room{floor.rooms.length !== 1 ? 's' : ''}</span>
                     </div>
-                    <motion.div variants={listContainerVariants} initial="hidden" animate="visible" className="space-y-3">
+                    <motion.div variants={listContainerVariants} initial="hidden" animate="visible" className="space-y-4">
                       {floor.rooms.map((room) => {
                         const roomLoadDraft = roomLoadDrafts[room.id] ?? EMPTY_ROOM_LOAD_DRAFT;
                         const roomTrParsed = parsePricingDraftValue(roomLoadDraft.tr);
@@ -1335,20 +1335,20 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                   </div>
                                 </div>
                                 {room.coolingLoad && (
-                                  <div className="flex flex-col items-end gap-2 text-right shrink-0 w-full sm:w-auto">
+                                  <div className="w-full shrink-0 text-right sm:w-auto">
                                     <div className="flex gap-5">
-                                      <div className="rounded-lg border border-accent/30 bg-accent/12 px-3 py-1.5">
+                                      <div className="rounded-lg border border-accent/30 bg-accent/12 px-3.5 py-2">
                                         <div className="flex items-center justify-end gap-2 mb-1">
                                           <Badge size="sm" variant={room.coolingLoad.isOverridden ? 'accent' : 'secondary'}>
                                             {room.coolingLoad.isOverridden ? 'Override' : 'Suggested'}
                                           </Badge>
                                         </div>
                                         <p className="text-lg font-bold text-accent">{room.coolingLoad.trValue} TR</p>
-                                        <p className="text-xs text-muted-foreground">{(room.coolingLoad.btuPerHour || 0).toLocaleString()} BTU/h</p>
+                                        <p className="text-sm text-muted-foreground">{(room.coolingLoad.btuPerHour || 0).toLocaleString()} BTU/h</p>
                                       </div>
-                                      <div className="rounded-lg border border-border/55 bg-secondary/35 px-3 py-1.5">
+                                      <div className="rounded-lg border border-border/55 bg-secondary/35 px-3.5 py-2">
                                         <p className="text-base font-semibold">{room.coolingLoad.cfmSupply} CFM</p>
-                                        <p className="text-xs text-muted-foreground">
+                                        <p className="text-sm text-muted-foreground">
                                           <TermHint
                                             term="Supply Air"
                                             definition="CFM is cubic feet per minute of airflow delivered to the room to offset sensible and latent heat."
@@ -1356,9 +1356,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                           />
                                         </p>
                                       </div>
-                                      <div className="rounded-lg border border-border/55 bg-secondary/35 px-3 py-1.5">
+                                      <div className="rounded-lg border border-border/55 bg-secondary/35 px-3.5 py-2">
                                         <p className="text-base font-semibold">{(room.coolingLoad.totalLoad / room.area).toFixed(0)} W/m²</p>
-                                        <p className="text-xs text-muted-foreground">
+                                        <p className="text-sm text-muted-foreground">
                                           <TermHint
                                             term="Load Density"
                                             definition="Cooling load per floor area. Higher W/m² indicates heavier internal or envelope gains."
@@ -1368,12 +1368,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                       </div>
                                     </div>
 
-                                    <div className="grid w-full grid-cols-2 gap-2 sm:w-[430px]">
-                                      <div className="rounded-lg border border-border/55 bg-secondary/35 px-3 py-1.5 text-right">
+                                    <div className="mt-2 grid w-full grid-cols-2 gap-2.5 sm:w-[430px]">
+                                      <div className="rounded-lg border border-border/55 bg-secondary/35 px-3.5 py-2 text-right">
                                         <p className="text-sm font-semibold tabular-nums">
                                           {Math.round(room.coolingLoad.totalSensibleLoad).toLocaleString()} W
                                         </p>
-                                        <p className="text-xs text-muted-foreground">
+                                        <p className="text-sm text-muted-foreground">
                                           <TermHint
                                             term="Sensible"
                                             definition="Sensible load changes dry-bulb temperature and is primarily handled by airflow and coil temperature difference."
@@ -1381,11 +1381,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                           />
                                         </p>
                                       </div>
-                                      <div className="rounded-lg border border-border/55 bg-secondary/35 px-3 py-1.5 text-right">
+                                      <div className="rounded-lg border border-border/55 bg-secondary/35 px-3.5 py-2 text-right">
                                         <p className="text-sm font-semibold tabular-nums">
                                           {Math.round(room.coolingLoad.totalLatentLoad).toLocaleString()} W
                                         </p>
-                                        <p className="text-xs text-muted-foreground">
+                                        <p className="text-sm text-muted-foreground">
                                           <TermHint
                                             term="Latent"
                                             definition="Latent load removes moisture from air and is linked to humidity control and dehumidification performance."
@@ -1428,11 +1428,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                       />
                                     </div>
 
-                                    <div className="w-full sm:w-[360px] rounded-lg border border-border/65 bg-card/80 p-2.5 shadow-[0_10px_20px_-22px_rgba(19,32,51,0.72)]">
-                                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-2">Cooling Load Overrides</p>
+                                    <div className="w-full rounded-lg border border-border/65 bg-card/80 p-3.5 shadow-[0_10px_20px_-22px_rgba(19,32,51,0.72)] sm:w-[360px]">
+                                      <p className="mb-2 text-xs uppercase tracking-[0.08em] text-muted-foreground">Cooling Load Overrides</p>
                                       <div className="grid grid-cols-2 gap-2">
                                         <div>
-                                          <label className="block text-[10px] text-muted-foreground mb-1">TR Override</label>
+                                          <label className="mb-1 block text-xs text-muted-foreground">TR Override</label>
                                           <input
                                             type="number"
                                             min={0}
@@ -1440,11 +1440,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                             value={roomLoadDraft.tr}
                                             onChange={(event) => handleRoomLoadDraftChange(room.id, 'tr', event.target.value)}
                                             placeholder={`Suggested ${(room.coolingLoad.suggestedTrValue ?? room.coolingLoad.trValue).toString()}`}
-                                            className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm text-right"
+                                            className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm text-right"
                                           />
                                         </div>
                                         <div>
-                                          <label className="block text-[10px] text-muted-foreground mb-1">BTU/h Override</label>
+                                          <label className="mb-1 block text-xs text-muted-foreground">BTU/h Override</label>
                                           <input
                                             type="number"
                                             min={0}
@@ -1452,7 +1452,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                             value={roomLoadDraft.btu}
                                             onChange={(event) => handleRoomLoadDraftChange(room.id, 'btu', event.target.value)}
                                             placeholder={`Suggested ${Math.round(room.coolingLoad.suggestedBtuPerHour ?? room.coolingLoad.btuPerHour).toString()}`}
-                                            className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm text-right"
+                                            className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm text-right"
                                           />
                                         </div>
                                       </div>
@@ -1512,7 +1512,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                   <div className="mt-4 pt-4 border-t border-border/50">
                                     <div className="flex items-center gap-2 mb-2">
                                       <Zap className="w-3.5 h-3.5 text-amber-500" />
-                                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                      <span className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                                         AC Recommendation ({rec.recommendedType})
                                       </span>
                                       {rec.deratingFactor < 1 && (
@@ -1527,17 +1527,17 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                         {rec.conditionsSeverity}
                                       </Badge>
                                     </div>
-                                    <p className="text-xs text-muted-foreground mb-2">
+                                    <p className="mb-2 text-sm text-muted-foreground">
                                       Need: {rec.adjustedTR} TR (adjusted) · Min EER: {rec.recommendedMinEER} · {rec.notes[rec.notes.length - 1]}
                                     </p>
                                     {matchedUnits.length > 0 && (
-                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                         {matchedUnits.map((unit, idx) => {
                                           const qty = needsMultiple ? Math.ceil(rec.adjustedTR / unit.capacityTR) : 1;
                                           return (
                                             <div
                                               key={idx}
-                                              className="flex items-center justify-between gap-2 rounded border border-border/55 bg-secondary/45 px-2.5 py-1.5 text-xs"
+                                              className="flex items-center justify-between gap-2 rounded border border-border/55 bg-secondary/45 px-3 py-2 text-sm"
                                             >
                                               <div className="flex-1 min-w-0">
                                                 <span className="font-medium">{unit.manufacturer}</span>
@@ -1601,24 +1601,24 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 }
               />
             ) : (
-              <div className="overflow-x-auto rounded-2xl border border-border/70 bg-card/85 p-2 shadow-[0_14px_26px_-24px_rgba(19,32,51,0.66)]">
+              <div className="overflow-x-auto rounded-2xl border border-border/70 bg-card/85 p-3 shadow-[0_14px_26px_-24px_rgba(19,32,51,0.66)]">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border/50">
-                      <th className="text-left py-2 px-3">Brand / Model</th>
-                      <th className="text-left py-2 px-3">Type</th>
-                      <th className="text-left py-2 px-3">State</th>
-                      <th className="text-right py-2 px-3">Capacity</th>
-                      <th className="text-right py-2 px-3">Qty</th>
-                      <th className="text-right py-2 px-3">
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Brand / Model</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Type</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">State</th>
+                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Capacity</th>
+                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Qty</th>
+                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                         <TermHint
                           term="EER"
                           definition="Energy Efficiency Ratio. Higher EER indicates better efficiency at rated operating conditions."
                         />
                       </th>
-                      <th className="text-right py-2 px-3">Unit Price</th>
-                      <th className="text-right py-2 px-3">Total</th>
-                      <th className="text-right py-2 px-3">Actions</th>
+                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Unit Price</th>
+                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Total</th>
+                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1650,21 +1650,21 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
                       return [
                         <tr key={`${eq.id}-main`} className="border-b border-border/30">
-                          <td className="py-2 px-3">
+                          <td className="px-4 py-2.5">
                             <div className="font-medium">{eq.brand}</div>
-                            <div className="text-xs text-muted-foreground">{eq.model}</div>
+                            <div className="text-sm text-muted-foreground">{eq.model}</div>
                           </td>
-                          <td className="py-2 px-3">
+                          <td className="px-4 py-2.5">
                             <Badge size="sm">{eq.type.replace(/_/g, ' ')}</Badge>
                             {eq.isInverter && <Badge size="sm" variant="success" className="ml-1">INV</Badge>}
                           </td>
-                          <td className="py-2 px-3">
+                          <td className="px-4 py-2.5">
                             <Badge size="sm" variant={eq.isOverridden ? 'accent' : 'secondary'}>
                               {eq.isOverridden ? 'Override' : 'Suggested'}
                             </Badge>
                           </td>
-                          <td className="text-right py-2 px-3">{eq.capacityTR.toFixed(1)} TR</td>
-                          <td className="text-right py-2 px-3">
+                          <td className="px-4 py-2.5 text-right">{eq.capacityTR.toFixed(1)} TR</td>
+                          <td className="px-4 py-2.5 text-right">
                             <div className="flex justify-end">
                               <input
                                 type="number"
@@ -1673,15 +1673,15 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                 value={draft.quantity}
                                 onChange={(event) => handleEquipmentDraftChange(eq.id, 'quantity', event.target.value)}
                                 placeholder={String(eq.suggestedQuantity ?? eq.quantity)}
-                                className="w-20 rounded-md border border-border bg-background px-2 py-1 text-right text-sm"
+                                className="w-20 rounded-md border border-border bg-background px-2.5 py-1.5 text-right text-sm"
                               />
                             </div>
-                            <p className="mt-1 text-[10px] text-muted-foreground">
+                            <p className="mt-1 text-xs text-muted-foreground">
                               Suggested: {eq.suggestedQuantity ?? eq.quantity}
                             </p>
                           </td>
-                          <td className="text-right py-2 px-3">{eq.eer.toFixed(1)}</td>
-                          <td className="text-right py-2 px-3">
+                          <td className="px-4 py-2.5 text-right">{eq.eer.toFixed(1)}</td>
+                          <td className="px-4 py-2.5 text-right">
                             <div className="flex justify-end">
                               <input
                                 type="number"
@@ -1690,15 +1690,15 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                 value={draft.unitPrice}
                                 onChange={(event) => handleEquipmentDraftChange(eq.id, 'unitPrice', event.target.value)}
                                 placeholder={String(eq.suggestedUnitPrice ?? eq.unitPrice)}
-                                className="w-28 rounded-md border border-border bg-background px-2 py-1 text-right text-sm"
+                                className="w-28 rounded-md border border-border bg-background px-2.5 py-1.5 text-right text-sm"
                               />
                             </div>
-                            <p className="mt-1 text-[10px] text-muted-foreground">
+                            <p className="mt-1 text-xs text-muted-foreground">
                               Suggested: {formatPHP(eq.suggestedUnitPrice ?? eq.unitPrice)}
                             </p>
                           </td>
-                          <td className="text-right py-2 px-3 font-medium">{formatPHP(previewTotal)}</td>
-                          <td className="text-right py-2 px-3">
+                          <td className="px-4 py-2.5 text-right font-medium">{formatPHP(previewTotal)}</td>
+                          <td className="px-4 py-2.5 text-right">
                             <div className="flex justify-end gap-2">
                               <Button
                                 variant="secondary"
@@ -1723,7 +1723,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                           </td>
                         </tr>,
                         <tr key={`${eq.id}-explain`} className="border-b border-border/20 bg-secondary/20">
-                          <td colSpan={9} className="px-3 pb-3 pt-1">
+                          <td colSpan={9} className="px-4 pb-3 pt-2">
                             <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
                               <DualValueExplainer
                                 compact
@@ -1754,8 +1754,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   </tbody>
                   <tfoot>
                     <tr className="font-semibold">
-                      <td colSpan={8} className="py-2 px-3 text-right">Equipment Subtotal:</td>
-                      <td className="py-2 px-3 text-right">{formatPHP(equipmentCost)}</td>
+                      <td colSpan={8} className="px-4 py-2.5 text-right">Equipment Subtotal:</td>
+                      <td className="px-4 py-2.5 text-right">{formatPHP(equipmentCost)}</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -1782,10 +1782,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   Suggested values are system defaults. Enter an override to force a final value, or leave blank to use suggested.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-                <div className="rounded-lg border border-border/60 bg-secondary/35 p-3">
+              <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-lg border border-border/60 bg-secondary/35 p-4">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Labor Multiplier</p>
-                  <p className="text-[11px] text-muted-foreground mt-1">Suggested: {project.suggestedLaborMultiplier ?? 1}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Suggested: {project.suggestedLaborMultiplier ?? 1}</p>
                   <input
                     type="number"
                     min={0}
@@ -1793,14 +1793,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     value={pricingDraft.laborMultiplier}
                     onChange={(event) => handlePricingDraftChange('laborMultiplier', event.target.value)}
                     placeholder="Use suggested"
-                    className="mt-2 w-full rounded-md border border-border bg-background px-2 py-1 text-sm"
+                    className="mt-2 w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm"
                   />
-                  <p className="mt-2 text-xs text-muted-foreground">Final: {pricingFinal.laborMultiplier}</p>
+                  <p className="mt-2 text-sm text-muted-foreground">Final: {pricingFinal.laborMultiplier}</p>
                 </div>
 
-                <div className="rounded-lg border border-border/60 bg-secondary/35 p-3">
+                <div className="rounded-lg border border-border/60 bg-secondary/35 p-4">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Overhead %</p>
-                  <p className="text-[11px] text-muted-foreground mt-1">Suggested: {project.suggestedOverheadPercent ?? 12}%</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Suggested: {project.suggestedOverheadPercent ?? 12}%</p>
                   <input
                     type="number"
                     min={0}
@@ -1808,14 +1808,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     value={pricingDraft.overheadPercent}
                     onChange={(event) => handlePricingDraftChange('overheadPercent', event.target.value)}
                     placeholder="Use suggested"
-                    className="mt-2 w-full rounded-md border border-border bg-background px-2 py-1 text-sm"
+                    className="mt-2 w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm"
                   />
-                  <p className="mt-2 text-xs text-muted-foreground">Final: {pricingFinal.overheadPercent}%</p>
+                  <p className="mt-2 text-sm text-muted-foreground">Final: {pricingFinal.overheadPercent}%</p>
                 </div>
 
-                <div className="rounded-lg border border-border/60 bg-secondary/35 p-3">
+                <div className="rounded-lg border border-border/60 bg-secondary/35 p-4">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Contingency %</p>
-                  <p className="text-[11px] text-muted-foreground mt-1">Suggested: {project.suggestedContingencyPercent ?? 8}%</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Suggested: {project.suggestedContingencyPercent ?? 8}%</p>
                   <input
                     type="number"
                     min={0}
@@ -1823,14 +1823,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     value={pricingDraft.contingencyPercent}
                     onChange={(event) => handlePricingDraftChange('contingencyPercent', event.target.value)}
                     placeholder="Use suggested"
-                    className="mt-2 w-full rounded-md border border-border bg-background px-2 py-1 text-sm"
+                    className="mt-2 w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm"
                   />
-                  <p className="mt-2 text-xs text-muted-foreground">Final: {pricingFinal.contingencyPercent}%</p>
+                  <p className="mt-2 text-sm text-muted-foreground">Final: {pricingFinal.contingencyPercent}%</p>
                 </div>
 
-                <div className="rounded-lg border border-border/60 bg-secondary/35 p-3">
+                <div className="rounded-lg border border-border/60 bg-secondary/35 p-4">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">VAT %</p>
-                  <p className="text-[11px] text-muted-foreground mt-1">Suggested: {project.suggestedVatRate ?? 12}%</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Suggested: {project.suggestedVatRate ?? 12}%</p>
                   <input
                     type="number"
                     min={0}
@@ -1838,9 +1838,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     value={pricingDraft.vatRate}
                     onChange={(event) => handlePricingDraftChange('vatRate', event.target.value)}
                     placeholder="Use suggested"
-                    className="mt-2 w-full rounded-md border border-border bg-background px-2 py-1 text-sm"
+                    className="mt-2 w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm"
                   />
-                  <p className="mt-2 text-xs text-muted-foreground">Final: {pricingFinal.vatRate}%</p>
+                  <p className="mt-2 text-sm text-muted-foreground">Final: {pricingFinal.vatRate}%</p>
                 </div>
               </CardContent>
               <CardFooter className="flex justify-end gap-2">
@@ -1871,18 +1871,18 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 }
               />
             ) : (
-              <div className="overflow-x-auto rounded-2xl border border-border/70 bg-card/85 p-2 shadow-[0_14px_26px_-24px_rgba(19,32,51,0.66)]">
+              <div className="overflow-x-auto rounded-2xl border border-border/70 bg-card/85 p-3 shadow-[0_14px_26px_-24px_rgba(19,32,51,0.66)]">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border/50">
-                      <th className="text-left py-2 px-3">Section</th>
-                      <th className="text-left py-2 px-3">Description</th>
-                      <th className="text-left py-2 px-3">State</th>
-                      <th className="text-right py-2 px-3">Qty</th>
-                      <th className="text-right py-2 px-3">Unit</th>
-                      <th className="text-right py-2 px-3">Unit Price</th>
-                      <th className="text-right py-2 px-3">Total</th>
-                      <th className="text-right py-2 px-3">Actions</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Section</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Description</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">State</th>
+                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Qty</th>
+                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Unit</th>
+                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Unit Price</th>
+                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Total</th>
+                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1898,9 +1898,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
                       return [
                         <tr key={`${item.id}-main`} className="border-b border-border/30">
-                          <td className="py-2 px-3 text-xs text-muted-foreground">{item.section}</td>
-                          <td className="py-2 px-3">{item.description}</td>
-                          <td className="py-2 px-3">
+                          <td className="px-4 py-2.5 text-sm text-muted-foreground">{item.section}</td>
+                          <td className="px-4 py-2.5">{item.description}</td>
+                          <td className="px-4 py-2.5">
                             <Badge
                               size="sm"
                               variant={item.isOverridden ? 'accent' : 'secondary'}
@@ -1908,9 +1908,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                               {item.isOverridden ? 'Override' : 'Suggested'}
                             </Badge>
                           </td>
-                          <td className="text-right py-2 px-3">{item.quantity}</td>
-                          <td className="text-right py-2 px-3">{item.unit}</td>
-                          <td className="text-right py-2 px-3">
+                          <td className="px-4 py-2.5 text-right">{item.quantity}</td>
+                          <td className="px-4 py-2.5 text-right">{item.unit}</td>
+                          <td className="px-4 py-2.5 text-right">
                             <div className="flex justify-end">
                               <input
                                 type="number"
@@ -1918,17 +1918,17 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                 step="0.01"
                                 value={draftValue}
                                 onChange={(event) => handleBoqDraftChange(item.id, event.target.value)}
-                                className="w-28 rounded-md border border-border bg-background px-2 py-1 text-right text-sm"
+                                className="w-28 rounded-md border border-border bg-background px-2.5 py-1.5 text-right text-sm"
                               />
                             </div>
                             {item.suggestedUnitPrice !== undefined && (
-                              <p className="mt-1 text-[10px] text-muted-foreground">
+                              <p className="mt-1 text-xs text-muted-foreground">
                                 Suggested: {formatPHP(item.suggestedUnitPrice)}
                               </p>
                             )}
                           </td>
-                          <td className="text-right py-2 px-3 font-medium">{formatPHP(item.totalPrice)}</td>
-                          <td className="text-right py-2 px-3">
+                          <td className="px-4 py-2.5 text-right font-medium">{formatPHP(item.totalPrice)}</td>
+                          <td className="px-4 py-2.5 text-right">
                             <div className="flex justify-end gap-2">
                               <Button
                                 variant="secondary"
@@ -1953,7 +1953,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                           </td>
                         </tr>,
                         <tr key={`${item.id}-explain`} className="border-b border-border/20 bg-secondary/20">
-                          <td colSpan={8} className="px-3 pb-3 pt-1">
+                          <td colSpan={8} className="px-4 pb-3 pt-2">
                             <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
                               <DualValueExplainer
                                 compact
@@ -1987,8 +1987,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   </tbody>
                   <tfoot>
                     <tr className="font-bold text-lg">
-                      <td colSpan={7} className="py-3 px-3 text-right">Grand Total:</td>
-                      <td className="py-3 px-3 text-right">{formatPHP(boqTotal)}</td>
+                      <td colSpan={7} className="px-4 py-3 text-right">Grand Total:</td>
+                      <td className="px-4 py-3 text-right">{formatPHP(boqTotal)}</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -2033,7 +2033,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               </CardContent>
             </Card>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {/* PDF Report */}
               <Card className="cursor-pointer border border-border/65 bg-card/90 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/45 hover:shadow-[0_16px_28px_-24px_rgba(19,32,51,0.78)]" onClick={() => {
                 exportProjectPDF(project);
@@ -2044,7 +2044,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     <FileText className="w-6 h-6 text-red-600" />
                   </div>
                   <h4 className="font-semibold mb-1">PDF Report</h4>
-                  <p className="text-xs text-muted-foreground">Full project report with cooling loads, equipment, and BOQ</p>
+                  <p className="text-sm text-muted-foreground">Full project report with cooling loads, equipment, and BOQ</p>
                 </CardContent>
               </Card>
 
@@ -2058,7 +2058,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     <FileDown className="w-6 h-6 text-[color:var(--accent-dark)]" />
                   </div>
                   <h4 className="font-semibold mb-1">CAD Export (DXF)</h4>
-                  <p className="text-xs text-muted-foreground">AutoCAD-compatible floor plans with room labels and loads</p>
+                  <p className="text-sm text-muted-foreground">AutoCAD-compatible floor plans with room labels and loads</p>
                 </CardContent>
               </Card>
 
@@ -2072,7 +2072,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     <FileSpreadsheet className="w-6 h-6 text-green-600" />
                   </div>
                   <h4 className="font-semibold mb-1">Excel Workbook</h4>
-                  <p className="text-xs text-muted-foreground">Multi-sheet workbook with loads, equipment, and BOQ</p>
+                  <p className="text-sm text-muted-foreground">Multi-sheet workbook with loads, equipment, and BOQ</p>
                 </CardContent>
               </Card>
 
@@ -2086,7 +2086,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     <FileText className="w-6 h-6 text-amber-600" />
                   </div>
                   <h4 className="font-semibold mb-1">CSV Data</h4>
-                  <p className="text-xs text-muted-foreground">Cooling load data in CSV format for custom analysis</p>
+                  <p className="text-sm text-muted-foreground">Cooling load data in CSV format for custom analysis</p>
                 </CardContent>
               </Card>
             </div>

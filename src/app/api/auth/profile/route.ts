@@ -1,23 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getTokenFromRequest } from '@/lib/auth/session';
+import { resolveLocalFallbackRole } from '@/lib/auth/fallback-role';
 import { lookupAccountByIdToken } from '@/lib/firebase/auth-rest';
 import { getFirebaseAuth } from '@/lib/firebase/server';
 
+function resolveRole(role: unknown): 'admin' | 'engineer' {
+	return role === 'admin' ? 'admin' : 'engineer';
+}
+
 export async function GET(req: NextRequest) {
-	const auth = req.headers.get('authorization');
-	if (!auth || !auth.startsWith('Bearer ')) {
+	const token = getTokenFromRequest(req);
+
+	if (!token) {
 		return NextResponse.json({ error: 'Missing or invalid token' }, { status: 401 });
 	}
-	const token = auth.split(' ')[1];
+
 	try {
 		const authClient = getFirebaseAuth();
 		const decoded = await authClient.verifyIdToken(token);
 		const userRecord = await authClient.getUser(decoded.uid);
-		const role =
-			typeof decoded.role === 'string'
-				? decoded.role
-				: typeof userRecord.customClaims?.role === 'string'
-					? userRecord.customClaims.role
-					: 'engineer';
+		const role = resolveRole(decoded.role ?? userRecord.customClaims?.role);
 
 		return NextResponse.json({
 			user: {
@@ -35,7 +37,7 @@ export async function GET(req: NextRequest) {
 					id: account.id,
 					email: account.email,
 					name: account.name,
-					role: 'engineer',
+					role: resolveLocalFallbackRole(account.email),
 				},
 			});
 		} catch {

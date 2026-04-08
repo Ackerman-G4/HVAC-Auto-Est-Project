@@ -5,6 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth/guard';
 import {
   createProjectRecord,
   listProjectsForApi,
@@ -20,6 +21,11 @@ import {
 
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requireAuth(request);
+    if (!auth.authorized) {
+      return auth.response;
+    }
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const search = searchParams.get('search');
@@ -43,6 +49,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth(request);
+    if (!auth.authorized) {
+      return auth.response;
+    }
+
     const body = await request.json();
 
     if (!body.name) {

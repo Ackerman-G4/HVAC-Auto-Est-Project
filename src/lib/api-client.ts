@@ -5,6 +5,36 @@
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
+const AUTH_TOKEN_STORAGE_KEY = 'hvac-auth-token';
+let authTokenCache: string | null = null;
+
+function readStoredAuthToken(): string | null {
+  if (typeof window === 'undefined') return authTokenCache;
+  if (authTokenCache) return authTokenCache;
+
+  const token = window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+  authTokenCache = token && token.trim() ? token : null;
+  return authTokenCache;
+}
+
+export function setApiClientToken(token: string | null) {
+  authTokenCache = token && token.trim() ? token : null;
+
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  if (authTokenCache) {
+    window.localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, authTokenCache);
+  } else {
+    window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+  }
+}
+
+export function getApiClientToken() {
+  return readStoredAuthToken();
+}
+
 class ApiClientError extends Error {
   status: number;
   details?: string;
@@ -22,9 +52,17 @@ async function request<T>(
   method: HttpMethod = 'GET',
   body?: unknown
 ): Promise<T> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const token = readStoredAuthToken();
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   const options: RequestInit = {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers,
+    credentials: 'same-origin',
   };
 
   if (body && method !== 'GET') {
@@ -49,6 +87,17 @@ async function request<T>(
   if (res.status === 204) return undefined as T;
   return res.json();
 }
+
+// ── Auth ─────────────────────────────────────────────────────────────────
+
+export const authApi = {
+  login: (data: unknown) => request<{ token: string; user: unknown }>('/api/auth/login', 'POST', data),
+  register: (data: unknown) => request<{ token: string; user: unknown }>('/api/auth/register', 'POST', data),
+  loginWithGoogle: (data: unknown) =>
+    request<{ token: string; user: unknown }>('/api/auth/google', 'POST', data),
+  profile: () => request<{ user: unknown }>('/api/auth/profile'),
+  logout: () => request<{ message: string }>('/api/auth/logout', 'POST'),
+};
 
 // ── Projects ─────────────────────────────────────────────────────────────
 

@@ -10,13 +10,13 @@ interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 
 export function Badge({ className, variant = 'default', size = 'md', children, ...props }: BadgeProps) {
   const variants = {
-    default: 'border border-[color:var(--border)] bg-[color:var(--secondary)] text-[color:var(--foreground)] shadow-[0_8px_16px_-18px_rgba(19,32,51,0.88)]',
-    secondary: 'border border-transparent bg-[color:var(--primary)] text-[color:var(--primary-foreground)] shadow-[0_10px_22px_-18px_rgba(31,54,88,0.95)]',
-    accent: 'border border-[rgba(15,139,141,0.3)] bg-[rgba(15,139,141,0.12)] text-[color:var(--accent-dark)] shadow-[0_10px_18px_-18px_rgba(15,139,141,0.95)]',
-    destructive: 'border border-[rgba(216,77,87,0.35)] bg-[rgba(216,77,87,0.12)] text-[color:var(--destructive)] shadow-[0_10px_18px_-18px_rgba(216,77,87,0.95)]',
-    success: 'border border-[rgba(43,159,115,0.35)] bg-[rgba(43,159,115,0.12)] text-[color:var(--success)] shadow-[0_10px_18px_-18px_rgba(43,159,115,0.95)]',
-    warning: 'border border-[rgba(219,142,47,0.35)] bg-[rgba(219,142,47,0.12)] text-[color:var(--warning)] shadow-[0_10px_18px_-18px_rgba(219,142,47,0.95)]',
-    outline: 'border border-[color:var(--silver)] bg-[rgba(255,255,255,0.6)] text-[color:var(--muted-foreground)] hover:bg-[color:var(--secondary)]',
+    default: 'border border-[color:var(--border)] bg-[color:var(--secondary)] text-[color:var(--foreground)] shadow-[0_8px_16px_-18px_rgba(31,63,98,0.88)]',
+    secondary: 'border border-transparent bg-[color:var(--primary)] text-[color:var(--primary-foreground)] shadow-[0_10px_22px_-18px_rgba(31,63,98,0.95)]',
+    accent: 'border border-[rgba(20,134,115,0.32)] bg-[rgba(20,134,115,0.14)] text-[color:var(--accent-dark)] shadow-[0_10px_18px_-18px_rgba(20,134,115,0.95)]',
+    destructive: 'border border-[rgba(193,75,85,0.35)] bg-[rgba(193,75,85,0.14)] text-[color:var(--destructive)] shadow-[0_10px_18px_-18px_rgba(193,75,85,0.95)]',
+    success: 'border border-[rgba(30,155,103,0.35)] bg-[rgba(30,155,103,0.14)] text-[color:var(--success)] shadow-[0_10px_18px_-18px_rgba(30,155,103,0.95)]',
+    warning: 'border border-[rgba(202,123,46,0.35)] bg-[rgba(202,123,46,0.14)] text-[color:var(--warning)] shadow-[0_10px_18px_-18px_rgba(202,123,46,0.95)]',
+    outline: 'border border-[color:var(--silver)] bg-[color:var(--card)]/64 text-[color:var(--muted-foreground)] hover:bg-[color:var(--secondary)]',
   };
 
   const sizes = {

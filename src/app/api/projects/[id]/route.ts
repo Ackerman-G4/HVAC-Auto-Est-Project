@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth/guard';
 import {
   deleteProjectRecordPermanently,
   getProjectRecord,
@@ -33,6 +34,11 @@ function toNullableNumber(value: unknown, fallback: number | null): number | nul
 
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
+    const auth = await requireAuth(request);
+    if (!auth.authorized) {
+      return auth.response;
+    }
+
     const { id } = await context.params;
 
     const project = await getProjectWithDetails(id);
@@ -57,6 +63,11 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
+    const auth = await requireAuth(request);
+    if (!auth.authorized) {
+      return auth.response;
+    }
+
     const { id } = await context.params;
     const body = await request.json();
 
@@ -155,6 +166,11 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
+    const auth = await requireAuth(request);
+    if (!auth.authorized) {
+      return auth.response;
+    }
+
     const { id } = await context.params;
     const permanent = new URL(request.url).searchParams.get('permanent') === 'true';
 

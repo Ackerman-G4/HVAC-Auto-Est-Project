@@ -4,12 +4,18 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth/guard';
 import { runDiagnostic } from '@/lib/functions/diagnostic';
 import { createDiagnosticHistory } from '@/lib/firebase/catalog-store';
 import type { DiagnosticInput } from '@/types/diagnostic';
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth(request);
+    if (!auth.authorized) {
+      return auth.response;
+    }
+
     const body: Partial<DiagnosticInput> = await request.json();
 
     if (!body.systemType) {

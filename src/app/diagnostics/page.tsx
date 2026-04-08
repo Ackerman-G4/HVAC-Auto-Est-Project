@@ -232,18 +232,18 @@ export default function DiagnosticsPage() {
   // helpers
   const Pill = ({ label, field, icon: I }: { label: string; field: keyof DiagnosticInput; icon: React.ComponentType<{ size?: number }> }) => (
     <button type="button" onClick={() => toggleSym(field)}
-      className={cn('inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs font-medium transition-all',
+      className={cn('inline-flex items-center gap-2 rounded-lg border px-3.5 py-2 text-sm font-medium transition-all',
         input[field] ? 'bg-accent/12 border-accent/30 text-accent' : 'bg-card border-border/50 text-muted-foreground hover:text-foreground hover:border-border')}>
-      <I size={12} />{label}
+      <I size={14} />{label}
     </button>
   );
 
   const NumField = ({ label, field, unit, ph }: { label: string; field: keyof DiagnosticInput; unit: string; ph?: string }) => (
     <div>
-      <label className="block text-[11px] font-medium text-muted-foreground mb-0.5">{label}</label>
+      <label className="mb-1 block text-xs font-medium text-muted-foreground">{label}</label>
       <div className="relative">
-        <Input type="number" step="any" value={input[field] != null ? String(input[field]) : ''} onChange={(e) => updateNum(field, e.target.value)} placeholder={ph ?? '—'} className="pr-9 h-8 text-xs" />
-        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">{unit}</span>
+        <Input type="number" step="any" value={input[field] != null ? String(input[field]) : ''} onChange={(e) => updateNum(field, e.target.value)} placeholder={ph ?? '—'} className="h-11 pr-11 text-sm" />
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{unit}</span>
       </div>
     </div>
   );
@@ -255,19 +255,19 @@ export default function DiagnosticsPage() {
         description="Quick fault analysis for HVAC systems"
         actions={
           <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={reset}><RotateCcw size={13} className="mr-1" />Reset</Button>
-            <Button size="sm" onClick={run} disabled={loading}>
-              {loading ? <span className="animate-pulse text-xs">Analysing…</span> : <><Play size={13} className="mr-1" />Diagnose</>}
+            <Button variant="ghost" size="md" onClick={reset}><RotateCcw size={15} className="mr-1.5" />Reset</Button>
+            <Button size="md" onClick={run} disabled={loading}>
+              {loading ? <span className="animate-pulse text-sm">Analysing…</span> : <><Play size={15} className="mr-1.5" />Diagnose</>}
             </Button>
           </div>
         }
       />
 
       {/* ── INPUT SECTION ── */}
-      <div className="space-y-3">
+      <div className="space-y-5">
 
         {/* Row 1: Project + System Config */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Select
             label="Project"
             value={selectedProjectId}
@@ -284,17 +284,17 @@ export default function DiagnosticsPage() {
 
         {/* Project context */}
         {projectContext && (
-          <p className="text-[11px] text-muted-foreground flex items-center gap-1.5 -mt-1 pl-0.5">
-            <Stethoscope size={11} className="text-accent" />
+          <p className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Stethoscope size={13} className="text-accent" />
             {projectContext}
           </p>
         )}
 
         {/* Row 2: Symptoms */}
         <Card className="border-border/65 bg-card/90 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.62)]">
-          <CardContent className="py-3 px-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Symptoms</p>
-            <div className="flex flex-wrap gap-1.5">
+          <CardContent className="px-5 py-5">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">Symptoms</p>
+            <div className="flex flex-wrap gap-2">
               <Pill label="Uneven Cooling" field="unevenCooling" icon={Thermometer} />
               <Pill label="Weak Airflow" field="weakAirflow" icon={Wind} />
               <Pill label="High Humidity" field="highHumidity" icon={Droplets} />
@@ -308,17 +308,17 @@ export default function DiagnosticsPage() {
 
         {/* Row 3: Measurements (collapsible) */}
         <button type="button" onClick={() => setShowMeasurements(!showMeasurements)}
-          className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors pl-0.5">
-          <Gauge size={13} />
+          className="flex items-center gap-2.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+          <Gauge size={15} />
           Field Measurements
-          <span className="text-[10px] text-muted-foreground/60">(optional)</span>
-          {showMeasurements ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+          <span className="text-xs text-muted-foreground/60">(optional)</span>
+          {showMeasurements ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
         </button>
 
         {showMeasurements && (
           <Card className="border-border/65 bg-card/90 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.62)]">
-            <CardContent className="py-3 px-4">
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-x-3 gap-y-2">
+            <CardContent className="px-5 py-5">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
                 <NumField label="Supply (cold)" field="supplyTempCold" unit="°C" ph="14" />
                 <NumField label="Supply (warm)" field="supplyTempWarm" unit="°C" ph="22" />
                 <NumField label="Return air" field="returnAirTemp" unit="°C" ph="26" />
@@ -339,35 +339,35 @@ export default function DiagnosticsPage() {
 
       {/* ── RESULTS SECTION ── */}
       {result && (
-        <div className="mt-6 space-y-4">
+        <div className="mt-8 space-y-6">
           {/* Divider */}
           <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-border/60" />
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Analysis Results</span>
+            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Analysis Results</span>
             <div className="h-px flex-1 bg-border/60" />
           </div>
 
           {/* Summary row */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <Card className="lg:col-span-2 border-border/65 bg-card/90 shadow-[0_14px_28px_-24px_rgba(19,32,51,0.66)]">
-              <CardContent className="py-3 px-4">
+              <CardContent className="px-5 py-5">
                 <p className="text-sm font-semibold text-foreground">{result.summaryTitle}</p>
-                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{result.summaryDescription}</p>
-                <div className="mt-2 p-2 rounded-md bg-secondary/50 border border-border/40">
-                  <p className="text-[10px] font-medium text-muted-foreground mb-0.5">Client Explanation</p>
-                  <p className="text-xs text-foreground leading-relaxed">{result.clientExplanation}</p>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{result.summaryDescription}</p>
+                <div className="mt-3 rounded-lg border border-border/40 bg-secondary/50 p-3">
+                  <p className="mb-1 text-xs font-medium text-muted-foreground">Client Explanation</p>
+                  <p className="text-sm leading-relaxed text-foreground">{result.clientExplanation}</p>
                 </div>
               </CardContent>
             </Card>
 
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-4">
               {result.deltaT && (
                 <Card className="border-border/65 bg-card/90 shadow-[0_12px_22px_-22px_rgba(19,32,51,0.62)]">
-                  <CardContent className="py-2.5 px-4 flex items-center justify-between">
+                  <CardContent className="flex items-center justify-between px-5 py-4">
                     <div>
-                      <p className="text-[10px] font-medium text-muted-foreground">ΔT</p>
+                      <p className="text-xs font-medium text-muted-foreground">ΔT</p>
                       <p className="text-lg font-bold tabular-nums">{result.deltaT.measured}°C</p>
-                      <p className="text-[10px] text-muted-foreground">Range: {result.deltaT.expected.min}–{result.deltaT.expected.max}°C</p>
+                      <p className="text-xs text-muted-foreground">Range: {result.deltaT.expected.min}–{result.deltaT.expected.max}°C</p>
                     </div>
                     <Badge variant={result.deltaT.status === 'normal' ? 'success' : result.deltaT.status === 'low' ? 'warning' : 'destructive'}>
                       {result.deltaT.status}
@@ -377,11 +377,11 @@ export default function DiagnosticsPage() {
               )}
               {result.sensibleHeatRatio && (
                 <Card className="border-border/65 bg-card/90 shadow-[0_12px_22px_-22px_rgba(19,32,51,0.62)]">
-                  <CardContent className="py-2.5 px-4 flex items-center justify-between">
+                  <CardContent className="flex items-center justify-between px-5 py-4">
                     <div>
-                      <p className="text-[10px] font-medium text-muted-foreground">SHR</p>
+                      <p className="text-xs font-medium text-muted-foreground">SHR</p>
                       <p className="text-lg font-bold tabular-nums">{result.sensibleHeatRatio.value}</p>
-                      <p className="text-[10px] text-muted-foreground leading-snug max-w-[180px]">{result.sensibleHeatRatio.interpretation}</p>
+                      <p className="max-w-[220px] text-xs leading-snug text-muted-foreground">{result.sensibleHeatRatio.interpretation}</p>
                     </div>
                     <Badge variant={result.sensibleHeatRatio.status === 'normal' ? 'success' : 'warning'}>
                       {result.sensibleHeatRatio.status.replace('_', ' ')}
@@ -394,12 +394,12 @@ export default function DiagnosticsPage() {
 
           {/* Immediate actions */}
           <Card className="border-border/65 bg-card/90 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.62)]">
-            <CardContent className="py-2.5 px-4">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Immediate Actions</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+            <CardContent className="px-5 py-4">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">Immediate Actions</p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {result.immediateActions.map((a, i) => (
-                  <div key={i} className="flex items-start gap-1.5 text-xs">
-                    <CheckCircle2 size={12} className="text-success mt-0.5 shrink-0" />
+                  <div key={i} className="flex items-start gap-2 text-sm">
+                    <CheckCircle2 size={14} className="mt-0.5 shrink-0 text-success" />
                     <span className="text-foreground">{a}</span>
                   </div>
                 ))}
@@ -409,8 +409,8 @@ export default function DiagnosticsPage() {
 
           {/* Faults */}
           <div>
-            <p className="text-xs font-semibold text-foreground mb-2">{result.faults.length} Faults Identified</p>
-            <div className="space-y-2">
+            <p className="mb-3 text-sm font-semibold text-foreground">{result.faults.length} Faults Identified</p>
+            <div className="space-y-3">
               {result.faults.map((f) => (
                 <FaultRow key={f.id} fault={f} expanded={expandedFaults.has(f.id)} onToggle={() => toggleFault(f.id)} />
               ))}
@@ -419,12 +419,12 @@ export default function DiagnosticsPage() {
 
           {/* Preventive */}
           <Card className="border-border/65 bg-card/90 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.62)]">
-            <CardContent className="py-2.5 px-4">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Preventive Maintenance</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+            <CardContent className="px-5 py-4">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">Preventive Maintenance</p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {result.preventiveActions.map((a, i) => (
-                  <div key={i} className="flex items-start gap-1.5 text-xs">
-                    <Shield size={12} className="text-accent mt-0.5 shrink-0" />
+                  <div key={i} className="flex items-start gap-2 text-sm">
+                    <Shield size={14} className="mt-0.5 shrink-0 text-accent" />
                     <span>{a}</span>
                   </div>
                 ))}
@@ -437,8 +437,8 @@ export default function DiagnosticsPage() {
       {/* Empty state */}
       {!result && (
         <div className="mt-8 flex flex-col items-center text-center text-muted-foreground">
-          <Stethoscope size={32} className="opacity-30 mb-2" />
-          <p className="text-xs">Select symptoms and click <strong>Diagnose</strong></p>
+          <Stethoscope size={36} className="mb-2 opacity-30" />
+          <p className="text-sm">Select symptoms and click <strong>Diagnose</strong></p>
         </div>
       )}
     </PageWrapper>
@@ -454,10 +454,10 @@ function FaultRow({ fault, expanded, onToggle }: { fault: DiagnosticFault; expan
 
   return (
     <Card className="overflow-hidden border-border/65 bg-card/90 p-0 shadow-[0_10px_20px_-20px_rgba(19,32,51,0.62)]">
-      <button type="button" onClick={onToggle} className="w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-secondary/45 transition-colors">
-        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-secondary text-[10px] font-bold shrink-0">{fault.rank}</span>
+      <button type="button" onClick={onToggle} className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-secondary/45">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-bold">{fault.rank}</span>
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold text-foreground truncate">{fault.title}</p>
+          <p className="truncate text-sm font-semibold text-foreground">{fault.title}</p>
           <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
             <span className={cn('inline-flex items-center gap-0.5 text-[9px] font-medium px-1.5 py-0.5 rounded', dom.bg, dom.text)}>
               <CircleDot size={7} />{dom.label}
@@ -470,20 +470,20 @@ function FaultRow({ fault, expanded, onToggle }: { fault: DiagnosticFault; expan
       </button>
 
       {expanded && (
-        <div className="border-t border-border/50 px-3 py-3 space-y-3 text-xs">
+        <div className="space-y-4 border-t border-border/50 px-4 py-4 text-sm">
           {/* Root cause */}
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Root Cause</p>
+            <p className="mb-1 text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">Root Cause</p>
             <p className="text-foreground leading-relaxed">{fault.mechanismDescription}</p>
             <p className="text-muted-foreground mt-1"><strong className="text-foreground">Uneven cooling:</strong> {fault.whyCoolingIsUneven}</p>
           </div>
 
           {/* Symptoms */}
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Symptoms</p>
+            <p className="mb-1 text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">Symptoms</p>
             <div className="flex flex-wrap gap-1">
               {fault.symptoms.map((s, i) => (
-                <span key={i} className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-secondary/50 text-foreground">
+                <span key={i} className="inline-flex items-center gap-1 rounded bg-secondary/50 px-2 py-1 text-xs text-foreground">
                   <span className={cn('w-1.5 h-1.5 rounded-full shrink-0',
                     severityConfig[s.severity].variant === 'destructive' ? 'bg-red-500'
                     : severityConfig[s.severity].variant === 'warning' ? 'bg-amber-500'
@@ -496,11 +496,11 @@ function FaultRow({ fault, expanded, onToggle }: { fault: DiagnosticFault; expan
 
           {/* Steps */}
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Diagnostic Steps</p>
+            <p className="mb-1 text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">Diagnostic Steps</p>
             <ol className="space-y-1">
               {fault.diagnosticSteps.map((st) => (
                 <li key={st.order} className="flex gap-2">
-                  <span className="text-[10px] font-bold text-accent w-4 text-right shrink-0">{st.order}.</span>
+                  <span className="w-5 shrink-0 text-right text-xs font-bold text-accent">{st.order}.</span>
                   <div className="flex-1">
                     <span className="text-foreground">{st.instruction}</span>
                     {st.toolRequired && <span className="text-muted-foreground ml-1">({st.toolRequired})</span>}
@@ -512,11 +512,11 @@ function FaultRow({ fault, expanded, onToggle }: { fault: DiagnosticFault; expan
 
           {/* Fixes */}
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Corrective Actions</p>
+            <p className="mb-1 text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">Corrective Actions</p>
             <div className="space-y-1.5">
               {fault.correctiveActions.map((ca, i) => (
                 <div key={i} className="flex items-start gap-2">
-                  <Wrench size={11} className="text-muted-foreground mt-0.5 shrink-0" />
+                  <Wrench size={13} className="mt-0.5 shrink-0 text-muted-foreground" />
                   <div className="flex-1">
                     <span className="text-foreground">{ca.action}</span>
                     <span className="ml-2 text-muted-foreground">

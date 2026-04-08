@@ -56,9 +56,9 @@ function TemperatureHeatmap() {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-foreground">Temperature Distribution (Z = {selectedSliceZ})</h3>
+        <h3 className="text-base font-semibold text-foreground">Temperature Distribution (Z = {selectedSliceZ})</h3>
         <div className="flex items-center gap-2">
-          <label className="text-xs font-medium text-muted-foreground">Height Layer:</label>
+          <label className="text-sm font-medium text-muted-foreground">Height Layer:</label>
           <input
             type="range"
             min={0}
@@ -67,7 +67,7 @@ function TemperatureHeatmap() {
             onChange={e => setSelectedSliceZ(Number(e.target.value))}
             className="w-32"
           />
-          <span className="w-16 text-xs font-semibold tabular-nums text-foreground">
+          <span className="w-20 text-sm font-semibold tabular-nums text-foreground">
             {(selectedSliceZ * config.gridResolution).toFixed(1)}m
           </span>
         </div>
@@ -94,12 +94,12 @@ function TemperatureHeatmap() {
       </div>
 
       {/* Color legend */}
-      <div className="mt-3 flex items-center gap-2 rounded-xl border border-border/65 bg-card/75 px-3 py-2">
-        <span className="text-xs font-medium text-muted-foreground">{minT.toFixed(1)}°C</span>
+      <div className="mt-4 flex items-center gap-3 rounded-xl border border-border/65 bg-card/75 px-4 py-3">
+        <span className="text-sm font-medium text-muted-foreground">{minT.toFixed(1)}°C</span>
         <div className="flex-1 h-3 rounded-full" style={{
           background: 'linear-gradient(to right, rgb(0,0,255), rgb(255,255,0), rgb(255,200,0), rgb(255,0,0))',
         }} />
-        <span className="text-xs font-medium text-muted-foreground">{maxT.toFixed(1)}°C</span>
+        <span className="text-sm font-medium text-muted-foreground">{maxT.toFixed(1)}°C</span>
       </div>
     </div>
   );
@@ -156,12 +156,12 @@ function EquipmentPanel() {
         <h3 className="mb-4 flex items-center gap-2 text-lg font-extrabold text-foreground">
           <Server size={20} className="text-accent" /> Server Racks
         </h3>
-        <div className="mb-4 grid grid-cols-2 gap-3 rounded-2xl border border-border/70 bg-card/80 p-3 md:grid-cols-5">
-          <input className="rounded-xl border border-border/70 bg-background px-3 py-2 text-sm" placeholder="Name" value={rackForm.name} onChange={e => setRackForm(f => ({ ...f, name: e.target.value }))} />
-          <input className="rounded-xl border border-border/70 bg-background px-3 py-2 text-sm" type="number" placeholder="X (m)" value={rackForm.posX} onChange={e => setRackForm(f => ({ ...f, posX: +e.target.value }))} />
-          <input className="rounded-xl border border-border/70 bg-background px-3 py-2 text-sm" type="number" placeholder="Y (m)" value={rackForm.posY} onChange={e => setRackForm(f => ({ ...f, posY: +e.target.value }))} />
-          <input className="rounded-xl border border-border/70 bg-background px-3 py-2 text-sm" type="number" placeholder="Power (kW)" value={rackForm.powerKW} onChange={e => setRackForm(f => ({ ...f, powerKW: +e.target.value }))} />
-          <button onClick={handleAddRack} className="flex items-center justify-center gap-2 rounded-xl bg-[color:var(--accent)] px-4 py-2 text-sm font-semibold text-[color:var(--accent-foreground)] transition-colors hover:bg-[color:var(--accent-dark)]">
+        <div className="mb-5 grid grid-cols-2 gap-4 rounded-2xl border border-border/70 bg-card/80 p-4 md:grid-cols-5">
+          <input className="rounded-xl border border-border/70 bg-background px-3.5 py-2.5 text-sm" placeholder="Name" value={rackForm.name} onChange={e => setRackForm(f => ({ ...f, name: e.target.value }))} />
+          <input className="rounded-xl border border-border/70 bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="X (m)" value={rackForm.posX} onChange={e => setRackForm(f => ({ ...f, posX: +e.target.value }))} />
+          <input className="rounded-xl border border-border/70 bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="Y (m)" value={rackForm.posY} onChange={e => setRackForm(f => ({ ...f, posY: +e.target.value }))} />
+          <input className="rounded-xl border border-border/70 bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="Power (kW)" value={rackForm.powerKW} onChange={e => setRackForm(f => ({ ...f, powerKW: +e.target.value }))} />
+          <button onClick={handleAddRack} className="flex items-center justify-center gap-2 rounded-xl bg-[color:var(--accent)] px-4 py-2.5 text-sm font-semibold text-[color:var(--accent-foreground)] transition-colors hover:bg-[color:var(--accent-dark)]">
             <Plus size={16} /> Add Rack
           </button>
         </div>
@@ -170,11 +170,11 @@ function EquipmentPanel() {
             <table className="w-full text-sm">
               <thead className="border-b border-border/70 bg-secondary/45">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Name</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Position</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Power</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">BTU/hr</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground"></th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Name</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Position</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Power</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">BTU/hr</th>
+                  <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
@@ -202,19 +202,19 @@ function EquipmentPanel() {
         <h3 className="mb-4 flex items-center gap-2 text-lg font-extrabold text-foreground">
           <AirVent size={20} className="text-accent" /> HVAC Cooling Units
         </h3>
-        <div className="mb-4 grid grid-cols-2 gap-3 rounded-2xl border border-border/70 bg-card/80 p-3 md:grid-cols-6">
-          <select className="rounded-xl border border-border/70 bg-background px-3 py-2 text-sm" value={hvacForm.type} onChange={e => setHvacForm(f => ({ ...f, type: e.target.value as HVACUnitType }))}>
+        <div className="mb-5 grid grid-cols-2 gap-4 rounded-2xl border border-border/70 bg-card/80 p-4 md:grid-cols-6">
+          <select className="rounded-xl border border-border/70 bg-background px-3.5 py-2.5 text-sm" value={hvacForm.type} onChange={e => setHvacForm(f => ({ ...f, type: e.target.value as HVACUnitType }))}>
             <option value="crac">CRAC</option>
             <option value="crah">CRAH</option>
             <option value="ahu">AHU</option>
             <option value="in_row">In-Row</option>
             <option value="rear_door">Rear Door HX</option>
           </select>
-          <input className="rounded-xl border border-border/70 bg-background px-3 py-2 text-sm" type="number" placeholder="X (m)" value={hvacForm.posX} onChange={e => setHvacForm(f => ({ ...f, posX: +e.target.value }))} />
-          <input className="rounded-xl border border-border/70 bg-background px-3 py-2 text-sm" type="number" placeholder="Y (m)" value={hvacForm.posY} onChange={e => setHvacForm(f => ({ ...f, posY: +e.target.value }))} />
-          <input className="rounded-xl border border-border/70 bg-background px-3 py-2 text-sm" type="number" placeholder="Capacity (kW)" value={hvacForm.capacityKW} onChange={e => setHvacForm(f => ({ ...f, capacityKW: +e.target.value }))} />
-          <input className="rounded-xl border border-border/70 bg-background px-3 py-2 text-sm" type="number" placeholder="Airflow (CFM)" value={hvacForm.airflowCFM} onChange={e => setHvacForm(f => ({ ...f, airflowCFM: +e.target.value }))} />
-          <button onClick={handleAddHVAC} className="flex items-center justify-center gap-2 rounded-xl bg-[color:var(--accent)] px-4 py-2 text-sm font-semibold text-[color:var(--accent-foreground)] transition-colors hover:bg-[color:var(--accent-dark)]">
+          <input className="rounded-xl border border-border/70 bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="X (m)" value={hvacForm.posX} onChange={e => setHvacForm(f => ({ ...f, posX: +e.target.value }))} />
+          <input className="rounded-xl border border-border/70 bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="Y (m)" value={hvacForm.posY} onChange={e => setHvacForm(f => ({ ...f, posY: +e.target.value }))} />
+          <input className="rounded-xl border border-border/70 bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="Capacity (kW)" value={hvacForm.capacityKW} onChange={e => setHvacForm(f => ({ ...f, capacityKW: +e.target.value }))} />
+          <input className="rounded-xl border border-border/70 bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="Airflow (CFM)" value={hvacForm.airflowCFM} onChange={e => setHvacForm(f => ({ ...f, airflowCFM: +e.target.value }))} />
+          <button onClick={handleAddHVAC} className="flex items-center justify-center gap-2 rounded-xl bg-[color:var(--accent)] px-4 py-2.5 text-sm font-semibold text-[color:var(--accent-foreground)] transition-colors hover:bg-[color:var(--accent-dark)]">
             <Plus size={16} /> Add Unit
           </button>
         </div>
@@ -223,19 +223,19 @@ function EquipmentPanel() {
             <table className="w-full text-sm">
               <thead className="border-b border-border/70 bg-secondary/45">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Name</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Type</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Position</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Capacity</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Airflow</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground"></th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Name</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Type</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Position</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Capacity</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Airflow</th>
+                  <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
                 {hvacUnits.map(unit => (
                   <tr key={unit.id} className="hover:bg-secondary/45">
                     <td className="px-4 py-3 font-medium">{unit.name}</td>
-                    <td className="px-4 py-3"><span className="rounded-md border border-accent/30 bg-[rgba(15,139,141,0.12)] px-2 py-1 text-xs font-semibold text-[color:var(--accent-dark)]">{unit.type.toUpperCase()}</span></td>
+                    <td className="px-4 py-3"><span className="rounded-md border border-accent/30 bg-[rgba(15,139,141,0.12)] px-2.5 py-1 text-sm font-semibold text-[color:var(--accent-dark)]">{unit.type.toUpperCase()}</span></td>
                     <td className="px-4 py-3 text-muted-foreground">({unit.position.x}, {unit.position.y})</td>
                     <td className="px-4 py-3 font-bold text-[color:var(--success)]">{unit.capacityKW} kW</td>
                     <td className="px-4 py-3 text-muted-foreground">{unit.airflowCFM.toLocaleString()} CFM</td>
@@ -257,10 +257,10 @@ function EquipmentPanel() {
         <h3 className="mb-4 flex items-center gap-2 text-lg font-extrabold text-foreground">
           <Grid3x3 size={20} className="text-accent" /> Perforated Floor Tiles
         </h3>
-        <div className="mb-4 flex gap-3 rounded-2xl border border-border/70 bg-card/80 p-3">
-          <input id="tileX" className="w-24 rounded-xl border border-border/70 bg-background px-3 py-2 text-sm" type="number" placeholder="Grid X" defaultValue={5} />
-          <input id="tileY" className="w-24 rounded-xl border border-border/70 bg-background px-3 py-2 text-sm" type="number" placeholder="Grid Y" defaultValue={5} />
-          <input id="tileOpen" className="w-32 rounded-xl border border-border/70 bg-background px-3 py-2 text-sm" type="number" step="0.05" placeholder="Open Area (0-1)" defaultValue={0.25} />
+        <div className="mb-5 flex gap-3 rounded-2xl border border-border/70 bg-card/80 p-4">
+          <input id="tileX" className="w-24 rounded-xl border border-border/70 bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="Grid X" defaultValue={5} />
+          <input id="tileY" className="w-24 rounded-xl border border-border/70 bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="Grid Y" defaultValue={5} />
+          <input id="tileOpen" className="w-32 rounded-xl border border-border/70 bg-background px-3.5 py-2.5 text-sm" type="number" step="0.05" placeholder="Open Area (0-1)" defaultValue={0.25} />
           <button
             onClick={() => {
               const x = parseInt((document.getElementById('tileX') as HTMLInputElement).value);
@@ -270,7 +270,7 @@ function EquipmentPanel() {
                 addTile({ x, y, openArea, tileSize: 0.6 });
               }
             }}
-            className="flex items-center gap-2 rounded-xl bg-[color:var(--accent)] px-4 py-2 text-sm font-semibold text-[color:var(--accent-foreground)] transition-colors hover:bg-[color:var(--accent-dark)]"
+            className="flex items-center gap-2 rounded-xl bg-[color:var(--accent)] px-4 py-2.5 text-sm font-semibold text-[color:var(--accent-foreground)] transition-colors hover:bg-[color:var(--accent-dark)]"
           >
             <Plus size={16} /> Add Tile
           </button>
@@ -278,7 +278,7 @@ function EquipmentPanel() {
         {tiles.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {tiles.map((tile, i) => (
-              <div key={i} className="flex items-center gap-2 rounded-xl border border-border/70 bg-secondary/45 px-3 py-2 text-sm">
+              <div key={i} className="flex items-center gap-2 rounded-xl border border-border/70 bg-secondary/45 px-3.5 py-2.5 text-sm">
                 <Grid3x3 size={14} className="text-muted-foreground" />
                 <span>({tile.x}, {tile.y})</span>
                 <span className="text-muted-foreground">{(tile.openArea * 100).toFixed(0)}%</span>
@@ -300,38 +300,38 @@ function ConfigPanel() {
   const { config, setConfig } = useSimulationStore();
 
   return (
-    <div className="grid grid-cols-2 gap-4 rounded-2xl border border-border/70 bg-card/80 p-5 shadow-[0_14px_26px_-24px_rgba(19,32,51,0.68)] md:grid-cols-4">
+    <div className="grid grid-cols-2 gap-5 rounded-2xl border border-border/70 bg-card/80 p-6 shadow-[0_14px_26px_-24px_rgba(19,32,51,0.68)] md:grid-cols-4">
       <div>
-        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Grid Resolution (m)</label>
-        <input className="w-full rounded-xl border border-border/70 bg-background px-3 py-2 text-sm" type="number" step="0.1" value={config.gridResolution} onChange={e => setConfig({ gridResolution: +e.target.value })} />
+        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Grid Resolution (m)</label>
+        <input className="w-full rounded-xl border border-border/70 bg-background px-3.5 py-2.5 text-sm" type="number" step="0.1" value={config.gridResolution} onChange={e => setConfig({ gridResolution: +e.target.value })} />
       </div>
       <div>
-        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Grid Size X</label>
-        <input className="w-full rounded-xl border border-border/70 bg-background px-3 py-2 text-sm" type="number" value={config.gridSizeX} onChange={e => setConfig({ gridSizeX: +e.target.value })} />
+        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Grid Size X</label>
+        <input className="w-full rounded-xl border border-border/70 bg-background px-3.5 py-2.5 text-sm" type="number" value={config.gridSizeX} onChange={e => setConfig({ gridSizeX: +e.target.value })} />
       </div>
       <div>
-        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Grid Size Y</label>
-        <input className="w-full rounded-xl border border-border/70 bg-background px-3 py-2 text-sm" type="number" value={config.gridSizeY} onChange={e => setConfig({ gridSizeY: +e.target.value })} />
+        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Grid Size Y</label>
+        <input className="w-full rounded-xl border border-border/70 bg-background px-3.5 py-2.5 text-sm" type="number" value={config.gridSizeY} onChange={e => setConfig({ gridSizeY: +e.target.value })} />
       </div>
       <div>
-        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Grid Size Z</label>
-        <input className="w-full rounded-xl border border-border/70 bg-background px-3 py-2 text-sm" type="number" value={config.gridSizeZ} onChange={e => setConfig({ gridSizeZ: +e.target.value })} />
+        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Grid Size Z</label>
+        <input className="w-full rounded-xl border border-border/70 bg-background px-3.5 py-2.5 text-sm" type="number" value={config.gridSizeZ} onChange={e => setConfig({ gridSizeZ: +e.target.value })} />
       </div>
       <div>
-        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Iterations</label>
-        <input className="w-full rounded-xl border border-border/70 bg-background px-3 py-2 text-sm" type="number" value={config.iterations} onChange={e => setConfig({ iterations: +e.target.value })} />
+        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Iterations</label>
+        <input className="w-full rounded-xl border border-border/70 bg-background px-3.5 py-2.5 text-sm" type="number" value={config.iterations} onChange={e => setConfig({ iterations: +e.target.value })} />
       </div>
       <div>
-        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Convergence</label>
-        <input className="w-full rounded-xl border border-border/70 bg-background px-3 py-2 text-sm" type="number" step="0.001" value={config.convergence} onChange={e => setConfig({ convergence: +e.target.value })} />
+        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Convergence</label>
+        <input className="w-full rounded-xl border border-border/70 bg-background px-3.5 py-2.5 text-sm" type="number" step="0.001" value={config.convergence} onChange={e => setConfig({ convergence: +e.target.value })} />
       </div>
       <div>
-        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Time Step (s)</label>
-        <input className="w-full rounded-xl border border-border/70 bg-background px-3 py-2 text-sm" type="number" step="0.01" value={config.timeStep} onChange={e => setConfig({ timeStep: +e.target.value })} />
+        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Time Step (s)</label>
+        <input className="w-full rounded-xl border border-border/70 bg-background px-3.5 py-2.5 text-sm" type="number" step="0.01" value={config.timeStep} onChange={e => setConfig({ timeStep: +e.target.value })} />
       </div>
       <div>
-        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Ambient Temp (°C)</label>
-        <input className="w-full rounded-xl border border-border/70 bg-background px-3 py-2 text-sm" type="number" value={config.ambientTempC} onChange={e => setConfig({ ambientTempC: +e.target.value })} />
+        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Ambient Temp (°C)</label>
+        <input className="w-full rounded-xl border border-border/70 bg-background px-3.5 py-2.5 text-sm" type="number" value={config.ambientTempC} onChange={e => setConfig({ ambientTempC: +e.target.value })} />
       </div>
     </div>
   );
@@ -384,7 +384,7 @@ function ResultsPanel() {
                     <div className={`h-full rounded-full ${barColor} transition-all`} style={{ width: `${Math.min(100, Math.max(5, pct))}%` }} />
                   </div>
                   <span className="w-16 text-right text-sm font-bold text-foreground">{rack.avgTemp.toFixed(1)}°C</span>
-                  <span className="w-20 text-xs text-muted-foreground">(max {rack.maxTemp.toFixed(1)}°C)</span>
+                  <span className="w-24 text-sm text-muted-foreground">(max {rack.maxTemp.toFixed(1)}°C)</span>
                 </div>
               );
             })}
@@ -406,7 +406,7 @@ function ResultsPanel() {
                 'bg-[rgba(206,161,74,0.14)] border-[rgba(206,161,74,0.35)]'
               }`}>
                 <div>
-                  <span className={`px-2 py-1 rounded-md text-xs font-bold uppercase ${
+                  <span className={`rounded-md px-2.5 py-1 text-sm font-bold uppercase ${
                     hs.severity === 'emergency' ? 'bg-[rgba(216,77,87,0.18)] text-[color:var(--destructive)]' :
                     hs.severity === 'critical' ? 'bg-[rgba(219,142,47,0.18)] text-[color:var(--warning)]' :
                     'bg-[rgba(206,161,74,0.2)] text-[color:var(--accent-dark)]'
@@ -465,19 +465,19 @@ function ResultsPanel() {
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
             <div className="rounded-xl border border-border/70 bg-background p-4 text-center">
               <p className="text-3xl font-extrabold text-[color:var(--accent-dark)]">{pueAnalysis.pue}</p>
-              <p className="mt-1 text-xs font-bold text-muted-foreground">PUE</p>
+              <p className="mt-1 text-sm font-semibold text-muted-foreground">PUE</p>
             </div>
             <div className="rounded-xl border border-border/55 bg-secondary/45 p-4 text-center">
               <p className="text-xl font-bold text-foreground">{pueAnalysis.itEquipmentPower} kW</p>
-              <p className="mt-1 text-xs font-bold text-muted-foreground">IT Power</p>
+              <p className="mt-1 text-sm font-semibold text-muted-foreground">IT Power</p>
             </div>
             <div className="rounded-xl border border-border/55 bg-secondary/45 p-4 text-center">
               <p className="text-xl font-bold text-foreground">{pueAnalysis.coolingPower} kW</p>
-              <p className="mt-1 text-xs font-bold text-muted-foreground">Cooling Power</p>
+              <p className="mt-1 text-sm font-semibold text-muted-foreground">Cooling Power</p>
             </div>
             <div className="rounded-xl border border-border/55 bg-secondary/45 p-4 text-center">
               <p className="text-xl font-bold text-foreground">{pueAnalysis.totalFacilityPower} kW</p>
-              <p className="mt-1 text-xs font-bold text-muted-foreground">Total Power</p>
+              <p className="mt-1 text-sm font-semibold text-muted-foreground">Total Power</p>
             </div>
             <div className="rounded-xl border border-border/70 bg-background p-4 text-center">
               <p className={`text-xl font-bold ${
@@ -485,7 +485,7 @@ function ResultsPanel() {
                 pueAnalysis.rating === 'good' ? 'text-[color:var(--accent-dark)]' :
                 pueAnalysis.rating === 'average' ? 'text-amber-600' : 'text-red-600'
               }`}>{pueAnalysis.rating.toUpperCase()}</p>
-              <p className="mt-1 text-xs font-bold text-muted-foreground">Rating</p>
+              <p className="mt-1 text-sm font-semibold text-muted-foreground">Rating</p>
             </div>
           </div>
           {pueAnalysis.recommendations.length > 0 && (
@@ -512,15 +512,15 @@ function ResultsPanel() {
           <div className="grid grid-cols-3 gap-4 mb-4">
             <div className="rounded-xl border border-[rgba(219,142,47,0.35)] bg-[rgba(219,142,47,0.14)] p-4 text-center">
               <p className="text-2xl font-extrabold text-yellow-700">{failureResult.timeToWarning >= 0 ? `${Math.round(failureResult.timeToWarning / 60)}m` : 'N/A'}</p>
-              <p className="text-xs font-bold text-yellow-600 mt-1">Time to Warning</p>
+              <p className="mt-1 text-sm font-semibold text-yellow-600">Time to Warning</p>
             </div>
             <div className="rounded-xl border border-[rgba(216,77,87,0.35)] bg-[rgba(216,77,87,0.1)] p-4 text-center">
               <p className="text-2xl font-extrabold text-red-700">{failureResult.timeToCritical >= 0 ? `${Math.round(failureResult.timeToCritical / 60)}m` : 'N/A'}</p>
-              <p className="text-xs font-bold text-red-600 mt-1">Time to Critical</p>
+              <p className="mt-1 text-sm font-semibold text-red-600">Time to Critical</p>
             </div>
             <div className="rounded-xl border border-border/70 bg-background p-4 text-center">
               <p className="text-2xl font-extrabold text-foreground">{failureResult.affectedRacks.length}</p>
-              <p className="mt-1 text-xs font-bold text-muted-foreground">Affected Racks</p>
+              <p className="mt-1 text-sm font-semibold text-muted-foreground">Affected Racks</p>
             </div>
           </div>
           {failureResult.recommendations.length > 0 && (
@@ -546,15 +546,15 @@ function ResultsPanel() {
           <div className="flex items-center gap-4 mb-6">
             <div className="text-center p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
               <p className="text-3xl font-extrabold text-emerald-600">{optimizationResult.improvement}%</p>
-              <p className="text-xs font-bold text-emerald-600 mt-1">Improvement</p>
+              <p className="mt-1 text-sm font-semibold text-emerald-600">Improvement</p>
             </div>
             <div className="flex-1 grid grid-cols-2 gap-4">
               <div className="rounded-lg border border-border/55 bg-secondary/45 p-3">
-                <p className="text-xs font-bold text-muted-foreground">Before: Max Temp</p>
+                <p className="text-sm font-semibold text-muted-foreground">Before: Max Temp</p>
                 <p className="text-lg font-bold text-foreground">{optimizationResult.initialMetrics.maxTemperature.toFixed(1)}°C</p>
               </div>
               <div className="rounded-lg border border-border/55 bg-secondary/45 p-3">
-                <p className="text-xs font-bold text-muted-foreground">After: Max Temp</p>
+                <p className="text-sm font-semibold text-muted-foreground">After: Max Temp</p>
                 <p className="text-lg font-bold text-emerald-600">{optimizationResult.optimizedMetrics.maxTemperature.toFixed(1)}°C</p>
               </div>
             </div>
@@ -564,7 +564,7 @@ function ResultsPanel() {
             {optimizationResult.suggestions.map((sug, i) => (
               <div key={i} className="flex items-center justify-between rounded-lg border border-border/55 bg-secondary/45 p-3">
                 <span className="text-sm text-foreground">{sug.description}</span>
-                <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md text-xs font-bold">{sug.impact}% impact</span>
+                <span className="rounded-md bg-emerald-100 px-2.5 py-1 text-sm font-semibold text-emerald-700">{sug.impact}% impact</span>
               </div>
             ))}
           </div>
@@ -595,10 +595,10 @@ function FailurePanel() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-4 rounded-2xl border border-border/70 bg-card/80 p-4 md:grid-cols-3">
+      <div className="grid grid-cols-2 gap-5 rounded-2xl border border-border/70 bg-card/80 p-5 md:grid-cols-3">
         <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Failure Scenario</label>
-          <select className="w-full rounded-xl border border-border/70 bg-background px-3 py-2 text-sm" value={scenario} onChange={e => setScenario(e.target.value as FailureScenario)}>
+          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Failure Scenario</label>
+          <select className="w-full rounded-xl border border-border/70 bg-background px-3.5 py-2.5 text-sm" value={scenario} onChange={e => setScenario(e.target.value as FailureScenario)}>
             <option value="crac_failure">CRAC Unit Failure</option>
             <option value="power_loss">Total Power Loss</option>
             <option value="cooling_restart">Cooling Restart</option>
@@ -606,14 +606,14 @@ function FailurePanel() {
           </select>
         </div>
         <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Duration (seconds)</label>
-          <input className="w-full rounded-xl border border-border/70 bg-background px-3 py-2 text-sm" type="number" value={duration} onChange={e => setDuration(+e.target.value)} />
+          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Duration (seconds)</label>
+          <input className="w-full rounded-xl border border-border/70 bg-background px-3.5 py-2.5 text-sm" type="number" value={duration} onChange={e => setDuration(+e.target.value)} />
         </div>
         <div className="flex items-end">
           <button
             onClick={handleRun}
             disabled={isRunning}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[color:var(--destructive)] px-4 py-2 text-sm font-semibold text-[color:var(--destructive-foreground)] transition-colors hover:bg-[#c93e48] disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[color:var(--destructive)] px-4 py-2.5 text-sm font-semibold text-[color:var(--destructive-foreground)] transition-colors hover:bg-[#c93e48] disabled:opacity-50"
           >
             <AlertTriangle size={16} /> Run Failure Sim
           </button>
@@ -621,8 +621,8 @@ function FailurePanel() {
       </div>
       {scenario !== 'power_loss' && hvacUnits.length > 0 && (
         <div>
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Select Failed Units</label>
-          <div className="flex flex-wrap gap-2 rounded-2xl border border-border/70 bg-card/80 p-3">
+          <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Select Failed Units</label>
+          <div className="flex flex-wrap gap-2 rounded-2xl border border-border/70 bg-card/80 p-4">
             {hvacUnits.map(unit => (
               <button
                 key={unit.id}
@@ -631,7 +631,7 @@ function FailurePanel() {
                     prev.includes(unit.id) ? prev.filter(id => id !== unit.id) : [...prev, unit.id]
                   );
                 }}
-                className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                className={`rounded-lg border px-3.5 py-2.5 text-sm font-medium transition-colors ${
                   selectedUnits.includes(unit.id)
                     ? 'border-red-500/35 bg-red-500/10 text-[color:var(--destructive)]'
                     : 'border-border/70 bg-background text-muted-foreground hover:border-border'
@@ -651,10 +651,10 @@ function FailurePanel() {
 
 function ProjectDropdown({ projects, onSelect, selectedId }: ProjectDropdownProps) {
   return (
-    <div className="mb-6 rounded-2xl border border-border/70 bg-card/85 p-3 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.66)]">
-      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Choose Project</label>
+    <div className="mb-6 rounded-2xl border border-border/70 bg-card/85 p-4 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.66)]">
+      <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Choose Project</label>
       <select
-        className="w-full rounded-xl border border-border/70 bg-background px-3 py-2 text-sm"
+        className="w-full rounded-xl border border-border/70 bg-background px-3.5 py-2.5 text-sm"
         value={selectedId}
         onChange={e => onSelect(e.target.value)}
       >
@@ -725,7 +725,7 @@ export default function SimulationPage() {
         title="CFD Simulation"
         description="Airflow simulation, thermal analysis, and cooling optimization"
         actions={
-          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/70 bg-card/85 p-1.5 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.66)]">
+          <div className="flex flex-wrap items-center gap-2.5 rounded-xl border border-border/70 bg-card/85 p-2 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.66)]">
             <button
               onClick={() => { runPUE(); }}
               disabled={racks.length === 0}
@@ -770,7 +770,7 @@ export default function SimulationPage() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div className="mb-8 grid grid-cols-2 gap-5 md:grid-cols-4">
         <StatCard title="Server Racks" value={racks.length} icon={Server} />
         <StatCard title="HVAC Units" value={hvacUnits.length} icon={AirVent} />
         <StatCard title="Total Heat Load" value={`${totalHeatKW.toFixed(0)} kW`} subtitle={`${(totalHeatKW * 3412).toLocaleString()} BTU/hr`} icon={Thermometer} />
@@ -805,14 +805,14 @@ export default function SimulationPage() {
             <>
               <div className="mb-4 rounded-2xl border border-border/70 bg-card/85 p-4 shadow-[0_14px_26px_-24px_rgba(19,32,51,0.68)]">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="mr-1 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                  <span className="mr-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                     View Mode
                   </span>
                   {(['temperature', 'velocity', 'pressure'] as const).map((mode) => (
                     <button
                       key={mode}
                       onClick={() => setActiveView(mode)}
-                      className={`rounded-lg border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] transition-colors ${
+                      className={`rounded-lg border px-3 py-2 text-sm font-semibold uppercase tracking-[0.08em] transition-colors ${
                         activeView === mode
                           ? 'border-[color:var(--accent)] bg-[color:var(--accent)]/15 text-[color:var(--accent-dark)]'
                           : 'border-border/70 bg-background text-muted-foreground hover:border-border'
@@ -825,7 +825,7 @@ export default function SimulationPage() {
 
                 <div className="mt-4 flex flex-wrap items-center gap-4">
                   <div className="flex min-w-[260px] flex-1 items-center gap-3">
-                    <label className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                    <label className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                       Slice Z
                     </label>
                     <input
@@ -836,12 +836,12 @@ export default function SimulationPage() {
                       onChange={(event) => setSelectedSliceZ(Number(event.target.value))}
                       className="w-full"
                     />
-                    <span className="w-20 text-right text-xs font-semibold tabular-nums text-foreground">
+                    <span className="w-24 text-right text-sm font-semibold tabular-nums text-foreground">
                       {Math.max(0, Math.min(selectedSliceZ, result.config.gridSizeZ - 1))} ({(Math.max(0, Math.min(selectedSliceZ, result.config.gridSizeZ - 1)) * result.config.gridResolution).toFixed(1)}m)
                     </span>
                   </div>
 
-                  <label className="flex items-center gap-2 rounded-lg border border-border/65 bg-background px-3 py-1.5 text-xs font-semibold text-muted-foreground">
+                  <label className="flex items-center gap-2 rounded-lg border border-border/65 bg-background px-3 py-2 text-sm font-semibold text-muted-foreground">
                     <input
                       type="checkbox"
                       checked={showHotspots}
@@ -850,7 +850,7 @@ export default function SimulationPage() {
                     Hotspots
                   </label>
 
-                  <label className="flex items-center gap-2 rounded-lg border border-border/65 bg-background px-3 py-1.5 text-xs font-semibold text-muted-foreground">
+                  <label className="flex items-center gap-2 rounded-lg border border-border/65 bg-background px-3 py-2 text-sm font-semibold text-muted-foreground">
                     <input
                       type="checkbox"
                       checked={showAirflow}

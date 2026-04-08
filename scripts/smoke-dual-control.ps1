@@ -1,5 +1,7 @@
 param(
-  [string]$BaseUrl = 'http://127.0.0.1:3000'
+  [string]$BaseUrl = 'http://127.0.0.1:3000',
+  [string]$EngineerEmail = '',
+  [SecureString]$EngineerPassword
 )
 
 $ErrorActionPreference = 'Stop'
@@ -12,6 +14,27 @@ function Assert-True {
 
   if (-not $Condition) {
     throw "ASSERTION FAILED: $Message"
+  }
+}
+
+function Test-NonEmpty {
+  param([string]$Value)
+  return -not [string]::IsNullOrWhiteSpace($Value)
+}
+
+function ConvertTo-PlainText {
+  param([SecureString]$SecureValue)
+
+  if ($null -eq $SecureValue) {
+    return ''
+  }
+
+  $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($SecureValue)
+  try {
+    return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
+  }
+  finally {
+    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr)
   }
 }
 
@@ -61,13 +84,93 @@ function Get-HttpErrorDetail {
   }
 }
 
+function Register-DualControlEngineer {
+  param(
+    [string]$Url,
+    [string]$Email,
+    [string]$Password,
+    [bool]$CanIgnoreConflict
+  )
+
+  $payload = ConvertTo-JsonBody @{
+    email = $Email
+    password = $Password
+    name = 'Dual Control Smoke Engineer'
+    role = 'engineer'
+  }
+
+  try {
+    $response = Invoke-WebRequest -UseBasicParsing -Uri "$Url/api/auth/register" -Method Post -ContentType 'application/json' -Body $payload
+    Write-Host "Engineer bootstrap register status: $($response.StatusCode)"
+    return
+  }
+  catch {
+    $detail = Get-HttpErrorDetail -ErrorRecord $_
+
+    if ($CanIgnoreConflict -and $detail.StatusCode -eq 409) {
+      Write-Host 'Engineer bootstrap register returned 409 (user exists); continuing.'
+      return
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($detail.Body)) {
+      throw "Failed to bootstrap dual-control engineer (status=$($detail.StatusCode)): $($detail.Body)"
+    }
+
+    throw "Failed to bootstrap dual-control engineer: $($_.Exception.Message)"
+  }
+}
+
+function Get-EngineerLoginToken {
+  param(
+    [string]$Url,
+    [string]$Email,
+    [string]$Password
+  )
+
+  $payload = ConvertTo-JsonBody @{
+    email = $Email
+    password = $Password
+  }
+
+  $response = Invoke-RestMethod -Uri "$Url/api/auth/login" -Method Post -ContentType 'application/json' -Body $payload
+  $token = [string]$response.token
+  if (-not (Test-NonEmpty $token)) {
+    throw 'Engineer login token missing for dual-control smoke run.'
+  }
+
+  return $token
+}
+
 $projectId = $null
 $roomId = $null
 $selectionId = $null
 $itemId = $null
+$authHeaders = $null
 
 try {
-  Write-Host '[1/14] Creating project...'
+  Write-Host '[1/16] Preparing engineer credentials...'
+  $resolvedEmail = if (Test-NonEmpty $EngineerEmail) { $EngineerEmail } elseif (Test-NonEmpty $env:AUTH_SMOKE_EMAIL) { $env:AUTH_SMOKE_EMAIL } elseif (Test-NonEmpty $env:RBAC_ENGINEER_EMAIL) { $env:RBAC_ENGINEER_EMAIL } else { '' }
+  $secretFromParam = ConvertTo-PlainText -SecureValue $EngineerPassword
+  $resolvedSecret = if (Test-NonEmpty $secretFromParam) { $secretFromParam } elseif (Test-NonEmpty $env:AUTH_SMOKE_PASSWORD) { $env:AUTH_SMOKE_PASSWORD } elseif (Test-NonEmpty $env:RBAC_ENGINEER_PASSWORD) { $env:RBAC_ENGINEER_PASSWORD } else { '' }
+
+  $generatedCredentials = $false
+  if (-not (Test-NonEmpty $resolvedEmail) -or -not (Test-NonEmpty $resolvedSecret)) {
+    $stamp = "$(Get-Date -Format 'yyyyMMddHHmmss')$(Get-Random -Minimum 100 -Maximum 999)"
+    $resolvedEmail = "smoke.dual.$stamp@example.com"
+    $resolvedSecret = "StrongPass$stamp!"
+    $generatedCredentials = $true
+    Write-Host "Generated temporary dual-control engineer: $resolvedEmail"
+  }
+
+  Register-DualControlEngineer -Url $BaseUrl -Email $resolvedEmail -Password $resolvedSecret -CanIgnoreConflict (-not $generatedCredentials)
+  Write-Host 'PASS engineer credential bootstrap'
+
+  Write-Host '[2/16] Logging in as engineer...'
+  $engineerToken = Get-EngineerLoginToken -Url $BaseUrl -Email $resolvedEmail -Password $resolvedSecret
+  $authHeaders = @{ Authorization = "Bearer $engineerToken" }
+  Write-Host 'PASS engineer login'
+
+  Write-Host '[3/16] Creating project...'
   $projectResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects" -Method Post -ContentType 'application/json' -Body (ConvertTo-JsonBody @{
     name = "Smoke DualControl $(Get-Date -Format 'yyyyMMddHHmmss')"
     clientName = 'Smoke Client'
@@ -79,12 +182,12 @@ try {
     outdoorRH = 55
     indoorDB = 24
     indoorRH = 50
-  })
+  }) -Headers $authHeaders
   $projectId = $projectResp.project.id
   Assert-True (-not [string]::IsNullOrWhiteSpace($projectId)) 'Project id missing'
   Write-Host 'PASS create project'
 
-  Write-Host '[2/14] Adding room with cooling load...'
+  Write-Host '[4/16] Adding room with cooling load...'
   $roomResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId/rooms" -Method Post -ContentType 'application/json' -Body (ConvertTo-JsonBody @{
     name = 'Smoke Room'
     floorNumber = 1
@@ -100,105 +203,105 @@ try {
     lightingDensity = 15
     equipmentLoad = 500
     hasRoofExposure = $false
-  })
+  }) -Headers $authHeaders
   $roomId = $roomResp.room.id
   Assert-True ($null -ne $roomResp.room.coolingLoad) 'Cooling load not created'
   Write-Host 'PASS add room + cooling load'
 
-  Write-Host '[3/14] Auto-sizing equipment...'
+  Write-Host '[5/16] Auto-sizing equipment...'
   $autoResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId/equipment" -Method Post -ContentType 'application/json' -Body (ConvertTo-JsonBody @{
     autoSize = $true
     budgetLevel = 'mid-range'
-  })
+  }) -Headers $authHeaders
   Assert-True ($autoResp.results.Count -gt 0) 'No equipment results generated'
   $selectionId = $autoResp.results[0].equipment.id
   Assert-True (-not [string]::IsNullOrWhiteSpace($selectionId)) 'Equipment selection id missing'
   Write-Host 'PASS auto-size equipment'
 
-  Write-Host '[4/14] Generating BOQ...'
-  $boqResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId/boq" -Method Post -ContentType 'application/json' -Body '{}'
+  Write-Host '[6/16] Generating BOQ...'
+  $boqResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId/boq" -Method Post -ContentType 'application/json' -Body '{}' -Headers $authHeaders
   Assert-True ($boqResp.boq.grandTotal -gt 0) 'BOQ grand total should be > 0'
   Write-Host 'PASS generate BOQ'
 
-  Write-Host '[5/14] Capturing first BOQ item...'
-  $projectGet = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId" -Method Get
+  Write-Host '[7/16] Capturing first BOQ item...'
+  $projectGet = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId" -Method Get -Headers $authHeaders
   Assert-True ($projectGet.project.boqItems.Count -gt 0) 'No BOQ items returned from project detail'
   $itemId = $projectGet.project.boqItems[0].id
   Assert-True (-not [string]::IsNullOrWhiteSpace($itemId)) 'BOQ item id missing'
   Write-Host 'PASS load project detail'
 
-  Write-Host '[6/14] Saving pricing overrides...'
+  Write-Host '[8/16] Saving pricing overrides...'
   $pricingResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId" -Method Put -ContentType 'application/json' -Body (ConvertTo-JsonBody @{
     laborMultiplierOverride = 0.42
     overheadPercentOverride = 0.18
     contingencyPercentOverride = 0.07
     vatRateOverride = 0.11
-  })
+  }) -Headers $authHeaders
   Assert-True ($pricingResp.project.isBoqStale -eq $true) 'Project should be BOQ stale after pricing override'
   Write-Host 'PASS pricing overrides'
 
-  Write-Host '[7/14] Saving room load overrides...'
+  Write-Host '[9/16] Saving room load overrides...'
   $roomOverrideResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId/rooms/$roomId" -Method Put -ContentType 'application/json' -Body (ConvertTo-JsonBody @{
     userTrOverride = 2.5
     userBtuOverride = 30000
     overrideReason = 'Smoke test room override'
-  })
+  }) -Headers $authHeaders
   Assert-True ($roomOverrideResp.room.coolingLoad.isOverridden -eq $true) 'Room load should be overridden'
   Write-Host 'PASS room load override'
 
-  Write-Host '[8/14] Saving equipment overrides...'
+  Write-Host '[10/16] Saving equipment overrides...'
   $equipOverrideResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId/equipment/$selectionId" -Method Put -ContentType 'application/json' -Body (ConvertTo-JsonBody @{
     userQuantityOverride = 2
     userUnitPriceOverride = 12345.67
     overrideReason = 'Smoke test equipment override'
-  })
+  }) -Headers $authHeaders
   Assert-True ($equipOverrideResp.equipment.isOverridden -eq $true) 'Equipment should be overridden'
   Write-Host 'PASS equipment override'
 
-  Write-Host '[9/14] Regenerating BOQ...'
-  $boqRegenResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId/boq" -Method Post -ContentType 'application/json' -Body '{}'
+  Write-Host '[11/16] Regenerating BOQ...'
+  $boqRegenResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId/boq" -Method Post -ContentType 'application/json' -Body '{}' -Headers $authHeaders
   Assert-True ($boqRegenResp.boq.grandTotal -gt 0) 'Regenerated BOQ grand total should be > 0'
-  $projectAfterRegen = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId" -Method Get
+  $projectAfterRegen = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId" -Method Get -Headers $authHeaders
   Assert-True ($projectAfterRegen.project.boqItems.Count -gt 0) 'No BOQ items available after regeneration'
   $itemId = $projectAfterRegen.project.boqItems[0].id
   Assert-True (-not [string]::IsNullOrWhiteSpace($itemId)) 'BOQ item id missing after regeneration'
   Write-Host 'PASS regenerate BOQ'
 
-  Write-Host '[10/14] Overriding BOQ item...'
+  Write-Host '[12/16] Overriding BOQ item...'
   $boqItemOverrideResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId/boq/$itemId" -Method Put -ContentType 'application/json' -Body (ConvertTo-JsonBody @{
     unitPrice = 999.99
     overrideReason = 'Smoke test BOQ override'
-  })
+  }) -Headers $authHeaders
   Assert-True ($boqItemOverrideResp.item.isOverridden -eq $true) 'BOQ item should be overridden'
   Write-Host 'PASS BOQ item override'
 
-  Write-Host '[11/14] Resetting BOQ item to suggested...'
+  Write-Host '[13/16] Resetting BOQ item to suggested...'
   $boqItemResetResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId/boq/$itemId" -Method Put -ContentType 'application/json' -Body (ConvertTo-JsonBody @{
     useSuggested = $true
     userUnitPriceOverride = $null
-  })
+  }) -Headers $authHeaders
   Assert-True ($boqItemResetResp.item.isOverridden -eq $false) 'BOQ item override should clear'
   Write-Host 'PASS BOQ item reset'
 
-  Write-Host '[12/14] Resetting room load to suggested...'
+  Write-Host '[14/16] Resetting room load to suggested...'
   $roomResetResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId/rooms/$roomId" -Method Put -ContentType 'application/json' -Body (ConvertTo-JsonBody @{
     userTrOverride = $null
     userBtuOverride = $null
-  })
+  }) -Headers $authHeaders
   Assert-True ($roomResetResp.room.coolingLoad.isOverridden -eq $false) 'Room load override should clear'
   Write-Host 'PASS room load reset'
 
-  Write-Host '[13/14] Resetting equipment to suggested...'
+  Write-Host '[15/16] Resetting equipment to suggested...'
   $equipResetResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId/equipment/$selectionId" -Method Put -ContentType 'application/json' -Body (ConvertTo-JsonBody @{
     useSuggested = $true
     userQuantityOverride = $null
     userUnitPriceOverride = $null
-  })
+  }) -Headers $authHeaders
   Assert-True ($equipResetResp.equipment.isOverridden -eq $false) 'Equipment override should clear'
   Write-Host 'PASS equipment reset'
 
-  Write-Host '[14/14] Verifying pricing policy override state in BOQ GET...'
-  $boqGetResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId/boq" -Method Get
+  Write-Host '[16/16] Verifying pricing policy override state in BOQ GET...'
+  $boqGetResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId/boq" -Method Get -Headers $authHeaders
   Assert-True ($boqGetResp.pricingPolicy.laborMultiplier.isOverridden -eq $true) 'Pricing policy override state should be true'
   Write-Host 'PASS pricing policy override state'
 
@@ -233,9 +336,9 @@ catch {
   exit 1
 }
 finally {
-  if (-not [string]::IsNullOrWhiteSpace($projectId)) {
+  if (-not [string]::IsNullOrWhiteSpace($projectId) -and $null -ne $authHeaders) {
     try {
-      Invoke-RestMethod -Uri "$BaseUrl/api/projects/${projectId}?permanent=true" -Method Delete | Out-Null
+      Invoke-RestMethod -Uri "$BaseUrl/api/projects/${projectId}?permanent=true" -Method Delete -Headers $authHeaders | Out-Null
       Write-Host 'Cleanup complete: test project deleted'
     }
     catch {

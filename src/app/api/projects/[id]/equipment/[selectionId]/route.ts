@@ -5,6 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth/guard';
 import {
   deleteSelectedEquipmentRecord,
   getSelectedEquipmentRecord,
@@ -18,6 +19,11 @@ type RouteContext = { params: Promise<{ id: string; selectionId: string }> };
 
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
+    const auth = await requireAuth(request);
+    if (!auth.authorized) {
+      return auth.response;
+    }
+
     const { id: projectId, selectionId } = await context.params;
     const body = await request.json();
 
@@ -100,6 +106,11 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
+    const auth = await requireAuth(request);
+    if (!auth.authorized) {
+      return auth.response;
+    }
+
     const { id: projectId, selectionId } = await context.params;
 
     const existing = await getSelectedEquipmentRecord(selectionId);

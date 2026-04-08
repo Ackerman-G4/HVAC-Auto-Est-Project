@@ -1,831 +1,756 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React from 'react';
 import {
-  FileText,
-  Download,
-  FileSpreadsheet,
-  BarChart3,
-  Building2,
-  Snowflake,
-  PhilippinePeso,
-  Loader2,
-  FolderOpen,
-  Printer,
-  ChevronDown,
-  ChevronUp,
-  CheckCircle2,
-  Info,
-} from 'lucide-react';
-import { PageWrapper, PageHeader } from '@/components/ui/page-wrapper';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Select } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
+import { Download, FileDown, FileSpreadsheet, FileText, Info, Upload } from 'lucide-react';
+import { Card } from '@/components/rebuild/Card';
+import { Button } from '@/components/rebuild/Button';
+import { CollapsiblePanel } from '@/components/rebuild/CollapsiblePanel';
 import { showToast } from '@/components/ui/toast';
-import { EmptyState } from '@/components/ui/empty-state';
-import { formatPHP } from '@/lib/utils/format-currency';
-import { listContainerVariants, listItemVariants } from '@/animations/list-variants';
-import Link from 'next/link';
+import { buildWorkspaceSnapshot, parseWorkspaceSnapshot } from '@/lib/reports/workspace-snapshot';
+import { useAirflowWorkspaceStore } from '@/stores/airflow-workspace-store';
+import { useEquipmentWorkspaceStore } from '@/stores/equipment-workspace-store';
+import { useLoadWorkspaceStore } from '@/stores/load-workspace-store';
+import { useUIStore } from '@/stores/ui-store';
 
-interface ProjectListItem {
-  id: string;
-  name: string;
-  status: string;
-  buildingType: string;
-  totalFloorArea: number;
-  updatedAt: string;
+function toPhp(value: number): string {
+  return `PHP ${Math.round(value).toLocaleString('en-PH')}`;
 }
 
-interface RoomData {
-  id: string;
-  name: string;
-  area: number;
-  spaceType: string;
-  coolingLoad: { totalLoad: number; totalSensibleLoad: number; totalLatentLoad: number } | null;
+function csvEscape(value: string | number): string {
+  const text = String(value);
+  const escaped = text.replace(/"/g, '""');
+  return `"${escaped}"`;
 }
 
-interface EquipmentData {
-  id: string;
-  model: string;
-  brand: string;
-  type: string;
-  capacityTR: number;
-  unitPrice: number;
-  quantity: number;
+function downloadTextFile(fileName: string, content: string, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.click();
+  URL.revokeObjectURL(url);
 }
 
-interface BOQData {
-  items: {
-    section: string;
-    description: string;
-    quantity: number;
-    unit: string;
-    unitPrice: number;
-    totalPrice: number;
-    floorName?: string;
-  }[];
-  equipmentCost: number;
-  materialCost: number;
-  laborCost: number;
-  overhead: number;
-  contingency: number;
-  subtotal: number;
-  vat: number;
-  grandTotal: number;
-  costPerTR: number;
+function slugify(value: string): string {
+  const slug = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return slug || 'project';
 }
 
 export default function ReportsPage() {
-  const [projects, setProjects] = useState<ProjectListItem[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
-  const [boqData, setBOQData] = useState<BOQData | null>(null);
-  const [rooms, setRooms] = useState<RoomData[]>([]);
-  const [equipment, setEquipment] = useState<EquipmentData[]>([]);
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+  const [chartsReady, setChartsReady] = React.useState(false);
+  const [exporting, setExporting] = React.useState<null | 'pdf' | 'excel' | 'csv' | 'json'>(null);
+  const [snapshotTransfer, setSnapshotTransfer] = React.useState<null | 'export' | 'import'>(null);
+  const snapshotInputRef = React.useRef<HTMLInputElement | null>(null);
 
-  // Fetch projects
-  useEffect(() => {
-    fetch('/api/projects')
-      .then((r) => r.json())
-      .then((data) => {
-        setProjects(data.projects || []);
-        setLoading(false);
-      })
-      .catch(() => {
-        showToast('error', 'Failed to load projects');
-        setLoading(false);
-      });
+  React.useEffect(() => {
+    setChartsReady(true);
   }, []);
 
-  // Load project data when selected
-  useEffect(() => {
-    if (!selectedProjectId) {
-      setBOQData(null);
-      setRooms([]);
-      setEquipment([]);
+  const mode = useUIStore((state) => state.workspaceMode);
+  const loadInputs = useLoadWorkspaceStore((state) => state.inputs);
+  const loadResult = useLoadWorkspaceStore((state) => state.result);
+  const getLoadSnapshot = useLoadWorkspaceStore((state) => state.getSnapshot);
+  const applyLoadSnapshot = useLoadWorkspaceStore((state) => state.applySnapshot);
+  const setSupplyCfm = useAirflowWorkspaceStore((state) => state.setSupplyCfm);
+  const airflowInputs = useAirflowWorkspaceStore((state) => state.inputs);
+  const airflowResult = useAirflowWorkspaceStore((state) => state.result);
+  const getAirflowSnapshot = useAirflowWorkspaceStore((state) => state.getSnapshot);
+  const applyAirflowSnapshot = useAirflowWorkspaceStore((state) => state.applySnapshot);
+  const setRequiredTr = useEquipmentWorkspaceStore((state) => state.setRequiredTr);
+  const equipmentInputs = useEquipmentWorkspaceStore((state) => state.inputs);
+  const equipmentResult = useEquipmentWorkspaceStore((state) => state.result);
+  const getEquipmentSnapshot = useEquipmentWorkspaceStore((state) => state.getSnapshot);
+  const applyEquipmentSnapshot = useEquipmentWorkspaceStore((state) => state.applySnapshot);
+
+  React.useEffect(() => {
+    setSupplyCfm(Math.max(200, Math.round(loadResult.breakdown.cfmRequired)));
+    setRequiredTr(Number(loadResult.breakdown.trRequired.toFixed(2)));
+  }, [loadResult.breakdown.cfmRequired, loadResult.breakdown.trRequired, setRequiredTr, setSupplyCfm]);
+
+  const selectedCandidate = React.useMemo(
+    () =>
+      equipmentResult.candidates.find((candidate) => candidate.id === equipmentResult.selectedCandidateId)
+      ?? equipmentResult.candidates[0]
+      ?? null,
+    [equipmentResult.candidates, equipmentResult.selectedCandidateId],
+  );
+
+  const isProfessional = mode === 'professional';
+
+  const loadBreakdownData = React.useMemo(
+    () => [
+      { component: 'Envelope', btu: loadResult.breakdown.envelopeBtu },
+      { component: 'People', btu: loadResult.breakdown.peopleBtu },
+      { component: 'Lighting', btu: loadResult.breakdown.lightingBtu },
+      { component: 'Equipment', btu: loadResult.breakdown.equipmentBtu },
+      { component: 'Ventilation', btu: loadResult.breakdown.ventilationBtu },
+    ],
+    [
+      loadResult.breakdown.envelopeBtu,
+      loadResult.breakdown.equipmentBtu,
+      loadResult.breakdown.lightingBtu,
+      loadResult.breakdown.peopleBtu,
+      loadResult.breakdown.ventilationBtu,
+    ],
+  );
+
+  const branchVelocityData = React.useMemo(() => airflowResult.branchRows, [airflowResult.branchRows]);
+  const equipmentScoreData = React.useMemo(
+    () => equipmentResult.candidates.slice(0, 8),
+    [equipmentResult.candidates],
+  );
+
+  const buildReportPayload = React.useCallback(() => {
+    return {
+      generatedAt: new Date().toISOString(),
+      projectName: loadInputs.projectName,
+      summary: {
+        designLoadBtuPerHour: loadResult.breakdown.totalBtuAfterFactors,
+        designTr: loadResult.breakdown.trRequired,
+        designCfm: loadResult.breakdown.cfmRequired,
+        totalStaticPressureInWg: airflowResult.totalStaticPressureInWg,
+        fanPowerHp: airflowResult.requiredFanPowerHp,
+        selectedEquipment: selectedCandidate,
+      },
+      inputs: {
+        load: loadInputs,
+        airflow: airflowInputs,
+        equipment: equipmentInputs,
+      },
+      outputs: {
+        load: loadResult,
+        airflow: airflowResult,
+        equipment: equipmentResult,
+      },
+    };
+  }, [
+    airflowInputs,
+    airflowResult,
+    equipmentInputs,
+    equipmentResult,
+    loadInputs,
+    loadResult,
+    selectedCandidate,
+  ]);
+
+  const exportJson = React.useCallback(async () => {
+    setExporting('json');
+    try {
+      const payload = buildReportPayload();
+      downloadTextFile(
+        `hvac-report-${slugify(loadInputs.projectName)}.json`,
+        JSON.stringify(payload, null, 2),
+        'application/json;charset=utf-8',
+      );
+      showToast('success', 'JSON exported', 'Report payload downloaded successfully.');
+    } catch (error) {
+      console.error(error);
+      showToast('error', 'JSON export failed');
+    } finally {
+      setExporting(null);
+    }
+  }, [buildReportPayload, loadInputs.projectName]);
+
+  const exportWorkspaceSnapshot = React.useCallback(async () => {
+    setSnapshotTransfer('export');
+    try {
+      const snapshot = buildWorkspaceSnapshot({
+        load: getLoadSnapshot(),
+        airflow: getAirflowSnapshot(),
+        equipment: getEquipmentSnapshot(),
+      });
+
+      const timestamp = snapshot.exportedAt.replace(/[:.]/g, '-');
+      const fileName = `hvac-workspace-snapshot-${slugify(loadInputs.projectName)}-${timestamp}.json`;
+
+      downloadTextFile(
+        fileName,
+        JSON.stringify(snapshot, null, 2),
+        'application/json;charset=utf-8',
+      );
+      showToast('success', 'Workspace snapshot exported', 'Use this file to restore this workspace on another device.');
+    } catch (error) {
+      console.error(error);
+      showToast('error', 'Snapshot export failed');
+    } finally {
+      setSnapshotTransfer(null);
+    }
+  }, [getAirflowSnapshot, getEquipmentSnapshot, getLoadSnapshot, loadInputs.projectName]);
+
+  const triggerSnapshotImport = React.useCallback(() => {
+    snapshotInputRef.current?.click();
+  }, []);
+
+  const handleSnapshotFileSelected = React.useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file) {
       return;
     }
 
-    setGenerating(true);
-    Promise.all([
-      fetch(`/api/projects/${selectedProjectId}/boq`).then((r) => r.json()),
-      fetch(`/api/projects/${selectedProjectId}`).then((r) => r.json()),
-      fetch(`/api/projects/${selectedProjectId}/equipment`).then((r) => r.json()),
-    ])
-      .then(([boq, projectRes, equip]) => {
-        setBOQData(boq);
-        // API returns { project: { ... } } — unwrap
-        const projectData = projectRes.project || projectRes;
-        const allRooms: RoomData[] = [];
-        (projectData.floors || []).forEach((f: { rooms: RoomData[] }) => {
-          allRooms.push(...(f.rooms || []));
-        });
-        setRooms(allRooms);
-        setEquipment(equip.equipment || []);
-        setGenerating(false);
-      })
-      .catch(() => {
-        showToast('error', 'Failed to load report data');
-        setGenerating(false);
-      });
-  }, [selectedProjectId]);
+    setSnapshotTransfer('import');
+    try {
+      const raw = await file.text();
+      const parsed = parseWorkspaceSnapshot(raw);
 
-  const toggleSection = (section: string) => {
-    setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
-  };
+      if (!parsed) {
+        showToast('error', 'Invalid snapshot file', 'Snapshot schema validation failed.');
+        return;
+      }
 
-  // Export to PDF
-  const exportPDF = async () => {
-    if (!boqData) return;
-    setGenerating(true);
+      applyLoadSnapshot(parsed.modules.load);
+      applyAirflowSnapshot(parsed.modules.airflow);
+      applyEquipmentSnapshot(parsed.modules.equipment);
 
+      const importedAt = Number.isNaN(Date.parse(parsed.exportedAt))
+        ? parsed.exportedAt
+        : new Date(parsed.exportedAt).toLocaleString('en-PH');
+
+      showToast(
+        'success',
+        'Workspace snapshot imported',
+        `Module inputs and overrides restored from snapshot (${importedAt}).`,
+      );
+    } catch (error) {
+      console.error(error);
+      showToast('error', 'Snapshot import failed');
+    } finally {
+      setSnapshotTransfer(null);
+    }
+  }, [applyAirflowSnapshot, applyEquipmentSnapshot, applyLoadSnapshot]);
+
+  const exportCsv = React.useCallback(async () => {
+    setExporting('csv');
+    try {
+      const summaryRows: Array<[string, string | number]> = [
+        ['Project', loadInputs.projectName],
+        ['Space Type', loadInputs.spaceType],
+        ['Design Load (BTU/h)', loadResult.breakdown.totalBtuAfterFactors],
+        ['Cooling Tonnage (TR)', loadResult.breakdown.trRequired],
+        ['Airflow Demand (CFM)', loadResult.breakdown.cfmRequired],
+        ['Total Static Pressure (in.wg)', airflowResult.totalStaticPressureInWg],
+        ['Fan Power (HP)', airflowResult.requiredFanPowerHp],
+        ['Selected Equipment', selectedCandidate?.model ?? 'None'],
+        ['Equipment Quantity', selectedCandidate?.quantity ?? 0],
+        ['Equipment Capex', selectedCandidate?.capexPhp ?? 0],
+        ['Equipment 5-Year Lifecycle', selectedCandidate?.totalLifecyclePhp ?? 0],
+      ];
+
+      const lines: string[] = [
+        'Metric,Value',
+        ...summaryRows.map(([metric, value]) => `${csvEscape(metric)},${csvEscape(value)}`),
+        '',
+        'Candidate,Type,Qty,Provided TR,Utilization %,Capex,Annual Energy Cost,Lifecycle,Score',
+        ...equipmentResult.candidates.map((candidate) =>
+          [
+            candidate.model,
+            candidate.type,
+            candidate.quantity,
+            candidate.providedTr,
+            candidate.utilizationPct,
+            candidate.capexPhp,
+            candidate.annualEnergyCostPhp,
+            candidate.totalLifecyclePhp,
+            candidate.score,
+          ]
+            .map((value) => csvEscape(value))
+            .join(','),
+        ),
+      ];
+
+      downloadTextFile(
+        `hvac-summary-${slugify(loadInputs.projectName)}.csv`,
+        lines.join('\n'),
+        'text/csv;charset=utf-8',
+      );
+      showToast('success', 'CSV exported', 'Summary matrix downloaded successfully.');
+    } catch (error) {
+      console.error(error);
+      showToast('error', 'CSV export failed');
+    } finally {
+      setExporting(null);
+    }
+  }, [airflowResult, equipmentResult.candidates, loadInputs.projectName, loadInputs.spaceType, loadResult, selectedCandidate]);
+
+  const exportPdf = React.useCallback(async () => {
+    setExporting('pdf');
     try {
       const { createAndDownloadPdf, hrLine, boldText } = await import('@/lib/utils/pdf-make');
       type Content = import('pdfmake/interfaces').Content;
-      const project = projects.find((p) => p.id === selectedProjectId);
       const bold = boldText;
 
-      const summaryItems = [
-        ['Equipment Cost', formatPHP(boqData.equipmentCost)],
-        ['Material Cost', formatPHP(boqData.materialCost)],
-        ['Labor Cost', formatPHP(boqData.laborCost)],
-        ['Overhead', formatPHP(boqData.overhead)],
-        ['Contingency', formatPHP(boqData.contingency)],
-        ['Subtotal', formatPHP(boqData.subtotal)],
-        ['VAT (12%)', formatPHP(boqData.vat)],
-        ['Grand Total', formatPHP(boqData.grandTotal)],
+      const summaryRows = [
+        ['Project', loadInputs.projectName],
+        ['Space Type', loadInputs.spaceType],
+        ['Design Load', `${loadResult.breakdown.totalBtuAfterFactors.toLocaleString()} BTU/h`],
+        ['Cooling Tonnage', `${loadResult.breakdown.trRequired.toFixed(2)} TR`],
+        ['Airflow Demand', `${loadResult.breakdown.cfmRequired.toLocaleString()} CFM`],
+        ['Total Static', `${airflowResult.totalStaticPressureInWg.toFixed(2)} in.wg`],
+        ['Fan Power', `${airflowResult.requiredFanPowerHp.toFixed(2)} HP`],
+        ['Selected Equipment', selectedCandidate?.model ?? 'No candidate selected'],
+        ['Equipment Capex', toPhp(selectedCandidate?.capexPhp ?? 0)],
+        ['5-Year Lifecycle', toPhp(selectedCandidate?.totalLifecyclePhp ?? 0)],
       ];
 
-      // Cooling load table
-      const coolingLoadContent: Content[] = [];
-      if (rooms.length > 0) {
-        coolingLoadContent.push(bold('Cooling Load Summary', { fontSize: 13, margin: [0, 8, 0, 4] }));
-        coolingLoadContent.push({
-          table: {
-            headerRows: 1,
-            widths: ['*', 50, 60, 60, 60],
-            body: [
-              ['Room', 'Area (m²)', 'Total (W)', 'Sensible (W)', 'Latent (W)'].map((h) => bold(h, { fontSize: 9 })),
-              ...rooms.map((room) => [
-                room.name.substring(0, 20),
-                room.area.toFixed(1),
-                (room.coolingLoad?.totalLoad || 0).toFixed(0),
-                (room.coolingLoad?.totalSensibleLoad || 0).toFixed(0),
-                (room.coolingLoad?.totalLatentLoad || 0).toFixed(0),
-              ]),
-            ],
-          },
-          layout: 'lightHorizontalLines',
-          fontSize: 9,
-          margin: [0, 0, 0, 8] as [number, number, number, number],
-        });
-      }
+      const loadTable: Content = {
+        table: {
+          headerRows: 1,
+          widths: ['*', 120],
+          body: [
+            ['Load Component', 'BTU/h'].map((header) => bold(header, { fontSize: 9 })),
+            ...loadBreakdownData.map((item) => [item.component, item.btu.toLocaleString()]),
+          ],
+        },
+        layout: 'lightHorizontalLines',
+        margin: [0, 4, 0, 8],
+      };
 
-      // BOQ table
-      const boqContent: Content[] = [];
-      if (boqData.items.length > 0) {
-        boqContent.push(bold('Bill of Quantities', { fontSize: 13, margin: [0, 8, 0, 4] }));
-        boqContent.push({
-          table: {
-            headerRows: 1,
-            widths: ['*', 30, 35, 60, 60],
-            body: [
-              ['Description', 'Qty', 'Unit', 'Unit Price', 'Total'].map((h) => bold(h, { fontSize: 8 })),
-              ...boqData.items.map((item) => [
-                item.description.length > 40 ? item.description.substring(0, 40) + '...' : item.description,
-                item.quantity.toString(),
-                item.unit,
-                formatPHP(item.unitPrice),
-                formatPHP(item.totalPrice),
-              ]),
-            ],
-          },
-          layout: 'lightHorizontalLines',
-          fontSize: 8,
-          margin: [0, 0, 0, 4] as [number, number, number, number],
-        });
-      }
+      const branchTable: Content = {
+        table: {
+          headerRows: 1,
+          widths: ['*', 60, 60, 60],
+          body: [
+            ['Branch', 'CFM', 'Velocity', 'Drop'].map((header) => bold(header, { fontSize: 8 })),
+            ...airflowResult.branchRows.map((row) => [
+              row.branch,
+              row.designCfm.toLocaleString(),
+              row.velocityFpm.toFixed(0),
+              row.pressureDropInWg.toFixed(2),
+            ]),
+          ],
+        },
+        layout: 'lightHorizontalLines',
+        margin: [0, 4, 0, 8],
+      };
+
+      const candidateTable: Content = {
+        table: {
+          headerRows: 1,
+          widths: ['*', 30, 55, 45, 65, 60],
+          body: [
+            ['Model', 'Qty', 'TR', 'Score', 'Capex', 'Lifecycle'].map((header) => bold(header, { fontSize: 8 })),
+            ...equipmentResult.candidates.slice(0, 10).map((candidate) => [
+              candidate.model,
+              String(candidate.quantity),
+              candidate.providedTr.toFixed(2),
+              candidate.score.toFixed(1),
+              toPhp(candidate.capexPhp),
+              toPhp(candidate.totalLifecyclePhp),
+            ]),
+          ],
+        },
+        layout: 'lightHorizontalLines',
+        margin: [0, 4, 0, 8],
+      };
 
       await createAndDownloadPdf(
         {
           content: [
-            bold('HVAC Auto-Estimation Report', { fontSize: 18, margin: [0, 0, 0, 6] }),
-            { text: `Project: ${project?.name || 'Unknown'}`, fontSize: 10 },
-            { text: `Building Type: ${project?.buildingType || 'N/A'}`, fontSize: 10 },
-            { text: `Total Floor Area: ${project?.totalFloorArea || 0} m²`, fontSize: 10 },
-            { text: `Generated: ${new Date().toLocaleDateString('en-PH')}`, fontSize: 10, margin: [0, 0, 0, 6] },
+            bold('HVAC Integrated Engineering Report', { fontSize: 18, margin: [0, 0, 0, 8] }),
+            { text: `Generated: ${new Date().toLocaleString('en-PH')}`, fontSize: 9, margin: [0, 0, 0, 6] },
             hrLine(),
-            bold('Cost Summary', { fontSize: 13, margin: [0, 6, 0, 4] }),
+            bold('Summary', { fontSize: 12, margin: [0, 4, 0, 4] }),
             {
               table: {
-                widths: [120, '*'],
-                body: summaryItems.map(([label, value]) => [
-                  { text: label, fontSize: 10 },
-                  { text: value, fontSize: 10 },
-                ]),
+                widths: [150, '*'],
+                body: summaryRows.map(([label, value]) => [label, value]),
               },
               layout: 'noBorders',
-              margin: [0, 0, 0, 4] as [number, number, number, number],
+              margin: [0, 0, 0, 6],
             },
-            { text: `Cost per TR: ${formatPHP(boqData.costPerTR)}`, fontSize: 10, margin: [0, 4, 0, 8] },
-            ...coolingLoadContent,
-            ...boqContent,
+            hrLine(),
+            bold('Load Breakdown', { fontSize: 12, margin: [0, 4, 0, 2] }),
+            loadTable,
+            bold('Airflow Branch Profile', { fontSize: 12, margin: [0, 2, 0, 2] }),
+            branchTable,
+            bold('Equipment Shortlist', { fontSize: 12, margin: [0, 2, 0, 2] }),
+            candidateTable,
           ],
           pageSize: 'A4',
           defaultStyle: { font: 'Roboto' },
         },
-        `HVAC-Report-${project?.name || 'project'}.pdf`,
+        `hvac-report-${slugify(loadInputs.projectName)}.pdf`,
       );
-      showToast('success', 'PDF exported successfully');
-    } catch (err) {
-      showToast('error', 'Failed to generate PDF');
-      console.error(err);
+
+      showToast('success', 'PDF exported', 'Engineering report PDF downloaded successfully.');
+    } catch (error) {
+      console.error(error);
+      showToast('error', 'PDF export failed');
+    } finally {
+      setExporting(null);
     }
+  }, [
+    airflowResult,
+    equipmentResult.candidates,
+    loadBreakdownData,
+    loadInputs.projectName,
+    loadInputs.spaceType,
+    loadResult.breakdown.cfmRequired,
+    loadResult.breakdown.totalBtuAfterFactors,
+    loadResult.breakdown.trRequired,
+    selectedCandidate,
+  ]);
 
-    setGenerating(false);
-  };
-
-  // Export to Excel
-  const exportExcel = async () => {
-    if (!boqData) return;
-    setGenerating(true);
-
+  const exportExcel = React.useCallback(async () => {
+    setExporting('excel');
     try {
       const ExcelJS = await import('exceljs');
-      const wb = new ExcelJS.Workbook();
-      wb.creator = 'HVAC AutoEst';
-      wb.created = new Date();
-      const project = projects.find((p) => p.id === selectedProjectId);
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'HVAC Auto Estimation';
+      workbook.created = new Date();
 
-      // Summary sheet
-      const ws1 = wb.addWorksheet('Summary');
-      const summaryData = [
-        ['HVAC Auto-Estimation Report'],
-        [''],
-        ['Project', project?.name || 'Unknown'],
-        ['Building Type', project?.buildingType || 'N/A'],
-        ['Total Floor Area (m²)', project?.totalFloorArea || 0],
-        ['Generated', new Date().toLocaleDateString('en-PH')],
-        [''],
-        ['Cost Summary'],
-        ['Equipment Cost', boqData.equipmentCost],
-        ['Material Cost', boqData.materialCost],
-        ['Labor Cost', boqData.laborCost],
-        ['Overhead', boqData.overhead],
-        ['Contingency', boqData.contingency],
-        ['Subtotal', boqData.subtotal],
-        ['VAT (12%)', boqData.vat],
-        ['Grand Total', boqData.grandTotal],
-        ['Cost per TR', boqData.costPerTR],
-      ];
-      summaryData.forEach((row) => ws1.addRow(row));
-      ws1.getColumn(1).width = 25;
-      ws1.getColumn(2).width = 20;
-      ws1.getRow(1).font = { bold: true, size: 14 };
+      const summarySheet = workbook.addWorksheet('Summary');
+      summarySheet.addRow(['HVAC Integrated Engineering Report']);
+      summarySheet.addRow(['Project', loadInputs.projectName]);
+      summarySheet.addRow(['Space Type', loadInputs.spaceType]);
+      summarySheet.addRow(['Design Load (BTU/h)', loadResult.breakdown.totalBtuAfterFactors]);
+      summarySheet.addRow(['Cooling Tonnage (TR)', loadResult.breakdown.trRequired]);
+      summarySheet.addRow(['Airflow Demand (CFM)', loadResult.breakdown.cfmRequired]);
+      summarySheet.addRow(['Total Static Pressure (in.wg)', airflowResult.totalStaticPressureInWg]);
+      summarySheet.addRow(['Fan Power (HP)', airflowResult.requiredFanPowerHp]);
+      summarySheet.addRow(['Selected Equipment', selectedCandidate?.model ?? 'None']);
+      summarySheet.addRow(['Equipment Capex', selectedCandidate?.capexPhp ?? 0]);
+      summarySheet.addRow(['5-Year Lifecycle', selectedCandidate?.totalLifecyclePhp ?? 0]);
+      summarySheet.getRow(1).font = { bold: true, size: 14 };
+      summarySheet.getColumn(1).width = 32;
+      summarySheet.getColumn(2).width = 30;
 
-      // BOQ sheet
-      const ws2 = wb.addWorksheet('BOQ');
-      ws2.addRow(['Section', 'Description', 'Quantity', 'Unit', 'Unit Price (PHP)', 'Total Price (PHP)']);
-      ws2.getRow(1).font = { bold: true };
-      boqData.items.forEach((item) => {
-        ws2.addRow([item.section, item.description, item.quantity, item.unit, item.unitPrice, item.totalPrice]);
+      const loadSheet = workbook.addWorksheet('Load Breakdown');
+      loadSheet.addRow(['Component', 'BTU/h']);
+      loadSheet.getRow(1).font = { bold: true };
+      loadBreakdownData.forEach((item) => loadSheet.addRow([item.component, item.btu]));
+      loadSheet.getColumn(1).width = 22;
+      loadSheet.getColumn(2).width = 18;
+
+      const airflowSheet = workbook.addWorksheet('Airflow Branches');
+      airflowSheet.addRow(['Branch', 'Design CFM', 'Velocity (FPM)', 'Round Diameter (in)', 'Rectangular', 'Pressure Drop (in.wg)']);
+      airflowSheet.getRow(1).font = { bold: true };
+      airflowResult.branchRows.forEach((row) => {
+        airflowSheet.addRow([
+          row.branch,
+          row.designCfm,
+          row.velocityFpm,
+          row.roundDiameterIn,
+          row.rectangularSizeIn,
+          row.pressureDropInWg,
+        ]);
       });
-      ws2.columns.forEach((col) => { col.width = 18; });
+      airflowSheet.columns.forEach((column) => {
+        column.width = 18;
+      });
 
-      // Cooling Loads sheet
-      if (rooms.length > 0) {
-        const ws3 = wb.addWorksheet('Cooling Loads');
-        ws3.addRow(['Room', 'Space Type', 'Area (m²)', 'Total Load (W)', 'Sensible (W)', 'Latent (W)']);
-        ws3.getRow(1).font = { bold: true };
-        rooms.forEach((r) => {
-          ws3.addRow([
-            r.name, r.spaceType, r.area,
-            r.coolingLoad?.totalLoad || 0,
-            r.coolingLoad?.totalSensibleLoad || 0,
-            r.coolingLoad?.totalLatentLoad || 0,
-          ]);
-        });
-        ws3.columns.forEach((col) => { col.width = 16; });
-      }
+      const equipmentSheet = workbook.addWorksheet('Equipment Candidates');
+      equipmentSheet.addRow([
+        'ID',
+        'Model',
+        'Type',
+        'Qty',
+        'Provided TR',
+        'Utilization %',
+        'Capex',
+        'Annual Energy Cost',
+        'Lifecycle',
+        'Score',
+      ]);
+      equipmentSheet.getRow(1).font = { bold: true };
+      equipmentResult.candidates.forEach((candidate) => {
+        equipmentSheet.addRow([
+          candidate.id,
+          candidate.model,
+          candidate.type,
+          candidate.quantity,
+          candidate.providedTr,
+          candidate.utilizationPct,
+          candidate.capexPhp,
+          candidate.annualEnergyCostPhp,
+          candidate.totalLifecyclePhp,
+          candidate.score,
+        ]);
+      });
+      equipmentSheet.columns.forEach((column) => {
+        column.width = 18;
+      });
 
-      // Equipment sheet
-      if (equipment.length > 0) {
-        const ws4 = wb.addWorksheet('Equipment');
-        ws4.addRow(['Model', 'Brand', 'Type', 'Capacity (TR)', 'Unit Price (PHP)', 'Qty']);
-        ws4.getRow(1).font = { bold: true };
-        equipment.forEach((e) => {
-          ws4.addRow([e.model, e.brand, e.type, e.capacityTR, e.unitPrice, e.quantity]);
-        });
-        ws4.columns.forEach((col) => { col.width = 18; });
-      }
-
-      // Generate and download
-      const buffer = await wb.xlsx.writeBuffer();
-      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob(
+        [buffer],
+        { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
+      );
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `HVAC-Report-${project?.name || 'project'}.xlsx`;
-      a.click();
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `hvac-report-${slugify(loadInputs.projectName)}.xlsx`;
+      anchor.click();
       URL.revokeObjectURL(url);
-      showToast('success', 'Excel exported successfully');
-    } catch (err) {
-      showToast('error', 'Failed to generate Excel');
-      console.error(err);
+
+      showToast('success', 'Excel exported', 'Multi-sheet engineering workbook downloaded.');
+    } catch (error) {
+      console.error(error);
+      showToast('error', 'Excel export failed');
+    } finally {
+      setExporting(null);
     }
-
-    setGenerating(false);
-  };
-
-  // Group BOQ items by floor then section
-  const groupedByFloor = boqData?.items.reduce(
-    (acc, item) => {
-      const floor = item.floorName || 'General';
-      if (!acc[floor]) acc[floor] = {};
-      const section = item.section || 'Other';
-      if (!acc[floor][section]) acc[floor][section] = [];
-      acc[floor][section].push(item);
-      return acc;
-    },
-    {} as Record<string, Record<string, typeof boqData.items>>
-  );
-
-  const totalCoolingLoad = rooms.reduce((sum, r) => sum + (r.coolingLoad?.totalLoad || 0), 0);
-  const totalTR = totalCoolingLoad / 3517;
-  const selectedProject = projects.find((p) => p.id === selectedProjectId) || null;
-  const boqSectionCount = boqData ? new Set(boqData.items.map((item) => item.section || 'Other')).size : 0;
-
-  if (loading) {
-    return (
-      <PageWrapper>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-accent" />
-        </div>
-      </PageWrapper>
-    );
-  }
+  }, [
+    airflowResult,
+    equipmentResult.candidates,
+    loadBreakdownData,
+    loadInputs.projectName,
+    loadInputs.spaceType,
+    loadResult.breakdown.cfmRequired,
+    loadResult.breakdown.totalBtuAfterFactors,
+    loadResult.breakdown.trRequired,
+    selectedCandidate,
+  ]);
 
   return (
-    <PageWrapper>
-      <PageHeader
-        title="Reports & Export"
-        description="Generate comprehensive HVAC estimation reports with detailed BOQ and cooling load analysis"
+    <div className="space-y-8 lg:space-y-10">
+      <input
+        ref={snapshotInputRef}
+        type="file"
+        accept="application/json,.json"
+        className="hidden"
+        onChange={(event) => {
+          void handleSnapshotFileSelected(event);
+        }}
+      />
+
+      <Card
+        title="Engineering Reports"
+        subtitle="Live report surface combining load, airflow, and equipment modules"
         actions={
-          <div className="flex gap-2">
-            <Link href="/quotation">
-              <Button variant="secondary" size="sm">
-                <FileText className="w-4 h-4 mr-1" /> Quotation
-              </Button>
-            </Link>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={exportExcel}
-              disabled={!boqData || generating}
-            >
-              <FileSpreadsheet className="w-4 h-4 mr-1" /> Excel
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="secondary" size="sm" onClick={() => void exportWorkspaceSnapshot()} loading={snapshotTransfer === 'export'}>
+              <Download size={14} />
+              Export Snapshot
             </Button>
-            <Button
-              variant="accent"
-              size="sm"
-              onClick={exportPDF}
-              disabled={!boqData || generating}
-              isLoading={generating}
-            >
-              <Download className="w-4 h-4 mr-1" /> PDF
+            <Button variant="secondary" size="sm" onClick={triggerSnapshotImport} loading={snapshotTransfer === 'import'}>
+              <Upload size={14} />
+              Import Snapshot
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => void exportPdf()} loading={exporting === 'pdf'}>
+              <FileText size={14} />
+              Export PDF
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => void exportExcel()} loading={exporting === 'excel'}>
+              <FileSpreadsheet size={14} />
+              Export Excel
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => void exportCsv()} loading={exporting === 'csv'}>
+              <FileDown size={14} />
+              Export CSV
+            </Button>
+            <Button size="sm" onClick={() => void exportJson()} loading={exporting === 'json'}>
+              <Download size={14} />
+              Export JSON
             </Button>
           </div>
         }
-      />
-
-      <Card className="mb-6 border-accent/20 bg-linear-to-r from-accent/10 via-primary/5 to-secondary/40">
-        <CardContent className="py-4">
-          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Reporting Workspace</p>
-              <p className="text-sm font-medium text-foreground mt-0.5">
-                Consolidate project costs, cooling loads, and BOQ details into export-ready documents.
-              </p>
-            </div>
-            <div className="text-xs text-muted-foreground tabular-nums">
-              {selectedProject ? `Active: ${selectedProject.name}` : `${projects.length} projects available`}
-            </div>
+      >
+        <div className="grid gap-5 md:grid-cols-3">
+          <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-2)] px-5 py-4">
+            <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-[color:var(--muted-foreground)]">Design Load</p>
+            <p className="mt-1.5 text-[2.05rem] font-extrabold leading-tight tabular-nums text-[color:var(--foreground)]">
+              {loadResult.breakdown.totalBtuAfterFactors.toLocaleString()} BTU/h
+            </p>
           </div>
-        </CardContent>
+          <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-2)] px-5 py-4">
+            <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-[color:var(--muted-foreground)]">Total Static</p>
+            <p className="mt-1.5 text-[2.05rem] font-extrabold leading-tight tabular-nums text-[color:var(--foreground)]">
+              {airflowResult.totalStaticPressureInWg.toFixed(2)} in.wg
+            </p>
+          </div>
+          <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-2)] px-5 py-4">
+            <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-[color:var(--muted-foreground)]">Selected Lifecycle</p>
+            <p className="mt-1.5 text-[2.05rem] font-extrabold leading-tight tabular-nums text-[color:var(--foreground)]">
+              {toPhp(selectedCandidate?.totalLifecyclePhp ?? 0)}
+            </p>
+          </div>
+        </div>
       </Card>
 
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-        <div className="xl:col-span-3">
-          {/* Project selector */}
-          <Card className="mb-6">
-            <CardContent className="p-4">
-              <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
-                <div className="flex-1 w-full">
-                  <Select
-                    label="Select Project"
-                    value={selectedProjectId}
-                    onChange={(e) => setSelectedProjectId(e.target.value)}
-                    options={[
-                      { value: '', label: 'Choose a project...' },
-                      ...projects.map((p) => ({
-                        value: p.id,
-                        label: `${p.name} — ${p.buildingType} (${p.totalFloorArea} m²)`,
-                      })),
-                    ]}
-                  />
-                </div>
-                {selectedProjectId && (
-                  <Button variant="secondary" size="sm" onClick={() => window.print()}>
-                    <Printer className="w-4 h-4 mr-1" /> Print
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+      <section className="grid gap-6 xl:grid-cols-3">
+        <Card title="Load Breakdown" subtitle="BTU contribution by source">
+          <div className="h-[300px] w-full">
+            {chartsReady ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={loadBreakdownData} margin={{ top: 6, right: 12, bottom: 6, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="color-mix(in oklab,var(--border) 78%,transparent)" />
+                  <XAxis dataKey="component" tick={{ fontSize: 11 }} stroke="color-mix(in oklab,var(--muted-foreground) 80%,transparent)" />
+                  <YAxis tick={{ fontSize: 11 }} stroke="color-mix(in oklab,var(--muted-foreground) 80%,transparent)" />
+                  <Tooltip />
+                  <Bar dataKey="btu" name="BTU/h" fill="var(--accent)" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex h-full items-center justify-center text-xs text-[color:var(--muted-foreground)]">Preparing chart...</div>
+            )}
+          </div>
+        </Card>
 
-          {!selectedProjectId && (
-            <EmptyState
-              icon={<FolderOpen className="w-12 h-12" />}
-              title="Select a Project"
-              description="Choose a project to generate reports and export data"
-            />
-          )}
+        <Card title="Branch Velocity" subtitle="Velocity and pressure drop across branches">
+          <div className="h-[300px] w-full">
+            {chartsReady ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={branchVelocityData} margin={{ top: 6, right: 12, bottom: 6, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="color-mix(in oklab,var(--border) 78%,transparent)" />
+                  <XAxis dataKey="branch" tick={{ fontSize: 11 }} stroke="color-mix(in oklab,var(--muted-foreground) 80%,transparent)" />
+                  <YAxis yAxisId="left" tick={{ fontSize: 11 }} stroke="color-mix(in oklab,var(--muted-foreground) 80%,transparent)" />
+                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} stroke="color-mix(in oklab,var(--muted-foreground) 80%,transparent)" />
+                  <Tooltip />
+                  <Legend />
+                  <Line yAxisId="left" type="monotone" dataKey="velocityFpm" name="Velocity (FPM)" stroke="var(--brand-copper)" strokeWidth={2.4} dot={{ r: 3 }} />
+                  <Line yAxisId="right" type="monotone" dataKey="pressureDropInWg" name="Pressure Drop (in.wg)" stroke="var(--accent)" strokeWidth={2.4} dot={{ r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex h-full items-center justify-center text-xs text-[color:var(--muted-foreground)]">Preparing chart...</div>
+            )}
+          </div>
+        </Card>
 
-          {generating && (
-            <div className="flex items-center justify-center h-40">
-              <Loader2 className="w-6 h-6 animate-spin text-accent mr-2" />
-              <span className="text-muted-foreground">Generating report...</span>
-            </div>
-          )}
+        <Card title="Equipment Ranking" subtitle="Shortlist score and utilization">
+          <div className="h-[300px] w-full">
+            {chartsReady ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={equipmentScoreData} margin={{ top: 6, right: 12, bottom: 6, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="color-mix(in oklab,var(--border) 78%,transparent)" />
+                  <XAxis dataKey="id" tick={{ fontSize: 9 }} stroke="color-mix(in oklab,var(--muted-foreground) 80%,transparent)" />
+                  <YAxis yAxisId="left" tick={{ fontSize: 11 }} stroke="color-mix(in oklab,var(--muted-foreground) 80%,transparent)" />
+                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} stroke="color-mix(in oklab,var(--muted-foreground) 80%,transparent)" />
+                  <Tooltip />
+                  <Legend />
+                  <Bar yAxisId="left" dataKey="score" name="Score" fill="var(--accent)" radius={[6, 6, 0, 0]} />
+                  <Bar yAxisId="right" dataKey="utilizationPct" name="Utilization %" fill="var(--brand-copper)" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex h-full items-center justify-center text-xs text-[color:var(--muted-foreground)]">Preparing chart...</div>
+            )}
+          </div>
+        </Card>
+      </section>
 
-          {boqData && !generating && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="space-y-6"
-            >
-          {/* Summary Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="p-0">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-accent/8 flex items-center justify-center shrink-0">
-                    <PhilippinePeso className="w-4.5 h-4.5 text-accent" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Grand Total</p>
-                    <p className="text-base font-semibold tabular-nums truncate mt-0.5">{formatPHP(boqData.grandTotal)}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="p-0">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center shrink-0">
-                    <Snowflake className="w-4.5 h-4.5 text-muted-foreground" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Cooling Load</p>
-                    <p className="text-base font-semibold tabular-nums mt-0.5">{totalCoolingLoad.toLocaleString()} W</p>
-                    <p className="text-[10px] text-muted-foreground tabular-nums">{totalTR.toFixed(1)} TR</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="p-0">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center shrink-0">
-                    <Building2 className="w-4.5 h-4.5 text-muted-foreground" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Rooms</p>
-                    <p className="text-base font-semibold mt-0.5">{rooms.length}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="p-0">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center shrink-0">
-                    <BarChart3 className="w-4.5 h-4.5 text-muted-foreground" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Cost / TR</p>
-                    <p className="text-base font-semibold tabular-nums truncate mt-0.5">{formatPHP(boqData.costPerTR)}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+      <CollapsiblePanel
+        title="Cross-Module Snapshot"
+        subtitle="Key values that drive generated exports"
+        defaultOpen
+      >
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-2)] p-4 text-sm text-[color:var(--muted-foreground)]">
+            <p className="font-bold uppercase tracking-[0.12em] text-[color:var(--foreground)]">Load Module</p>
+            <p className="mt-1">Project: {loadInputs.projectName}</p>
+            <p>Space Type: {loadInputs.spaceType}</p>
+            <p>Required TR: {loadResult.breakdown.trRequired.toFixed(2)}</p>
+            <p>Required CFM: {loadResult.breakdown.cfmRequired.toLocaleString()}</p>
           </div>
 
-          {/* Cost Breakdown */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <PhilippinePeso className="w-4 h-4 text-muted-foreground" /> Cost Breakdown
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+          <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-2)] p-4 text-sm text-[color:var(--muted-foreground)]">
+            <p className="font-bold uppercase tracking-[0.12em] text-[color:var(--foreground)]">Airflow Module</p>
+            <p className="mt-1">Supply CFM: {airflowInputs.supplyCfm.toLocaleString()}</p>
+            <p>Branches: {airflowInputs.branches}</p>
+            <p>Trunk Duct: {airflowResult.trunkDiameterIn} in</p>
+            <p>Fan HP: {airflowResult.requiredFanPowerHp.toFixed(2)}</p>
+          </div>
+
+          <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-2)] p-4 text-sm text-[color:var(--muted-foreground)]">
+            <p className="font-bold uppercase tracking-[0.12em] text-[color:var(--foreground)]">Equipment Module</p>
+            <p className="mt-1">Budget: {equipmentInputs.budgetBand}</p>
+            <p>Priority: {equipmentInputs.optimizationPriority}</p>
+            <p>Selected: {selectedCandidate?.model ?? 'No candidate'}</p>
+            <p>Lifecycle: {toPhp(selectedCandidate?.totalLifecyclePhp ?? 0)}</p>
+          </div>
+        </div>
+      </CollapsiblePanel>
+
+      <CollapsiblePanel
+        title="Formula Transparency"
+        subtitle="Combined formula traces from load, airflow, and equipment engines"
+        defaultOpen={isProfessional}
+      >
+        {isProfessional ? (
+          <div className="space-y-4">
+            <div>
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.13em] text-[color:var(--muted-foreground)]">Load Equations</p>
               <div className="space-y-3">
-                {[
-                  { label: 'Equipment', value: boqData.equipmentCost, pct: (boqData.equipmentCost / boqData.subtotal) * 100 },
-                  { label: 'Materials', value: boqData.materialCost, pct: (boqData.materialCost / boqData.subtotal) * 100 },
-                  { label: 'Labor', value: boqData.laborCost, pct: (boqData.laborCost / boqData.subtotal) * 100 },
-                  { label: 'Overhead', value: boqData.overhead, pct: (boqData.overhead / boqData.subtotal) * 100 },
-                  { label: 'Contingency', value: boqData.contingency, pct: (boqData.contingency / boqData.subtotal) * 100 },
-                ].map((item) => (
-                  <div key={item.label} className="flex items-center gap-3">
-                    <span className="w-24 text-[13px] text-muted-foreground">{item.label}</span>
-                    <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${item.pct}%` }}
-                        transition={{ duration: 0.8, ease: 'easeOut' }}
-                        className="h-full bg-foreground/70 rounded-full"
-                      />
-                    </div>
-                    <span className="w-28 text-right text-[13px] font-medium tabular-nums">{formatPHP(item.value)}</span>
-                    <span className="w-10 text-right text-[11px] text-muted-foreground tabular-nums">{item.pct.toFixed(0)}%</span>
+                {loadResult.formulas.map((formula) => (
+                  <div key={`load-${formula.label}`} className="rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-2)] p-4">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[color:var(--foreground)]">{formula.label}</p>
+                    <p className="mt-1 font-mono text-xs text-[color:var(--muted-foreground)]">{formula.expression}</p>
+                    <p className="mt-1.5 text-xs font-semibold text-[color:var(--accent)]">{formula.value}</p>
                   </div>
                 ))}
-                <div className="border-t border-border/50 pt-3 mt-3">
-                  <div className="flex justify-between items-center text-[13px]">
-                    <span className="text-muted-foreground">Subtotal</span>
-                    <span className="font-medium tabular-nums">{formatPHP(boqData.subtotal)}</span>
+              </div>
+            </div>
+
+            <div>
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.13em] text-[color:var(--muted-foreground)]">Airflow Equations</p>
+              <div className="space-y-3">
+                {airflowResult.formulas.map((formula) => (
+                  <div key={`air-${formula.label}`} className="rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-2)] p-4">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[color:var(--foreground)]">{formula.label}</p>
+                    <p className="mt-1 font-mono text-xs text-[color:var(--muted-foreground)]">{formula.expression}</p>
+                    <p className="mt-1.5 text-xs font-semibold text-[color:var(--accent)]">{formula.value}</p>
                   </div>
-                  <div className="flex justify-between items-center mt-1.5 text-[13px]">
-                    <span className="text-muted-foreground">VAT (12%)</span>
-                    <span className="tabular-nums text-muted-foreground">{formatPHP(boqData.vat)}</span>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.13em] text-[color:var(--muted-foreground)]">Equipment Equations</p>
+              <div className="space-y-3">
+                {equipmentResult.formulas.map((formula) => (
+                  <div key={`equip-${formula.label}`} className="rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-2)] p-4">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[color:var(--foreground)]">{formula.label}</p>
+                    <p className="mt-1 font-mono text-xs text-[color:var(--muted-foreground)]">{formula.expression}</p>
+                    <p className="mt-1.5 text-xs font-semibold text-[color:var(--accent)]">{formula.value}</p>
                   </div>
-                  <div className="flex justify-between items-center mt-3 text-sm font-semibold">
-                    <span>Grand Total</span>
-                    <span className="tabular-nums">{formatPHP(boqData.grandTotal)}</span>
-                  </div>
-                </div>
+                ))}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-start gap-2 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-2)] p-4 text-sm text-[color:var(--muted-foreground)]">
+            <Info size={14} className="mt-0.5 shrink-0" />
+            Formula traces are available in Professional mode.
+          </div>
+        )}
+      </CollapsiblePanel>
 
-          {/* Cooling Load Table */}
-          {rooms.length > 0 && (
-            <Card>
-              <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Snowflake className="w-4 h-4 text-muted-foreground" /> Cooling Load Summary
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-[13px]">
-                    <thead>
-                      <tr className="border-b border-border text-muted-foreground">
-                        <th className="text-left py-2.5 pr-4 text-[11px] uppercase tracking-wider font-medium">Room</th>
-                        <th className="text-left py-2.5 pr-4 text-[11px] uppercase tracking-wider font-medium">Type</th>
-                        <th className="text-right py-2.5 pr-4 text-[11px] uppercase tracking-wider font-medium">Area (m²)</th>
-                        <th className="text-right py-2.5 pr-4 text-[11px] uppercase tracking-wider font-medium">Total (W)</th>
-                        <th className="text-right py-2.5 pr-4 text-[11px] uppercase tracking-wider font-medium">Sensible (W)</th>
-                        <th className="text-right py-2.5 text-[11px] uppercase tracking-wider font-medium">Latent (W)</th>
-                      </tr>
-                    </thead>
-                    <motion.tbody
-                      variants={listContainerVariants}
-                      initial="initial"
-                      animate="animate"
-                    >
-                      {rooms.map((room) => (
-                        <motion.tr
-                          key={room.id}
-                          variants={listItemVariants}
-                          className="border-b border-border/40 hover:bg-secondary/30 transition-colors"
-                        >
-                          <td className="py-2.5 pr-4 font-medium">{room.name}</td>
-                          <td className="py-2.5 pr-4">
-                            <Badge size="sm" variant="outline">
-                              {room.spaceType}
-                            </Badge>
-                          </td>
-                          <td className="py-2.5 pr-4 text-right tabular-nums">{room.area.toFixed(1)}</td>
-                          <td className="py-2.5 pr-4 text-right tabular-nums font-medium">
-                            {(room.coolingLoad?.totalLoad || 0).toLocaleString()}
-                          </td>
-                          <td className="py-2.5 pr-4 text-right tabular-nums text-muted-foreground">
-                            {(room.coolingLoad?.totalSensibleLoad || 0).toLocaleString()}
-                          </td>
-                          <td className="py-2.5 text-right tabular-nums text-muted-foreground">
-                            {(room.coolingLoad?.totalLatentLoad || 0).toLocaleString()}
-                          </td>
-                        </motion.tr>
-                      ))}
-                    </motion.tbody>
-                    <tfoot>
-                      <tr className="border-t-2 border-border font-semibold">
-                        <td className="py-2.5" colSpan={3}>
-                          Total
-                        </td>
-                        <td className="py-2.5 text-right tabular-nums">{totalCoolingLoad.toLocaleString()}</td>
-                        <td className="py-2.5 text-right tabular-nums">
-                          {rooms.reduce((s, r) => s + (r.coolingLoad?.totalSensibleLoad || 0), 0).toLocaleString()}
-                        </td>
-                        <td className="py-2.5 text-right tabular-nums">
-                          {rooms.reduce((s, r) => s + (r.coolingLoad?.totalLatentLoad || 0), 0).toLocaleString()}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* BOQ Detail — Grouped by Floor */}
-          {groupedByFloor && Object.keys(groupedByFloor).length > 0 && (
-            <Card>
-              <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-muted-foreground" /> Bill of Quantities
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {Object.entries(groupedByFloor).map(([floorName, sections]) => {
-                    const floorTotal = Object.values(sections).flat().reduce((s, i) => s + i.totalPrice, 0);
-                    return (
-                      <div key={floorName} className="space-y-2">
-                        <div className="flex items-center justify-between px-2 py-1.5 bg-accent/8 rounded-lg">
-                          <span className="font-semibold text-sm flex items-center gap-2">
-                            <Building2 className="w-4 h-4 text-accent" /> {floorName}
-                          </span>
-                          <span className="text-sm font-medium tabular-nums">{formatPHP(floorTotal)}</span>
-                        </div>
-                        {Object.entries(sections).map(([section, items]) => {
-                          const isOpen = expandedSections[`${floorName}-${section}`] ?? true;
-                          const sectionTotal = items.reduce((s, i) => s + i.totalPrice, 0);
-
-                          return (
-                            <div key={section} className="border border-border/50 rounded-lg overflow-hidden ml-3">
-                              <button
-                                onClick={() => toggleSection(`${floorName}-${section}`)}
-                                className="w-full flex items-center justify-between px-4 py-3 bg-secondary/40 hover:bg-secondary transition-colors"
-                              >
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium text-[13px]">{section}</span>
-                                  <Badge size="sm" variant="outline">{items.length} items</Badge>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                  <span className="text-[13px] font-medium tabular-nums">{formatPHP(sectionTotal)}</span>
-                                  {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                                </div>
-                              </button>
-                              <AnimatePresence>
-                                {isOpen && (
-                                  <motion.div
-                                    initial={{ height: 0, opacity: 0 }}
-                                    animate={{ height: 'auto', opacity: 1 }}
-                                    exit={{ height: 0, opacity: 0 }}
-                                    transition={{ duration: 0.2 }}
-                                  >
-                                    <table className="w-full text-[13px]">
-                                      <thead>
-                                        <tr className="border-b border-border/50 text-[11px] uppercase tracking-wider text-muted-foreground">
-                                          <th className="text-left py-2 px-4 font-medium">Description</th>
-                                          <th className="text-right py-2 px-2 font-medium">Qty</th>
-                                          <th className="text-left py-2 px-2 font-medium">Unit</th>
-                                          <th className="text-right py-2 px-2 font-medium">Unit Price</th>
-                                          <th className="text-right py-2 px-4 font-medium">Total</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {items.map((item, idx) => (
-                                          <tr
-                                            key={idx}
-                                            className="border-b border-border/30 hover:bg-secondary/30 transition-colors"
-                                          >
-                                            <td className="py-2 px-4">{item.description}</td>
-                                            <td className="py-2 px-2 text-right tabular-nums">{item.quantity}</td>
-                                            <td className="py-2 px-2 text-muted-foreground">{item.unit}</td>
-                                            <td className="py-2 px-2 text-right tabular-nums">{formatPHP(item.unitPrice)}</td>
-                                            <td className="py-2 px-4 text-right font-medium tabular-nums">{formatPHP(item.totalPrice)}</td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </motion.div>
-                                )}
-                              </AnimatePresence>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Equipment List */}
-          {equipment.length > 0 && (
-            <Card>
-              <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Snowflake className="w-4 h-4 text-muted-foreground" /> Equipment Schedule
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-[13px]">
-                    <thead>
-                      <tr className="border-b border-border text-muted-foreground">
-                        <th className="text-left py-2.5 pr-4 text-[11px] uppercase tracking-wider font-medium">Model</th>
-                        <th className="text-left py-2.5 pr-4 text-[11px] uppercase tracking-wider font-medium">Brand</th>
-                        <th className="text-left py-2.5 pr-4 text-[11px] uppercase tracking-wider font-medium">Type</th>
-                        <th className="text-right py-2.5 pr-4 text-[11px] uppercase tracking-wider font-medium">Capacity (TR)</th>
-                        <th className="text-right py-2.5 pr-4 text-[11px] uppercase tracking-wider font-medium">Unit Price</th>
-                        <th className="text-right py-2.5 text-[11px] uppercase tracking-wider font-medium">Qty</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {equipment.map((eq) => (
-                        <tr key={eq.id} className="border-b border-border/40 hover:bg-secondary/30 transition-colors">
-                          <td className="py-2.5 pr-4 font-medium">{eq.model}</td>
-                          <td className="py-2.5 pr-4 text-muted-foreground">{eq.brand}</td>
-                          <td className="py-2.5 pr-4">
-                            <Badge size="sm" variant="outline">{eq.type}</Badge>
-                          </td>
-                          <td className="py-2.5 pr-4 text-right tabular-nums">{eq.capacityTR.toFixed(1)} TR</td>
-                          <td className="py-2.5 pr-4 text-right tabular-nums">{formatPHP(eq.unitPrice)}</td>
-                          <td className="py-2.5 text-right tabular-nums">{eq.quantity}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-            </motion.div>
-          )}
-        </div>
-
-        <div className="space-y-5">
-          <Card className="border-border/65 bg-[linear-gradient(165deg,rgba(206,161,74,0.14),rgba(255,255,255,0.92))] shadow-[0_14px_28px_-24px_rgba(19,32,51,0.68)]">
-            <CardHeader>
-              <CardTitle className="text-[13px] flex items-center gap-2">
-                <Info className="w-4 h-4 text-accent" /> Report Snapshot
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="rounded-lg border border-border/70 bg-card/90 p-3">
-                <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Selected Project</p>
-                <p className="text-sm font-semibold truncate">{selectedProject?.name || 'None'}</p>
-              </div>
-              <div className="rounded-lg border border-border/70 bg-card/90 p-3">
-                <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">BOQ Sections</p>
-                <p className="text-2xl font-semibold tabular-nums">{boqData ? boqSectionCount : '—'}</p>
-              </div>
-              <div className="rounded-lg border border-border/70 bg-card/90 p-3">
-                <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Equipment Lines</p>
-                <p className="text-2xl font-semibold tabular-nums">{boqData ? equipment.length : '—'}</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/65 bg-card/90 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.66)]">
-            <CardHeader>
-              <CardTitle className="text-[13px]">Export Readiness</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-[12px]">
-              <div className="flex items-center justify-between rounded-lg border border-border/55 bg-secondary/45 px-3 py-2">
-                <span className="flex items-center gap-2 text-muted-foreground"><CheckCircle2 className="w-3.5 h-3.5 text-success" /> BOQ Data</span>
-                <span className="font-medium">{boqData ? 'Ready' : 'Pending'}</span>
-              </div>
-              <div className="flex items-center justify-between rounded-lg border border-border/55 bg-secondary/45 px-3 py-2">
-                <span className="flex items-center gap-2 text-muted-foreground"><CheckCircle2 className="w-3.5 h-3.5 text-success" /> Room Loads</span>
-                <span className="font-medium">{rooms.length > 0 ? 'Ready' : 'Pending'}</span>
-              </div>
-              <div className="flex items-center justify-between rounded-lg border border-border/55 bg-secondary/45 px-3 py-2">
-                <span className="flex items-center gap-2 text-muted-foreground"><CheckCircle2 className="w-3.5 h-3.5 text-success" /> Equipment</span>
-                <span className="font-medium">{equipment.length > 0 ? 'Ready' : 'Pending'}</span>
-              </div>
-              <div className="pt-2 border-t border-border/60">
-                <Button variant="secondary" size="sm" className="w-full" disabled={!boqData || generating} onClick={exportExcel}>
-                  <FileSpreadsheet className="w-4 h-4 mr-1" /> Export Excel
-                </Button>
-                <Button variant="accent" size="sm" className="w-full mt-2" disabled={!boqData || generating} onClick={exportPDF}>
-                  <Download className="w-4 h-4 mr-1" /> Export PDF
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </PageWrapper>
+      {(loadResult.alerts.length > 0 || airflowResult.alerts.length > 0 || equipmentResult.alerts.length > 0) && (
+        <Card title="Advisories" subtitle="Cross-module warnings and checks">
+          <div className="space-y-2 rounded-xl border border-[color:var(--warning)] bg-[color:var(--surface-2)] p-4 text-sm text-[color:var(--foreground)]">
+            {loadResult.alerts.map((alert) => (
+              <p key={`load-alert-${alert}`}>Load: {alert}</p>
+            ))}
+            {airflowResult.alerts.map((alert) => (
+              <p key={`air-alert-${alert}`}>Airflow: {alert}</p>
+            ))}
+            {equipmentResult.alerts.map((alert) => (
+              <p key={`equip-alert-${alert}`}>Equipment: {alert}</p>
+            ))}
+          </div>
+        </Card>
+      )}
+    </div>
   );
 }

@@ -5,6 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth/guard';
 import { runCFDSimulation } from '@/lib/functions/cfd-simulation';
 import { checkASHRAECompliance } from '@/lib/functions/ashrae-compliance';
 import { simulateFailure, calculatePUE } from '@/lib/functions/failure-simulation';
@@ -15,6 +16,11 @@ type SimAction = 'cfd' | 'compliance' | 'failure' | 'pue' | 'optimize';
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth(request);
+    if (!auth.authorized) {
+      return auth.response;
+    }
+
     const body = await request.json();
     const action: SimAction = body.action;
 

@@ -165,7 +165,7 @@ export default function NewProjectPage() {
                 Define design conditions, building profile, and psychrometric inputs before room modeling.
               </p>
             </div>
-            <div className="text-xs tabular-nums text-muted-foreground">
+            <div className="text-sm tabular-nums text-muted-foreground">
               Draft mode · unsaved
             </div>
           </div>
@@ -173,7 +173,7 @@ export default function NewProjectPage() {
       </Card>
 
       <form onSubmit={handleSubmit}>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-7 lg:grid-cols-2">
           {/* Project Details */}
           <Card className="border-border/65 bg-card/90 shadow-[0_14px_28px_-24px_rgba(19,32,51,0.66)]">
             <CardHeader>
@@ -211,7 +211,7 @@ export default function NewProjectPage() {
                 onChange={(e) => handleChange('city', e.target.value)}
                 options={cityOptions.map((c) => ({ value: c.value, label: c.label }))}
               />
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <Input
                   label="Floors Above Grade"
                   type="number"
@@ -256,11 +256,11 @@ export default function NewProjectPage() {
                 <p className="text-sm font-medium text-muted-foreground mb-1">
                   Carrier Psychrometric Chart
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   Set outdoor DB & RH — wet-bulb, dew point, humidity ratio, and enthalpy are auto-computed.
                 </p>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <Input
                   label="Outdoor Dry Bulb (°C)"
                   type="number"
@@ -289,14 +289,14 @@ export default function NewProjectPage() {
               {(() => {
                 const ps = psychrometricState(Number(form.outdoorDB) || 35, Number(form.outdoorRH) || 50);
                 return (
-                  <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="grid grid-cols-3 gap-3 text-center">
                     {NEW_PROJECT_PSYCHRO_METRICS.map((metric) => (
                       <div
                         key={metric.term}
-                        className="rounded-lg border border-border/60 bg-background/90 px-1 py-1.5 shadow-[0_8px_16px_-18px_rgba(19,32,51,0.9)]"
+                        className="rounded-lg border border-border/60 bg-background/90 px-2 py-2 shadow-[0_8px_16px_-18px_rgba(19,32,51,0.9)]"
                       >
                         <p className="text-sm font-semibold tabular-nums">{metric.formatValue(ps)}</p>
-                        <div className="text-[9px] uppercase tracking-wider text-muted-foreground">
+                        <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
                           <TermHint
                             term={metric.term}
                             definition={metric.definition}
@@ -309,7 +309,7 @@ export default function NewProjectPage() {
                   </div>
                 );
               })()}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <Input
                   label="Indoor Dry Bulb (°C)"
                   type="number"

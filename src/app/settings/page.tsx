@@ -7,10 +7,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { showToast } from '@/components/ui/toast';
+import { useAuthStore } from '@/stores/auth-store';
 import { safeJsonParse } from '@/lib/utils/safe-json';
-import { Save, RotateCcw, Thermometer, Building2, PhilippinePeso, Snowflake, Plus, Trash2 } from 'lucide-react';
+import { Save, RotateCcw, Thermometer, Building2, PhilippinePeso, Snowflake, Plus, Trash2, ShieldAlert } from 'lucide-react';
 
 export default function SettingsPage() {
+  const user = useAuthStore((state) => state.user);
+  const canManageSettings = user?.role === 'admin';
+
   const [settings, setSettings] = useState({
     // Design Defaults
     defaultIndoorDB: 24,
@@ -88,6 +92,8 @@ export default function SettingsPage() {
   }, []);
 
   const addPlacementRule = () => {
+    if (!canManageSettings) return;
+
     const newId = Math.max(0, ...placementRules.map((r) => r.id)) + 1;
     setPlacementRules([...placementRules, {
       id: newId,
@@ -101,18 +107,26 @@ export default function SettingsPage() {
   };
 
   const removePlacementRule = (id: number) => {
+    if (!canManageSettings) return;
     setPlacementRules(placementRules.filter((r) => r.id !== id));
   };
 
   const updatePlacementRule = (id: number, field: string, value: string | number) => {
+    if (!canManageSettings) return;
     setPlacementRules(placementRules.map((r) => r.id === id ? { ...r, [field]: value } : r));
   };
 
   const handleChange = (field: string, value: string | number | boolean) => {
+    if (!canManageSettings) return;
     setSettings((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSave = async () => {
+    if (!canManageSettings) {
+      showToast('warning', 'Read-only access', 'Only admins can update settings.');
+      return;
+    }
+
     const payload = { ...settings, placementRules };
     try {
       const res = await fetch('/api/settings', {
@@ -130,6 +144,11 @@ export default function SettingsPage() {
   };
 
   const handleReset = async () => {
+    if (!canManageSettings) {
+      showToast('warning', 'Read-only access', 'Only admins can reset settings.');
+      return;
+    }
+
     const defaults = {
       defaultIndoorDB: 24,
       defaultIndoorRH: 50,
@@ -186,14 +205,27 @@ export default function SettingsPage() {
                 Tune default design assumptions, costing factors, and unit-placement rules to match your firm standards.
               </p>
             </div>
-            <div className="text-xs text-muted-foreground tabular-nums">
+            <div className="text-sm text-muted-foreground tabular-nums">
               {placementRules.length} placement rule{placementRules.length !== 1 ? 's' : ''}
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      {!canManageSettings && (
+        <Card className="mb-6 border-[rgba(206,161,74,0.45)] bg-[rgba(206,161,74,0.12)]">
+          <CardContent className="py-3">
+            <div className="flex items-start gap-2 text-sm text-[color:var(--foreground)]">
+              <ShieldAlert className="mt-0.5 h-4 w-4 text-[color:var(--accent-dark)]" />
+              <p>
+                Read-only mode: settings updates are restricted to admin accounts.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Design Defaults */}
         <Card className="border-border/70 bg-card/85">
           <CardHeader>
@@ -203,7 +235,7 @@ export default function SettingsPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               <Input
                 label="Indoor Dry Bulb (°C)"
                 type="number"
@@ -213,6 +245,7 @@ export default function SettingsPage() {
                 unit="°C"
                 value={settings.defaultIndoorDB}
                 onChange={(e) => handleChange('defaultIndoorDB', parseFloat(e.target.value))}
+                disabled={!canManageSettings}
               />
               <Input
                 label="Indoor RH (%)"
@@ -223,9 +256,10 @@ export default function SettingsPage() {
                 unit="%"
                 value={settings.defaultIndoorRH}
                 onChange={(e) => handleChange('defaultIndoorRH', parseInt(e.target.value))}
+                disabled={!canManageSettings}
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               <Input
                 label="Safety Factor"
                 type="number"
@@ -236,6 +270,7 @@ export default function SettingsPage() {
                 value={settings.defaultSafetyFactor}
                 onChange={(e) => handleChange('defaultSafetyFactor', parseFloat(e.target.value))}
                 hint="Typically 1.05-1.15"
+                disabled={!canManageSettings}
               />
               <Input
                 label="Diversity Factor"
@@ -247,6 +282,7 @@ export default function SettingsPage() {
                 value={settings.defaultDiversityFactor}
                 onChange={(e) => handleChange('defaultDiversityFactor', parseFloat(e.target.value))}
                 hint="0.7-1.0 typical"
+                disabled={!canManageSettings}
               />
             </div>
             <Input
@@ -258,8 +294,9 @@ export default function SettingsPage() {
               unit="m"
               value={settings.defaultCeilingHeight}
               onChange={(e) => handleChange('defaultCeilingHeight', parseFloat(e.target.value))}
+              disabled={!canManageSettings}
             />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               <Input
                 label="Lighting Density (W/m²)"
                 type="number"
@@ -269,6 +306,7 @@ export default function SettingsPage() {
                 unit="W/m²"
                 value={settings.defaultLightingDensity}
                 onChange={(e) => handleChange('defaultLightingDensity', parseFloat(e.target.value))}
+                disabled={!canManageSettings}
               />
               <Input
                 label="Equipment Load (W)"
@@ -279,6 +317,7 @@ export default function SettingsPage() {
                 unit="W"
                 value={settings.defaultEquipmentLoad}
                 onChange={(e) => handleChange('defaultEquipmentLoad', parseFloat(e.target.value))}
+                disabled={!canManageSettings}
               />
             </div>
           </CardContent>
@@ -303,6 +342,7 @@ export default function SettingsPage() {
               value={settings.laborMultiplier}
               onChange={(e) => handleChange('laborMultiplier', parseFloat(e.target.value))}
               hint="35% of material cost = 0.35"
+              disabled={!canManageSettings}
             />
             <Input
               label="Overhead & Profit (%)"
@@ -314,6 +354,7 @@ export default function SettingsPage() {
               value={settings.overheadPercent}
               onChange={(e) => handleChange('overheadPercent', parseFloat(e.target.value))}
               hint="15% = 0.15"
+              disabled={!canManageSettings}
             />
             <Input
               label="VAT Rate"
@@ -325,6 +366,7 @@ export default function SettingsPage() {
               value={settings.vatRate}
               onChange={(e) => handleChange('vatRate', parseFloat(e.target.value))}
               hint="12% Philippine VAT = 0.12"
+              disabled={!canManageSettings}
             />
             <Input
               label="Contingency (%)"
@@ -336,11 +378,13 @@ export default function SettingsPage() {
               value={settings.contingencyPercent}
               onChange={(e) => handleChange('contingencyPercent', parseFloat(e.target.value))}
               hint="5% = 0.05"
+              disabled={!canManageSettings}
             />
             <Select
               label="Default Budget Level"
               value={settings.defaultBudgetLevel}
               onChange={(e) => handleChange('defaultBudgetLevel', e.target.value)}
+              disabled={!canManageSettings}
               options={[
                 { value: 'economy', label: 'Economy' },
                 { value: 'mid-range', label: 'Mid-Range' },
@@ -364,6 +408,7 @@ export default function SettingsPage() {
                 label="Temperature Unit"
                 value={settings.temperatureUnit}
                 onChange={(e) => handleChange('temperatureUnit', e.target.value)}
+                disabled={!canManageSettings}
                 options={[
                   { value: 'celsius', label: 'Celsius (°C)' },
                   { value: 'fahrenheit', label: 'Fahrenheit (°F)' },
@@ -373,6 +418,7 @@ export default function SettingsPage() {
                 label="Area Unit"
                 value={settings.areaUnit}
                 onChange={(e) => handleChange('areaUnit', e.target.value)}
+                disabled={!canManageSettings}
                 options={[
                   { value: 'sqm', label: 'Square Meters (m²)' },
                   { value: 'sqft', label: 'Square Feet (ft²)' },
@@ -382,6 +428,7 @@ export default function SettingsPage() {
                 label="Length Unit"
                 value={settings.lengthUnit}
                 onChange={(e) => handleChange('lengthUnit', e.target.value)}
+                disabled={!canManageSettings}
                 options={[
                   { value: 'meters', label: 'Meters (m)' },
                   { value: 'feet', label: 'Feet (ft)' },
@@ -391,6 +438,7 @@ export default function SettingsPage() {
                 label="Currency Symbol"
                 value={settings.currencySymbol}
                 onChange={(e) => handleChange('currencySymbol', e.target.value)}
+                disabled={!canManageSettings}
               />
             </div>
           </CardContent>
@@ -404,30 +452,35 @@ export default function SettingsPage() {
                 <Snowflake className="w-4 h-4 text-muted-foreground" />
                 <CardTitle>Unit Placement Rules</CardTitle>
               </div>
-              <Button variant="secondary" size="sm" onClick={addPlacementRule}>
-                <Plus className="w-4 h-4 mr-1" /> Add Rule
-              </Button>
+              {canManageSettings && (
+                <Button variant="secondary" size="sm" onClick={addPlacementRule}>
+                  <Plus className="w-4 h-4 mr-1" /> Add Rule
+                </Button>
+              )}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Define which AC unit types should be placed in specific space types, with sizing limits and mounting preferences.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Define which AC unit types should be placed in specific space types, with sizing limits and mounting preferences.</p>
           </CardHeader>
           <CardContent>
             {placementRules.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">No placement rules defined. Click &quot;Add Rule&quot; to create one.</p>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {placementRules.map((rule) => (
-                  <div key={rule.id} className="space-y-3 rounded-lg border border-border/55 bg-background/75 p-4">
+                  <div key={rule.id} className="space-y-4 rounded-lg border border-border/55 bg-background/75 p-5">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Rule #{rule.id}</span>
-                      <Button variant="ghost" size="sm" onClick={() => removePlacementRule(rule.id)}>
-                        <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                      </Button>
+                      <span className="text-sm font-medium uppercase tracking-[0.08em] text-muted-foreground">Rule #{rule.id}</span>
+                      {canManageSettings && (
+                        <Button variant="ghost" size="sm" onClick={() => removePlacementRule(rule.id)}>
+                          <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                        </Button>
+                      )}
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
                       <Select
                         label="Space Type"
                         value={rule.spaceType}
                         onChange={(e) => updatePlacementRule(rule.id, 'spaceType', e.target.value)}
+                        disabled={!canManageSettings}
                         options={[
                           { value: 'office', label: 'Office' },
                           { value: 'conference_room', label: 'Conference' },
@@ -453,11 +506,13 @@ export default function SettingsPage() {
                         value={rule.maxTR}
                         onChange={(e) => updatePlacementRule(rule.id, 'maxTR', e.target.value === '' ? '' : parseFloat(e.target.value) || rule.maxTR)}
                         onBlur={() => { if (!rule.maxTR) updatePlacementRule(rule.id, 'maxTR', 3); }}
+                        disabled={!canManageSettings}
                       />
                       <Select
                         label="Preferred Unit"
                         value={rule.preferredUnit}
                         onChange={(e) => updatePlacementRule(rule.id, 'preferredUnit', e.target.value)}
+                        disabled={!canManageSettings}
                         options={[
                           { value: 'wall_split', label: 'Wall Split' },
                           { value: 'ceiling_cassette', label: 'Ceiling Cassette' },
@@ -479,11 +534,13 @@ export default function SettingsPage() {
                         value={rule.wallMountHeight}
                         onChange={(e) => updatePlacementRule(rule.id, 'wallMountHeight', e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
                         onBlur={() => { if ((rule.wallMountHeight as unknown) === '' || rule.wallMountHeight == null) updatePlacementRule(rule.id, 'wallMountHeight', 0); }}
+                        disabled={!canManageSettings}
                       />
                       <Select
                         label="Outdoor Unit"
                         value={rule.outdoorPlacement}
                         onChange={(e) => updatePlacementRule(rule.id, 'outdoorPlacement', e.target.value)}
+                        disabled={!canManageSettings}
                         options={[
                           { value: 'rooftop', label: 'Rooftop' },
                           { value: 'ground_level', label: 'Ground Level' },
@@ -496,6 +553,7 @@ export default function SettingsPage() {
                         label="Notes"
                         value={rule.notes}
                         onChange={(e) => updatePlacementRule(rule.id, 'notes', e.target.value)}
+                        disabled={!canManageSettings}
                       />
                     </div>
                   </div>
@@ -504,14 +562,22 @@ export default function SettingsPage() {
             )}
           </CardContent>
           <CardFooter className="flex justify-between border-t border-border/55 bg-background/70">
-            <Button variant="ghost" onClick={handleReset}>
-              <RotateCcw className="w-4 h-4 mr-2" />
-              Reset to Defaults
-            </Button>
-            <Button variant="accent" onClick={handleSave}>
-              <Save className="w-4 h-4 mr-2" />
-              Save Settings
-            </Button>
+            {canManageSettings ? (
+              <>
+                <Button variant="ghost" onClick={handleReset}>
+                  <RotateCcw className="w-4 h-4 mr-2" />
+                  Reset to Defaults
+                </Button>
+                <Button variant="accent" onClick={handleSave}>
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Settings
+                </Button>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Viewing current standards in read-only mode.
+              </p>
+            )}
           </CardFooter>
         </Card>
       </div>

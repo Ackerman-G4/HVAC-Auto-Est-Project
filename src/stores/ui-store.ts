@@ -19,7 +19,7 @@ export const useUIStore = create<UIStore>((set) => ({
   sidebarCollapsed: false,
   mobileSidebarOpen: false,
   workspaceMode: 'professional',
-  theme: 'light',
+  theme: 'dark',
   toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
   setMobileSidebar: (open) => set({ mobileSidebarOpen: open }),
   setWorkspaceMode: (mode) => set({ workspaceMode: mode }),
