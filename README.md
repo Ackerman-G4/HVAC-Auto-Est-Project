@@ -104,10 +104,86 @@ npm run validate:preflight:strict
 npm run validate:preflight:strict:local
 npm run validate:auth
 npm run validate:auth:positive
+npm run validate:rbac
+npm run validate:rbac:positive
+npm run validate:rbac:positive:strict
+npm run validate:rbac:positive:raw
 npm run validate:dual-control
+npm run validate:catalog:admin
+npm run validate:catalog:admin:strict
 npm run validate:quality
 npm run validate:system
+npm run validate:system:strict
+npm run validate:system:strict:raw
 npm run validate:system:local
+npm run validate:system:strict:local
+```
+
+System validation modes:
+
+- `validate:system` uses resilient local-friendly checks (including RBAC fallback behavior when strict admin bootstrap is unavailable).
+- `validate:system:strict` is a smart entrypoint: it runs raw strict validation when CI or strict credentials are present, otherwise it routes local shells to strict local orchestration.
+- `validate:system:strict:raw` enforces strict preflight + strict positive auth/RBAC + strict catalog mutation validation for CI or release gates.
+- `validate:system:local` orchestrates a local end-to-end run by loading env files, ensuring emulator context, launching a dedicated local validation app instance, executing each validation step against an explicit base URL, then cleaning up started processes.
+- `validate:system:strict:local` orchestrates strict validation locally (emulator + dedicated app instance) and enables emulator-only admin self-assignment for temporary strict smoke credentials.
+
+## CI Strict Validation
+
+GitHub Actions workflow:
+
+- `.github/workflows/validate-system-strict.yml`
+
+It executes `scripts/ci-validate-system-strict.ps1`, which:
+
+- verifies required commands and environment variables
+- starts Firestore emulator + Next.js app in background
+- runs `npm run validate:system:strict`
+- uploads `.logs/*` artifacts on every run
+
+Required GitHub repository secrets:
+
+- `FIREBASE_WEB_API_KEY`
+
+Provide one strict credential strategy:
+
+- `FIREBASE_SERVICE_ACCOUNT_JSON`, or
+- both `RBAC_ADMIN_EMAIL` and `RBAC_ADMIN_PASSWORD` for a pre-provisioned admin account
+
+Conditionally required when using the pre-provisioned admin credential strategy:
+
+- `RBAC_ADMIN_EMAIL`
+- `RBAC_ADMIN_PASSWORD`
+
+RBAC validation notes:
+
+- `validate:rbac` always checks unauthorized (`401`) and engineer-forbidden (`403`) behavior across settings/materials/suppliers role gates, and auto-bootstraps a temporary engineer user when needed.
+- `validate:rbac:positive` auto-bootstraps a temporary admin user when admin credentials are missing; if promotion is blocked by missing Firebase Admin credentials, it falls back to non-strict RBAC checks for local continuity.
+- `validate:rbac:positive:strict` enforces strict failure when admin bootstrap/promotion cannot complete.
+- If you already have admin credentials set and want no bootstrap side effects, use `validate:rbac:positive:raw`.
+
+Catalog admin validation notes:
+
+- `validate:catalog:admin` performs admin mutation checks for settings/materials/suppliers and verifies payload validation failures (`400`) for malformed writes. It skips when admin credentials are unavailable.
+- `validate:catalog:admin:strict` verifies settings/materials/suppliers audit-log emission in the `auditLogs` collection and requires emulator context (`FIRESTORE_EMULATOR_HOST`). If admin credentials are absent, it auto-bootstraps a temporary admin user in emulator-backed runs.
+
+## Role Provisioning (Admin Bootstrap)
+
+Public registration defaults to engineer role. To assign admin role securely, run the local Firebase Admin utility:
+
+```bash
+npm run auth:set-role -- --email your-user@example.com --role admin
+```
+
+Dry run example:
+
+```bash
+npm run auth:set-role -- --email your-user@example.com --role admin --dry-run
+```
+
+You can also target a uid directly:
+
+```bash
+npm run auth:set-role -- --uid <firebase-uid> --role admin
 ```
 
 ## Firebase Project Alias Note
