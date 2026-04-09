@@ -16,6 +16,15 @@ type GlobalFirebaseCache = typeof globalThis & {
 
 const globalCache = globalThis as GlobalFirebaseCache;
 
+function readNonEmptyString(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
 function readPrivateKeyFromEnv(): string | undefined {
   const direct = process.env.FIREBASE_PRIVATE_KEY;
   if (direct && direct.trim()) {
@@ -41,10 +50,17 @@ function parseServiceAccountFromJsonEnv(): ServiceAccount | null {
   }
 
   try {
-    const parsed = JSON.parse(raw) as Partial<ServiceAccount>;
-    const projectId = parsed.projectId;
-    const clientEmail = parsed.clientEmail;
-    const privateKey = parsed.privateKey;
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+
+    const projectId =
+      readNonEmptyString(parsed.projectId) ||
+      readNonEmptyString(parsed.project_id);
+    const clientEmail =
+      readNonEmptyString(parsed.clientEmail) ||
+      readNonEmptyString(parsed.client_email);
+    const privateKey =
+      readNonEmptyString(parsed.privateKey) ||
+      readNonEmptyString(parsed.private_key);
 
     if (!projectId || !clientEmail || !privateKey) {
       return null;
