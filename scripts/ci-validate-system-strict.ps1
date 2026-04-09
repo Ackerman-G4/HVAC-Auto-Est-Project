@@ -40,14 +40,16 @@ function Assert-Env {
 }
 
 function Assert-StrictCredentialStrategy {
-  $hasServiceAccount = Test-NonEmpty ([Environment]::GetEnvironmentVariable('FIREBASE_SERVICE_ACCOUNT_JSON', 'Process'))
+  $hasServiceAccount =
+    (Test-NonEmpty ([Environment]::GetEnvironmentVariable('FIREBASE_SERVICE_ACCOUNT_JSON', 'Process'))) -or
+    (Test-NonEmpty ([Environment]::GetEnvironmentVariable('FIREBASE_SERVICE_ACCOUNT', 'Process')))
   $hasAdminCredentials =
     (Test-NonEmpty ([Environment]::GetEnvironmentVariable('RBAC_ADMIN_EMAIL', 'Process'))) -and
     (Test-NonEmpty ([Environment]::GetEnvironmentVariable('RBAC_ADMIN_PASSWORD', 'Process')))
 
   if ($hasServiceAccount -or $hasAdminCredentials) {
     if ($hasServiceAccount) {
-      Write-Host 'Using strict credential strategy: FIREBASE_SERVICE_ACCOUNT_JSON present.'
+      Write-Host 'Using strict credential strategy: FIREBASE_SERVICE_ACCOUNT_JSON/FIREBASE_SERVICE_ACCOUNT present.'
     }
     else {
       Write-Host 'Using strict credential strategy: pre-provisioned RBAC admin credentials.'
@@ -55,7 +57,7 @@ function Assert-StrictCredentialStrategy {
     return
   }
 
-  throw 'Missing strict credential strategy. Provide FIREBASE_SERVICE_ACCOUNT_JSON, or provide both RBAC_ADMIN_EMAIL and RBAC_ADMIN_PASSWORD.'
+  throw 'Missing strict credential strategy. Provide FIREBASE_SERVICE_ACCOUNT_JSON/FIREBASE_SERVICE_ACCOUNT, or provide both RBAC_ADMIN_EMAIL and RBAC_ADMIN_PASSWORD.'
 }
 
 function Import-DotEnvFile {
@@ -200,8 +202,20 @@ try {
   Assert-EnvAny -Names @('FIREBASE_WEB_API_KEY', 'NEXT_PUBLIC_FIREBASE_API_KEY')
   Assert-StrictCredentialStrategy
 
+  if (-not (Test-NonEmpty $env:FIREBASE_SERVICE_ACCOUNT_JSON) -and (Test-NonEmpty $env:FIREBASE_SERVICE_ACCOUNT)) {
+    $env:FIREBASE_SERVICE_ACCOUNT_JSON = $env:FIREBASE_SERVICE_ACCOUNT
+  }
+
+  if (-not (Test-NonEmpty $env:FIREBASE_SERVICE_ACCOUNT) -and (Test-NonEmpty $env:FIREBASE_SERVICE_ACCOUNT_JSON)) {
+    $env:FIREBASE_SERVICE_ACCOUNT = $env:FIREBASE_SERVICE_ACCOUNT_JSON
+  }
+
   if (-not (Test-NonEmpty $env:NEXT_PUBLIC_FIREBASE_API_KEY) -and (Test-NonEmpty $env:FIREBASE_WEB_API_KEY)) {
     $env:NEXT_PUBLIC_FIREBASE_API_KEY = $env:FIREBASE_WEB_API_KEY
+  }
+
+  if (-not (Test-NonEmpty $env:FIREBASE_WEB_API_KEY) -and (Test-NonEmpty $env:NEXT_PUBLIC_FIREBASE_API_KEY)) {
+    $env:FIREBASE_WEB_API_KEY = $env:NEXT_PUBLIC_FIREBASE_API_KEY
   }
 
   $env:FIRESTORE_EMULATOR_HOST = "127.0.0.1:$FirestorePort"
@@ -241,6 +255,9 @@ try {
 }
 catch {
   Write-Host "CI strict validation failed: $($_.Exception.Message)" -ForegroundColor Red
+  Write-Host 'Tip: configure required values in Settings > Secrets and variables > Actions.' -ForegroundColor Yellow
+  Write-Host 'Required: FIREBASE_WEB_API_KEY or NEXT_PUBLIC_FIREBASE_API_KEY.' -ForegroundColor Yellow
+  Write-Host 'And either FIREBASE_SERVICE_ACCOUNT_JSON/FIREBASE_SERVICE_ACCOUNT or RBAC_ADMIN_EMAIL + RBAC_ADMIN_PASSWORD.' -ForegroundColor Yellow
 
   if (Test-Path $emulatorErrLog) {
     Write-Host '--- Firestore emulator stderr (last 80 lines) ---'
