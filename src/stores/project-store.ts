@@ -5,9 +5,7 @@ import {
   off, 
   push, 
   set as firebaseSet, 
-  update as firebaseUpdate, 
-  remove as firebaseRemove,
-  serverTimestamp 
+  update as firebaseUpdate
 } from 'firebase/database';
 import { db, auth } from '@/lib/db/firebase';
 import type { Project, ProjectFormData } from '@/types/project';
@@ -15,7 +13,7 @@ import { showToast } from '@/components/ui/toast';
 
 interface ProjectStore {
   projects: Project[];
-  currentProject: any | null; // Detailed project with floors/rooms
+  currentProject: Record<string, unknown> | null; // Detailed project with floors/rooms
   isLoading: boolean;
   
   // Real-time subscriptions
@@ -26,7 +24,7 @@ interface ProjectStore {
   createProject: (data: ProjectFormData) => Promise<string | null>;
   updateProject: (id: string, data: Partial<Project>) => Promise<void>;
   deleteProject: (id: string, permanent?: boolean) => Promise<void>;
-  setCurrentProject: (project: any | null) => void;
+  setCurrentProject: (project: Record<string, unknown> | null) => void;
 }
 
 export const useProjectStore = create<ProjectStore>((set) => ({
@@ -155,10 +153,10 @@ export const useProjectStore = create<ProjectStore>((set) => ({
 
     try {
       const now = new Date().toISOString();
-      const updates: any = {};
+      const updates: Record<string, unknown> = {};
       
-      Object.keys(data).forEach(key => {
-        updates[`users/${user.uid}/projects/${id}/${key}`] = (data as any)[key];
+      Object.entries(data).forEach(([key, value]) => {
+        updates[`users/${user.uid}/projects/${id}/${key}`] = value;
       });
       updates[`users/${user.uid}/projects/${id}/updatedAt`] = now;
 
@@ -176,7 +174,7 @@ export const useProjectStore = create<ProjectStore>((set) => ({
 
     try {
       if (permanent) {
-        const updates: any = {};
+        const updates: Record<string, null> = {};
         updates[`users/${user.uid}/projects/${id}`] = null;
         updates[`projectData/${id}`] = null;
         updates[`simulations/${id}`] = null;

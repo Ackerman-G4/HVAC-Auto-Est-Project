@@ -28,6 +28,12 @@ const BUILDING_TYPES = [
 
 type PsychrometricSnapshot = ReturnType<typeof psychrometricState>;
 
+type CreateProjectResponse = {
+  project?: {
+    id?: string;
+  };
+};
+
 const NEW_PROJECT_PSYCHRO_METRICS: Array<{
   term: string;
   definition: string;
@@ -123,9 +129,14 @@ export default function NewProjectPage() {
     setSaving(true);
     try {
       const data = await projectsApi.create(form);
+      const projectId = (data as CreateProjectResponse | null)?.project?.id;
+      if (!projectId) {
+        throw new Error('Project was created but no project ID was returned.');
+      }
+
       showToast('success', 'Project created successfully');
-      router.push(`/projects/${(data as any).project.id}`);
-    } catch (error: any) {
+      router.push(`/projects/${projectId}`);
+    } catch (error: unknown) {
       console.error('Project creation failed:', error);
       if (error instanceof ApiClientError) {
         showToast(
@@ -134,7 +145,10 @@ export default function NewProjectPage() {
           error.details || 'Check the form values and try again. If the issue persists, check server logs.'
         );
       } else {
-        showToast('error', 'Error', error?.message || 'Unable to reach the server. Make sure the app is running and try again.');
+        const message = error instanceof Error && error.message
+          ? error.message
+          : 'Unable to reach the server. Make sure the app is running and try again.';
+        showToast('error', 'Error', message);
       }
     } finally {
       setSaving(false);

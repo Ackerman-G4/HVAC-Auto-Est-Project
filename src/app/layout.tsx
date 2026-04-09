@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { JetBrains_Mono, Plus_Jakarta_Sans, Space_Grotesk } from "next/font/google";
 import { GoogleAuthProvider } from "@/components/auth/google-auth-provider";
 import { AppShell } from "@/components/layout/app-shell";
+import { AuthProvider } from "@/lib/auth/AuthContext";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -60,7 +61,9 @@ export default function RootLayout({
         className={`${jakarta.variable} ${spaceGrotesk.variable} ${jetBrainsMono.variable} antialiased`}
       >
         <GoogleAuthProvider>
-          <AppShell>{children}</AppShell>
+          <AuthProvider>
+            <AppShell>{children}</AppShell>
+          </AuthProvider>
         </GoogleAuthProvider>
       </body>
     </html>

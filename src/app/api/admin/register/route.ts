@@ -76,9 +76,14 @@ export async function POST(request: NextRequest) {
       } 
     }, { status: 201 });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Registration error:', error);
-    if (error.code === 'auth/email-already-exists') {
+    const firebaseErrorCode =
+      typeof error === 'object' && error !== null && 'code' in error
+        ? (error as { code?: unknown }).code
+        : null;
+
+    if (firebaseErrorCode === 'auth/email-already-exists') {
       return errorResponse(400, 'Email Exists', 'This email is already registered.');
     }
     const d = getErrorDetails(error, 'Failed to create user');

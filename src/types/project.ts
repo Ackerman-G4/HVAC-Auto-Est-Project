@@ -28,9 +28,9 @@ export interface ProjectMetadata {
 // Full hydrated project object used in store and pages
 export interface DetailedProject extends ProjectMetadata {
   floors: DetailedFloor[];
-  boqItems?: Record<string, any>;
-  selectedEquipment?: Record<string, any>;
-  coolingLoads?: Record<string, any>;
+  boqItems?: Record<string, unknown>;
+  selectedEquipment?: Record<string, unknown>;
+  coolingLoads?: Record<string, unknown>;
 }
 
 export interface DetailedFloor {
@@ -61,7 +61,7 @@ export interface DetailedRoom {
   windowType: GlassType;
   ceilingHeight: number;
   notes: string;
-  coolingLoad?: any; // The calculated results
+  coolingLoad?: Record<string, unknown> | null; // The calculated results
 }
 
 export interface DesignConditions {
@@ -79,8 +79,8 @@ export interface Project extends ProjectMetadata {
   designConditions?: DesignConditions;
 }
 
-export interface Floor extends DetailedFloor {}
-export interface Room extends DetailedRoom {}
+export type Floor = DetailedFloor;
+export type Room = DetailedRoom;
 
 export type SpaceType =
   | 'office'

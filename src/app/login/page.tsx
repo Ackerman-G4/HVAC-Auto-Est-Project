@@ -5,6 +5,14 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { Zap, Mail, Calendar, LogIn, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
+function toErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof Error && err.message.trim()) {
+    return err.message;
+  }
+
+  return fallback;
+}
+
 export default function LoginPage() {
   const { signInWithGoogle, signInWithEmail, loading } = useAuth();
   const [email, setEmail] = useState('');
@@ -19,8 +27,8 @@ export default function LoginPage() {
     setAuthLoading(true);
     try {
       await signInWithEmail(email, birthday);
-    } catch (err: any) {
-      setError(err.message || 'Failed to sign in. Please check your credentials.');
+    } catch (err: unknown) {
+      setError(toErrorMessage(err, 'Failed to sign in. Please check your credentials.'));
     } finally {
       setAuthLoading(false);
     }
@@ -31,8 +39,8 @@ export default function LoginPage() {
     setAuthLoading(true);
     try {
       await signInWithGoogle();
-    } catch (err: any) {
-      setError(err.message || 'Failed to sign in with Google.');
+    } catch (err: unknown) {
+      setError(toErrorMessage(err, 'Failed to sign in with Google.'));
     } finally {
       setAuthLoading(false);
     }

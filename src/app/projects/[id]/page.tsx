@@ -39,7 +39,7 @@ import { EQUIPMENT_CATALOG } from '@/constants/equipment-catalog';
 import { safeJsonParse } from '@/lib/utils/safe-json';
 import Link from 'next/link';
 import { exportProjectPDF, exportProjectDXF, exportProjectCSV, exportProjectExcel } from '@/lib/utils/project-export';
-import { projectsApi, roomsApi, calculateApi, equipmentApi, boqApi, ApiClientError } from '@/lib/api-client';
+import { projectsApi, roomsApi, calculateApi, equipmentApi, boqApi } from '@/lib/api-client';
 import dynamic from 'next/dynamic';
 
 const BuildingViewer3D = dynamic(() => import('@/components/building/BuildingViewer3D'), {
@@ -309,6 +309,27 @@ type LocalProjectSnapshot = {
   equipmentDrafts: Record<string, EquipmentDraftState>;
 };
 
+type ProjectGetResponse = {
+  project?: ProjectData;
+};
+
+type RecalculateResponse = {
+  summary?: {
+    roomCount?: number;
+    totalTR?: number;
+  };
+};
+
+type AutoSizeResponse = {
+  results?: unknown[];
+};
+
+type GenerateBoqResponse = {
+  boq?: {
+    grandTotal?: number;
+  };
+};
+
 const EMPTY_PRICING_DRAFT: PricingDraftState = {
   laborMultiplier: '',
   overheadPercent: '',
@@ -405,11 +426,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const fetchProject = useCallback(() => {
     setLoading(true);
     projectsApi.get(id)
-      .then((data: any) => {
-        if (data && data.project) {
-          setProject(data.project);
+      .then((data) => {
+        const projectData = (data as ProjectGetResponse | null)?.project;
+        if (projectData) {
+          setProject(projectData);
           const draftMap = Object.fromEntries(
-            (data.project.boqItems || []).map((item: { id: string; unitPrice?: number; finalUnitPrice?: number; }) => [
+            (projectData.boqItems || []).map((item: { id: string; unitPrice?: number; finalUnitPrice?: number; }) => [
               item.id,
               String(item.unitPrice ?? item.finalUnitPrice ?? 0),
             ])
@@ -417,7 +439,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           setBoqDraftPrices(draftMap);
 
           const roomDraftMap: Record<string, RoomLoadDraftState> = {};
-          (data.project.floors || []).forEach((floor: { rooms?: Array<{ id: string; coolingLoad?: { userTrOverride?: number | null; userBtuOverride?: number | null } | null }> }) => {
+          (projectData.floors || []).forEach((floor: { rooms?: Array<{ id: string; coolingLoad?: { userTrOverride?: number | null; userBtuOverride?: number | null } | null }> }) => {
             (floor.rooms || []).forEach((room) => {
               roomDraftMap[room.id] = {
                 tr:
@@ -434,7 +456,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           setRoomLoadDrafts(roomDraftMap);
 
           const equipmentDraftMap: Record<string, EquipmentDraftState> = {};
-          (data.project.selectedEquipment || []).forEach((equipment: {
+          (projectData.selectedEquipment || []).forEach((equipment: {
             id: string;
             userQuantityOverride?: number | null;
             userUnitPriceOverride?: number | null;
@@ -454,20 +476,20 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
           setPricingDraft({
             laborMultiplier:
-              data.project.laborMultiplierOverride !== null && data.project.laborMultiplierOverride !== undefined
-                ? String(data.project.laborMultiplierOverride)
+              projectData.laborMultiplierOverride !== null && projectData.laborMultiplierOverride !== undefined
+                ? String(projectData.laborMultiplierOverride)
                 : '',
             overheadPercent:
-              data.project.overheadPercentOverride !== null && data.project.overheadPercentOverride !== undefined
-                ? String(data.project.overheadPercentOverride)
+              projectData.overheadPercentOverride !== null && projectData.overheadPercentOverride !== undefined
+                ? String(projectData.overheadPercentOverride)
                 : '',
             contingencyPercent:
-              data.project.contingencyPercentOverride !== null && data.project.contingencyPercentOverride !== undefined
-                ? String(data.project.contingencyPercentOverride)
+              projectData.contingencyPercentOverride !== null && projectData.contingencyPercentOverride !== undefined
+                ? String(projectData.contingencyPercentOverride)
                 : '',
             vatRate:
-              data.project.vatRateOverride !== null && data.project.vatRateOverride !== undefined
-                ? String(data.project.vatRateOverride)
+              projectData.vatRateOverride !== null && projectData.vatRateOverride !== undefined
+                ? String(projectData.vatRateOverride)
                 : '',
           });
         }
@@ -639,8 +661,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const runCalculation = async () => {
     setCalculating(true);
     try {
-      const data: any = await calculateApi.recalculate(id);
-      showToast('success', `Calculated ${data.summary.roomCount} rooms — Total: ${data.summary.totalTR} TR`);
+      const data = await calculateApi.recalculate(id) as RecalculateResponse;
+      const roomCount = data.summary?.roomCount ?? 0;
+      const totalTR = data.summary?.totalTR ?? 0;
+      showToast('success', `Calculated ${roomCount} rooms — Total: ${totalTR} TR`);
       fetchProject();
     } catch (err) {
       console.error('Calculate error:', err);
@@ -653,8 +677,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const autoSizeEquipment = async () => {
     setAutoSizing(true);
     try {
-      const data: any = await equipmentApi.autoSize(id);
-      showToast('success', `Equipment sized for ${data.results.length} rooms`);
+      const data = await equipmentApi.autoSize(id) as AutoSizeResponse;
+      const sizedCount = data.results?.length ?? 0;
+      showToast('success', `Equipment sized for ${sizedCount} rooms`);
       setActiveTab('equipment');
       fetchProject();
     } catch (err) {
@@ -668,8 +693,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const generateBOQ = async () => {
     setGeneratingBOQ(true);
     try {
-      const data: any = await boqApi.generate(id);
-      showToast('success', `BOQ generated: ${formatPHP(data.boq?.grandTotal || 0)}`);
+      const data = await boqApi.generate(id) as GenerateBoqResponse;
+      showToast('success', `BOQ generated: ${formatPHP(data.boq?.grandTotal ?? 0)}`);
       fetchProject();
     } catch (err) {
       console.error('BOQ error:', err);
