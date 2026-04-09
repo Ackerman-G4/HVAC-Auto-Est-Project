@@ -43,6 +43,15 @@ export interface BOQItem {
   description: string;
   quantity: number;
   unit: string;
+  suggestedUnitPrice?: number;
+  suggestedTotalPrice?: number;
+  userUnitPriceOverride?: number | null;
+  userTotalPriceOverride?: number | null;
+  finalUnitPrice?: number;
+  finalTotalPrice?: number;
+  sourceState?: 'suggested' | 'override';
+  isOverridden?: boolean;
+  overrideReason?: string;
   unitPrice: number;
   totalPrice: number;
   category: string;
@@ -63,8 +72,21 @@ export interface BOQSummary {
   vat: number;
   grandTotal: number;
   costPerTR: number;
+  pricingPolicy?: {
+    laborMultiplier: DualControlNumber;
+    overheadPercent: DualControlNumber;
+    contingencyPercent: DualControlNumber;
+    vatRate: DualControlNumber;
+  };
   alerts: CostAlert[];
   generatedAt: string;
+}
+
+export interface DualControlNumber {
+  suggested: number;
+  override: number | null;
+  final: number;
+  isOverridden: boolean;
 }
 
 export interface CostAlert {

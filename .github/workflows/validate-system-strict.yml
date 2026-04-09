@@ -1,0 +1,53 @@
+name: Validate System Strict
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - main-backup2
+
+jobs:
+  validate-system-strict:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      FIREBASE_WEB_API_KEY: ${{ secrets.FIREBASE_WEB_API_KEY }}
+      NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.FIREBASE_WEB_API_KEY }}
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      RBAC_ADMIN_EMAIL: ${{ secrets.RBAC_ADMIN_EMAIL }}
+      RBAC_ADMIN_PASSWORD: ${{ secrets.RBAC_ADMIN_PASSWORD }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install Firebase CLI
+        shell: pwsh
+        run: npm install -g firebase-tools
+
+      - name: Install dependencies
+        shell: pwsh
+        run: npm ci
+
+      - name: Run strict system validation
+        shell: pwsh
+        run: ./scripts/ci-validate-system-strict.ps1
+
+      - name: Upload strict validation logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: strict-validation-logs
+          path: .logs/*

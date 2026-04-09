@@ -11,7 +11,6 @@ import { showToast } from '@/components/ui/toast';
 import type {
   SimulationConfig,
   SimulationResult,
-  SimulationMetrics,
   ServerRack,
   HVACUnit,
   PerforatedTile,

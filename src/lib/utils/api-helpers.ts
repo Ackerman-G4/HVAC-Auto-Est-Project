@@ -4,21 +4,28 @@
  * building so every route uses the same logic.
  */
 
-import { NextResponse, NextRequest } from 'next/server';
-import type { CoolingLoadInput } from '@/types/calculation';
-import { adminAuth, adminDb } from '@/lib/db/firebase-admin';
+import { NextRequest, NextResponse } from 'next/server';
 import type { DecodedIdToken } from 'firebase-admin/auth';
+import { getFirebaseAuth } from '@/lib/firebase/server';
+import type { CoolingLoadInput } from '@/types/calculation';
 
 /**
  * Shared utility to verify Firebase ID token from Authorization header.
  * Returns the decoded token or null if verification fails.
  */
 export async function getAuthToken(request: NextRequest): Promise<DecodedIdToken | null> {
-  const authHeader = request.headers.get('Authorization');
-  if (!authHeader?.startsWith('Bearer ')) return null;
-  const token = authHeader.split('Bearer ')[1];
+  const authHeader = request.headers.get('Authorization') || request.headers.get('authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return null;
+  }
+
+  const token = authHeader.slice('Bearer '.length).trim();
+  if (!token) {
+    return null;
+  }
+
   try {
-    return await adminAuth.verifyIdToken(token);
+    return await getFirebaseAuth().verifyIdToken(token);
   } catch (error) {
     console.error('Token verification error:', error);
     return null;
@@ -29,31 +36,11 @@ export async function getAuthToken(request: NextRequest): Promise<DecodedIdToken
  * Check if the decoded token has admin claims.
  */
 export function isAdmin(token: DecodedIdToken | null): boolean {
-  return !!token?.admin;
-}
-
-/**
- * Check if a user has access to a project.
- * Returns the owner's UID if access is granted, otherwise null.
- */
-export async function checkProjectAccess(
-  projectId: string,
-  token: DecodedIdToken
-): Promise<string | null> {
-  const uid = token.uid;
-  
-  // 1. Check if user is the owner
-  const projectRef = adminDb.ref(`users/${uid}/projects/${projectId}`);
-  const snapshot = await projectRef.once('value');
-  if (snapshot.exists()) return uid;
-
-  // 2. If not owner, check if admin
-  if (isAdmin(token)) {
-    const ownerSnap = await adminDb.ref(`projectOwners/${projectId}`).once('value');
-    if (ownerSnap.exists()) return ownerSnap.val();
+  if (!token) {
+    return false;
   }
 
-  return null;
+  return token.admin === true || token.role === 'admin';
 }
 
 /**
@@ -102,9 +89,46 @@ export function errorResponse(
   );
 }
 
+/** Return a standardized 404 response for a resource. */
+export function resourceNotFound(
+  resource: string,
+  description?: string,
+  code?: string,
+) {
+  const trimmed = resource.trim();
+  const fallbackCode = `${trimmed.toUpperCase().replace(/[^A-Z0-9]+/g, '_')}_NOT_FOUND`;
+
+  return errorResponse(
+    404,
+    `${trimmed} not found`,
+    description ?? `The ${trimmed.toLowerCase()} does not exist.`,
+    code ?? fallbackCode,
+  );
+}
+
+interface BoundedIntOptions {
+  defaultValue: number;
+  min?: number;
+  max?: number;
+}
+
+/** Parse a bounded integer with a fallback for invalid input. */
+export function parseBoundedInt(
+  rawValue: string | null | undefined,
+  options: BoundedIntOptions,
+): number {
+  const parsed = Number.parseInt(rawValue ?? '', 10);
+  const value = Number.isFinite(parsed) ? parsed : options.defaultValue;
+  const min = options.min ?? Number.MIN_SAFE_INTEGER;
+  const max = options.max ?? Number.MAX_SAFE_INTEGER;
+
+  return Math.min(max, Math.max(min, value));
+}
+
 /**
  * Extract a structured error from an unknown catch value.
- * Handles Firebase error codes and generic Error objects.
+ * Handles known database error codes (P2002 / P2003 / P2025),
+ * JSON parse errors, and generic Error objects.
  */
 export function getErrorDetails(
   error: unknown,
@@ -123,20 +147,14 @@ export function getErrorDetails(
     const code = typeof obj.code === 'string' ? obj.code : '';
     const msg = typeof obj.message === 'string' ? obj.message : '';
 
-    // Firebase common errors
-    const firebaseMap: Record<string, { error: string; description: string }> = {
-      'permission-denied': { error: 'Permission denied', description: 'You do not have permission to access this resource.' },
-      'unavailable': { error: 'Service unavailable', description: 'The database is currently unavailable.' },
-      'not-found': { error: 'Not found', description: 'The requested record was not found.' },
-      'already-exists': { error: 'Already exists', description: 'A record with this ID already exists.' },
+    const knownDbErrorMap: Record<string, { error: string; description: string }> = {
+      P2002: { error: 'Duplicate record', description: 'A record with the same unique value already exists.' },
+      P2003: { error: 'Invalid relation reference', description: 'A related record referenced by this request does not exist.' },
+      P2025: { error: 'Record not found', description: 'The target record was not found.' },
     };
 
-    const normalizedCode = code.startsWith('auth/') || code.startsWith('functions/') 
-      ? code.split('/')[1] 
-      : code;
-
-    if (normalizedCode in firebaseMap) {
-      return { ...firebaseMap[normalizedCode], code: normalizedCode };
+    if (code in knownDbErrorMap) {
+      return { ...knownDbErrorMap[code], code };
     }
 
     if (msg) {
@@ -223,7 +241,7 @@ export function buildCoolingLoadInput(
 
 /**
  * Map a `CoolingLoadResult` to a flat object suitable for
- * `prisma.coolingLoad.create / update / upsert`.
+ * persisted cooling-load records.
  */
 export function coolingLoadToDbFields(r: {
   wallLoad: number;

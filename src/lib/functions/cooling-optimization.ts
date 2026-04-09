@@ -13,7 +13,6 @@ import type {
   OptimizationSuggestion,
   PerforatedTile,
   HVACUnit,
-  ServerRack,
 } from '@/types/simulation';
 import { runCFDSimulation } from './cfd-simulation';
 
@@ -52,8 +51,7 @@ function computeScore(metrics: SimulationMetrics, config: OptimizationConfig): n
 
 function optimizeTiles(
   input: SimulationInput,
-  baseMetrics: SimulationMetrics,
-  config: OptimizationConfig
+  baseMetrics: SimulationMetrics
 ): OptimizationSuggestion[] {
   const suggestions: OptimizationSuggestion[] = [];
 
@@ -108,8 +106,7 @@ function optimizeTiles(
 
 function optimizeCRAC(
   input: SimulationInput,
-  baseMetrics: SimulationMetrics,
-  config: OptimizationConfig
+  baseMetrics: SimulationMetrics
 ): OptimizationSuggestion[] {
   const suggestions: OptimizationSuggestion[] = [];
 
@@ -162,8 +159,7 @@ function optimizeCRAC(
 
 function optimizeRackLayout(
   input: SimulationInput,
-  baseMetrics: SimulationMetrics,
-  config: OptimizationConfig
+  baseMetrics: SimulationMetrics
 ): OptimizationSuggestion[] {
   const suggestions: OptimizationSuggestion[] = [];
 
@@ -225,13 +221,13 @@ export function runOptimization(
   const allSuggestions: OptimizationSuggestion[] = [];
 
   if (config.adjustableTiles) {
-    allSuggestions.push(...optimizeTiles(input, baseResult.metrics, config));
+    allSuggestions.push(...optimizeTiles(input, baseResult.metrics));
   }
   if (config.adjustableCRAC) {
-    allSuggestions.push(...optimizeCRAC(input, baseResult.metrics, config));
+    allSuggestions.push(...optimizeCRAC(input, baseResult.metrics));
   }
   if (config.adjustableRacks) {
-    allSuggestions.push(...optimizeRackLayout(input, baseResult.metrics, config));
+    allSuggestions.push(...optimizeRackLayout(input, baseResult.metrics));
   }
 
   // Sort by impact

@@ -76,8 +76,6 @@ function findRectangularSize(
   cfm: number,
   maxAspectRatio: number
 ): { width: number; height: number } {
-  const targetArea = Math.PI * Math.pow(roundDia / 2, 2);
-  
   let bestW = STANDARD_SIZES[0];
   let bestH = STANDARD_SIZES[0];
   let bestDiff = Infinity;
@@ -111,7 +109,6 @@ export function sizeDuct(input: DuctSizingInput): DuctSizingResult {
     maxVelocity = input.isReturn ? MAX_VELOCITY.main_return : MAX_VELOCITY.main_supply,
     frictionRate = 0.08,
     aspectRatioMax = 4,
-    material = 'galvanized',
   } = input;
 
   // Calculate round diameter

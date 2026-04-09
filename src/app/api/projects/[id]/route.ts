@@ -1,99 +1,58 @@
 /**
- * Single Project API — Firebase RTDB implementation
+ * Single Project API — GET, PUT, DELETE
  * GET    /api/projects/[id]
  * PUT    /api/projects/[id]
  * DELETE /api/projects/[id]
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb } from '@/lib/db/firebase-admin';
+import { requireAuth } from '@/lib/auth/guard';
+import {
+  deleteProjectRecordPermanently,
+  getProjectRecord,
+  getProjectWithDetails,
+  updateProjectRecord,
+  writeAuditLog,
+} from '@/lib/firebase/projects-store';
 import { wetBulb as calcWetBulb } from '@/lib/functions/psychrometric';
 import {
   toNumber,
   toInt,
   errorResponse,
   getErrorDetails,
-  getUserId,
-  getAuthToken,
-  isAdmin,
-  checkProjectAccess,
+  resourceNotFound,
 } from '@/lib/utils/api-helpers';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
+function toNullableNumber(value: unknown, fallback: number | null): number | null {
+  if (value === null) return null;
+  if (value === undefined) return fallback;
+  const parsed = toNumber(value, NaN);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
-    const token = await getAuthToken(request);
-    if (!token) {
-      return errorResponse(401, 'Unauthorized', 'You must be logged in to access this project.', 'UNAUTHORIZED');
+    const auth = await requireAuth(request);
+    if (!auth.authorized) {
+      return auth.response;
     }
 
     const { id } = await context.params;
-    const ownerId = await checkProjectAccess(id, token);
-    
-    if (!ownerId) {
-      return errorResponse(403, 'Forbidden', 'You do not have access to this project.', 'FORBIDDEN');
+
+    const project = await getProjectWithDetails(id);
+
+    if (!project) {
+      return resourceNotFound(
+        'Project',
+        'The project ID does not match any existing project record.',
+        'PROJECT_NOT_FOUND',
+      );
     }
-
-    // Fetch project metadata
-    const projectRef = adminDb.ref(`users/${ownerId}/projects/${id}`);
-    const projectSnapshot = await projectRef.once('value');
-    
-    if (!projectSnapshot.exists()) {
-      return errorResponse(404, 'Project not found', 'The project metadata was not found.', 'PROJECT_NOT_FOUND');
-    }
-
-    const project = { id, ...projectSnapshot.val() };
-
-    // Fetch floors for this project
-    const floorsRef = adminDb.ref(`projectData/${id}/floors`);
-    const floorsSnapshot = await floorsRef.once('value');
-    const floorsData = floorsSnapshot.val() || {};
-    
-    const floors = Object.keys(floorsData).map(floorId => ({
-      id: floorId,
-      ...floorsData[floorId]
-    })).sort((a, b) => (a.floorNumber || 0) - (b.floorNumber || 0));
-
-    // Fetch rooms for these floors (in NoSQL we might have them nested or under projectData/[id]/rooms)
-    const roomsRef = adminDb.ref(`projectData/${id}/rooms`);
-    const roomsSnapshot = await roomsRef.once('value');
-    const roomsData = roomsSnapshot.val() || {};
-
-    const allRooms = Object.keys(roomsData).map(roomId => ({
-      id: roomId,
-      ...roomsData[roomId]
-    }));
-
-    // Attach rooms to floors
-    const floorsWithRooms = floors.map(floor => ({
-      ...floor,
-      rooms: allRooms.filter(r => r.floorId === floor.id)
-    }));
-
-    // Fetch BOQ
-    const boqRef = adminDb.ref(`projectData/${id}/boq`);
-    const boqSnapshot = await boqRef.once('value');
-    const boqItems = Object.keys(boqSnapshot.val() || {}).map(itemId => ({
-      id: itemId,
-      ...boqSnapshot.val()[itemId]
-    }));
-
-    // Fetch Selected Equipment
-    const eqRef = adminDb.ref(`projectData/${id}/selectedEquipment`);
-    const eqSnapshot = await eqRef.once('value');
-    const selectedEquipment = Object.keys(eqSnapshot.val() || {}).map(selId => ({
-      id: selId,
-      ...eqSnapshot.val()[selId]
-    }));
 
     return NextResponse.json({
-      project: { 
-        ...project, 
-        floors: floorsWithRooms, 
-        boqItems, 
-        selectedEquipment 
-      },
+      project,
     });
   } catch (error) {
     console.error('GET /api/projects/[id] error:', error);
@@ -104,33 +63,53 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
-    const token = await getAuthToken(request);
-    if (!token) {
-      return errorResponse(401, 'Unauthorized', 'You must be logged in to update this project.', 'UNAUTHORIZED');
+    const auth = await requireAuth(request);
+    if (!auth.authorized) {
+      return auth.response;
     }
 
     const { id } = await context.params;
-    const ownerId = await checkProjectAccess(id, token);
-    
-    if (!ownerId) {
-      return errorResponse(403, 'Forbidden', 'You do not have access to this project.', 'FORBIDDEN');
-    }
-
     const body = await request.json();
-    const projectRef = adminDb.ref(`users/${ownerId}/projects/${id}`);
-    const snapshot = await projectRef.once('value');
-    
-    if (!snapshot.exists()) {
-      return errorResponse(404, 'Project not found', 'The project you are trying to update no longer exists.', 'PROJECT_NOT_FOUND');
+
+    const existing = await getProjectRecord(id);
+    if (!existing) {
+      return resourceNotFound(
+        'Project',
+        'The project you are trying to update no longer exists.',
+        'PROJECT_NOT_FOUND',
+      );
     }
 
-    const existing = snapshot.val();
     const finalOutdoorDB = toNumber(body.outdoorDB, existing.outdoorDB);
     const finalOutdoorRH = toNumber(body.outdoorRH, existing.outdoorRH);
     const computedWB = calcWetBulb(finalOutdoorDB, finalOutdoorRH);
 
-    const now = new Date().toISOString();
-    const updateData = {
+    const nextSuggestedLaborMultiplier = toNumber(body.suggestedLaborMultiplier, existing.suggestedLaborMultiplier);
+    const nextLaborMultiplierOverride = toNullableNumber(body.laborMultiplierOverride, existing.laborMultiplierOverride);
+    const nextSuggestedOverheadPercent = toNumber(body.suggestedOverheadPercent, existing.suggestedOverheadPercent);
+    const nextOverheadPercentOverride = toNullableNumber(body.overheadPercentOverride, existing.overheadPercentOverride);
+    const nextSuggestedContingencyPercent = toNumber(
+      body.suggestedContingencyPercent,
+      existing.suggestedContingencyPercent,
+    );
+    const nextContingencyPercentOverride = toNullableNumber(
+      body.contingencyPercentOverride,
+      existing.contingencyPercentOverride,
+    );
+    const nextSuggestedVatRate = toNumber(body.suggestedVatRate, existing.suggestedVatRate);
+    const nextVatRateOverride = toNullableNumber(body.vatRateOverride, existing.vatRateOverride);
+
+    const pricingChanged =
+      nextSuggestedLaborMultiplier !== existing.suggestedLaborMultiplier ||
+      nextLaborMultiplierOverride !== existing.laborMultiplierOverride ||
+      nextSuggestedOverheadPercent !== existing.suggestedOverheadPercent ||
+      nextOverheadPercentOverride !== existing.overheadPercentOverride ||
+      nextSuggestedContingencyPercent !== existing.suggestedContingencyPercent ||
+      nextContingencyPercentOverride !== existing.contingencyPercentOverride ||
+      nextSuggestedVatRate !== existing.suggestedVatRate ||
+      nextVatRateOverride !== existing.vatRateOverride;
+
+    await updateProjectRecord(id, {
       name: body.name ?? existing.name,
       clientName: body.clientName ?? existing.clientName,
       buildingType: body.buildingType ?? existing.buildingType,
@@ -146,23 +125,38 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       indoorRH: toNumber(body.indoorRH, existing.indoorRH),
       safetyFactor: toNumber(body.safetyFactor, existing.safetyFactor),
       diversityFactor: toNumber(body.diversityFactor, existing.diversityFactor),
+      suggestedLaborMultiplier: nextSuggestedLaborMultiplier,
+      laborMultiplierOverride: nextLaborMultiplierOverride,
+      suggestedOverheadPercent: nextSuggestedOverheadPercent,
+      overheadPercentOverride: nextOverheadPercentOverride,
+      suggestedContingencyPercent: nextSuggestedContingencyPercent,
+      contingencyPercentOverride: nextContingencyPercentOverride,
+      suggestedVatRate: nextSuggestedVatRate,
+      vatRateOverride: nextVatRateOverride,
+      isBoqStale: pricingChanged ? true : existing.isBoqStale,
+      lastBoqGeneratedAt: pricingChanged ? null : existing.lastBoqGeneratedAt,
       notes: body.notes ?? existing.notes,
       status: body.status ?? existing.status,
-      updatedAt: now,
-    };
+    });
 
-    await projectRef.update(updateData);
-
-    await adminDb.ref(`auditLogs/${token.uid}`).push({
+    await writeAuditLog({
       projectId: id,
       action: 'updated',
       entity: 'project',
       entityId: id,
-      details: body,
-      timestamp: now
+      details: JSON.stringify(body),
     });
 
-    return NextResponse.json({ project: { id, ...updateData } });
+    const project = await getProjectWithDetails(id);
+    if (!project) {
+      return resourceNotFound(
+        'Project',
+        'The project you are trying to update no longer exists.',
+        'PROJECT_NOT_FOUND',
+      );
+    }
+
+    return NextResponse.json({ project });
   } catch (error) {
     console.error('PUT /api/projects/[id] error:', error);
     const d = getErrorDetails(error, 'Failed to update project');
@@ -172,47 +166,32 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
-    const token = await getAuthToken(request);
-    if (!token) {
-      return errorResponse(401, 'Unauthorized', 'You must be logged in to delete this project.', 'UNAUTHORIZED');
+    const auth = await requireAuth(request);
+    if (!auth.authorized) {
+      return auth.response;
     }
 
     const { id } = await context.params;
-    const ownerId = await checkProjectAccess(id, token);
-    
-    if (!ownerId) {
-      return errorResponse(403, 'Forbidden', 'You do not have access to this project.', 'FORBIDDEN');
-    }
-
     const permanent = new URL(request.url).searchParams.get('permanent') === 'true';
-    const projectRef = adminDb.ref(`users/${ownerId}/projects/${id}`);
-    const snapshot = await projectRef.once('value');
-    
-    if (!snapshot.exists()) {
-      return errorResponse(404, 'Project not found', 'The project you are trying to delete no longer exists.', 'PROJECT_NOT_FOUND');
+
+    const existing = await getProjectRecord(id);
+    if (!existing) {
+      return resourceNotFound(
+        'Project',
+        'The project you are trying to delete no longer exists.',
+        'PROJECT_NOT_FOUND',
+      );
     }
 
     if (permanent) {
-      // Permanent delete: remove project and all its data
-      const updates: Record<string, any> = {};
-      updates[`users/${ownerId}/projects/${id}`] = null;
-      updates[`projectData/${id}`] = null;
-      updates[`simulations/${id}`] = null;
-      updates[`projectOwners/${id}`] = null;
-      await adminDb.ref().update(updates);
+      await deleteProjectRecordPermanently(id);
     } else {
-      // Soft delete: update status
-      await projectRef.update({ 
-        status: 'deleted',
-        updatedAt: new Date().toISOString()
-      });
-      
-      await adminDb.ref(`auditLogs/${token.uid}`).push({
+      await updateProjectRecord(id, { status: 'deleted' });
+      await writeAuditLog({
         projectId: id,
         action: 'deleted',
         entity: 'project',
         entityId: id,
-        timestamp: new Date().toISOString()
       });
     }
 

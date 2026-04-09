@@ -34,7 +34,9 @@ import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { showToast } from '@/components/ui/toast';
 import FloorPlanMultiView from '@/components/floorplan/FloorPlanMultiView';
+import { parseRoomPolygonRect } from '@/lib/utils/room-polygon';
 import Link from 'next/link';
+import Image from 'next/image';
 
 const SPACE_TYPE_OPTIONS = [
   { value: 'office', label: 'Office' },
@@ -152,13 +154,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
         if (activeFloorData && activeFloorData.rooms) {
           const restored: CanvasRoom[] = [];
           activeFloorData.rooms.forEach((r: DbRoom, idx: number) => {
-            let poly: { x: number; y: number; width: number; height: number } | null = null;
-            try {
-              const parsed = JSON.parse(r.polygon || '[]');
-              if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && parsed.width > 0) {
-                poly = parsed;
-              }
-            } catch { /* ignore */ }
+            const poly = parseRoomPolygonRect(r.polygon);
             if (poly) {
               restored.push({
                 id: r.id,
@@ -301,7 +297,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
     }
 
     ctx.restore();
-  }, [rooms, selectedRoom, bgImage, showBgOnCanvas, showGrid, scale, zoom, Pan, isDrawing, drawStart, drawCurrent]);
+  }, [rooms, selectedRoom, bgImage, showBgOnCanvas, showGrid, scale, zoom, Pan, isDrawing, drawStart, drawCurrent, walls]);
 
   useEffect(() => {
     render();
@@ -789,7 +785,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
         </div>
 
         {/* Canvas */}
-        <div className="flex-1 relative border border-border/50 rounded-lg overflow-hidden bg-white">
+        <div className="relative flex-1 overflow-hidden rounded-lg border border-border/60 bg-card/80 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.72)]">
           <canvas
             ref={canvasRef}
             className={`w-full h-full ${
@@ -802,7 +798,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
           />
 
           {/* Status bar */}
-          <div className="absolute bottom-0 left-0 right-0 bg-white/90 border-t border-border/50 px-3 py-1.5 flex items-center justify-between text-xs text-muted-foreground">
+          <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between border-t border-border/55 bg-background/90 px-3 py-1.5 text-xs text-muted-foreground backdrop-blur">
             <div className="flex items-center gap-4">
               <span>Scale: 1m = {scale}px</span>
               <span>Zoom: {(zoom * 100).toFixed(0)}%</span>
@@ -830,11 +826,11 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
 
           {/* Image info badge */}
           {bgImage && bgFileName && (
-            <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2.5 py-1.5 rounded-lg flex items-center gap-2">
+            <div className="absolute top-2 left-2 flex items-center gap-2 rounded-lg bg-[rgba(19,32,51,0.76)] px-2.5 py-1.5 text-xs text-white backdrop-blur-sm">
               <ImageIcon className="w-3.5 h-3.5" />
               <span className="truncate max-w-45">{bgFileName}</span>
               {bgImageDims && <span className="text-white/60">{bgImageDims.w}×{bgImageDims.h}</span>}
-              <button onClick={() => setShowImagePreview(true)} className="hover:text-blue-300 transition-colors" title="View full image">
+              <button onClick={() => setShowImagePreview(true)} className="transition-colors hover:text-[color:var(--gold)]" title="View full image">
                 <Maximize2 className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -1015,11 +1011,11 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="relative bg-white rounded-xl shadow-2xl max-w-[90vw] max-h-[90vh] flex flex-col overflow-hidden"
+              className="relative flex max-h-[90vh] max-w-[90vw] flex-col overflow-hidden rounded-xl border border-border/70 bg-background shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="flex items-center justify-between px-5 py-3 border-b border-border/50 bg-secondary">
+              <div className="flex items-center justify-between border-b border-border/55 bg-card/85 px-5 py-3">
                 <div className="flex items-center gap-3">
                   <ImageIcon className="w-5 h-5 text-muted-foreground" />
                   <div>
@@ -1050,16 +1046,19 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
 
               {/* Image view */}
               <div className="flex-1 overflow-auto p-4 bg-[#1a1a1a] flex items-center justify-center min-h-75">
-                <img
+                <Image
                   src={bgImageSrc}
                   alt="Floor Plan"
-                  className="max-w-full max-h-[70vh] object-contain rounded shadow-lg"
+                  width={bgImageDims?.w || 1600}
+                  height={bgImageDims?.h || 900}
+                  className="max-w-full max-h-[70vh] w-auto h-auto object-contain rounded shadow-lg"
                   draggable={false}
+                  unoptimized
                 />
               </div>
 
               {/* Footer info */}
-              <div className="flex items-center justify-between px-5 py-2.5 border-t border-border/50 bg-secondary text-xs text-muted-foreground">
+              <div className="flex items-center justify-between border-t border-border/55 bg-card/85 px-5 py-2.5 text-xs text-muted-foreground">
                 <div className="flex items-center gap-4">
                   <span>Rooms drawn: {rooms.length}</span>
                   <span>Scale: 1m = {scale}px</span>

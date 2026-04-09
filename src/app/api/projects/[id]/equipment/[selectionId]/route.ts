@@ -1,85 +1,102 @@
 /**
- * Individual Equipment Selection API — GET, Update, Delete
- * GET    /api/projects/[id]/equipment/[selectionId] — Get selection
- * PUT    /api/projects/[id]/equipment/[selectionId] — Update selection
- * DELETE /api/projects/[id]/equipment/[selectionId] — Remove selection
+ * Individual Equipment Selection API — Update + Delete
+ * PUT    /api/projects/[id]/equipment/[selectionId] — Update equipment overrides
+ * DELETE /api/projects/[id]/equipment/[selectionId] — Remove equipment selection
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb } from '@/lib/db/firebase-admin';
-import { getUserId, getAuthToken, checkProjectAccess, errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
+import { requireAuth } from '@/lib/auth/guard';
+import {
+  deleteSelectedEquipmentRecord,
+  getSelectedEquipmentRecord,
+  toApiEquipment,
+  updateSelectedEquipmentRecord,
+} from '@/lib/firebase/project-estimation-store';
+import { updateProjectRecord, writeAuditLog } from '@/lib/firebase/projects-store';
+import { errorResponse, getErrorDetails, resourceNotFound, toInt, toNumber } from '@/lib/utils/api-helpers';
 
 type RouteContext = { params: Promise<{ id: string; selectionId: string }> };
 
-export async function GET(request: NextRequest, context: RouteContext) {
-  try {
-    const token = await getAuthToken(request);
-    if (!token) {
-      return errorResponse(401, 'Unauthorized', 'You must be logged in to access this resource.', 'UNAUTHORIZED');
-    }
-
-    const { id: projectId, selectionId } = await context.params;
-    const ownerId = await checkProjectAccess(projectId, token);
-    
-    if (!ownerId) {
-      return errorResponse(403, 'Forbidden', 'You do not have access to this project.', 'FORBIDDEN');
-    }
-
-    const selectionSnap = await adminDb.ref(`projectData/${projectId}/equipmentSelection/${selectionId}`).once('value');
-    if (!selectionSnap.exists()) {
-      return errorResponse(404, 'Selection not found', 'The selection does not exist.', 'SELECTION_NOT_FOUND');
-    }
-
-    const selection = selectionSnap.val();
-    const equipmentSnap = await adminDb.ref(`projectData/${projectId}/equipment/${selection.equipmentId}`).once('value');
-    
-    return NextResponse.json({ 
-      selection: { 
-        id: selectionId, 
-        ...selection, 
-        equipment: equipmentSnap.val() || null 
-      } 
-    });
-  } catch (error) {
-    console.error('GET equipment selection error:', error);
-    const d = getErrorDetails(error, 'Failed to fetch equipment selection');
-    return errorResponse(500, d.error, d.description, d.code);
-  }
-}
-
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
-    const token = await getAuthToken(request);
-    if (!token) {
-      return errorResponse(401, 'Unauthorized', 'You must be logged in to update this resource.', 'UNAUTHORIZED');
+    const auth = await requireAuth(request);
+    if (!auth.authorized) {
+      return auth.response;
     }
 
     const { id: projectId, selectionId } = await context.params;
-    const ownerId = await checkProjectAccess(projectId, token);
-    
-    if (!ownerId) {
-      return errorResponse(403, 'Forbidden', 'You do not have access to this project.', 'FORBIDDEN');
-    }
-
     const body = await request.json();
-    const selectionRef = adminDb.ref(`projectData/${projectId}/equipmentSelection/${selectionId}`);
-    const snapshot = await selectionRef.once('value');
-    
-    if (!snapshot.exists()) {
-      return errorResponse(404, 'Selection not found', 'The selection does not exist.', 'SELECTION_NOT_FOUND');
+
+    const existing = await getSelectedEquipmentRecord(selectionId);
+    if (!existing || existing.projectId !== projectId) {
+      return resourceNotFound('Equipment selection', 'The selection does not exist in this project.', 'SELECTION_NOT_FOUND');
     }
 
-    const existing = snapshot.val();
-    const updates = {
-      quantity: body.quantity ?? existing.quantity,
-      equipmentId: body.equipmentId ?? existing.equipmentId,
-      roomId: body.roomId ?? existing.roomId,
-      updatedAt: Date.now(),
-    };
+    const useSuggested = body.useSuggested === true;
 
-    await selectionRef.update(updates);
+    const nextQuantityOverride = useSuggested
+      ? null
+      : body.userQuantityOverride === null
+        ? null
+        : body.userQuantityOverride !== undefined
+          ? Math.max(0, toInt(body.userQuantityOverride, existing.userQuantityOverride ?? (existing.suggestedQuantity || existing.quantity)))
+          : existing.userQuantityOverride;
 
-    return NextResponse.json({ selection: { id: selectionId, ...existing, ...updates } });
+    const nextUnitPriceOverride = useSuggested
+      ? null
+      : body.userUnitPriceOverride === null
+        ? null
+        : body.userUnitPriceOverride !== undefined
+          ? Math.max(
+              0,
+              toNumber(
+                body.userUnitPriceOverride,
+                existing.userUnitPriceOverride ?? (existing.suggestedUnitPrice || existing.equipment.unitPricePHP),
+              ),
+            )
+          : existing.userUnitPriceOverride;
+
+    const suggestedQuantity = existing.suggestedQuantity > 0 ? existing.suggestedQuantity : existing.quantity;
+    const suggestedUnitPrice = existing.suggestedUnitPrice > 0 ? existing.suggestedUnitPrice : existing.equipment.unitPricePHP;
+    const finalQuantity = nextQuantityOverride ?? suggestedQuantity;
+    const finalUnitPrice = nextUnitPriceOverride ?? suggestedUnitPrice;
+    const isOverridden = nextQuantityOverride !== null || nextUnitPriceOverride !== null;
+
+    const updated = await updateSelectedEquipmentRecord(selectionId, {
+      userQuantityOverride: nextQuantityOverride,
+      userUnitPriceOverride: nextUnitPriceOverride,
+      finalUnitPrice,
+      isOverridden,
+      overrideReason: body.overrideReason ?? existing.overrideReason,
+      overrideUpdatedAt: isOverridden ? new Date().toISOString() : null,
+    });
+
+    if (!updated) {
+      return resourceNotFound('Equipment selection', 'The selection does not exist in this project.', 'SELECTION_NOT_FOUND');
+    }
+
+    await updateProjectRecord(projectId, {
+      isBoqStale: true,
+      isEquipmentStale: false,
+      lastBoqGeneratedAt: null,
+      lastEquipmentSyncAt: new Date().toISOString(),
+    });
+
+    await writeAuditLog({
+      projectId,
+      action: 'updated',
+      entity: 'selected_equipment',
+      entityId: selectionId,
+      details: JSON.stringify({
+        userQuantityOverride: nextQuantityOverride,
+        userUnitPriceOverride: nextUnitPriceOverride,
+        finalQuantity,
+        finalUnitPrice,
+        isOverridden,
+      }),
+    });
+
+    return NextResponse.json({ equipment: toApiEquipment(updated) });
   } catch (error) {
     console.error('PUT equipment selection error:', error);
     const d = getErrorDetails(error, 'Failed to update equipment selection');
@@ -89,26 +106,19 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
-    const token = await getAuthToken(request);
-    if (!token) {
-      return errorResponse(401, 'Unauthorized', 'You must be logged in to delete this resource.', 'UNAUTHORIZED');
+    const auth = await requireAuth(request);
+    if (!auth.authorized) {
+      return auth.response;
     }
 
     const { id: projectId, selectionId } = await context.params;
-    const ownerId = await checkProjectAccess(projectId, token);
-    
-    if (!ownerId) {
-      return errorResponse(403, 'Forbidden', 'You do not have access to this project.', 'FORBIDDEN');
+
+    const existing = await getSelectedEquipmentRecord(selectionId);
+    if (!existing || existing.projectId !== projectId) {
+      return resourceNotFound('Equipment selection', 'The selection does not exist in this project.', 'SELECTION_NOT_FOUND');
     }
 
-    const selectionRef = adminDb.ref(`projectData/${projectId}/equipmentSelection/${selectionId}`);
-    const snapshot = await selectionRef.once('value');
-    
-    if (!snapshot.exists()) {
-      return errorResponse(404, 'Equipment selection not found', 'The selection does not exist in this project.', 'SELECTION_NOT_FOUND');
-    }
-
-    await selectionRef.remove();
+    await deleteSelectedEquipmentRecord(selectionId);
 
     return NextResponse.json({ message: 'Equipment selection removed' });
   } catch (error) {

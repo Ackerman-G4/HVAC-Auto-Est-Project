@@ -5,11 +5,23 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb } from '@/lib/db/firebase-admin';
+import { requireAuth } from '@/lib/auth/guard';
+import {
+  listBoqItemsForProject,
+  listSelectedEquipmentForProject,
+  replaceBoqItemsForProject,
+} from '@/lib/firebase/project-estimation-store';
+import {
+  getFloorsWithRooms,
+  getProjectRecord,
+  updateProjectRecord,
+  writeAuditLog,
+} from '@/lib/firebase/projects-store';
 import { compileBOQ } from '@/lib/functions/cost-engine';
 import { sizeRefrigerantPipe, sizeCondensatePipe } from '@/lib/functions/pipe-sizing';
 import { sizeElectrical } from '@/lib/functions/electrical';
-import { errorResponse, getErrorDetails, getUserId, getAuthToken, checkProjectAccess } from '@/lib/utils/api-helpers';
+import { errorResponse, getErrorDetails, resourceNotFound } from '@/lib/utils/api-helpers';
+import { finalizeDualValue } from '@/lib/utils/dual-control';
 import type { BOQItem } from '@/types/material';
 
 /** Default estimated run lengths (metres) */
@@ -18,39 +30,92 @@ const DEFAULT_ELEVATION_DIFF_M = 3;
 const DEFAULT_ELECTRICAL_RUN_M = 15;
 const DEFAULT_CONDENSATE_RUN_M = 5;
 
+const DEFAULT_PRICING_POLICY = {
+  laborMultiplier: 0.35,
+  overheadPercent: 0.15,
+  contingencyPercent: 0.05,
+  vatRate: 0.12,
+} as const;
+
 type RouteContext = { params: Promise<{ id: string }> };
+
+type ProjectPricing = {
+  suggestedLaborMultiplier: number;
+  laborMultiplierOverride: number | null;
+  suggestedOverheadPercent: number;
+  overheadPercentOverride: number | null;
+  suggestedContingencyPercent: number;
+  contingencyPercentOverride: number | null;
+  suggestedVatRate: number;
+  vatRateOverride: number | null;
+};
+
+function resolvePricingPolicy(project: ProjectPricing | null) {
+  return {
+    laborMultiplier: finalizeDualValue(
+      project?.suggestedLaborMultiplier ?? DEFAULT_PRICING_POLICY.laborMultiplier,
+      project?.laborMultiplierOverride
+    ),
+    overheadPercent: finalizeDualValue(
+      project?.suggestedOverheadPercent ?? DEFAULT_PRICING_POLICY.overheadPercent,
+      project?.overheadPercentOverride
+    ),
+    contingencyPercent: finalizeDualValue(
+      project?.suggestedContingencyPercent ?? DEFAULT_PRICING_POLICY.contingencyPercent,
+      project?.contingencyPercentOverride
+    ),
+    vatRate: finalizeDualValue(
+      project?.suggestedVatRate ?? DEFAULT_PRICING_POLICY.vatRate,
+      project?.vatRateOverride
+    ),
+  };
+}
 
 /* ──────────────────────── GET ──────────────────────── */
 
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
-    const token = await getAuthToken(request);
-    if (!token) {
-      return errorResponse(401, 'Unauthorized', 'You must be logged in to access this resource.', 'UNAUTHORIZED');
+    const auth = await requireAuth(request);
+    if (!auth.authorized) {
+      return auth.response;
     }
 
-    const { id: projectId } = await context.params;
-    const ownerId = await checkProjectAccess(projectId, token);
-    
-    if (!ownerId) {
-      return errorResponse(403, 'Forbidden', 'You do not have access to this project.', 'FORBIDDEN');
+    const { id } = await context.params;
+    const [project, items] = await Promise.all([
+      getProjectRecord(id),
+      listBoqItemsForProject(id),
+    ]);
+
+    if (!project) {
+      return resourceNotFound('Project', 'The project does not exist.', 'PROJECT_NOT_FOUND');
     }
 
-    const itemsSnap = await adminDb.ref(`projectData/${projectId}/boq`).once('value');
-    const itemsVal = itemsSnap.val() || {};
-    const items = Object.entries(itemsVal).map(([id, item]: [string, any]) => ({ id, ...item }));
+    const pricingPolicy = resolvePricingPolicy(project);
+
+    const getSuggestedUnitPrice = (item: (typeof items)[number]) =>
+      item.suggestedUnitPrice === 0 ? item.unitPrice : item.suggestedUnitPrice;
+    const getFinalUnitPrice = (item: (typeof items)[number]) =>
+      item.finalUnitPrice === 0
+        ? (item.userUnitPriceOverride ?? item.unitPrice)
+        : item.finalUnitPrice;
+    const getFinalTotalPrice = (item: (typeof items)[number]) =>
+      item.finalTotalPrice === 0
+        ? getFinalUnitPrice(item) * item.quantity
+        : item.finalTotalPrice;
 
     const sumByCategory = (cat: string) =>
-      items.filter((i) => i.category === cat).reduce((s, i) => s + i.totalPrice, 0);
+      items
+        .filter((i) => i.category === cat)
+        .reduce((sum, i) => sum + getFinalTotalPrice(i), 0);
 
     const equipmentCost = sumByCategory('equipment');
     const materialCost = sumByCategory('material');
     const laborCost = sumByCategory('labor');
     const subtotal = equipmentCost + materialCost + laborCost;
-    const overhead = subtotal * 0.15;
-    const contingency = subtotal * 0.05;
+    const overhead = subtotal * pricingPolicy.overheadPercent.final;
+    const contingency = subtotal * pricingPolicy.contingencyPercent.final;
     const beforeVAT = subtotal + overhead + contingency;
-    const vat = beforeVAT * 0.12;
+    const vat = beforeVAT * pricingPolicy.vatRate.final;
     const grandTotal = beforeVAT + vat;
 
     // TR from equipment description strings
@@ -68,8 +133,20 @@ export async function GET(request: NextRequest, context: RouteContext) {
         description: i.description,
         quantity: i.quantity,
         unit: i.unit,
-        unitPrice: i.unitPrice,
-        totalPrice: i.totalPrice,
+        suggestedUnitPrice: getSuggestedUnitPrice(i),
+        suggestedTotalPrice:
+          i.suggestedTotalPrice === 0
+            ? getSuggestedUnitPrice(i) * i.quantity
+            : i.suggestedTotalPrice,
+        userUnitPriceOverride: i.userUnitPriceOverride,
+        userTotalPriceOverride: i.userTotalPriceOverride,
+        finalUnitPrice: getFinalUnitPrice(i),
+        finalTotalPrice: getFinalTotalPrice(i),
+        unitPrice: getFinalUnitPrice(i),
+        totalPrice: getFinalTotalPrice(i),
+        sourceState: i.sourceState,
+        isOverridden: i.isOverridden,
+        overrideReason: i.overrideReason,
         category: i.category,
         floorName: i.notes || '',
       })),
@@ -82,6 +159,32 @@ export async function GET(request: NextRequest, context: RouteContext) {
       vat: Math.round(vat),
       grandTotal: Math.round(grandTotal),
       costPerTR: Math.round(costPerTR),
+      pricingPolicy: {
+        laborMultiplier: {
+          suggested: pricingPolicy.laborMultiplier.suggested,
+          override: pricingPolicy.laborMultiplier.override,
+          final: pricingPolicy.laborMultiplier.final,
+          isOverridden: pricingPolicy.laborMultiplier.isOverridden,
+        },
+        overheadPercent: {
+          suggested: pricingPolicy.overheadPercent.suggested,
+          override: pricingPolicy.overheadPercent.override,
+          final: pricingPolicy.overheadPercent.final,
+          isOverridden: pricingPolicy.overheadPercent.isOverridden,
+        },
+        contingencyPercent: {
+          suggested: pricingPolicy.contingencyPercent.suggested,
+          override: pricingPolicy.contingencyPercent.override,
+          final: pricingPolicy.contingencyPercent.final,
+          isOverridden: pricingPolicy.contingencyPercent.isOverridden,
+        },
+        vatRate: {
+          suggested: pricingPolicy.vatRate.suggested,
+          override: pricingPolicy.vatRate.override,
+          final: pricingPolicy.vatRate.final,
+          isOverridden: pricingPolicy.vatRate.isOverridden,
+        },
+      },
     });
   } catch (error) {
     console.error('GET BOQ error:', error);
@@ -105,6 +208,7 @@ interface SelEquip {
     unitPricePHP: number;
   };
   quantity: number;
+  floorName: string;
 }
 
 function buildBOQInputs(selections: SelEquip[]) {
@@ -150,44 +254,38 @@ function buildBOQInputs(selections: SelEquip[]) {
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
-    const token = await getAuthToken(request);
-    if (!token) {
-      return errorResponse(401, 'Unauthorized', 'You must be logged in to access this resource.', 'UNAUTHORIZED');
+    const auth = await requireAuth(request);
+    if (!auth.authorized) {
+      return auth.response;
     }
 
     const { id: projectId } = await context.params;
-    const ownerId = await checkProjectAccess(projectId, token);
-    
-    if (!ownerId) {
-      return errorResponse(403, 'Forbidden', 'You do not have access to this project.', 'FORBIDDEN');
+
+    const project = await getProjectRecord(projectId);
+
+    if (!project) {
+      return resourceNotFound('Project', 'The project does not exist.', 'PROJECT_NOT_FOUND');
     }
 
-    const uid = token.uid;
+    const pricingPolicy = resolvePricingPolicy(project);
 
-    const [floorsSnap, roomsSnap, selectionsSnap, equipmentSnap] = await Promise.all([
-      adminDb.ref(`projectData/${projectId}/floors`).once('value'),
-      adminDb.ref(`projectData/${projectId}/rooms`).once('value'),
-      adminDb.ref(`projectData/${projectId}/equipmentSelection`).once('value'),
-      adminDb.ref(`projectData/${projectId}/equipment`).once('value'),
+    const [floors, selectedRecords] = await Promise.all([
+      getFloorsWithRooms(projectId),
+      listSelectedEquipmentForProject(projectId),
     ]);
 
-    const floors = floorsSnap.val() || {};
-    const rooms = roomsSnap.val() || {};
-    const selections = selectionsSnap.val() || {};
-    const equipmentLib = equipmentSnap.val() || {};
-
-    const selectedEquipment = Object.entries(selections).map(([id, sel]: [string, any]) => {
-      const room = rooms[sel.roomId] || {};
-      const floor = floors[room.floorId] || {};
-      const equip = equipmentLib[sel.equipmentId] || {};
-      
-      return {
-        ...sel,
-        equipment: equip,
-        floorName: floor.name || 'Unknown Floor',
-        floorNumber: floor.floorNumber || 0,
-      };
+    const roomFloorMap = new Map<string, string>();
+    floors.forEach((floor) => {
+      floor.rooms.forEach((room) => {
+        roomFloorMap.set(room.id, floor.name || 'Unassigned');
+      });
     });
+
+    const selectedEquipment: SelEquip[] = selectedRecords.map((sel) => ({
+      equipment: sel.equipment,
+      quantity: sel.quantity,
+      floorName: roomFloorMap.get(sel.roomId) || 'Unassigned',
+    }));
 
     if (selectedEquipment.length === 0) {
       return errorResponse(400, 'No equipment selected', 'Please select equipment first.', 'NO_EQUIPMENT');
@@ -202,41 +300,64 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     for (const [floorName, floorEquipment] of floorGroups) {
-      const floorBOQ = compileBOQ(buildBOQInputs(floorEquipment));
+      const floorBOQ = compileBOQ({
+        ...buildBOQInputs(floorEquipment),
+        laborMultiplier: pricingPolicy.laborMultiplier.final,
+        overheadPercent: pricingPolicy.overheadPercent.final,
+        contingencyPercent: pricingPolicy.contingencyPercent.final,
+        vatRate: pricingPolicy.vatRate.final,
+      });
       for (const item of floorBOQ.items) {
         allItems.push({ ...item, floorName });
       }
     }
 
     // Build overall summary once (reuse same helper)
-    const overallBOQ = compileBOQ(buildBOQInputs(selectedEquipment));
+    const overallBOQ = compileBOQ({
+      ...buildBOQInputs(selectedEquipment),
+      laborMultiplier: pricingPolicy.laborMultiplier.final,
+      overheadPercent: pricingPolicy.overheadPercent.final,
+      contingencyPercent: pricingPolicy.contingencyPercent.final,
+      vatRate: pricingPolicy.vatRate.final,
+    });
     const boqSummary = { ...overallBOQ, items: allItems };
 
-    // Persist
-    const updates: Record<string, any> = {};
-    updates[`projectData/${projectId}/boq`] = null; // Clear old items
-
-    boqSummary.items.forEach((item) => {
-      const itemRef = adminDb.ref(`projectData/${projectId}/boq`).push();
-      updates[`projectData/${projectId}/boq/${itemRef.key}`] = {
+    await replaceBoqItemsForProject(
+      projectId,
+      boqSummary.items.map((item) => ({
         section: item.section,
         description: item.description,
+        specification: item.specification || '',
         quantity: item.quantity,
         unit: item.unit,
+        suggestedUnitPrice: item.unitPrice,
+        suggestedTotalPrice: item.totalPrice,
+        userUnitPriceOverride: null,
+        userTotalPriceOverride: null,
+        finalUnitPrice: item.unitPrice,
+        finalTotalPrice: item.totalPrice,
         unitPrice: item.unitPrice,
         totalPrice: item.totalPrice,
+        sourceState: 'suggested',
+        isOverridden: false,
+        overrideReason: '',
+        notes: item.floorName || '',
         category: item.category,
-        notes: item.floorName,
-      };
+      })),
+    );
+
+    const totalFloorArea = floors.reduce(
+      (acc, floor) => acc + floor.rooms.reduce((roomSum, room) => roomSum + (room.area || 0), 0),
+      0,
+    );
+
+    await updateProjectRecord(projectId, {
+      totalFloorArea,
+      isBoqStale: false,
+      lastBoqGeneratedAt: new Date().toISOString(),
     });
 
-    // Update project total floor area
-    const totalArea = Object.values(rooms).reduce((sum: number, r: any) => sum + (r.area || 0), 0);
-    updates[`projectData/${projectId}/metadata/totalFloorArea`] = totalArea;
-
-    // Audit log
-    const logRef = adminDb.ref(`auditLogs/${uid}`).push();
-    updates[`auditLogs/${uid}/${logRef.key}`] = {
+    await writeAuditLog({
       projectId,
       action: 'generated',
       entity: 'boq',
@@ -244,11 +365,14 @@ export async function POST(request: NextRequest, context: RouteContext) {
       details: JSON.stringify({
         itemCount: boqSummary.items.length,
         grandTotal: boqSummary.grandTotal,
+        pricingPolicy: {
+          laborMultiplier: pricingPolicy.laborMultiplier.final,
+          overheadPercent: pricingPolicy.overheadPercent.final,
+          contingencyPercent: pricingPolicy.contingencyPercent.final,
+          vatRate: pricingPolicy.vatRate.final,
+        },
       }),
-      timestamp: Date.now(),
-    };
-
-    await adminDb.ref().update(updates);
+    });
 
     return NextResponse.json({ boq: boqSummary }, { status: 201 });
   } catch (error) {

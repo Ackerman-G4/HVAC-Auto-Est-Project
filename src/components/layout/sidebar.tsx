@@ -1,67 +1,72 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
-  FolderOpen,
-  Package,
-  Settings,
+  Calculator,
+  Activity,
   ChevronLeft,
   ChevronRight,
   Zap,
   Menu,
   X,
   FileText,
-  Receipt,
-  Stethoscope,
   Wind,
-  LogOut,
-  User as UserIcon,
+  Cpu,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { sidebarVariants } from '@/animations/shared';
-import { useAuth } from '@/lib/auth/AuthContext';
+import { useUIStore } from '@/stores/ui-store';
 
 const navItems = [
-  { href: '/', label: 'Overview', icon: LayoutDashboard },
-  { href: '/projects', label: 'Projects', icon: FolderOpen },
-  { href: '/simulation', label: 'CFD Simulation', icon: Wind },
-  { href: '/materials', label: 'Materials & Suppliers', icon: Package },
-  { href: '/reports', label: 'Reports & Export', icon: FileText },
-  { href: '/quotation', label: 'Quotation', icon: Receipt },
-  { href: '/diagnostics', label: 'Diagnostics', icon: Stethoscope },
-  { href: '/settings', label: 'Settings', icon: Settings },
+  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/load-calculation', label: 'Load Calculation', icon: Calculator },
+  { href: '/airflow-duct-design', label: 'Airflow / Duct Design', icon: Wind },
+  { href: '/equipment-selection', label: 'Equipment Selection', icon: Cpu },
+  { href: '/simulation', label: 'Simulation', icon: Activity },
+  { href: '/reports', label: 'Reports', icon: FileText },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const { user, logout } = useAuth();
+  const collapsed = useUIStore((state) => state.sidebarCollapsed);
+  const mobileOpen = useUIStore((state) => state.mobileSidebarOpen);
+  const toggleSidebar = useUIStore((state) => state.toggleSidebar);
+  const setMobileSidebar = useUIStore((state) => state.setMobileSidebar);
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
     return pathname.startsWith(href);
   };
 
-  const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-white border-r border-slate-200 shadow-[4px_0_24px_-4px_rgba(0,0,0,0.02)] z-10 relative">
-      {/* Logo */}
-      <div className={cn(
-        'flex items-center gap-4 px-6 h-[80px] shrink-0 border-b border-slate-100 bg-white/50 backdrop-blur-xl',
-        collapsed && 'justify-center px-0'
-      )}>
-        <div className="flex items-center justify-center p-2.5 bg-blue-600 rounded-xl shadow-lg shadow-blue-600/20">
-          <Zap size={24} className="text-white" />
+  const sidebarContent = (
+    <div className="relative z-10 flex h-full flex-col border-r border-[color:var(--border)] bg-[linear-gradient(170deg,color-mix(in_oklab,var(--card)_92%,transparent),color-mix(in_oklab,var(--brand-paper)_62%,transparent))] shadow-[16px_0_46px_-30px_rgba(31,63,98,0.48)] backdrop-blur-xl">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,rgba(20,134,115,0.15),transparent_30%),radial-gradient(circle_at_100%_0%,rgba(202,123,46,0.15),transparent_34%)]" />
+      <div
+        className={cn(
+          'relative flex h-[104px] shrink-0 items-center gap-3 border-b border-[color:var(--border)] px-7',
+          collapsed && 'justify-center px-0'
+        )}
+      >
+        <div className="flex h-[3.25rem] w-[3.25rem] items-center justify-center rounded-2xl border border-[rgba(255,255,255,0.3)] bg-[linear-gradient(140deg,var(--accent),var(--accent-dark))] text-[color:var(--accent-foreground)] shadow-[0_14px_30px_-12px_rgba(20,134,115,0.84)]">
+          <Zap size={24} />
         </div>
-        {!collapsed && <span className="font-extrabold text-2xl tracking-tighter text-slate-900">HVAC<span className="text-blue-600">APP</span></span>}
+        {!collapsed && (
+          <div className="leading-tight space-y-1">
+            <span className="block text-[10px] font-bold uppercase tracking-[0.3em] text-[color:var(--muted-foreground)]">
+              Field Studio
+            </span>
+            <span className="display-heading block text-[1.45rem] font-black tracking-[-0.03em] text-[color:var(--foreground)]">
+              HVAC Estimator
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* Nav Links */}
-      <nav className="flex-1 py-8 flex flex-col gap-2 px-4 overflow-y-auto">
+      <nav className="relative flex flex-1 flex-col gap-3 overflow-y-auto px-5 py-10">
         {navItems.map((item) => {
           const active = isActive(item.href);
           return (
@@ -69,56 +74,36 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                'group relative flex items-center gap-3.5 px-3 py-3 rounded-xl text-[15px] font-bold transition-all duration-300',
+                'group relative flex items-center gap-3.5 overflow-hidden rounded-[1.05rem] border px-4 py-3.5 text-[15px] font-semibold tracking-[0.01em] transition-all duration-300',
                 collapsed ? 'justify-center' : '',
                 active
-                  ? 'bg-blue-50 text-blue-700 shadow-sm border border-blue-100/50'
-                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 border border-transparent hover:border-slate-200/50'
+                  ? 'border-[rgba(20,134,115,0.38)] bg-[linear-gradient(125deg,rgba(20,134,115,0.16),rgba(31,63,98,0.09))] text-[color:var(--accent-dark)] shadow-[0_14px_24px_-18px_rgba(20,134,115,0.95)]'
+                  : 'border-transparent text-[color:var(--muted-foreground)] hover:border-[color:var(--border)] hover:bg-[color:var(--secondary)]/76 hover:text-[color:var(--foreground)]'
               )}
             >
-              <item.icon size={20} className={cn('shrink-0 transition-transform duration-300 group-hover:scale-110', active ? 'text-blue-600' : 'text-slate-400 group-hover:text-blue-600')} strokeWidth={active ? 2.5 : 2} />
+              {active && <span className="absolute inset-y-0 left-0 w-1 rounded-r-full bg-[color:var(--accent)]" />}
+              <item.icon
+                size={21}
+                className={cn(
+                  'shrink-0 transition-transform duration-300 group-hover:scale-110',
+                  active
+                    ? 'text-[color:var(--accent)]'
+                    : 'text-[color:var(--silver)] group-hover:text-[color:var(--accent)]'
+                )}
+                strokeWidth={active ? 2.4 : 2}
+              />
               {!collapsed && <span className="truncate tracking-wide">{item.label}</span>}
             </Link>
           );
         })}
       </nav>
 
-      {/* User Profile & Logout */}
-      <div className="p-4 border-t border-slate-100 bg-slate-50/30">
-        {!collapsed && user && (
-          <div className="flex items-center gap-3 px-3 py-4 mb-2 bg-white rounded-2xl border border-slate-100 shadow-sm">
-            {user.photoURL ? (
-              <img src={user.photoURL} alt={user.displayName || 'User'} className="w-10 h-10 rounded-xl object-cover" />
-            ) : (
-              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
-                <UserIcon size={20} />
-              </div>
-            )}
-            <div className="flex flex-col min-w-0">
-              <span className="text-sm font-extrabold text-slate-900 truncate">{user.displayName || 'Engineer'}</span>
-              <span className="text-[11px] font-bold text-slate-400 truncate">{user.email}</span>
-            </div>
-          </div>
-        )}
+      <div className="hidden border-t border-[color:var(--border)] p-6 lg:flex">
         <button
-          onClick={logout}
-          className={cn(
-            "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold text-slate-500 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 transition-all duration-300 group",
-            collapsed && "justify-center"
-          )}
+          onClick={toggleSidebar}
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-3.5 text-sm font-semibold text-[color:var(--muted-foreground)] transition-all duration-300 hover:border-[color:var(--border)] hover:bg-[color:var(--secondary)]/82 hover:text-[color:var(--foreground)]"
         >
-          <LogOut size={20} className="shrink-0 transition-transform group-hover:scale-110" />
-          {!collapsed && <span>Sign Out</span>}
-        </button>
-      </div>
-
-      {/* Collapse button (desktop only) */}
-      <div className="hidden lg:flex p-5 border-t border-slate-100 bg-white">
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold text-slate-400 hover:text-slate-900 hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all duration-300"
-        >
-          {collapsed ? <ChevronRight size={20} /> : <><ChevronLeft size={20} /><span>Minimize</span></>}
+          {collapsed ? <ChevronRight size={20} /> : <><ChevronLeft size={20} /><span>Collapse Setup</span></>}
         </button>
       </div>
     </div>
@@ -127,8 +112,8 @@ export function Sidebar() {
   return (
     <>
       <button
-        onClick={() => setMobileOpen(true)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2.5 rounded-lg bg-white border border-slate-200 shadow-sm text-slate-900 hover:bg-slate-50 transition-colors"
+        onClick={() => setMobileSidebar(true)}
+        className="fixed left-4 top-5 z-50 rounded-xl border border-[color:var(--border)] bg-[linear-gradient(125deg,color-mix(in_oklab,var(--card)_92%,transparent),color-mix(in_oklab,var(--secondary)_62%,transparent))] p-3 text-[color:var(--foreground)] shadow-[0_14px_24px_-18px_rgba(31,63,98,0.64)] transition-colors hover:bg-[color:var(--secondary)] lg:hidden"
       >
         <Menu size={20} />
       </button>
@@ -137,26 +122,26 @@ export function Sidebar() {
         {mobileOpen && (
           <>
             <motion.div
-              className="lg:hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40"
+              className="fixed inset-0 z-40 bg-[rgba(19,35,33,0.48)] backdrop-blur-sm lg:hidden"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setMobileOpen(false)}
+              onClick={() => setMobileSidebar(false)}
             />
             <motion.aside
-              className="lg:hidden fixed left-0 top-0 bottom-0 w-[280px] bg-white z-50 shadow-2xl"
+              className="fixed bottom-0 left-0 top-0 z-50 w-[312px] bg-[color:var(--card)] shadow-2xl lg:hidden"
               variants={sidebarVariants}
               initial="closed"
               animate="open"
               exit="closed"
             >
               <button
-                onClick={() => setMobileOpen(false)}
-                className="absolute top-5 right-5 p-2 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-colors z-50"
+                onClick={() => setMobileSidebar(false)}
+                className="absolute right-5 top-5 z-50 rounded-lg p-2 text-[color:var(--muted-foreground)] transition-colors hover:bg-[color:var(--secondary)] hover:text-[color:var(--foreground)]"
               >
                 <X size={20} />
               </button>
-              <SidebarContent />
+              {sidebarContent}
             </motion.aside>
           </>
         )}
@@ -165,10 +150,10 @@ export function Sidebar() {
       <aside
         className={cn(
           'hidden lg:flex flex-col h-screen shrink-0 transition-all duration-300 ease-in-out z-40',
-          collapsed ? 'w-[80px]' : 'w-[280px]'
+          collapsed ? 'w-[88px]' : 'w-[304px]'
         )}
       >
-        <SidebarContent />
+        {sidebarContent}
       </aside>
     </>
   );

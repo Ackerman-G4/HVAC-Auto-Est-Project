@@ -11,22 +11,22 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 export function Button({ className, variant = 'primary', size = 'md', isLoading, children, disabled, ref, ...props }: ButtonProps) {
-  const baseStyles = 'inline-flex items-center justify-center font-bold tracking-tight rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-white active:scale-[0.96] shadow-sm';
+  const baseStyles = 'inline-flex items-center justify-center gap-2.5 rounded-[1rem] border font-semibold tracking-[0.01em] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--background)] hover:-translate-y-px disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none active:translate-y-[1px]';
   
   const variants = {
-    primary: 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-500/25 hover:shadow-md border border-transparent',
-    secondary: 'bg-white text-slate-800 hover:bg-slate-50 hover:text-slate-900 border border-slate-200 hover:border-slate-300 hover:shadow-md',
-    ghost: 'hover:bg-slate-100 hover:text-slate-900 shadow-none',
-    destructive: 'bg-red-600 text-white hover:bg-red-700 hover:shadow-red-500/25 hover:shadow-md border border-transparent',
-    accent: 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-indigo-500/25 hover:shadow-md border border-transparent',
-    outline: 'border-2 border-slate-200 bg-transparent text-slate-700 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300',
+    primary: 'border-transparent bg-[linear-gradient(125deg,var(--primary),color-mix(in_oklab,var(--primary)_72%,var(--accent)))] text-[color:var(--primary-foreground)] shadow-[0_16px_30px_-18px_rgba(31,63,98,0.88)] hover:brightness-[1.04] hover:shadow-[0_20px_34px_-18px_rgba(31,63,98,0.94)]',
+    secondary: 'border-[color:var(--border)] bg-[linear-gradient(125deg,color-mix(in_oklab,var(--card)_94%,transparent),color-mix(in_oklab,var(--secondary)_62%,transparent))] text-[color:var(--foreground)] shadow-[0_12px_22px_-20px_rgba(31,63,98,0.84)] hover:border-[color:var(--silver)] hover:bg-[color:var(--secondary)] hover:shadow-[0_16px_28px_-20px_rgba(31,63,98,0.78)]',
+    ghost: 'border-transparent bg-transparent text-[color:var(--muted-foreground)] shadow-none hover:border-[color:var(--border)] hover:bg-[rgba(229,234,226,0.7)] hover:text-[color:var(--foreground)]',
+    destructive: 'border-transparent bg-[linear-gradient(125deg,var(--destructive),color-mix(in_oklab,var(--destructive)_74%,#8f2027))] text-[color:var(--destructive-foreground)] shadow-[0_12px_24px_-16px_rgba(193,75,85,0.9)] hover:brightness-[1.05] hover:shadow-[0_16px_28px_-16px_rgba(193,75,85,0.9)]',
+    accent: 'border-transparent bg-[linear-gradient(125deg,var(--accent),color-mix(in_oklab,var(--accent)_72%,var(--accent-light)))] text-[color:var(--accent-foreground)] shadow-[0_16px_30px_-18px_rgba(20,134,115,0.9)] hover:brightness-[1.05] hover:shadow-[0_20px_36px_-18px_rgba(20,134,115,0.94)]',
+    outline: 'border-[color:var(--silver)] bg-[color:var(--card)]/86 text-[color:var(--foreground)] shadow-[0_12px_20px_-18px_rgba(31,63,98,0.78)] hover:border-[rgba(31,63,98,0.4)] hover:bg-[color:var(--secondary)] hover:shadow-[0_16px_24px_-18px_rgba(31,63,98,0.78)]',
   };
 
   const sizes = {
-    sm: 'h-9 px-4 text-xs',
-    md: 'h-11 py-2 px-6 text-sm',
-    lg: 'h-12 px-8 text-base',
-    icon: 'h-11 w-11 p-0',
+    sm: 'h-10 px-5 text-[13px]',
+    md: 'h-12 px-7 text-[15px]',
+    lg: 'h-[3.25rem] px-9 text-base',
+    icon: 'h-12 w-12 p-0',
   };
 
   return (

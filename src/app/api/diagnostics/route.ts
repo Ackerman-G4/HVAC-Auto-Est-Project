@@ -1,46 +1,87 @@
 /**
- * Diagnostics API — Firebase RTDB implementation
- * POST /api/diagnostics
+ * Diagnostics API — POST /api/diagnostics
+ * Accepts system info + symptoms, returns ranked fault analysis.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb } from '@/lib/db/firebase-admin';
+import { requireAuth } from '@/lib/auth/guard';
 import { runDiagnostic } from '@/lib/functions/diagnostic';
-import {
-  errorResponse,
-  getErrorDetails,
-  getUserId,
-} from '@/lib/utils/api-helpers';
+import { createDiagnosticHistory } from '@/lib/firebase/catalog-store';
+import type { DiagnosticInput } from '@/types/diagnostic';
 
 export async function POST(request: NextRequest) {
   try {
-    const uid = await getUserId(request);
-    if (!uid) {
-      return errorResponse(401, 'Unauthorized', 'You must be logged in to run diagnostics.', 'UNAUTHORIZED');
+    const auth = await requireAuth(request);
+    if (!auth.authorized) {
+      return auth.response;
     }
 
-    const body = await request.json();
-    const { inputs } = body;
+    const body: Partial<DiagnosticInput> = await request.json();
 
-    if (!inputs) {
-      return errorResponse(400, 'Missing fields', 'Inputs are required for diagnostics.', 'MISSING_FIELDS');
+    if (!body.systemType) {
+      return NextResponse.json(
+        { error: 'systemType is required', description: 'Select a system type before running diagnostics.' },
+        { status: 400 },
+      );
     }
 
-    const result = runDiagnostic(inputs);
+    const input: DiagnosticInput = {
+      systemType: body.systemType,
+      applicationType: body.applicationType ?? 'residential',
+      refrigerantType: body.refrigerantType,
+      systemAgeDays: body.systemAgeDays,
+      symptomDescription: body.symptomDescription ?? '',
+      unevenCooling: body.unevenCooling ?? false,
+      weakAirflow: body.weakAirflow ?? false,
+      highHumidity: body.highHumidity ?? false,
+      noisyOperation: body.noisyOperation ?? false,
+      iceFormation: body.iceFormation ?? false,
+      shortCycling: body.shortCycling ?? false,
+      highEnergyBills: body.highEnergyBills ?? false,
+      supplyTempCold: body.supplyTempCold,
+      supplyTempWarm: body.supplyTempWarm,
+      returnAirTemp: body.returnAirTemp,
+      outdoorTemp: body.outdoorTemp,
+      indoorRH: body.indoorRH,
+      suctionPressure: body.suctionPressure,
+      dischargePressure: body.dischargePressure,
+      superheat: body.superheat,
+      subcooling: body.subcooling,
+      motorAmps: body.motorAmps,
+      ratedAmps: body.ratedAmps,
+      capacitorMicrofarads: body.capacitorMicrofarads,
+      ratedCapacitorMicrofarads: body.ratedCapacitorMicrofarads,
+      staticPressureSupply: body.staticPressureSupply,
+      staticPressureReturn: body.staticPressureReturn,
+      cfmMeasured: body.cfmMeasured,
+      cfmDesign: body.cfmDesign,
+      lastFilterChange: body.lastFilterChange,
+      lastCoilCleaning: body.lastCoilCleaning,
+      lastRefrigerantService: body.lastRefrigerantService,
+    };
 
-    // Save to history
-    const now = new Date().toISOString();
-    await adminDb.ref(`users/${uid}/diagnostics`).push({
-      type: inputs.systemType,
-      inputs,
-      result,
-      timestamp: now,
-    });
+    const result = runDiagnostic(input);
+
+    // Persist diagnostic run to history
+    try {
+      await createDiagnosticHistory({
+        systemType: input.systemType,
+        payload: JSON.stringify(input),
+        result: JSON.stringify(result),
+        faultCount: result.faults?.length ?? 0,
+        maxSeverity: result.faults?.[0]?.severity ?? 'info',
+      });
+    } catch (persistError) {
+      console.warn('Failed to persist diagnostic history:', persistError);
+      // Non-blocking — still return result
+    }
 
     return NextResponse.json({ result });
   } catch (error) {
     console.error('POST /api/diagnostics error:', error);
-    const d = getErrorDetails(error, 'Failed to run diagnostic');
-    return errorResponse(500, d.error, d.description, d.code);
+    return NextResponse.json(
+      { error: 'Diagnostic analysis failed', description: String(error) },
+      { status: 500 },
+    );
   }
 }
