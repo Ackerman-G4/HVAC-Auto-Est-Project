@@ -14,9 +14,10 @@ jobs:
     env:
       FIREBASE_WEB_API_KEY: ${{ secrets.FIREBASE_WEB_API_KEY || secrets.NEXT_PUBLIC_FIREBASE_API_KEY || vars.FIREBASE_WEB_API_KEY || vars.NEXT_PUBLIC_FIREBASE_API_KEY }}
       NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY || secrets.FIREBASE_WEB_API_KEY || vars.NEXT_PUBLIC_FIREBASE_API_KEY || vars.FIREBASE_WEB_API_KEY }}
-      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
-      RBAC_ADMIN_EMAIL: ${{ secrets.RBAC_ADMIN_EMAIL }}
-      RBAC_ADMIN_PASSWORD: ${{ secrets.RBAC_ADMIN_PASSWORD }}
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON || secrets.FIREBASE_SERVICE_ACCOUNT || vars.FIREBASE_SERVICE_ACCOUNT_JSON || vars.FIREBASE_SERVICE_ACCOUNT }}
+      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT || secrets.FIREBASE_SERVICE_ACCOUNT_JSON || vars.FIREBASE_SERVICE_ACCOUNT || vars.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      RBAC_ADMIN_EMAIL: ${{ secrets.RBAC_ADMIN_EMAIL || vars.RBAC_ADMIN_EMAIL }}
+      RBAC_ADMIN_PASSWORD: ${{ secrets.RBAC_ADMIN_PASSWORD || vars.RBAC_ADMIN_PASSWORD }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,6 +33,41 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+
+      - name: Validate CI secret wiring
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          function Test-NonEmpty {
+            param([string]$Value)
+            return -not [string]::IsNullOrWhiteSpace($Value)
+          }
+
+          $missing = New-Object System.Collections.Generic.List[string]
+
+          $hasWebApiKey = (Test-NonEmpty $env:FIREBASE_WEB_API_KEY) -or (Test-NonEmpty $env:NEXT_PUBLIC_FIREBASE_API_KEY)
+          if (-not $hasWebApiKey) {
+            $missing.Add('FIREBASE_WEB_API_KEY or NEXT_PUBLIC_FIREBASE_API_KEY') | Out-Null
+          }
+
+          $hasServiceAccount =
+            (Test-NonEmpty $env:FIREBASE_SERVICE_ACCOUNT_JSON) -or
+            (Test-NonEmpty $env:FIREBASE_SERVICE_ACCOUNT)
+          $hasAdminCredentials =
+            (Test-NonEmpty $env:RBAC_ADMIN_EMAIL) -and
+            (Test-NonEmpty $env:RBAC_ADMIN_PASSWORD)
+
+          if (-not ($hasServiceAccount -or $hasAdminCredentials)) {
+            $missing.Add('FIREBASE_SERVICE_ACCOUNT_JSON/FIREBASE_SERVICE_ACCOUNT OR RBAC_ADMIN_EMAIL + RBAC_ADMIN_PASSWORD') | Out-Null
+          }
+
+          if ($missing.Count -gt 0) {
+            $joined = $missing -join '; '
+            throw "Missing CI configuration: $joined. Configure these in Settings > Secrets and variables > Actions."
+          }
+
+          Write-Host 'CI secret wiring validated.'
 
       - name: Install Firebase CLI
         shell: pwsh
