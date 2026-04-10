@@ -51,10 +51,10 @@ export function ToastContainer() {
   }, [toasts, removeToast]);
 
   const icons = {
-    success: <CheckCircle size={18} className="text-[color:var(--success)]" />,
-    error: <AlertCircle size={18} className="text-[color:var(--destructive)]" />,
-    warning: <AlertTriangle size={18} className="text-[color:var(--warning)]" />,
-    info: <Info size={18} className="text-[color:var(--accent)]" />,
+    success: <CheckCircle size={18} className="text-success" />,
+    error: <AlertCircle size={18} className="text-destructive" />,
+    warning: <AlertTriangle size={18} className="text-warning" />,
+    info: <Info size={18} className="text-accent" />,
   };
 
   const borderColors = {
@@ -84,7 +84,7 @@ export function ToastContainer() {
             role="status"
             aria-live="polite"
             className={cn(
-              'pointer-events-auto flex items-start gap-3 rounded-2xl border border-border/70 bg-background/95 p-4 shadow-[0_20px_34px_-24px_rgba(19,32,51,0.72)] backdrop-blur-md border-l-4',
+              'pointer-events-auto flex items-start gap-3 rounded-xl border border-border bg-background p-4 shadow-lg backdrop-blur-md border-l-4',
               borderColors[toast.type]
             )}
           >
@@ -92,12 +92,12 @@ export function ToastContainer() {
               {icons[toast.type]}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-[color:var(--foreground)]">{toast.title}</p>
-              {toast.message && <p className="mt-1 text-xs leading-relaxed text-[color:var(--muted-foreground)]">{toast.message}</p>}
+              <p className="text-sm font-semibold text-foreground">{toast.title}</p>
+              {toast.message && <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{toast.message}</p>}
             </div>
             <button
               onClick={() => removeToast(toast.id)}
-              className="rounded-lg border border-transparent p-1 text-[color:var(--muted-foreground)] transition-colors hover:border-border/60 hover:bg-[color:var(--secondary)] hover:text-[color:var(--foreground)]"
+              className="rounded-lg border border-transparent p-1 text-muted-foreground transition-colors hover:border-border hover:bg-secondary hover:text-foreground"
             >
               <X size={14} />
             </button>

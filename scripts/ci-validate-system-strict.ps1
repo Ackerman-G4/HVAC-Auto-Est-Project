@@ -197,7 +197,7 @@ try {
   Assert-Command -Name 'firebase'
   Assert-Command -Name 'java'
 
-  Assert-EnvAny -Names @('FIREBASE_WEB_API_KEY', 'NEXT_PUBLIC_FIREBASE_API_KEY')
+  Assert-Env -Name 'FIREBASE_WEB_API_KEY'
   Assert-StrictCredentialStrategy
 
   if (-not (Test-NonEmpty $env:NEXT_PUBLIC_FIREBASE_API_KEY) -and (Test-NonEmpty $env:FIREBASE_WEB_API_KEY)) {

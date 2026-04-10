@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { showToast } from '@/components/ui/toast';
+import { authFetch } from '@/lib/api-client';
 import { TermHint } from '@/components/ui/term-hint';
 import { getCityOptions } from '@/constants/climate-data';
 import { psychrometricState } from '@/lib/functions/psychrometric';
@@ -121,7 +122,7 @@ export default function NewProjectPage() {
 
     setSaving(true);
     try {
-      const res = await fetch('/api/projects', {
+      const res = await authFetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
@@ -156,11 +157,11 @@ export default function NewProjectPage() {
         ]}
       />
 
-      <Card className="mb-6 border-border/70 bg-[linear-gradient(162deg,rgba(206,161,74,0.15),rgba(255,255,255,0.92))] shadow-[0_14px_28px_-24px_rgba(19,32,51,0.68)]">
+      <Card className="mb-6 border-border bg-primary/5 shadow-sm">
         <CardContent className="py-4">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Project Setup Workspace</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Project Setup Workspace</p>
               <p className="mt-0.5 text-sm font-medium text-foreground">
                 Define design conditions, building profile, and psychrometric inputs before room modeling.
               </p>
@@ -175,7 +176,7 @@ export default function NewProjectPage() {
       <form onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 gap-7 lg:grid-cols-2">
           {/* Project Details */}
-          <Card className="border-border/65 bg-card/90 shadow-[0_14px_28px_-24px_rgba(19,32,51,0.66)]">
+          <Card className="border-border bg-card shadow-sm">
             <CardHeader>
               <CardTitle>Project Details</CardTitle>
             </CardHeader>
@@ -247,12 +248,12 @@ export default function NewProjectPage() {
           </Card>
 
           {/* Design Conditions */}
-          <Card className="border-border/65 bg-card/90 shadow-[0_14px_28px_-24px_rgba(19,32,51,0.66)]">
+          <Card className="border-border bg-card shadow-sm">
             <CardHeader>
               <CardTitle>Design Conditions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="rounded-lg border border-border/55 bg-secondary/45 p-3">
+              <div className="rounded-lg border border-border bg-secondary/50 p-3">
                 <p className="text-sm font-medium text-muted-foreground mb-1">
                   Carrier Psychrometric Chart
                 </p>
@@ -293,10 +294,10 @@ export default function NewProjectPage() {
                     {NEW_PROJECT_PSYCHRO_METRICS.map((metric) => (
                       <div
                         key={metric.term}
-                        className="rounded-lg border border-border/60 bg-background/90 px-2 py-2 shadow-[0_8px_16px_-18px_rgba(19,32,51,0.9)]"
+                        className="rounded-lg border border-border bg-background px-2 py-2 shadow-sm"
                       >
                         <p className="text-sm font-semibold tabular-nums">{metric.formatValue(ps)}</p>
-                        <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
                           <TermHint
                             term={metric.term}
                             definition={metric.definition}
@@ -340,7 +341,7 @@ export default function NewProjectPage() {
                 onChange={(e) => handleChange('notes', e.target.value)}
               />
             </CardContent>
-            <CardFooter className="flex justify-between border-t border-border/55 bg-card/80">
+            <CardFooter className="flex justify-between border-t border-border bg-card">
               <Link href="/projects">
                 <Button variant="ghost" type="button">
                   <ArrowLeft className="w-4 h-4 mr-2" />

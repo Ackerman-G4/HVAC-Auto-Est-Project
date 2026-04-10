@@ -41,9 +41,9 @@ export default function PsychrometricChart({ points = [] }: { points?: Point[] }
     });
   }, [points]);
   return (
-    <div className="bg-white rounded shadow p-4">
+    <div className="bg-card rounded shadow-sm p-4">
       <canvas ref={canvasRef} width={380} height={280} />
-      <div className="mt-2 text-xs text-gray-600">Dry Bulb Temp (°C) → | Relative Humidity (%) ↑</div>
+      <div className="mt-2 text-xs text-muted-foreground">Dry Bulb Temp (°C) → | Relative Humidity (%) ↑</div>
     </div>
   );
 }

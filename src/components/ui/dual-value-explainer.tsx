@@ -46,7 +46,7 @@ export function DualValueExplainer({
   return (
     <div
       className={cn(
-        'rounded-lg border border-border/60 bg-card/85 p-3 shadow-[0_10px_18px_-20px_rgba(19,32,51,0.85)]',
+        'rounded-lg border border-border bg-card p-3 shadow-sm',
         compact && 'p-2.5',
         className,
       )}
@@ -69,13 +69,13 @@ export function DualValueExplainer({
       </div>
 
       <div className="grid grid-cols-3 gap-2 text-center">
-        <div className="rounded-md border border-border/60 bg-secondary/35 px-2 py-1.5">
+        <div className="rounded-md border border-border bg-secondary/35 px-2 py-1.5">
           <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Suggested</p>
           <p className={cn('tabular-nums font-semibold text-foreground', compact ? 'text-xs' : 'text-sm')}>
             {toDisplay(suggested)}
           </p>
         </div>
-        <div className="rounded-md border border-border/60 bg-secondary/35 px-2 py-1.5">
+        <div className="rounded-md border border-border bg-secondary/35 px-2 py-1.5">
           <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Override</p>
           <p className={cn('tabular-nums font-semibold text-foreground', compact ? 'text-xs' : 'text-sm')}>
             {toDisplay(override)}
@@ -90,7 +90,7 @@ export function DualValueExplainer({
       </div>
 
       {(formula || note) && (
-        <div className="mt-2 space-y-1 border-t border-border/50 pt-2">
+        <div className="mt-2 space-y-1 border-t border-border pt-2">
           {formula && (
             <p className="text-[10px] text-muted-foreground">
               <span className="font-semibold text-foreground">Rule:</span> {formula}

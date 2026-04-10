@@ -174,16 +174,23 @@ else {
   Add-Failure 'No Firebase Admin credential strategy detected'
 }
 
-$hasWebApiKey = (Test-NonEmpty $env:FIREBASE_WEB_API_KEY) -or (Test-NonEmpty $env:NEXT_PUBLIC_FIREBASE_API_KEY)
-if ($hasWebApiKey) {
-  Add-Pass 'Firebase Web API key is configured'
+$hasServerWebApiKey = Test-NonEmpty $env:FIREBASE_WEB_API_KEY
+$hasPublicWebApiKey = Test-NonEmpty $env:NEXT_PUBLIC_FIREBASE_API_KEY
+
+if ($hasServerWebApiKey) {
+  Add-Pass 'Firebase Web API key is configured (FIREBASE_WEB_API_KEY)'
 }
 else {
+  $missingWebApiKeyMessage = 'Missing FIREBASE_WEB_API_KEY'
+  if ($hasPublicWebApiKey) {
+    $missingWebApiKeyMessage += ' (NEXT_PUBLIC_FIREBASE_API_KEY is set but server routes do not use it)'
+  }
+
   if ($RequireWebApiKey) {
-    Add-Failure 'Missing FIREBASE_WEB_API_KEY or NEXT_PUBLIC_FIREBASE_API_KEY'
+    Add-Failure $missingWebApiKeyMessage
   }
   else {
-    Add-Warning 'Firebase Web API key is not set (required for strict auth endpoint validation)'
+    Add-Warning "$missingWebApiKeyMessage (required for strict auth endpoint validation)"
   }
 }
 

@@ -55,7 +55,7 @@ export function Dialog({ open, onClose, title, description, children, size = 'md
           />
           <motion.div
             className={cn(
-              'relative z-50 w-full rounded-2xl border border-border/70 bg-background/95 shadow-[0_36px_74px_-46px_rgba(19,32,51,0.82)]',
+              'relative z-50 w-full rounded-xl border border-border bg-background shadow-lg',
               'max-h-[88vh] overflow-y-auto',
               sizes[size],
               className
@@ -66,14 +66,14 @@ export function Dialog({ open, onClose, title, description, children, size = 'md
             exit="exit"
           >
             {(title || description) && (
-              <div className="sticky top-0 z-10 flex items-start justify-between border-b border-border/60 bg-card/90 px-6 py-5 backdrop-blur sm:px-8">
+              <div className="sticky top-0 z-10 flex items-start justify-between border-b border-border bg-card px-6 py-5 backdrop-blur sm:px-8">
                 <div>
-                  {title && <h2 className="text-xl font-bold tracking-tight text-[color:var(--foreground)]">{title}</h2>}
-                  {description && <p className="mt-1 text-sm font-medium text-[color:var(--muted-foreground)]">{description}</p>}
+                  {title && <h2 className="text-xl font-bold tracking-tight text-foreground">{title}</h2>}
+                  {description && <p className="mt-1 text-sm font-medium text-muted-foreground">{description}</p>}
                 </div>
                 <button
                   onClick={onClose}
-                  className="rounded-full border border-transparent bg-secondary/70 p-2 text-[color:var(--muted-foreground)] transition-colors hover:border-border/70 hover:bg-secondary hover:text-[color:var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[color:var(--ring)]"
+                  className="rounded-full border border-transparent bg-secondary p-2 text-muted-foreground transition-colors hover:border-border hover:bg-secondary hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                   <X className="h-5 w-5" />
                   <span className="sr-only">Close</span>
@@ -113,7 +113,7 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   return (
     <Dialog open={open} onClose={onClose} title={title} description={description} size="sm">
-      <div className="mt-5 flex justify-end gap-3 border-t border-border/55 pt-4">
+      <div className="mt-5 flex justify-end gap-3 border-t border-border pt-4">
         <Button onClick={onClose} variant="outline" disabled={isLoading}>
           {cancelText}
         </Button>

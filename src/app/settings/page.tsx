@@ -10,6 +10,7 @@ import { showToast } from '@/components/ui/toast';
 import { useAuthStore } from '@/stores/auth-store';
 import { safeJsonParse } from '@/lib/utils/safe-json';
 import { Save, RotateCcw, Thermometer, Building2, PhilippinePeso, Snowflake, Plus, Trash2, ShieldAlert } from 'lucide-react';
+import { authFetch } from '@/lib/api-client';
 
 export default function SettingsPage() {
   const user = useAuthStore((state) => state.user);
@@ -62,7 +63,7 @@ export default function SettingsPage() {
 
   // Load settings from DB on mount, fallback to localStorage
   useEffect(() => {
-    fetch('/api/settings')
+    authFetch('/api/settings')
       .then((r) => r.json())
       .then((data) => {
         if (data.settings) {
@@ -129,7 +130,7 @@ export default function SettingsPage() {
 
     const payload = { ...settings, placementRules };
     try {
-      const res = await fetch('/api/settings', {
+      const res = await authFetch('/api/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -180,7 +181,7 @@ export default function SettingsPage() {
     localStorage.removeItem('hvac-placement-rules');
     // Reset in DB too
     try {
-      await fetch('/api/settings', {
+      await authFetch('/api/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...defaults, placementRules: defaultRules }),
@@ -196,11 +197,11 @@ export default function SettingsPage() {
         description="Configure default values and system preferences"
       />
 
-      <Card className="mb-6 border-border/70 bg-[linear-gradient(160deg,rgba(15,139,141,0.12),rgba(255,255,255,0.9))]">
+      <Card className="mb-6 border-border bg-accent/5">
         <CardContent className="py-4">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Configuration Workspace</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Configuration Workspace</p>
               <p className="mt-0.5 text-sm font-medium text-foreground">
                 Tune default design assumptions, costing factors, and unit-placement rules to match your firm standards.
               </p>
@@ -215,8 +216,8 @@ export default function SettingsPage() {
       {!canManageSettings && (
         <Card className="mb-6 border-[rgba(206,161,74,0.45)] bg-[rgba(206,161,74,0.12)]">
           <CardContent className="py-3">
-            <div className="flex items-start gap-2 text-sm text-[color:var(--foreground)]">
-              <ShieldAlert className="mt-0.5 h-4 w-4 text-[color:var(--accent-dark)]" />
+            <div className="flex items-start gap-2 text-sm text-foreground">
+              <ShieldAlert className="mt-0.5 h-4 w-4 text-accent" />
               <p>
                 Read-only mode: settings updates are restricted to admin accounts.
               </p>
@@ -227,7 +228,7 @@ export default function SettingsPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Design Defaults */}
-        <Card className="border-border/70 bg-card/85">
+        <Card className="border-border bg-card">
           <CardHeader>
             <div className="flex items-center gap-2">
               <Thermometer className="w-4 h-4 text-muted-foreground" />
@@ -324,7 +325,7 @@ export default function SettingsPage() {
         </Card>
 
         {/* Cost Defaults */}
-        <Card className="border-border/70 bg-card/85">
+        <Card className="border-border bg-card">
           <CardHeader>
             <div className="flex items-center gap-2">
               <PhilippinePeso className="w-4 h-4 text-muted-foreground" />
@@ -395,7 +396,7 @@ export default function SettingsPage() {
         </Card>
 
         {/* System */}
-        <Card className="lg:col-span-2 border-border/70 bg-card/85">
+        <Card className="lg:col-span-2 border-border bg-card">
           <CardHeader>
             <div className="flex items-center gap-2">
               <Building2 className="w-4 h-4 text-muted-foreground" />
@@ -445,7 +446,7 @@ export default function SettingsPage() {
         </Card>
 
         {/* Unit Placement Rules */}
-        <Card className="lg:col-span-2 border-border/70 bg-card/85">
+        <Card className="lg:col-span-2 border-border bg-card">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -466,9 +467,9 @@ export default function SettingsPage() {
             ) : (
               <div className="space-y-4">
                 {placementRules.map((rule) => (
-                  <div key={rule.id} className="space-y-4 rounded-lg border border-border/55 bg-background/75 p-5">
+                  <div key={rule.id} className="space-y-4 rounded-lg border border-border bg-background p-5">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium uppercase tracking-[0.08em] text-muted-foreground">Rule #{rule.id}</span>
+                      <span className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Rule #{rule.id}</span>
                       {canManageSettings && (
                         <Button variant="ghost" size="sm" onClick={() => removePlacementRule(rule.id)}>
                           <Trash2 className="w-3.5 h-3.5 text-destructive" />
@@ -561,7 +562,7 @@ export default function SettingsPage() {
               </div>
             )}
           </CardContent>
-          <CardFooter className="flex justify-between border-t border-border/55 bg-background/70">
+          <CardFooter className="flex justify-between border-t border-border bg-background">
             {canManageSettings ? (
               <>
                 <Button variant="ghost" onClick={handleReset}>

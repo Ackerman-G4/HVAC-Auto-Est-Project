@@ -79,6 +79,7 @@ export async function POST(req: NextRequest) {
 
 		return createAuthResponse({
 			token: authResponse.idToken,
+			refreshToken: authResponse.refreshToken,
 			user: {
 				id: authResponse.localId,
 				email: authResponse.email,

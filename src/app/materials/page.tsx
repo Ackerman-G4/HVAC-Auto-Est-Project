@@ -32,6 +32,7 @@ import { cardGridVariants, cardItemVariants } from '@/animations/list-variants';
 import { formatPHP } from '@/lib/utils/format-currency';
 import { safeJsonParse } from '@/lib/utils/safe-json';
 import { useAuthStore } from '@/stores/auth-store';
+import { authFetch } from '@/lib/api-client';
 
 interface MaterialItem {
   id: string;
@@ -169,7 +170,7 @@ export default function MaterialsPage() {
       });
 
       try {
-        const response = await fetch(`${endpoint}?${params}`);
+        const response = await authFetch(`${endpoint}?${params}`);
         return await response.json();
       } finally {
         setLoading(false);
@@ -380,7 +381,7 @@ export default function MaterialsPage() {
 
     setMaterialSubmitting(true);
     try {
-      const response = await fetch(endpoint, {
+      const response = await authFetch(endpoint, {
         method: isEdit ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -433,7 +434,7 @@ export default function MaterialsPage() {
 
     setSupplierSubmitting(true);
     try {
-      const response = await fetch(endpoint, {
+      const response = await authFetch(endpoint, {
         method: isEdit ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -470,7 +471,7 @@ export default function MaterialsPage() {
 
     setMaterialDeleting(true);
     try {
-      const response = await fetch(`/api/materials/${materialDeleteTarget.id}`, {
+      const response = await authFetch(`/api/materials/${materialDeleteTarget.id}`, {
         method: 'DELETE',
       });
 
@@ -497,7 +498,7 @@ export default function MaterialsPage() {
 
     setSupplierDeleting(true);
     try {
-      const response = await fetch(`/api/suppliers/${supplierDeleteTarget.id}`, {
+      const response = await authFetch(`/api/suppliers/${supplierDeleteTarget.id}`, {
         method: 'DELETE',
       });
 
@@ -527,8 +528,8 @@ export default function MaterialsPage() {
       {!canManageCatalog && (
         <Card className="mb-6 border-[rgba(206,161,74,0.45)] bg-[rgba(206,161,74,0.12)]">
           <CardContent className="py-3">
-            <div className="flex items-start gap-2 text-sm text-[color:var(--foreground)]">
-              <ShieldAlert className="mt-0.5 h-4 w-4 text-[color:var(--accent-dark)]" />
+            <div className="flex items-start gap-2 text-sm text-foreground">
+              <ShieldAlert className="mt-0.5 h-4 w-4 text-accent" />
               <p>
                 Read-only mode: material and supplier updates are restricted to admin accounts.
               </p>
@@ -538,11 +539,11 @@ export default function MaterialsPage() {
       )}
 
       <Tabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab}>
-      <Card className="mb-5 border-border/70 bg-[linear-gradient(162deg,rgba(206,161,74,0.15),rgba(255,255,255,0.92))] shadow-[0_14px_28px_-24px_rgba(19,32,51,0.7)]">
+      <Card className="mb-5 border-border bg-primary/5 shadow-sm">
         <CardContent className="py-4">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Catalog Workspace</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Catalog Workspace</p>
               <p className="text-sm text-foreground font-medium mt-0.5">
                 Keep material pricing and supplier options aligned for faster project costing.
               </p>
@@ -558,7 +559,7 @@ export default function MaterialsPage() {
 
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
         <div className="xl:col-span-3">
-          <div className="mb-4 mt-4 flex flex-col gap-4 rounded-xl border border-border/65 bg-card/85 px-4 py-4 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.65)] sm:flex-row">
+          <div className="mb-4 mt-4 flex flex-col gap-4 rounded-xl border border-border bg-card px-4 py-4 shadow-sm sm:flex-row">
             <div className="flex gap-2 flex-1">
               <Input
                 placeholder={activeTab === 'materials' ? 'Search materials...' : 'Search suppliers...'}
@@ -631,18 +632,18 @@ export default function MaterialsPage() {
                   description="Try a different search term or category"
                 />
               ) : (
-                <Card className="border-border/65 bg-card/90 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.66)]">
+                <Card className="border-border bg-card shadow-sm">
                   <CardContent className="p-0 overflow-x-auto">
                     <table className="w-full text-[13px]">
                       <thead>
                         <tr className="border-b border-border">
-                          <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Material</th>
-                          <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground sm:table-cell">Category</th>
-                          <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground md:table-cell">Specifications</th>
-                          <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Unit</th>
-                          <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Price</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Material</th>
+                          <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground sm:table-cell">Category</th>
+                          <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground md:table-cell">Specifications</th>
+                          <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Unit</th>
+                          <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Price</th>
                           {canManageCatalog && (
-                            <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Actions</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Actions</th>
                           )}
                         </tr>
                       </thead>
@@ -653,7 +654,7 @@ export default function MaterialsPage() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             transition={{ delay: idx * 0.02 }}
-                            className="border-b border-border/40 hover:bg-secondary/40 transition-colors"
+                            className="border-b border-border hover:bg-secondary/50 transition-colors"
                           >
                             <td className="px-4 py-3">
                               <div className="text-[13px] font-medium text-foreground">{mat.name}</div>
@@ -731,10 +732,10 @@ export default function MaterialsPage() {
 
                     return (
                       <motion.div key={supplier.id} variants={cardItemVariants}>
-                        <Card className="h-full border-border/65 bg-card/90 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.64)]">
+                        <Card className="h-full border-border bg-card shadow-sm">
                           <CardContent className="p-6">
                           <div className="mb-3 flex items-start gap-3">
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border/55 bg-secondary/60">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-secondary">
                               <Store className="w-4 h-4 text-muted-foreground" />
                             </div>
                             <div className="flex-1 min-w-0">
@@ -780,7 +781,7 @@ export default function MaterialsPage() {
                             </div>
                           )}
                           {canManageCatalog && (
-                            <div className="mt-4 flex gap-2 border-t border-border/55 pt-3">
+                            <div className="mt-4 flex gap-2 border-t border-border pt-3">
                               <Button
                                 variant="secondary"
                                 size="sm"
@@ -811,40 +812,40 @@ export default function MaterialsPage() {
         </div>
 
         <div className="space-y-4">
-          <Card className="border-border/65 bg-[linear-gradient(165deg,rgba(206,161,74,0.14),rgba(255,255,255,0.92))] shadow-[0_14px_28px_-24px_rgba(19,32,51,0.68)]">
+          <Card className="border-border bg-primary/5 shadow-sm">
             <CardHeader>
               <CardTitle className="text-[13px] flex items-center gap-2">
                 <ClipboardList className="w-4 h-4 text-accent" /> Catalog Snapshot
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <div className="rounded-lg border border-border/70 bg-card/90 p-4">
-                <p className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Materials</p>
+              <div className="rounded-lg border border-border bg-card p-4">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">Materials</p>
                 <p className="text-xl font-semibold tabular-nums">{loading ? '—' : materials.length}</p>
               </div>
-              <div className="rounded-lg border border-border/70 bg-card/90 p-4">
-                <p className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Suppliers</p>
+              <div className="rounded-lg border border-border bg-card p-4">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">Suppliers</p>
                 <p className="text-xl font-semibold tabular-nums">{loading ? '—' : suppliers.length}</p>
               </div>
-              <div className="rounded-lg border border-border/70 bg-card/90 p-4">
-                <p className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Avg Material Price</p>
+              <div className="rounded-lg border border-border bg-card p-4">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">Avg Material Price</p>
                 <p className="text-xl font-semibold tabular-nums">{loading ? '—' : formatPHP(averageMaterialPrice)}</p>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-border/65 bg-card/90 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.66)]">
+          <Card className="border-border bg-card shadow-sm">
             <CardHeader>
               <CardTitle className="text-[13px] flex items-center gap-2">
                 <Layers3 className="w-4 h-4 text-muted-foreground" /> Coverage
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-[12px] text-muted-foreground">
-              <div className="flex items-center justify-between rounded-lg border border-border/55 bg-secondary/45 px-3.5 py-2.5">
+              <div className="flex items-center justify-between rounded-lg border border-border bg-secondary/50 px-3.5 py-2.5">
                 <span className="flex items-center gap-2"><Package className="w-3.5 h-3.5" /> Categories</span>
                 <span className="font-medium tabular-nums text-foreground">{categories.length}</span>
               </div>
-              <div className="flex items-center justify-between rounded-lg border border-border/55 bg-secondary/45 px-3.5 py-2.5">
+              <div className="flex items-center justify-between rounded-lg border border-border bg-secondary/50 px-3.5 py-2.5">
                 <span className="flex items-center gap-2"><Factory className="w-3.5 h-3.5" /> Supplier Types</span>
                 <span className="font-medium tabular-nums text-foreground">{supplierTypes.length}</span>
               </div>
@@ -907,7 +908,7 @@ export default function MaterialsPage() {
             placeholder="Optional specification details"
           />
 
-          <div className="mt-6 flex justify-end gap-3 border-t border-border/60 pt-4">
+          <div className="mt-6 flex justify-end gap-3 border-t border-border pt-4">
             <Button variant="outline" onClick={closeMaterialDialog} disabled={materialSubmitting}>
               Cancel
             </Button>
@@ -979,7 +980,7 @@ export default function MaterialsPage() {
             hint="Comma-separated values"
           />
 
-          <div className="mt-6 flex justify-end gap-3 border-t border-border/60 pt-4">
+          <div className="mt-6 flex justify-end gap-3 border-t border-border pt-4">
             <Button variant="outline" onClick={closeSupplierDialog} disabled={supplierSubmitting}>
               Cancel
             </Button>

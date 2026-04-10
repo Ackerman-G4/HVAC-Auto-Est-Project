@@ -21,6 +21,7 @@ import { Badge } from '@/components/ui/badge';
 import { showToast } from '@/components/ui/toast';
 import { EmptyState } from '@/components/ui/empty-state';
 import Link from 'next/link';
+import { authFetch } from '@/lib/api-client';
 
 interface RoomData {
   id: string;
@@ -101,8 +102,8 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
   // Fetch project and room data
   useEffect(() => {
     Promise.all([
-      fetch(`/api/projects/${id}`).then(r => r.json()),
-      fetch(`/api/projects/${id}/rooms`).then(r => r.json()),
+      authFetch(`/api/projects/${id}`).then(r => r.json()),
+      authFetch(`/api/projects/${id}/rooms`).then(r => r.json()),
     ])
       .then(([project, roomData]) => {
         setProjectName(project.name || 'Unnamed Project');
@@ -405,17 +406,17 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
       ) : (
         <div className="space-y-4">
           {/* Controls bar */}
-          <div className="no-print flex flex-wrap items-center gap-3 rounded-xl border border-border/65 bg-card/85 px-3 py-2 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.68)]">
+          <div className="no-print flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card px-3 py-2 shadow-sm">
             {/* Floor selector */}
             {floors.length > 1 && (
-              <div className="flex items-center gap-1 rounded-lg border border-border/55 bg-card/80 p-0.5">
+              <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-0.5">
                 {floors.map((floor, idx) => (
                   <button
                     key={floor.id}
                     onClick={() => setActiveFloor(idx)}
                     className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
                       idx === activeFloor
-                        ? 'bg-accent text-accent-foreground shadow-[0_8px_18px_-14px_rgba(206,161,74,0.9)]'
+                        ? 'bg-accent text-accent-foreground shadow-md'
                         : 'text-muted-foreground hover:bg-secondary/70 hover:text-foreground'
                     }`}
                   >
@@ -426,12 +427,12 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
             )}
 
             {/* Toggle buttons */}
-            <div className="flex items-center gap-1 rounded-lg border border-border/55 bg-card/80 p-0.5">
+            <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-0.5">
               <button
                 onClick={() => setShowLabels(!showLabels)}
                 className={`px-2.5 py-1.5 text-xs rounded-md transition-colors ${
                   showLabels
-                    ? 'bg-accent text-accent-foreground shadow-[0_8px_18px_-14px_rgba(206,161,74,0.9)]'
+                    ? 'bg-accent text-accent-foreground shadow-md'
                     : 'text-muted-foreground hover:bg-secondary/70 hover:text-foreground'
                 }`}
               >
@@ -441,7 +442,7 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
                 onClick={() => setShowDimensions(!showDimensions)}
                 className={`px-2.5 py-1.5 text-xs rounded-md transition-colors ${
                   showDimensions
-                    ? 'bg-accent text-accent-foreground shadow-[0_8px_18px_-14px_rgba(206,161,74,0.9)]'
+                    ? 'bg-accent text-accent-foreground shadow-md'
                     : 'text-muted-foreground hover:bg-secondary/70 hover:text-foreground'
                 }`}
               >
@@ -451,7 +452,7 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
                 onClick={() => setShowLoads(!showLoads)}
                 className={`px-2.5 py-1.5 text-xs rounded-md transition-colors ${
                   showLoads
-                    ? 'bg-accent text-accent-foreground shadow-[0_8px_18px_-14px_rgba(206,161,74,0.9)]'
+                    ? 'bg-accent text-accent-foreground shadow-md'
                     : 'text-muted-foreground hover:bg-secondary/70 hover:text-foreground'
                 }`}
               >
@@ -489,14 +490,14 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
           </div>
 
           {/* Canvas area */}
-          <Card className="print-full overflow-hidden border border-border/65 bg-card/90 p-0 shadow-[0_16px_30px_-24px_rgba(19,32,51,0.72)]">
+          <Card className="print-full overflow-hidden border border-border bg-card p-0 shadow-sm">
             <div ref={containerRef} className="w-full h-125 relative">
               <canvas ref={canvasRef} className="w-full h-full" />
             </div>
           </Card>
 
           {/* Room summary table */}
-          <Card className="border border-border/65 bg-card/90 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.68)]">
+          <Card className="border border-border bg-card shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-sm">
                 <Layers className="w-4 h-4 text-muted-foreground" />
@@ -523,7 +524,7 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
                         ? (room.coolingLoad.totalLoad / room.area).toFixed(0)
                         : '—';
                       return (
-                        <tr key={room.id} className="border-b border-border/40 hover:bg-secondary/30 transition-colors">
+                        <tr key={room.id} className="border-b border-border hover:bg-secondary/30 transition-colors">
                           <td className="py-2.5 pr-4">
                             <div
                               className="w-3.5 h-3.5 rounded-sm border"
@@ -563,7 +564,7 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
                 </table>
               </div>
 
-              <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted-foreground pt-3 border-t border-border/40">
+              <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted-foreground pt-3 border-t border-border">
                 <span className="flex items-center gap-1.5">
                   <Building2 className="w-3.5 h-3.5" />
                   {rooms.length} rooms

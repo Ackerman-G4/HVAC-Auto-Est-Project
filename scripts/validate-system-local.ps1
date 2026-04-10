@@ -332,7 +332,7 @@ try {
   Assert-Command -Name 'firebase'
   Assert-Command -Name 'java'
 
-  Assert-EnvAny -Names @('FIREBASE_WEB_API_KEY', 'NEXT_PUBLIC_FIREBASE_API_KEY')
+  Assert-EnvAny -Names @('FIREBASE_WEB_API_KEY')
 
   if (-not (Test-NonEmpty $env:NEXT_PUBLIC_FIREBASE_API_KEY) -and (Test-NonEmpty $env:FIREBASE_WEB_API_KEY)) {
     $env:NEXT_PUBLIC_FIREBASE_API_KEY = $env:FIREBASE_WEB_API_KEY

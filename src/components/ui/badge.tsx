@@ -10,13 +10,13 @@ interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 
 export function Badge({ className, variant = 'default', size = 'md', children, ...props }: BadgeProps) {
   const variants = {
-    default: 'border border-[color:var(--border)] bg-[color:var(--secondary)] text-[color:var(--foreground)] shadow-[0_8px_16px_-18px_rgba(31,63,98,0.88)]',
-    secondary: 'border border-transparent bg-[color:var(--primary)] text-[color:var(--primary-foreground)] shadow-[0_10px_22px_-18px_rgba(31,63,98,0.95)]',
-    accent: 'border border-[rgba(20,134,115,0.32)] bg-[rgba(20,134,115,0.14)] text-[color:var(--accent-dark)] shadow-[0_10px_18px_-18px_rgba(20,134,115,0.95)]',
-    destructive: 'border border-[rgba(193,75,85,0.35)] bg-[rgba(193,75,85,0.14)] text-[color:var(--destructive)] shadow-[0_10px_18px_-18px_rgba(193,75,85,0.95)]',
-    success: 'border border-[rgba(30,155,103,0.35)] bg-[rgba(30,155,103,0.14)] text-[color:var(--success)] shadow-[0_10px_18px_-18px_rgba(30,155,103,0.95)]',
-    warning: 'border border-[rgba(202,123,46,0.35)] bg-[rgba(202,123,46,0.14)] text-[color:var(--warning)] shadow-[0_10px_18px_-18px_rgba(202,123,46,0.95)]',
-    outline: 'border border-[color:var(--silver)] bg-[color:var(--card)]/64 text-[color:var(--muted-foreground)] hover:bg-[color:var(--secondary)]',
+    default: 'border border-border bg-secondary text-foreground',
+    secondary: 'border border-transparent bg-primary text-primary-foreground',
+    accent: 'border border-accent/25 bg-accent/10 text-accent-dark',
+    destructive: 'border border-destructive/25 bg-destructive/10 text-destructive',
+    success: 'border border-success/25 bg-success/10 text-success',
+    warning: 'border border-warning/25 bg-warning/10 text-warning',
+    outline: 'border border-border bg-card text-muted-foreground hover:bg-secondary',
   };
 
   const sizes = {
@@ -27,7 +27,7 @@ export function Badge({ className, variant = 'default', size = 'md', children, .
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-md whitespace-nowrap transition-all duration-200',
+        'inline-flex items-center rounded-md whitespace-nowrap transition-colors duration-150',
         variants[variant],
         sizes[size],
         className

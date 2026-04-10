@@ -37,6 +37,7 @@ import FloorPlanMultiView from '@/components/floorplan/FloorPlanMultiView';
 import { parseRoomPolygonRect } from '@/lib/utils/room-polygon';
 import Link from 'next/link';
 import Image from 'next/image';
+import { authFetch } from '@/lib/api-client';
 
 const SPACE_TYPE_OPTIONS = [
   { value: 'office', label: 'Office' },
@@ -122,7 +123,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
 
   // Fetch project floors AND restore persisted rooms as canvas rectangles
   useEffect(() => {
-    fetch(`/api/projects/${id}/rooms`)
+    authFetch(`/api/projects/${id}/rooms`)
       .then((r) => r.json())
       .then((data) => {
         const rawFloors = data.floors || [];
@@ -617,7 +618,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
         // If room already has a DB id (loaded from DB), update it
         const isExisting = !room.id.startsWith('room_');
         if (isExisting) {
-          await fetch(`/api/projects/${id}/rooms/${room.id}`, {
+          await authFetch(`/api/projects/${id}/rooms/${room.id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -629,7 +630,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
             }),
           });
         } else {
-          await fetch(`/api/projects/${id}/rooms`, {
+          await authFetch(`/api/projects/${id}/rooms`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -732,7 +733,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
               <Icon className="w-4 h-4" />
             </button>
           ))}
-          <div className="border-t border-border/50 my-1" />
+          <div className="border-t border-border my-1" />
           <button
             onClick={() => fileInputRef.current?.click()}
             title="Upload Floor Plan"
@@ -760,7 +761,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
               {showBgOnCanvas ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
             </button>
           )}
-          <div className="border-t border-border/50 my-1" />
+          <div className="border-t border-border my-1" />
           <button
             onClick={() => setZoom((z) => Math.min(3, z + 0.25))}
             title="Zoom In"
@@ -785,7 +786,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
         </div>
 
         {/* Canvas */}
-        <div className="relative flex-1 overflow-hidden rounded-lg border border-border/60 bg-card/80 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.72)]">
+        <div className="relative flex-1 overflow-hidden rounded-lg border border-border bg-card shadow-sm">
           <canvas
             ref={canvasRef}
             className={`w-full h-full ${
@@ -798,7 +799,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
           />
 
           {/* Status bar */}
-          <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between border-t border-border/55 bg-background/90 px-3 py-1.5 text-xs text-muted-foreground backdrop-blur">
+          <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between border-t border-border bg-background px-3 py-1.5 text-xs text-muted-foreground backdrop-blur">
             <div className="flex items-center gap-4">
               <span>Scale: 1m = {scale}px</span>
               <span>Zoom: {(zoom * 100).toFixed(0)}%</span>
@@ -830,7 +831,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
               <ImageIcon className="w-3.5 h-3.5" />
               <span className="truncate max-w-45">{bgFileName}</span>
               {bgImageDims && <span className="text-white/60">{bgImageDims.w}×{bgImageDims.h}</span>}
-              <button onClick={() => setShowImagePreview(true)} className="transition-colors hover:text-[color:var(--gold)]" title="View full image">
+              <button onClick={() => setShowImagePreview(true)} className="transition-colors hover:text-accent" title="View full image">
                 <Maximize2 className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -1011,11 +1012,11 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="relative flex max-h-[90vh] max-w-[90vw] flex-col overflow-hidden rounded-xl border border-border/70 bg-background shadow-2xl"
+              className="relative flex max-h-[90vh] max-w-[90vw] flex-col overflow-hidden rounded-xl border border-border bg-background shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="flex items-center justify-between border-b border-border/55 bg-card/85 px-5 py-3">
+              <div className="flex items-center justify-between border-b border-border bg-card px-5 py-3">
                 <div className="flex items-center gap-3">
                   <ImageIcon className="w-5 h-5 text-muted-foreground" />
                   <div>
@@ -1045,7 +1046,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
               </div>
 
               {/* Image view */}
-              <div className="flex-1 overflow-auto p-4 bg-[#1a1a1a] flex items-center justify-center min-h-75">
+              <div className="flex-1 overflow-auto p-4 bg-slate-900 flex items-center justify-center min-h-75">
                 <Image
                   src={bgImageSrc}
                   alt="Floor Plan"
@@ -1058,7 +1059,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
               </div>
 
               {/* Footer info */}
-              <div className="flex items-center justify-between border-t border-border/55 bg-card/85 px-5 py-2.5 text-xs text-muted-foreground">
+              <div className="flex items-center justify-between border-t border-border bg-card px-5 py-2.5 text-xs text-muted-foreground">
                 <div className="flex items-center gap-4">
                   <span>Rooms drawn: {rooms.length}</span>
                   <span>Scale: 1m = {scale}px</span>

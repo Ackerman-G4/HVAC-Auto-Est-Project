@@ -6,7 +6,9 @@
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
 const AUTH_TOKEN_STORAGE_KEY = 'hvac-auth-token';
+const REFRESH_TOKEN_STORAGE_KEY = 'hvac-refresh-token';
 let authTokenCache: string | null = null;
+let refreshTokenCache: string | null = null;
 
 function readStoredAuthToken(): string | null {
   if (typeof window === 'undefined') return authTokenCache;
@@ -15,6 +17,15 @@ function readStoredAuthToken(): string | null {
   const token = window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
   authTokenCache = token && token.trim() ? token : null;
   return authTokenCache;
+}
+
+function readStoredRefreshToken(): string | null {
+  if (typeof window === 'undefined') return refreshTokenCache;
+  if (refreshTokenCache) return refreshTokenCache;
+
+  const token = window.localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
+  refreshTokenCache = token && token.trim() ? token : null;
+  return refreshTokenCache;
 }
 
 export function setApiClientToken(token: string | null) {
@@ -31,8 +42,90 @@ export function setApiClientToken(token: string | null) {
   }
 }
 
+export function setRefreshToken(token: string | null) {
+  refreshTokenCache = token && token.trim() ? token : null;
+
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  if (refreshTokenCache) {
+    window.localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, refreshTokenCache);
+  } else {
+    window.localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+  }
+}
+
 export function getApiClientToken() {
   return readStoredAuthToken();
+}
+
+let refreshPromise: Promise<boolean> | null = null;
+
+/**
+ * Attempt to exchange the stored refresh token for a new ID token.
+ * Returns true if the token was successfully refreshed.
+ * Deduplicates concurrent refresh attempts.
+ */
+export function tryRefreshToken(): Promise<boolean> {
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    const rt = readStoredRefreshToken();
+    if (!rt) return false;
+
+    try {
+      const res = await fetch('/api/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: rt }),
+      });
+
+      if (!res.ok) return false;
+
+      const data = await res.json();
+      if (data.token) {
+        setApiClientToken(data.token);
+        if (data.refreshToken) setRefreshToken(data.refreshToken);
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
+/**
+ * Drop-in replacement for `fetch()` that automatically attaches
+ * the stored auth Bearer token.  On 401, attempts a silent token
+ * refresh and retries once.
+ */
+export async function authFetch(url: string, init?: RequestInit): Promise<Response> {
+  const token = readStoredAuthToken();
+  const existingHeaders = (init?.headers ?? {}) as Record<string, string>;
+  const headers: Record<string, string> = { ...existingHeaders };
+  if (token && !headers['Authorization']) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(url, { ...init, headers });
+
+  if (res.status === 401 && readStoredRefreshToken()) {
+    const refreshed = await tryRefreshToken();
+    if (refreshed) {
+      const newToken = readStoredAuthToken();
+      const retryHeaders: Record<string, string> = { ...existingHeaders };
+      if (newToken) retryHeaders['Authorization'] = `Bearer ${newToken}`;
+      return fetch(url, { ...init, headers: retryHeaders });
+    }
+  }
+
+  return res;
 }
 
 class ApiClientError extends Error {
@@ -69,7 +162,17 @@ async function request<T>(
     options.body = JSON.stringify(body);
   }
 
-  const res = await fetch(url, options);
+  let res = await fetch(url, options);
+
+  // On 401, attempt silent token refresh and retry once
+  if (res.status === 401 && readStoredRefreshToken()) {
+    const refreshed = await tryRefreshToken();
+    if (refreshed) {
+      const newToken = readStoredAuthToken();
+      if (newToken) headers.Authorization = `Bearer ${newToken}`;
+      res = await fetch(url, { ...options, headers });
+    }
+  }
 
   if (!res.ok) {
     let errorMsg = res.statusText;
@@ -91,10 +194,10 @@ async function request<T>(
 // ── Auth ─────────────────────────────────────────────────────────────────
 
 export const authApi = {
-  login: (data: unknown) => request<{ token: string; user: unknown }>('/api/auth/login', 'POST', data),
-  register: (data: unknown) => request<{ token: string; user: unknown }>('/api/auth/register', 'POST', data),
+  login: (data: unknown) => request<{ token: string; refreshToken?: string; user: unknown }>('/api/auth/login', 'POST', data),
+  register: (data: unknown) => request<{ token: string; refreshToken?: string; user: unknown }>('/api/auth/register', 'POST', data),
   loginWithGoogle: (data: unknown) =>
-    request<{ token: string; user: unknown }>('/api/auth/google', 'POST', data),
+    request<{ token: string; refreshToken?: string; user: unknown }>('/api/auth/google', 'POST', data),
   profile: () => request<{ user: unknown }>('/api/auth/profile'),
   logout: () => request<{ message: string }>('/api/auth/logout', 'POST'),
 };

@@ -61,10 +61,23 @@ For local emulator flows, scripts use:
 - `FIREBASE_PROJECT_ID=demo-hvac-auto`
 - `GCLOUD_PROJECT=demo-hvac-auto`
 
-Web API key vars used by auth smoke/strict checks:
+Web/client Firebase vars:
 
+- `FIREBASE_WEB_API_KEY` (used by auth REST helpers and smoke/strict checks)
 - `NEXT_PUBLIC_FIREBASE_API_KEY`
-- `FIREBASE_WEB_API_KEY`
+- `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
+- `NEXT_PUBLIC_FIREBASE_DATABASE_URL`
+- `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
+- `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
+- `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
+- `NEXT_PUBLIC_FIREBASE_APP_ID`
+- `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID` (optional)
+
+Backend safety note:
+
+- Server-side Firebase helpers read server env only (`FIREBASE_WEB_API_KEY`, `FIREBASE_DATABASE_URL`) and intentionally avoid `NEXT_PUBLIC_*` fallbacks.
+
+Template: `.env.example` includes placeholders for all required server and client Firebase variables.
 
 Sync helper:
 

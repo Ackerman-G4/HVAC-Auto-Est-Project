@@ -26,6 +26,7 @@ import { showToast } from '@/components/ui/toast';
 import { EmptyState } from '@/components/ui/empty-state';
 import { formatPHP } from '@/lib/utils/format-currency';
 import Link from 'next/link';
+import { authFetch } from '@/lib/api-client';
 
 interface ProjectListItem {
 	id: string;
@@ -89,7 +90,7 @@ export default function QuotationPage() {
 	const [project, setProject] = useState<ProjectListItem | null>(null);
 
 	useEffect(() => {
-		fetch('/api/projects')
+		authFetch('/api/projects')
 			.then((r) => r.json())
 			.then((data) => {
 				setProjects(data.projects || []);
@@ -112,9 +113,9 @@ export default function QuotationPage() {
 
 		setGenerating(true);
 		Promise.all([
-			fetch(`/api/projects/${selectedProjectId}/boq`).then((r) => r.json()),
-			fetch(`/api/projects/${selectedProjectId}`).then((r) => r.json()),
-			fetch(`/api/projects/${selectedProjectId}/equipment`).then((r) => r.json()),
+			authFetch(`/api/projects/${selectedProjectId}/boq`).then((r) => r.json()),
+			authFetch(`/api/projects/${selectedProjectId}`).then((r) => r.json()),
+			authFetch(`/api/projects/${selectedProjectId}/equipment`).then((r) => r.json()),
 		])
 			.then(([boq, projRes, equip]) => {
 				setBOQData(boq);
@@ -366,11 +367,11 @@ export default function QuotationPage() {
 				}
 			/>
 
-			<Card className="mb-6 no-print border-border/70 bg-[linear-gradient(162deg,rgba(206,161,74,0.15),rgba(255,255,255,0.92))] shadow-[0_14px_28px_-24px_rgba(19,32,51,0.7)]">
+			<Card className="mb-6 no-print border-border bg-primary/5 shadow-sm">
 				<CardContent className="py-4">
 					<div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
 						<div>
-							<p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Quotation Workspace</p>
+							<p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Quotation Workspace</p>
 							<p className="text-sm font-medium text-foreground mt-0.5">
 								Build client-ready quotations with complete BOQ, equipment schedule, and commercial terms.
 							</p>
@@ -384,7 +385,7 @@ export default function QuotationPage() {
 
 			<div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
 				<div className="xl:col-span-3">
-					<Card className="mb-6 no-print border-border/65 bg-card/90 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.66)]">
+					<Card className="mb-6 no-print border-border bg-card shadow-sm">
 						<CardContent className="p-5">
 							<Select
 								label="Select project"
@@ -418,7 +419,7 @@ export default function QuotationPage() {
 
 					{boqData && project && !generating && (
 						<motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="quotation-doc max-w-none">
-							<Card className="print-card overflow-hidden border-border/65 bg-card/95 shadow-[0_18px_34px_-26px_rgba(19,32,51,0.72)]">
+							<Card className="print-card overflow-hidden border-border bg-card shadow-sm">
 								<CardContent className="p-0">
 									<div className="bg-linear-to-r from-accent to-primary text-white px-8 py-6">
 										<div className="flex items-start justify-between">
@@ -437,10 +438,10 @@ export default function QuotationPage() {
 										</div>
 									</div>
 
-									<div className="border-b border-border/55 bg-card/70 px-8 py-5">
+									<div className="border-b border-border bg-card px-8 py-5">
 										<div className="grid grid-cols-2 gap-8">
 											<div className="space-y-2.5">
-												<h3 className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Project information</h3>
+												<h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Project information</h3>
 												<div className="space-y-1.5 text-[13px]">
 													<div className="flex items-center gap-2"><Building2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" /><span className="font-medium">{project.name}</span></div>
 													<div className="flex items-center gap-2"><User className="w-3.5 h-3.5 text-muted-foreground shrink-0" /><span className="text-muted-foreground">{project.clientName || 'N/A'}</span></div>
@@ -448,7 +449,7 @@ export default function QuotationPage() {
 												</div>
 											</div>
 											<div className="space-y-2.5">
-												<h3 className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Quotation details</h3>
+												<h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Quotation details</h3>
 												<div className="space-y-1.5 text-[13px]">
 													<div className="flex items-center gap-2"><Hash className="w-3.5 h-3.5 text-muted-foreground shrink-0" /><span>Ref: {quotationNumber}</span></div>
 													<div className="flex items-center gap-2"><Calendar className="w-3.5 h-3.5 text-muted-foreground shrink-0" /><span className="text-muted-foreground">{new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })}</span></div>
@@ -459,13 +460,13 @@ export default function QuotationPage() {
 									</div>
 
 									{groupedItems && Object.keys(groupedItems).length > 0 && (
-										<div className="px-8 py-5 border-b border-border/50">
+										<div className="px-8 py-5 border-b border-border">
 											<h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
 												<FileText className="w-3.5 h-3.5" /> Bill of quantities
 											</h3>
 											<table className="w-full text-[12px]">
 												<thead>
-													<tr className="border-b border-border text-xs uppercase tracking-[0.08em] text-muted-foreground">
+													<tr className="border-b border-border text-xs uppercase tracking-wider text-muted-foreground">
 														<th className="text-left py-2 font-medium">Description</th>
 														<th className="text-right py-2 font-medium">Qty</th>
 														<th className="text-left py-2 pl-3 font-medium">Unit</th>
@@ -478,12 +479,12 @@ export default function QuotationPage() {
 														const sectionTotal = items.reduce((s, i) => s + i.totalPrice, 0);
 														return (
 															<React.Fragment key={section}>
-																<tr className="border-b border-border/40">
+																<tr className="border-b border-border">
 																	<td colSpan={4} className="py-2 font-semibold text-[11px] text-foreground">{section}</td>
 																	<td className="py-2 text-right font-medium tabular-nums text-[11px]">{formatPHP(sectionTotal)}</td>
 																</tr>
 																{items.map((item, idx) => (
-																	<tr key={idx} className="border-b border-border/20">
+																	<tr key={idx} className="border-b border-border">
 																		<td className="py-1.5 pl-4 text-muted-foreground">{item.description}</td>
 																		<td className="py-1.5 text-right tabular-nums">{item.quantity}</td>
 																		<td className="py-1.5 pl-3 text-muted-foreground">{item.unit}</td>
@@ -499,7 +500,7 @@ export default function QuotationPage() {
 										</div>
 									)}
 
-									<div className="px-8 py-5 border-b border-border/50">
+									<div className="px-8 py-5 border-b border-border">
 										<div className="max-w-sm ml-auto">
 											<h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Cost summary</h3>
 											<div className="space-y-2 text-[13px]">
@@ -535,21 +536,21 @@ export default function QuotationPage() {
 				</div>
 
 				<div className="space-y-5 no-print">
-					<Card className="border-border/65 bg-[linear-gradient(165deg,rgba(206,161,74,0.14),rgba(255,255,255,0.92))] shadow-[0_14px_28px_-24px_rgba(19,32,51,0.68)]">
+					<Card className="border-border bg-primary/5 shadow-sm">
 						<CardHeader><CardTitle className="text-[13px]">Quotation Snapshot</CardTitle></CardHeader>
 						<CardContent className="space-y-2">
-							<div className="rounded-lg border border-border/70 bg-card/90 p-4"><p className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Quotation No.</p><p className="text-sm font-semibold truncate">{quotationNumber || '—'}</p></div>
-							<div className="rounded-lg border border-border/70 bg-card/90 p-4"><p className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Client</p><p className="text-sm font-semibold truncate">{project?.clientName || 'N/A'}</p></div>
-							<div className="rounded-lg border border-border/70 bg-card/90 p-4"><p className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Grand Total</p><p className="text-2xl font-semibold tabular-nums text-accent">{boqData ? formatPHP(boqData.grandTotal) : '—'}</p></div>
+							<div className="rounded-lg border border-border bg-card p-4"><p className="text-xs uppercase tracking-wider text-muted-foreground">Quotation No.</p><p className="text-sm font-semibold truncate">{quotationNumber || '—'}</p></div>
+							<div className="rounded-lg border border-border bg-card p-4"><p className="text-xs uppercase tracking-wider text-muted-foreground">Client</p><p className="text-sm font-semibold truncate">{project?.clientName || 'N/A'}</p></div>
+							<div className="rounded-lg border border-border bg-card p-4"><p className="text-xs uppercase tracking-wider text-muted-foreground">Grand Total</p><p className="text-2xl font-semibold tabular-nums text-accent">{boqData ? formatPHP(boqData.grandTotal) : '—'}</p></div>
 						</CardContent>
 					</Card>
 
-					<Card className="border-border/65 bg-card/90 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.66)]">
+					<Card className="border-border bg-card shadow-sm">
 						<CardHeader><CardTitle className="text-[13px]">Output Readiness</CardTitle></CardHeader>
 						<CardContent className="space-y-2 text-[12px]">
-							<div className="flex items-center justify-between rounded-lg border border-border/55 bg-secondary/45 px-3.5 py-2.5"><span className="text-muted-foreground">Project selected</span><Badge size="sm" variant={project ? 'success' : 'default'}>{project ? 'Ready' : 'Pending'}</Badge></div>
-							<div className="flex items-center justify-between rounded-lg border border-border/55 bg-secondary/45 px-3.5 py-2.5"><span className="text-muted-foreground">BOQ loaded</span><Badge size="sm" variant={boqData ? 'success' : 'default'}>{boqData ? 'Ready' : 'Pending'}</Badge></div>
-							<div className="flex items-center justify-between rounded-lg border border-border/55 bg-secondary/45 px-3.5 py-2.5"><span className="text-muted-foreground">Equipment list</span><Badge size="sm" variant={equipment.length > 0 ? 'success' : 'default'}>{equipment.length > 0 ? 'Ready' : 'Pending'}</Badge></div>
+							<div className="flex items-center justify-between rounded-lg border border-border bg-secondary/50 px-3.5 py-2.5"><span className="text-muted-foreground">Project selected</span><Badge size="sm" variant={project ? 'success' : 'default'}>{project ? 'Ready' : 'Pending'}</Badge></div>
+							<div className="flex items-center justify-between rounded-lg border border-border bg-secondary/50 px-3.5 py-2.5"><span className="text-muted-foreground">BOQ loaded</span><Badge size="sm" variant={boqData ? 'success' : 'default'}>{boqData ? 'Ready' : 'Pending'}</Badge></div>
+							<div className="flex items-center justify-between rounded-lg border border-border bg-secondary/50 px-3.5 py-2.5"><span className="text-muted-foreground">Equipment list</span><Badge size="sm" variant={equipment.length > 0 ? 'success' : 'default'}>{equipment.length > 0 ? 'Ready' : 'Pending'}</Badge></div>
 							<Button variant="accent" size="sm" className="w-full mt-2" onClick={exportQuotationPDF} disabled={!boqData || generating} isLoading={generating}>
 								<Download className="w-4 h-4 mr-1" /> Export PDF
 							</Button>

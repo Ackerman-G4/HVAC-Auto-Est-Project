@@ -13,19 +13,23 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Download, FileDown, FileSpreadsheet, FileText, Info, Upload } from 'lucide-react';
-import { Card } from '@/components/rebuild/Card';
-import { Button } from '@/components/rebuild/Button';
+import { Download, FileDown, FileSpreadsheet, FileText, Upload } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { StatCard } from '@/components/ui/stat-card';
 import { CollapsiblePanel } from '@/components/rebuild/CollapsiblePanel';
 import { showToast } from '@/components/ui/toast';
 import { buildWorkspaceSnapshot, parseWorkspaceSnapshot } from '@/lib/reports/workspace-snapshot';
+import {
+  calculateTotalProjectCost,
+  type CostBreakdown,
+} from '@/lib/engine/pricing-engine';
 import { useAirflowWorkspaceStore } from '@/stores/airflow-workspace-store';
 import { useEquipmentWorkspaceStore } from '@/stores/equipment-workspace-store';
 import { useLoadWorkspaceStore } from '@/stores/load-workspace-store';
-import { useUIStore } from '@/stores/ui-store';
 
 function toPhp(value: number): string {
-  return `PHP ${Math.round(value).toLocaleString('en-PH')}`;
+  return `₱${Math.round(value).toLocaleString('en-PH')}`;
 }
 
 function csvEscape(value: string | number): string {
@@ -65,7 +69,6 @@ export default function ReportsPage() {
     setChartsReady(true);
   }, []);
 
-  const mode = useUIStore((state) => state.workspaceMode);
   const loadInputs = useLoadWorkspaceStore((state) => state.inputs);
   const loadResult = useLoadWorkspaceStore((state) => state.result);
   const getLoadSnapshot = useLoadWorkspaceStore((state) => state.getSnapshot);
@@ -94,7 +97,20 @@ export default function ReportsPage() {
     [equipmentResult.candidates, equipmentResult.selectedCandidateId],
   );
 
-  const isProfessional = mode === 'professional';
+  // Compute full project cost via pricing engine
+  const costBreakdown: CostBreakdown | null = React.useMemo(() => {
+    if (!selectedCandidate) return null;
+    return calculateTotalProjectCost({
+      equipment: [
+        {
+          manufacturer: selectedCandidate.model.split(' ')[0] ?? 'Unknown',
+          unitPricePHP: selectedCandidate.capexPhp / Math.max(1, selectedCandidate.quantity),
+          quantity: selectedCandidate.quantity,
+          type: selectedCandidate.type,
+        },
+      ],
+    });
+  }, [selectedCandidate]);
 
   const loadBreakdownData = React.useMemo(
     () => [
@@ -523,7 +539,7 @@ export default function ReportsPage() {
   ]);
 
   return (
-    <div className="space-y-8 lg:space-y-10">
+    <div className="space-y-[var(--space-section-gap)]">
       <input
         ref={snapshotInputRef}
         type="file"
@@ -534,63 +550,54 @@ export default function ReportsPage() {
         }}
       />
 
-      <Card
-        title="Engineering Reports"
-        subtitle="Live report surface combining load, airflow, and equipment modules"
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="secondary" size="sm" onClick={() => void exportWorkspaceSnapshot()} loading={snapshotTransfer === 'export'}>
-              <Download size={14} />
-              Export Snapshot
-            </Button>
-            <Button variant="secondary" size="sm" onClick={triggerSnapshotImport} loading={snapshotTransfer === 'import'}>
-              <Upload size={14} />
-              Import Snapshot
-            </Button>
-            <Button variant="secondary" size="sm" onClick={() => void exportPdf()} loading={exporting === 'pdf'}>
-              <FileText size={14} />
-              Export PDF
-            </Button>
-            <Button variant="secondary" size="sm" onClick={() => void exportExcel()} loading={exporting === 'excel'}>
-              <FileSpreadsheet size={14} />
-              Export Excel
-            </Button>
-            <Button variant="secondary" size="sm" onClick={() => void exportCsv()} loading={exporting === 'csv'}>
-              <FileDown size={14} />
-              Export CSV
-            </Button>
-            <Button size="sm" onClick={() => void exportJson()} loading={exporting === 'json'}>
-              <Download size={14} />
-              Export JSON
-            </Button>
-          </div>
-        }
-      >
-        <div className="grid gap-5 md:grid-cols-3">
-          <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-2)] px-5 py-4">
-            <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-[color:var(--muted-foreground)]">Design Load</p>
-            <p className="mt-1.5 text-[2.05rem] font-extrabold leading-tight tabular-nums text-[color:var(--foreground)]">
-              {loadResult.breakdown.totalBtuAfterFactors.toLocaleString()} BTU/h
-            </p>
-          </div>
-          <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-2)] px-5 py-4">
-            <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-[color:var(--muted-foreground)]">Total Static</p>
-            <p className="mt-1.5 text-[2.05rem] font-extrabold leading-tight tabular-nums text-[color:var(--foreground)]">
-              {airflowResult.totalStaticPressureInWg.toFixed(2)} in.wg
-            </p>
-          </div>
-          <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-2)] px-5 py-4">
-            <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-[color:var(--muted-foreground)]">Selected Lifecycle</p>
-            <p className="mt-1.5 text-[2.05rem] font-extrabold leading-tight tabular-nums text-[color:var(--foreground)]">
-              {toPhp(selectedCandidate?.totalLifecyclePhp ?? 0)}
-            </p>
-          </div>
+      {/* Actions */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">Engineering Reports</h2>
+          <p className="text-xs text-muted-foreground">
+            Live report surface combining load, airflow, equipment, and cost modules
+          </p>
         </div>
-      </Card>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={() => void exportWorkspaceSnapshot()} isLoading={snapshotTransfer === 'export'}>
+            <Download size={14} className="mr-1" />
+            Export Snapshot
+          </Button>
+          <Button variant="secondary" size="sm" onClick={triggerSnapshotImport} isLoading={snapshotTransfer === 'import'}>
+            <Upload size={14} className="mr-1" />
+            Import Snapshot
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => void exportPdf()} isLoading={exporting === 'pdf'}>
+            <FileText size={14} className="mr-1" />
+            PDF
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => void exportExcel()} isLoading={exporting === 'excel'}>
+            <FileSpreadsheet size={14} className="mr-1" />
+            Excel
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => void exportCsv()} isLoading={exporting === 'csv'}>
+            <FileDown size={14} className="mr-1" />
+            CSV
+          </Button>
+          <Button size="sm" onClick={() => void exportJson()} isLoading={exporting === 'json'}>
+            <Download size={14} className="mr-1" />
+            JSON
+          </Button>
+        </div>
+      </div>
 
-      <section className="grid gap-6 xl:grid-cols-3">
-        <Card title="Load Breakdown" subtitle="BTU contribution by source">
-          <div className="h-[300px] w-full">
+      {/* KPI Row */}
+      <div className="grid gap-[var(--space-component-gap)] sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard title="Design Load" value={`${loadResult.breakdown.totalBtuAfterFactors.toLocaleString()} BTU/h`} />
+        <StatCard title="Total Static" value={`${airflowResult.totalStaticPressureInWg.toFixed(2)} in.wg`} />
+        <StatCard title="Selected Lifecycle" value={toPhp(selectedCandidate?.totalLifecyclePhp ?? 0)} />
+        <StatCard title="Project Grand Total" value={costBreakdown ? toPhp(costBreakdown.grandTotal) : '—'} />
+      </div>
+
+      <section className="grid gap-[var(--space-component-gap)] xl:grid-cols-3">
+        <Card className="p-8">
+          <h3 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">Load Breakdown</h3>
+          <div className="h-[340px] w-full">
             {chartsReady ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={loadBreakdownData} margin={{ top: 6, right: 12, bottom: 6, left: 0 }}>
@@ -602,13 +609,14 @@ export default function ReportsPage() {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex h-full items-center justify-center text-xs text-[color:var(--muted-foreground)]">Preparing chart...</div>
+              <div className="flex h-full items-center justify-center text-xs text-muted-foreground">Preparing chart...</div>
             )}
           </div>
         </Card>
 
-        <Card title="Branch Velocity" subtitle="Velocity and pressure drop across branches">
-          <div className="h-[300px] w-full">
+        <Card className="p-8">
+          <h3 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">Branch Velocity</h3>
+          <div className="h-[340px] w-full">
             {chartsReady ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={branchVelocityData} margin={{ top: 6, right: 12, bottom: 6, left: 0 }}>
@@ -618,18 +626,19 @@ export default function ReportsPage() {
                   <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} stroke="color-mix(in oklab,var(--muted-foreground) 80%,transparent)" />
                   <Tooltip />
                   <Legend />
-                  <Line yAxisId="left" type="monotone" dataKey="velocityFpm" name="Velocity (FPM)" stroke="var(--brand-copper)" strokeWidth={2.4} dot={{ r: 3 }} />
+                  <Line yAxisId="left" type="monotone" dataKey="velocityFpm" name="Velocity (FPM)" stroke="var(--warning)" strokeWidth={2.4} dot={{ r: 3 }} />
                   <Line yAxisId="right" type="monotone" dataKey="pressureDropInWg" name="Pressure Drop (in.wg)" stroke="var(--accent)" strokeWidth={2.4} dot={{ r: 3 }} />
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex h-full items-center justify-center text-xs text-[color:var(--muted-foreground)]">Preparing chart...</div>
+              <div className="flex h-full items-center justify-center text-xs text-muted-foreground">Preparing chart...</div>
             )}
           </div>
         </Card>
 
-        <Card title="Equipment Ranking" subtitle="Shortlist score and utilization">
-          <div className="h-[300px] w-full">
+        <Card className="p-8">
+          <h3 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">Equipment Ranking</h3>
+          <div className="h-[340px] w-full">
             {chartsReady ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={equipmentScoreData} margin={{ top: 6, right: 12, bottom: 6, left: 0 }}>
@@ -640,11 +649,11 @@ export default function ReportsPage() {
                   <Tooltip />
                   <Legend />
                   <Bar yAxisId="left" dataKey="score" name="Score" fill="var(--accent)" radius={[6, 6, 0, 0]} />
-                  <Bar yAxisId="right" dataKey="utilizationPct" name="Utilization %" fill="var(--brand-copper)" radius={[6, 6, 0, 0]} />
+                  <Bar yAxisId="right" dataKey="utilizationPct" name="Utilization %" fill="var(--warning)" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex h-full items-center justify-center text-xs text-[color:var(--muted-foreground)]">Preparing chart...</div>
+              <div className="flex h-full items-center justify-center text-xs text-muted-foreground">Preparing chart...</div>
             )}
           </div>
         </Card>
@@ -656,24 +665,24 @@ export default function ReportsPage() {
         defaultOpen
       >
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-2)] p-4 text-sm text-[color:var(--muted-foreground)]">
-            <p className="font-bold uppercase tracking-[0.12em] text-[color:var(--foreground)]">Load Module</p>
+          <div className="rounded-lg border border-border bg-secondary p-4 text-sm text-muted-foreground">
+            <p className="font-medium uppercase tracking-wider text-foreground">Load Module</p>
             <p className="mt-1">Project: {loadInputs.projectName}</p>
             <p>Space Type: {loadInputs.spaceType}</p>
             <p>Required TR: {loadResult.breakdown.trRequired.toFixed(2)}</p>
             <p>Required CFM: {loadResult.breakdown.cfmRequired.toLocaleString()}</p>
           </div>
 
-          <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-2)] p-4 text-sm text-[color:var(--muted-foreground)]">
-            <p className="font-bold uppercase tracking-[0.12em] text-[color:var(--foreground)]">Airflow Module</p>
+          <div className="rounded-lg border border-border bg-secondary p-4 text-sm text-muted-foreground">
+            <p className="font-medium uppercase tracking-wider text-foreground">Airflow Module</p>
             <p className="mt-1">Supply CFM: {airflowInputs.supplyCfm.toLocaleString()}</p>
             <p>Branches: {airflowInputs.branches}</p>
             <p>Trunk Duct: {airflowResult.trunkDiameterIn} in</p>
             <p>Fan HP: {airflowResult.requiredFanPowerHp.toFixed(2)}</p>
           </div>
 
-          <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-2)] p-4 text-sm text-[color:var(--muted-foreground)]">
-            <p className="font-bold uppercase tracking-[0.12em] text-[color:var(--foreground)]">Equipment Module</p>
+          <div className="rounded-lg border border-border bg-secondary p-4 text-sm text-muted-foreground">
+            <p className="font-medium uppercase tracking-wider text-foreground">Equipment Module</p>
             <p className="mt-1">Budget: {equipmentInputs.budgetBand}</p>
             <p>Priority: {equipmentInputs.optimizationPriority}</p>
             <p>Selected: {selectedCandidate?.model ?? 'No candidate'}</p>
@@ -685,60 +694,54 @@ export default function ReportsPage() {
       <CollapsiblePanel
         title="Formula Transparency"
         subtitle="Combined formula traces from load, airflow, and equipment engines"
-        defaultOpen={isProfessional}
+        defaultOpen={false}
       >
-        {isProfessional ? (
-          <div className="space-y-4">
-            <div>
-              <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.13em] text-[color:var(--muted-foreground)]">Load Equations</p>
-              <div className="space-y-3">
-                {loadResult.formulas.map((formula) => (
-                  <div key={`load-${formula.label}`} className="rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-2)] p-4">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[color:var(--foreground)]">{formula.label}</p>
-                    <p className="mt-1 font-mono text-xs text-[color:var(--muted-foreground)]">{formula.expression}</p>
-                    <p className="mt-1.5 text-xs font-semibold text-[color:var(--accent)]">{formula.value}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.13em] text-[color:var(--muted-foreground)]">Airflow Equations</p>
-              <div className="space-y-3">
-                {airflowResult.formulas.map((formula) => (
-                  <div key={`air-${formula.label}`} className="rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-2)] p-4">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[color:var(--foreground)]">{formula.label}</p>
-                    <p className="mt-1 font-mono text-xs text-[color:var(--muted-foreground)]">{formula.expression}</p>
-                    <p className="mt-1.5 text-xs font-semibold text-[color:var(--accent)]">{formula.value}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.13em] text-[color:var(--muted-foreground)]">Equipment Equations</p>
-              <div className="space-y-3">
-                {equipmentResult.formulas.map((formula) => (
-                  <div key={`equip-${formula.label}`} className="rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-2)] p-4">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[color:var(--foreground)]">{formula.label}</p>
-                    <p className="mt-1 font-mono text-xs text-[color:var(--muted-foreground)]">{formula.expression}</p>
-                    <p className="mt-1.5 text-xs font-semibold text-[color:var(--accent)]">{formula.value}</p>
-                  </div>
-                ))}
-              </div>
+        <div className="space-y-4">
+          <div>
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Load Equations</p>
+            <div className="space-y-3">
+              {loadResult.formulas.map((formula) => (
+                <div key={`load-${formula.label}`} className="rounded-lg border border-border bg-secondary p-4">
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-foreground">{formula.label}</p>
+                  <p className="mt-1 font-mono text-xs text-muted-foreground">{formula.expression}</p>
+                  <p className="mt-1.5 text-xs font-semibold text-accent">{formula.value}</p>
+                </div>
+              ))}
             </div>
           </div>
-        ) : (
-          <div className="flex items-start gap-2 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-2)] p-4 text-sm text-[color:var(--muted-foreground)]">
-            <Info size={14} className="mt-0.5 shrink-0" />
-            Formula traces are available in Professional mode.
+
+          <div>
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Airflow Equations</p>
+            <div className="space-y-3">
+              {airflowResult.formulas.map((formula) => (
+                <div key={`air-${formula.label}`} className="rounded-lg border border-border bg-secondary p-4">
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-foreground">{formula.label}</p>
+                  <p className="mt-1 font-mono text-xs text-muted-foreground">{formula.expression}</p>
+                  <p className="mt-1.5 text-xs font-semibold text-accent">{formula.value}</p>
+                </div>
+              ))}
+            </div>
           </div>
-        )}
+
+          <div>
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Equipment Equations</p>
+            <div className="space-y-3">
+              {equipmentResult.formulas.map((formula) => (
+                <div key={`equip-${formula.label}`} className="rounded-lg border border-border bg-secondary p-4">
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-foreground">{formula.label}</p>
+                  <p className="mt-1 font-mono text-xs text-muted-foreground">{formula.expression}</p>
+                  <p className="mt-1.5 text-xs font-semibold text-accent">{formula.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </CollapsiblePanel>
 
       {(loadResult.alerts.length > 0 || airflowResult.alerts.length > 0 || equipmentResult.alerts.length > 0) && (
-        <Card title="Advisories" subtitle="Cross-module warnings and checks">
-          <div className="space-y-2 rounded-xl border border-[color:var(--warning)] bg-[color:var(--surface-2)] p-4 text-sm text-[color:var(--foreground)]">
+        <Card className="p-8">
+          <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Advisories</h3>
+          <div className="space-y-2 rounded-lg border border-warning bg-secondary p-4 text-sm text-foreground">
             {loadResult.alerts.map((alert) => (
               <p key={`load-alert-${alert}`}>Load: {alert}</p>
             ))}

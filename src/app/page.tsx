@@ -1,169 +1,265 @@
 'use client';
 
+import React from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { useRouter } from 'next/navigation';
+import {
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import {
   Activity,
-  BarChart3,
-  Calculator,
-  Cpu,
-  FileText,
+  ChevronRight,
+  Flame,
+  Thermometer,
   Wind,
 } from 'lucide-react';
-import { Card } from '@/components/rebuild/Card';
-import { Button } from '@/components/rebuild/Button';
+import { Card } from '@/components/ui/card';
+import { StatCard } from '@/components/ui/stat-card';
 import { useLoadWorkspaceStore } from '@/stores/load-workspace-store';
+import { useEquipmentWorkspaceStore } from '@/stores/equipment-workspace-store';
+import { useProjectStore } from '@/stores/project-store';
+import { useAuthStore } from '@/stores/auth-store';
 
-const modules = [
-  {
-    title: 'Load Calculation',
-    description: 'Compute design BTU, TR, and ventilation CFM in real time with transparent formulas.',
-    href: '/load-calculation',
-    icon: Calculator,
-  },
-  {
-    title: 'Airflow / Duct Design',
-    description: 'Balance zone distribution and validate velocity targets before final layout release.',
-    href: '/airflow-duct-design',
-    icon: Wind,
-  },
-  {
-    title: 'Equipment Selection',
-    description: 'Compare capacity, efficiency, quantity, and annual energy impact across options.',
-    href: '/equipment-selection',
-    icon: Cpu,
-  },
-  {
-    title: 'Reports',
-    description: 'Compile engineering snapshots, sizing outputs, and recommendation summaries.',
-    href: '/reports',
-    icon: FileText,
-  },
+const CHART_COLORS = [
+  'var(--accent)',
+  'var(--primary)',
+  'var(--warning)',
+  'var(--success)',
+  'var(--muted-foreground)',
 ];
 
 export default function DashboardPage() {
-  const result = useLoadWorkspaceStore((state) => state.result);
+  const router = useRouter();
+  const loadResult = useLoadWorkspaceStore((state) => state.result);
+  const equipResult = useEquipmentWorkspaceStore((state) => state.result);
+  const projects = useProjectStore((state) => state.projects);
+  const fetchProjects = useProjectStore((state) => state.fetchProjects);
+  const user = useAuthStore((state) => state.user);
+  const authInitialized = useAuthStore((state) => state.initialized);
 
-  const metrics = [
-    {
-      label: 'Design Load',
-      value: `${result.breakdown.totalBtuAfterFactors.toLocaleString()} BTU/h`,
-    },
-    {
-      label: 'Cooling Tonnage',
-      value: `${result.breakdown.trRequired.toFixed(2)} TR`,
-    },
-    {
-      label: 'Airflow Demand',
-      value: `${result.breakdown.cfmRequired.toLocaleString()} CFM`,
-    },
-  ];
+  React.useEffect(() => {
+    if (user) void fetchProjects();
+  }, [fetchProjects, user]);
+
+  React.useEffect(() => {
+    if (authInitialized && !user) {
+      router.replace('/auth/login');
+    }
+  }, [authInitialized, user, router]);
+
+  const breakdown = loadResult.breakdown;
+
+  const selectedCandidate = equipResult.candidates.find(
+    (c) => c.id === equipResult.selectedCandidateId
+  );
+  const totalCost = selectedCandidate?.capexPhp ?? 0;
+
+  const loadDistData = [
+    { name: 'Envelope', value: breakdown.envelopeBtu },
+    { name: 'People', value: breakdown.peopleBtu },
+    { name: 'Lighting', value: breakdown.lightingBtu },
+    { name: 'Equipment', value: breakdown.equipmentBtu },
+    { name: 'Ventilation', value: breakdown.ventilationBtu },
+  ].filter((d) => d.value > 0);
+
+  const costData = equipResult.candidates.slice(0, 5).map((c) => ({
+    name: c.model ?? c.id,
+    capex: Math.round(c.capexPhp),
+    energy: Math.round(c.annualEnergyCostPhp),
+  }));
+
+  const recentProjects = projects.slice(0, 5);
 
   return (
-    <div className="space-y-8 lg:space-y-10">
-      <motion.section
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.2, ease: 'easeOut' }}
-        className="rounded-3xl border border-[color:var(--border)] bg-[linear-gradient(140deg,color-mix(in_oklab,var(--surface-1)_92%,transparent),color-mix(in_oklab,var(--surface-2)_62%,transparent))] px-7 py-8 shadow-[0_20px_32px_-24px_rgba(11,16,15,0.8)] sm:px-9 sm:py-10"
-      >
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-[12px] font-bold uppercase tracking-[0.2em] text-[color:var(--muted-foreground)]">
-              HVAC Automation Platform
-            </p>
-            <h2 className="display-heading mt-2 text-[2.3rem] font-black tracking-[-0.04em] text-[color:var(--foreground)] md:text-[2.8rem]">
-              Engineering Workspace Rebuild V1
-            </h2>
-            <p className="mt-3 max-w-3xl text-base leading-relaxed text-[color:var(--muted-foreground)]">
-              This release introduces a from-scratch architecture for calculation-driven workflows with explicit formula traceability and fast module navigation.
-            </p>
-          </div>
-          <Link href="/load-calculation">
-            <Button>
-              <Activity size={16} />
-              Launch Load Calculation
-            </Button>
-          </Link>
-        </div>
-      </motion.section>
+    <div className="space-y-[var(--space-section-gap)]">
+      {/* KPI Row */}
+      <section className="grid gap-[var(--space-component-gap)] sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="Total Load"
+          value={`${breakdown.totalBtuAfterFactors.toLocaleString()} BTU/h`}
+          icon={Flame}
+        />
+        <StatCard
+          title="Cooling Tonnage"
+          value={`${breakdown.trRequired.toFixed(2)} TR`}
+          icon={Thermometer}
+        />
+        <StatCard
+          title="Airflow Demand"
+          value={`${breakdown.cfmRequired.toLocaleString()} CFM`}
+          icon={Wind}
+        />
+        <StatCard
+          title="Estimated Cost"
+          value={totalCost > 0 ? `₱${totalCost.toLocaleString()}` : '—'}
+          icon={Activity}
+        />
+      </section>
 
-      <section className="grid gap-6 md:grid-cols-3">
-        {metrics.map((metric) => (
-          <Card key={metric.label} className="h-full">
-            <div className="space-y-2">
-              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[color:var(--muted-foreground)]">
-                {metric.label}
-              </p>
-              <p className="text-[2.1rem] font-extrabold tracking-[-0.02em] tabular-nums text-[color:var(--foreground)]">
-                {metric.value}
-              </p>
+      {/* 2×2 Grid */}
+      <section className="grid gap-[var(--space-component-gap)] lg:grid-cols-2">
+        {/* Load Distribution Chart */}
+        <Card className="p-8">
+          <h3 className="mb-5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Load Distribution
+          </h3>
+          {loadDistData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={280}>
+              <PieChart>
+                <Pie
+                  data={loadDistData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={100}
+                  dataKey="value"
+                  paddingAngle={2}
+                  stroke="none"
+                >
+                  {loadDistData.map((_entry, i) => (
+                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(value) => `${Number(value).toLocaleString()} BTU/h`}
+                  contentStyle={{
+                    background: 'var(--card)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 8,
+                    fontSize: 13,
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex h-[280px] items-center justify-center text-sm text-muted-foreground">
+              Run a load calculation to see distribution
             </div>
-          </Card>
-        ))}
-      </section>
+          )}
+          <div className="mt-4 flex flex-wrap gap-3">
+            {loadDistData.map((d, i) => (
+              <span key={d.name} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span
+                  className="inline-block h-2.5 w-2.5 rounded-full"
+                  style={{ background: CHART_COLORS[i % CHART_COLORS.length] }}
+                />
+                {d.name}
+              </span>
+            ))}
+          </div>
+        </Card>
 
-      <section className="grid gap-6 md:grid-cols-2">
-        {modules.map((module, index) => {
-          const Icon = module.icon;
+        {/* Cost Breakdown Chart */}
+        <Card className="p-8">
+          <h3 className="mb-5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Cost Breakdown
+          </h3>
+          {costData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={costData} barGap={4}>
+                <XAxis
+                  dataKey="name"
+                  tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(v: number) => `₱${(v / 1000).toFixed(0)}k`}
+                />
+                <Tooltip
+                  formatter={(value) => `₱${Number(value).toLocaleString()}`}
+                  contentStyle={{
+                    background: 'var(--card)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 8,
+                    fontSize: 13,
+                  }}
+                />
+                <Bar dataKey="capex" name="CAPEX" fill="var(--accent)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="energy" name="Annual Energy" fill="var(--warning)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex h-[280px] items-center justify-center text-sm text-muted-foreground">
+              Select equipment to see cost comparison
+            </div>
+          )}
+        </Card>
 
-          return (
-            <motion.div
-              key={module.title}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2, delay: index * 0.04, ease: 'easeOut' }}
-            >
-              <Card
-                title={module.title}
-                subtitle={module.description}
-                actions={
-                  <Link href={module.href}>
-                    <Button variant="secondary" size="sm">
-                      Open
-                    </Button>
+        {/* Recent Projects */}
+        <Card className="p-8">
+          <h3 className="mb-5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Recent Projects
+          </h3>
+          {recentProjects.length > 0 ? (
+            <ul className="divide-y divide-border">
+              {recentProjects.map((project) => (
+                <li key={project.id}>
+                  <Link
+                    href={`/projects/${project.id}`}
+                    className="flex items-center justify-between py-3.5 text-sm transition-colors hover:text-primary"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-foreground">
+                        {project.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {project.status}
+                      </p>
+                    </div>
+                    <ChevronRight size={14} className="shrink-0 text-muted-foreground" />
                   </Link>
-                }
-              >
-                <div className="flex items-center gap-3">
-                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-2)] text-[color:var(--accent)]">
-                    <Icon size={21} />
-                  </div>
-                  <div className="text-sm leading-relaxed text-[color:var(--muted-foreground)]">
-                    Module-ready and integrated with the new state and engineering core.
-                  </div>
-                </div>
-              </Card>
-            </motion.div>
-          );
-        })}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="flex h-[180px] items-center justify-center text-sm text-muted-foreground">
+              No projects yet
+            </div>
+          )}
+        </Card>
+
+        {/* System Status */}
+        <Card className="p-8">
+          <h3 className="mb-5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            System Status
+          </h3>
+          <div className="space-y-4">
+            <StatusRow label="Load Engine" ok={breakdown.totalBtuAfterFactors > 0} />
+            <StatusRow label="Equipment Engine" ok={equipResult.candidates.length > 0} />
+            <StatusRow label="Project Data" ok={projects.length > 0} />
+          </div>
+        </Card>
       </section>
+    </div>
+  );
+}
 
-      <Card title="System Direction" subtitle="Architecture goals in active implementation">
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-2)] px-5 py-4 text-sm text-[color:var(--muted-foreground)]">
-            <p className="mb-1 font-bold uppercase tracking-[0.12em] text-[color:var(--foreground)]">UI Foundation</p>
-            Dark-first design system with 8px spacing discipline and modular primitives.
-          </div>
-          <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-2)] px-5 py-4 text-sm text-[color:var(--muted-foreground)]">
-            <p className="mb-1 font-bold uppercase tracking-[0.12em] text-[color:var(--foreground)]">Calculation Core</p>
-            Separated engine modules for BTU, CFM, and equipment sizing with formula traceability.
-          </div>
-          <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-2)] px-5 py-4 text-sm text-[color:var(--muted-foreground)]">
-            <p className="mb-1 font-bold uppercase tracking-[0.12em] text-[color:var(--foreground)]">Data Visualization</p>
-            Recharts-backed breakdowns for load, airflow distribution, and equipment fit comparisons.
-          </div>
-        </div>
-      </Card>
-
-      <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-1)] px-5 py-4 text-sm text-[color:var(--muted-foreground)]">
-        <span className="font-semibold text-[color:var(--foreground)]">Note:</span> This is phase-one implementation. Remaining modules will be expanded with full workflow depth in the next passes.
-      </div>
-
-      <div className="flex items-center gap-2.5 text-sm text-[color:var(--muted-foreground)]">
-        <BarChart3 size={14} />
-        Visualization stack: Recharts + Framer Motion + Zustand live state.
-      </div>
+function StatusRow({ label, ok }: { label: string; ok: boolean }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-sm text-foreground">{label}</span>
+      <span
+        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+          ok
+            ? 'bg-accent/10 text-accent'
+            : 'bg-secondary text-muted-foreground'
+        }`}
+      >
+        <span className={`h-1.5 w-1.5 rounded-full ${ok ? 'bg-accent' : 'bg-muted-foreground'}`} />
+        {ok ? 'Active' : 'Pending'}
+      </span>
     </div>
   );
 }

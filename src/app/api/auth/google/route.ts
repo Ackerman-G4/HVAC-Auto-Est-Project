@@ -68,6 +68,7 @@ export async function POST(req: NextRequest) {
 
       return createAuthResponse({
         token: authResponse.idToken,
+        refreshToken: authResponse.refreshToken,
         user: {
           id: decoded.uid,
           email: decoded.email || authResponse.email,
@@ -80,6 +81,7 @@ export async function POST(req: NextRequest) {
 
       return createAuthResponse({
         token: authResponse.idToken,
+        refreshToken: authResponse.refreshToken,
         user: {
           id: account.id,
           email: account.email || authResponse.email,

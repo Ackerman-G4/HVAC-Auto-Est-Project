@@ -590,11 +590,11 @@ export default function FloorPlanMultiView({
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.92, opacity: 0 }}
             transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-            className="relative flex h-[93vh] w-[96vw] flex-col overflow-hidden rounded-xl border border-border/70 bg-background shadow-2xl"
+            className="relative flex h-[93vh] w-[96vw] flex-col overflow-hidden rounded-xl border border-border bg-background shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             {/* ── Header ─────────────────────────────────────────────────── */}
-            <div className="flex items-center justify-between border-b border-border/60 bg-card/90 px-4 py-2.5">
+            <div className="flex items-center justify-between border-b border-border bg-card px-4 py-2.5">
               <div className="flex items-center gap-2.5">
                 <div className="w-7 h-7 rounded-md bg-accent/10 flex items-center justify-center">
                   <Box className="w-4 h-4 text-accent" />
@@ -646,7 +646,7 @@ export default function FloorPlanMultiView({
 
               {/* Bottom-right: Legend / Info */}
               <div className="flex flex-col bg-background">
-                <div className="flex items-center gap-1.5 border-b border-border/60 bg-card/85 px-3 py-1.5">
+                <div className="flex items-center gap-1.5 border-b border-border bg-card px-3 py-1.5">
                   <Layers className="w-3 h-3 text-muted-foreground" />
                   <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">
                     Room Legend
@@ -682,7 +682,7 @@ export default function FloorPlanMultiView({
                   </div>
 
                   {/* Summary stats */}
-                  <div className="mt-3 space-y-1 border-t border-border/55 pt-2.5 text-[10px] text-muted-foreground">
+                  <div className="mt-3 space-y-1 border-t border-border pt-2.5 text-[10px] text-muted-foreground">
                     {[
                       ['Rooms', rooms.length.toString()],
                       [
@@ -703,7 +703,7 @@ export default function FloorPlanMultiView({
                   </div>
 
                   {/* View legend */}
-                  <div className="mt-3 space-y-1 border-t border-border/55 pt-2.5 text-[10px] text-muted-foreground">
+                  <div className="mt-3 space-y-1 border-t border-border pt-2.5 text-[10px] text-muted-foreground">
                     <p className="font-semibold text-muted-foreground text-[9px] uppercase tracking-[0.06em] mb-1">Drawing Legend</p>
                     <div className="flex items-center gap-2">
                       <div className="w-5 border-t-2 border-[#6B7280]" />
@@ -731,7 +731,7 @@ export default function FloorPlanMultiView({
             </div>
 
             {/* ── Footer ─────────────────────────────────────────────────── */}
-            <div className="flex items-center justify-between border-t border-border/60 bg-card/90 px-4 py-2 text-[10px] text-muted-foreground">
+            <div className="flex items-center justify-between border-t border-border bg-card px-4 py-2 text-[10px] text-muted-foreground">
               <span className="tracking-wide">
                 Top (Plan) + Front &middot; Rear &middot; Left &middot; Right Elevations &mdash; All dimensions in meters
               </span>
@@ -761,7 +761,7 @@ function ViewPanel({
 }) {
   return (
     <div className="flex flex-col bg-background">
-      <div className="flex items-center gap-1.5 border-b border-border/60 bg-card/85 px-3 py-1.5">
+      <div className="flex items-center gap-1.5 border-b border-border bg-card px-3 py-1.5">
         <Eye className={`w-3 h-3 ${accentColor ? 'text-accent' : 'text-muted-foreground'}`} />
         <span
           className={`text-[10px] font-bold uppercase tracking-[0.08em] ${

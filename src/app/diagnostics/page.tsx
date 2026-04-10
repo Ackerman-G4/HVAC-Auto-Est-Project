@@ -27,6 +27,7 @@ import {
   Gauge,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
+import { authFetch } from '@/lib/api-client';
 import type {
   DiagnosticInput,
   DiagnosticResult,
@@ -143,7 +144,7 @@ export default function DiagnosticsPage() {
   const [projectContext, setProjectContext] = useState('');
 
   useEffect(() => {
-    fetch('/api/projects?status=all')
+    authFetch('/api/projects?status=all')
       .then((r) => r.json())
       .then((d) => {
         setProjects((d.projects || []).filter((p: { status: string }) => p.status !== 'deleted'));
@@ -157,7 +158,7 @@ export default function DiagnosticsPage() {
     if (!pid) { setProjectContext(''); return; }
 
     try {
-      const res = await fetch(`/api/projects/${pid}`);
+      const res = await authFetch(`/api/projects/${pid}`);
       if (!res.ok) throw new Error();
       const { project } = await res.json() as { project: ProjectOption };
 
@@ -210,7 +211,7 @@ export default function DiagnosticsPage() {
   const run = async () => {
     setLoading(true);
     try {
-      const r = await fetch('/api/diagnostics', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
+      const r = await authFetch('/api/diagnostics', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
       if (!r.ok) { const e = await r.json(); throw new Error(e.error || 'Failed'); }
       const d = await r.json();
       setResult(d.result);
@@ -233,7 +234,7 @@ export default function DiagnosticsPage() {
   const Pill = ({ label, field, icon: I }: { label: string; field: keyof DiagnosticInput; icon: React.ComponentType<{ size?: number }> }) => (
     <button type="button" onClick={() => toggleSym(field)}
       className={cn('inline-flex items-center gap-2 rounded-lg border px-3.5 py-2 text-sm font-medium transition-all',
-        input[field] ? 'bg-accent/12 border-accent/30 text-accent' : 'bg-card border-border/50 text-muted-foreground hover:text-foreground hover:border-border')}>
+        input[field] ? 'bg-accent/12 border-accent/30 text-accent' : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-border')}>
       <I size={14} />{label}
     </button>
   );
@@ -291,7 +292,7 @@ export default function DiagnosticsPage() {
         )}
 
         {/* Row 2: Symptoms */}
-        <Card className="border-border/65 bg-card/90 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.62)]">
+        <Card className="border-border bg-card shadow-sm">
           <CardContent className="px-5 py-5">
             <p className="mb-3 text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">Symptoms</p>
             <div className="flex flex-wrap gap-2">
@@ -316,7 +317,7 @@ export default function DiagnosticsPage() {
         </button>
 
         {showMeasurements && (
-          <Card className="border-border/65 bg-card/90 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.62)]">
+          <Card className="border-border bg-card shadow-sm">
             <CardContent className="px-5 py-5">
               <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
                 <NumField label="Supply (cold)" field="supplyTempCold" unit="°C" ph="14" />
@@ -343,17 +344,17 @@ export default function DiagnosticsPage() {
           {/* Divider */}
           <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-border/60" />
-            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Analysis Results</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Analysis Results</span>
             <div className="h-px flex-1 bg-border/60" />
           </div>
 
           {/* Summary row */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <Card className="lg:col-span-2 border-border/65 bg-card/90 shadow-[0_14px_28px_-24px_rgba(19,32,51,0.66)]">
+            <Card className="lg:col-span-2 border-border bg-card shadow-sm">
               <CardContent className="px-5 py-5">
                 <p className="text-sm font-semibold text-foreground">{result.summaryTitle}</p>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{result.summaryDescription}</p>
-                <div className="mt-3 rounded-lg border border-border/40 bg-secondary/50 p-3">
+                <div className="mt-3 rounded-lg border border-border bg-secondary/50 p-3">
                   <p className="mb-1 text-xs font-medium text-muted-foreground">Client Explanation</p>
                   <p className="text-sm leading-relaxed text-foreground">{result.clientExplanation}</p>
                 </div>
@@ -362,7 +363,7 @@ export default function DiagnosticsPage() {
 
             <div className="flex flex-col gap-4">
               {result.deltaT && (
-                <Card className="border-border/65 bg-card/90 shadow-[0_12px_22px_-22px_rgba(19,32,51,0.62)]">
+                <Card className="border-border bg-card shadow-sm">
                   <CardContent className="flex items-center justify-between px-5 py-4">
                     <div>
                       <p className="text-xs font-medium text-muted-foreground">ΔT</p>
@@ -376,7 +377,7 @@ export default function DiagnosticsPage() {
                 </Card>
               )}
               {result.sensibleHeatRatio && (
-                <Card className="border-border/65 bg-card/90 shadow-[0_12px_22px_-22px_rgba(19,32,51,0.62)]">
+                <Card className="border-border bg-card shadow-sm">
                   <CardContent className="flex items-center justify-between px-5 py-4">
                     <div>
                       <p className="text-xs font-medium text-muted-foreground">SHR</p>
@@ -393,7 +394,7 @@ export default function DiagnosticsPage() {
           </div>
 
           {/* Immediate actions */}
-          <Card className="border-border/65 bg-card/90 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.62)]">
+          <Card className="border-border bg-card shadow-sm">
             <CardContent className="px-5 py-4">
               <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">Immediate Actions</p>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -418,7 +419,7 @@ export default function DiagnosticsPage() {
           </div>
 
           {/* Preventive */}
-          <Card className="border-border/65 bg-card/90 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.62)]">
+          <Card className="border-border bg-card shadow-sm">
             <CardContent className="px-5 py-4">
               <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">Preventive Maintenance</p>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -453,8 +454,8 @@ function FaultRow({ fault, expanded, onToggle }: { fault: DiagnosticFault; expan
   const conf = confidenceConfig[fault.probability];
 
   return (
-    <Card className="overflow-hidden border-border/65 bg-card/90 p-0 shadow-[0_10px_20px_-20px_rgba(19,32,51,0.62)]">
-      <button type="button" onClick={onToggle} className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-secondary/45">
+    <Card className="overflow-hidden border-border bg-card p-0 shadow-sm">
+      <button type="button" onClick={onToggle} className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-secondary/50">
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-bold">{fault.rank}</span>
         <div className="flex-1 min-w-0">
           <p className="truncate text-sm font-semibold text-foreground">{fault.title}</p>
@@ -470,7 +471,7 @@ function FaultRow({ fault, expanded, onToggle }: { fault: DiagnosticFault; expan
       </button>
 
       {expanded && (
-        <div className="space-y-4 border-t border-border/50 px-4 py-4 text-sm">
+        <div className="space-y-4 border-t border-border px-4 py-4 text-sm">
           {/* Root cause */}
           <div>
             <p className="mb-1 text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">Root Cause</p>

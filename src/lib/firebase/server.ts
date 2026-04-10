@@ -81,7 +81,7 @@ function resolveServiceAccount(): ServiceAccount | null {
 }
 
 function getDatabaseURL(): string | undefined {
-  return process.env.FIREBASE_DATABASE_URL || process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL;
+  return process.env.FIREBASE_DATABASE_URL;
 }
 
 function initFirebaseAdminApp(): App {

@@ -55,4 +55,4 @@ export const tabContentVariants = {
 };
 
 // Loading skeleton animation (CSS class based, see globals.css)
-export const skeletonClasses = 'animate-skeleton bg-silver-light rounded';
+export const skeletonClasses = 'animate-skeleton bg-secondary rounded';

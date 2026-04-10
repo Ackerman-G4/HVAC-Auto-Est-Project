@@ -14,6 +14,7 @@ export interface AuthUser {
 
 export interface AuthSuccessPayload {
   token: string;
+  refreshToken?: string;
   user: AuthUser;
 }
 

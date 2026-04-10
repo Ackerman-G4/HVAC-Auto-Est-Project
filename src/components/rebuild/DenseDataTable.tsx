@@ -63,23 +63,23 @@ export function DenseDataTable<T extends object>({
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between gap-3">
-        <h4 className="text-[13px] font-bold uppercase tracking-[0.14em] text-[color:var(--muted-foreground)]">{title}</h4>
+        <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</h4>
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder={filterPlaceholder}
-          className="h-10 w-[260px] rounded-xl border border-[color:var(--input)] bg-[color:var(--surface-2)] px-3.5 text-sm text-[color:var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
+          className="h-9 w-[260px] rounded-lg border border-input bg-card px-3 text-sm text-foreground placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:border-ring"
         />
       </div>
 
-      <div className="max-h-[360px] overflow-auto rounded-2xl border border-[color:var(--border)]">
+      <div className="max-h-[360px] overflow-auto rounded-xl border border-border">
         <table className="w-full border-collapse text-sm">
-          <thead className="sticky top-0 z-10 bg-[color:var(--surface-3)] text-[color:var(--foreground)]">
+          <thead className="sticky top-0 z-10 bg-secondary text-foreground">
             <tr>
               {columns.map((column) => (
                 <th
                   key={String(column.key)}
-                  className={`cursor-pointer border-b border-[color:var(--border)] px-4 py-3 text-[11px] font-bold uppercase tracking-[0.13em] ${column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left'}`}
+                  className={`cursor-pointer border-b border-border px-5 py-3.5 text-[11px] font-medium uppercase tracking-wider ${column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left'}`}
                   onClick={() => {
                     if (sortBy === column.key) {
                       setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
@@ -96,11 +96,11 @@ export function DenseDataTable<T extends object>({
           </thead>
           <tbody>
             {sortedRows.map((row, rowIndex) => (
-              <tr key={rowIndex} className="border-b border-[color:var(--border)] bg-[color:var(--surface-1)]/80 hover:bg-[color:var(--surface-2)]">
+              <tr key={rowIndex} className="border-b border-border bg-card hover:bg-secondary/50">
                 {columns.map((column) => (
                   <td
                     key={String(column.key)}
-                    className={`px-4 py-3 tabular-nums ${column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left'}`}
+                    className={`px-5 py-4 tabular-nums ${column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left'}`}
                   >
                     {column.render ? column.render(row) : String(row[column.key])}
                   </td>
@@ -109,7 +109,7 @@ export function DenseDataTable<T extends object>({
             ))}
             {sortedRows.length === 0 && (
               <tr>
-                <td colSpan={columns.length} className="px-3 py-10 text-center text-sm text-[color:var(--muted-foreground)]">
+                <td colSpan={columns.length} className="px-5 py-10 text-center text-sm text-muted-foreground">
                   No rows match the active filter.
                 </td>
               </tr>

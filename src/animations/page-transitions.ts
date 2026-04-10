@@ -4,9 +4,9 @@ import { type Variants } from 'framer-motion';
 export const pageVariants: Variants = {
   initial: {
     opacity: 0,
-    y: 16,
-    scale: 0.992,
-    filter: 'blur(2px)',
+    y: 12,
+    scale: 0.995,
+    filter: 'blur(0px)',
   },
   animate: {
     opacity: 1,
@@ -14,7 +14,7 @@ export const pageVariants: Variants = {
     scale: 1,
     filter: 'blur(0px)',
     transition: {
-      duration: 0.45,
+      duration: 0.35,
       ease: [0.25, 0.46, 0.45, 0.94],
     },
   },

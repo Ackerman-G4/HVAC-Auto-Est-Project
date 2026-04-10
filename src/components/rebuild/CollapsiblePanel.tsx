@@ -20,21 +20,21 @@ export function CollapsiblePanel({
   const [open, setOpen] = React.useState(defaultOpen);
 
   return (
-    <section className="rounded-[1.3rem] border border-[color:var(--border)] bg-[color:var(--surface-1)]/90">
+    <section className="rounded-xl border border-border bg-card shadow-sm">
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
+        className="flex w-full items-center justify-between gap-4 px-8 py-6 text-left"
       >
         <div>
-          <h4 className="display-heading text-lg font-extrabold tracking-[-0.02em] text-[color:var(--foreground)]">
+          <h4 className="display-heading text-base font-semibold tracking-tight text-foreground">
             {title}
           </h4>
-          {subtitle && <p className="mt-1 text-sm text-[color:var(--muted-foreground)]">{subtitle}</p>}
+          {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
         </div>
         <ChevronDown
-          size={20}
-          className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          size={18}
+          className={`text-muted-foreground transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
         />
       </button>
 
@@ -47,7 +47,7 @@ export function CollapsiblePanel({
             transition={{ duration: 0.18, ease: 'easeOut' }}
             className="overflow-hidden"
           >
-            <div className="border-t border-[color:var(--border)] px-5 py-5 sm:px-6">{children}</div>
+            <div className="border-t border-border px-8 py-6">{children}</div>
           </motion.div>
         )}
       </AnimatePresence>

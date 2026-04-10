@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { showToast } from '@/components/ui/toast';
+import { authFetch } from '@/lib/api-client';
 import type {
   SimulationConfig,
   SimulationResult,
@@ -56,6 +57,7 @@ interface SimulationStore {
   runPUE: () => void;
   runOptimization: (config?: OptimizationConfig) => Promise<void>;
   clearResults: () => void;
+  clearAll: () => void;
 
   // Actions - UI
   setActiveView: (view: 'temperature' | 'velocity' | 'pressure') => void;
@@ -160,7 +162,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     set({ isRunning: true, result: null });
 
     try {
-      const res = await fetch('/api/simulation', {
+      const res = await authFetch('/api/simulation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -189,7 +191,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
 
     try {
       // We'll call the API for compliance check
-      fetch('/api/simulation', {
+      authFetch('/api/simulation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -216,7 +218,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     set({ isRunning: true });
 
     try {
-      const res = await fetch('/api/simulation', {
+      const res = await authFetch('/api/simulation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -242,7 +244,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
   runPUE: () => {
     const { racks, hvacUnits } = get();
 
-    fetch('/api/simulation', {
+    authFetch('/api/simulation', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'pue', racks, hvacUnits }),
@@ -262,7 +264,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     set({ isRunning: true });
 
     try {
-      const res = await fetch('/api/simulation', {
+      const res = await authFetch('/api/simulation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -285,6 +287,19 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
 
   clearResults: () => {
     set({
+      result: null,
+      complianceReport: null,
+      failureResult: null,
+      pueAnalysis: null,
+      optimizationResult: null,
+    });
+  },
+
+  clearAll: () => {
+    set({
+      racks: [],
+      hvacUnits: [],
+      tiles: [],
       result: null,
       complianceReport: null,
       failureResult: null,

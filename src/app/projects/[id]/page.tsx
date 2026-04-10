@@ -40,6 +40,7 @@ import { safeJsonParse } from '@/lib/utils/safe-json';
 import Link from 'next/link';
 import { exportProjectPDF, exportProjectDXF, exportProjectCSV, exportProjectExcel } from '@/lib/utils/project-export';
 import dynamic from 'next/dynamic';
+import { authFetch } from '@/lib/api-client';
 
 const BuildingViewer3D = dynamic(() => import('@/components/building/BuildingViewer3D'), {
   ssr: false,
@@ -403,7 +404,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   const fetchProject = useCallback(() => {
     setLoading(true);
-    fetch(`/api/projects/${id}`)
+    authFetch(`/api/projects/${id}`)
       .then((r) => {
         if (!r.ok) {
           return r.json().then((data) => {
@@ -609,7 +610,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       return;
     }
     try {
-      const res = await fetch(`/api/projects/${id}/rooms`, {
+      const res = await authFetch(`/api/projects/${id}/rooms`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -657,7 +658,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const runCalculation = async () => {
     setCalculating(true);
     try {
-      const res = await fetch(`/api/projects/${id}/calculate`, { method: 'POST' });
+      const res = await authFetch(`/api/projects/${id}/calculate`, { method: 'POST' });
       const data = await res.json();
       if (res.ok) {
         showToast('success', `Calculated ${data.summary.roomCount} rooms — Total: ${data.summary.totalTR} TR`);
@@ -676,7 +677,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const autoSizeEquipment = async () => {
     setAutoSizing(true);
     try {
-      const res = await fetch(`/api/projects/${id}/equipment`, {
+      const res = await authFetch(`/api/projects/${id}/equipment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ autoSize: true, budgetLevel: 'mid-range' }),
@@ -700,7 +701,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const generateBOQ = async () => {
     setGeneratingBOQ(true);
     try {
-      const res = await fetch(`/api/projects/${id}/boq`, { method: 'POST' });
+      const res = await authFetch(`/api/projects/${id}/boq`, { method: 'POST' });
       const data = await res.json();
       if (res.ok) {
         showToast('success', `BOQ generated: ${formatPHP(data.boq.grandTotal)}`);
@@ -731,7 +732,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
     setBoqSavingItemId(item.id);
     try {
-      const response = await fetch(`/api/projects/${id}/boq/${item.id}`, {
+      const response = await authFetch(`/api/projects/${id}/boq/${item.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -759,7 +760,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const handleBoqUseSuggested = async (item: ProjectData['boqItems'][number]) => {
     setBoqSavingItemId(item.id);
     try {
-      const response = await fetch(`/api/projects/${id}/boq/${item.id}`, {
+      const response = await authFetch(`/api/projects/${id}/boq/${item.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -815,7 +816,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
     setPricingSaving(true);
     try {
-      const response = await fetch(`/api/projects/${id}`, {
+      const response = await authFetch(`/api/projects/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -859,7 +860,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   ) => {
     setRoomLoadSavingId(roomId);
     try {
-      const response = await fetch(`/api/projects/${id}/rooms/${roomId}`, {
+      const response = await authFetch(`/api/projects/${id}/rooms/${roomId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -956,7 +957,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
     setEquipmentSavingId(equipment.id);
     try {
-      const response = await fetch(`/api/projects/${id}/equipment/${equipment.id}`, {
+      const response = await authFetch(`/api/projects/${id}/equipment/${equipment.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -985,7 +986,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const handleEquipmentUseSuggested = async (equipment: ProjectData['selectedEquipment'][number]) => {
     setEquipmentSavingId(equipment.id);
     try {
-      const response = await fetch(`/api/projects/${id}/equipment/${equipment.id}`, {
+      const response = await authFetch(`/api/projects/${id}/equipment/${equipment.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1093,7 +1094,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           { label: project.name },
         ]}
         actions={
-          <div className="flex flex-wrap gap-2.5 rounded-xl border border-border/70 bg-card/75 p-2">
+          <div className="flex flex-wrap gap-2.5 rounded-xl border border-border bg-card p-2">
             <Button variant="secondary" size="md" onClick={runCalculation} isLoading={calculating}>
               <Calculator className="w-4 h-4 mr-1" /> Calculate
             </Button>
@@ -1121,21 +1122,21 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         const outdoorPS = psychrometricState(project.outdoorDB, project.outdoorRH || 50);
         const indoorPS = psychrometricState(project.indoorDB, project.indoorRH);
         return (
-          <Card className="mb-6 border-border/70 bg-[linear-gradient(162deg,rgba(15,139,141,0.12),rgba(255,255,255,0.94))] shadow-[0_14px_28px_-24px_rgba(19,32,51,0.66)]">
+          <Card className="mb-6 border-border bg-accent/5 shadow-sm">
             <CardContent className="p-5">
               <div className="mb-4 flex items-center gap-2">
-                <Thermometer className="w-4 h-4 text-[color:var(--accent)]" />
+                <Thermometer className="w-4 h-4 text-accent" />
                 <h3 className="text-base font-semibold">Carrier Psychrometric Chart — Design Conditions</h3>
               </div>
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                 {/* Outdoor */}
                 <div>
-                  <p className="mb-2 text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Outdoor Air</p>
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Outdoor Air</p>
                   {renderPsychrometricMetricGrid(outdoorPS, 'bg-[rgba(219,142,47,0.14)]')}
                 </div>
                 {/* Indoor */}
                 <div>
-                  <p className="mb-2 text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Indoor Air (Design)</p>
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Indoor Air (Design)</p>
                   {renderPsychrometricMetricGrid(indoorPS, 'bg-[rgba(15,139,141,0.14)]')}
                 </div>
               </div>
@@ -1168,26 +1169,26 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
               >
-                <Card className="mb-4 border-border/70 bg-card/90 shadow-[0_14px_28px_-24px_rgba(19,32,51,0.66)]">
+                <Card className="mb-4 border-border bg-card shadow-sm">
                   <CardHeader>
                     <CardTitle>Add New Room</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <form onSubmit={handleAddRoom} className="space-y-5">
                       {/* Unit toggle */}
-                      <div className="flex items-center gap-4 border-b border-border/60 pb-3">
-                        <label className="text-sm font-medium uppercase tracking-[0.08em] text-muted-foreground">Input Unit:</label>
+                      <div className="flex items-center gap-4 border-b border-border pb-3">
+                        <label className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Input Unit:</label>
                         <button
                           type="button"
                           onClick={() => setRoomForm({ ...roomForm, useFootInput: !roomForm.useFootInput })}
-                          className={`rounded-md border px-3.5 py-1.5 text-sm font-medium transition-colors ${roomForm.useFootInput ? 'border-accent/35 bg-accent text-accent-foreground' : 'border-border/55 bg-secondary/45 text-muted-foreground hover:bg-secondary/70 hover:text-foreground'}`}
+                          className={`rounded-md border px-3.5 py-1.5 text-sm font-medium transition-colors ${roomForm.useFootInput ? 'border-accent/35 bg-accent text-accent-foreground' : 'border-border bg-secondary/50 text-muted-foreground hover:bg-secondary/70 hover:text-foreground'}`}
                         >
                           Feet (ft)
                         </button>
                         <button
                           type="button"
                           onClick={() => setRoomForm({ ...roomForm, useFootInput: !roomForm.useFootInput })}
-                          className={`rounded-md border px-3.5 py-1.5 text-sm font-medium transition-colors ${!roomForm.useFootInput ? 'border-accent/35 bg-accent text-accent-foreground' : 'border-border/55 bg-secondary/45 text-muted-foreground hover:bg-secondary/70 hover:text-foreground'}`}
+                          className={`rounded-md border px-3.5 py-1.5 text-sm font-medium transition-colors ${!roomForm.useFootInput ? 'border-accent/35 bg-accent text-accent-foreground' : 'border-border bg-secondary/50 text-muted-foreground hover:bg-secondary/70 hover:text-foreground'}`}
                         >
                           Meters (m)
                         </button>
@@ -1205,7 +1206,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                             <Input label="Room Width (ft) *" type="number" step={0.1} min={0} max={1000} unit="ft" value={numVal(roomForm.widthFt) || ''} onChange={(e) => handleRoomNumChange('widthFt', e.target.value)} onBlur={() => handleRoomNumBlur('widthFt', 0)} hint={numVal(roomForm.widthFt) > 0 ? `= ${feetToMeters(numVal(roomForm.widthFt)).toFixed(2)} m` : ''} />
                             <div>
                               <label className="mb-1.5 block text-sm font-medium text-foreground">Area (auto)</label>
-                              <div className="flex h-10 items-center rounded-lg border border-border/60 bg-secondary/50 px-3.5 text-sm tabular-nums">
+                              <div className="flex h-10 items-center rounded-lg border border-border bg-secondary/50 px-3.5 text-sm tabular-nums">
                                 {computedAreaSqft > 0 ? (
                                   <span>{computedAreaSqft.toFixed(1)} ft² <span className="text-muted-foreground">({computedAreaSqm.toFixed(1)} m²)</span></span>
                                 ) : (
@@ -1274,8 +1275,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             ) : (
               <div className="space-y-6">
                 {project.floors.map((floor) => (
-                  <div key={floor.id} className="rounded-2xl border border-border/70 bg-card/85 p-5 shadow-[0_14px_26px_-24px_rgba(19,32,51,0.64)]">
-                    <div className="flex items-center gap-2 mb-4 pb-3 border-b border-border/60">
+                  <div key={floor.id} className="rounded-xl border border-border bg-card p-5 shadow-sm">
+                    <div className="flex items-center gap-2 mb-4 pb-3 border-b border-border">
                       <Building2 className="w-5 h-5 text-accent" />
                       <h4 className="text-base font-bold text-foreground">
                         {floor.name}
@@ -1298,7 +1299,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
                         return (
                         <motion.div key={room.id} variants={listItemVariants}>
-                          <Card className="border border-border/70 bg-card/85 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.62)]">
+                          <Card className="border border-border bg-card shadow-sm">
                             <CardContent className="p-5">
                               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                                 <div className="flex-1 min-w-0">
@@ -1310,7 +1311,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                       onClick={async () => {
                                         if (!confirm(`Delete room "${room.name}"?`)) return;
                                         try {
-                                          const res = await fetch(`/api/projects/${id}/rooms/${room.id}`, { method: 'DELETE' });
+                                          const res = await authFetch(`/api/projects/${id}/rooms/${room.id}`, { method: 'DELETE' });
                                           if (res.ok) {
                                             showToast('success', `Room "${room.name}" deleted`);
                                             fetchProject();
@@ -1346,7 +1347,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                         <p className="text-lg font-bold text-accent">{room.coolingLoad.trValue} TR</p>
                                         <p className="text-sm text-muted-foreground">{(room.coolingLoad.btuPerHour || 0).toLocaleString()} BTU/h</p>
                                       </div>
-                                      <div className="rounded-lg border border-border/55 bg-secondary/35 px-3.5 py-2">
+                                      <div className="rounded-lg border border-border bg-secondary/50 px-3.5 py-2">
                                         <p className="text-base font-semibold">{room.coolingLoad.cfmSupply} CFM</p>
                                         <p className="text-sm text-muted-foreground">
                                           <TermHint
@@ -1356,7 +1357,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                           />
                                         </p>
                                       </div>
-                                      <div className="rounded-lg border border-border/55 bg-secondary/35 px-3.5 py-2">
+                                      <div className="rounded-lg border border-border bg-secondary/50 px-3.5 py-2">
                                         <p className="text-base font-semibold">{(room.coolingLoad.totalLoad / room.area).toFixed(0)} W/m²</p>
                                         <p className="text-sm text-muted-foreground">
                                           <TermHint
@@ -1369,7 +1370,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                     </div>
 
                                     <div className="mt-2 grid w-full grid-cols-2 gap-2.5 sm:w-[430px]">
-                                      <div className="rounded-lg border border-border/55 bg-secondary/35 px-3.5 py-2 text-right">
+                                      <div className="rounded-lg border border-border bg-secondary/50 px-3.5 py-2 text-right">
                                         <p className="text-sm font-semibold tabular-nums">
                                           {Math.round(room.coolingLoad.totalSensibleLoad).toLocaleString()} W
                                         </p>
@@ -1381,7 +1382,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                           />
                                         </p>
                                       </div>
-                                      <div className="rounded-lg border border-border/55 bg-secondary/35 px-3.5 py-2 text-right">
+                                      <div className="rounded-lg border border-border bg-secondary/50 px-3.5 py-2 text-right">
                                         <p className="text-sm font-semibold tabular-nums">
                                           {Math.round(room.coolingLoad.totalLatentLoad).toLocaleString()} W
                                         </p>
@@ -1428,8 +1429,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                       />
                                     </div>
 
-                                    <div className="w-full rounded-lg border border-border/65 bg-card/80 p-3.5 shadow-[0_10px_20px_-22px_rgba(19,32,51,0.72)] sm:w-[360px]">
-                                      <p className="mb-2 text-xs uppercase tracking-[0.08em] text-muted-foreground">Cooling Load Overrides</p>
+                                    <div className="w-full rounded-lg border border-border bg-card p-3.5 shadow-sm sm:w-[360px]">
+                                      <p className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">Cooling Load Overrides</p>
                                       <div className="grid grid-cols-2 gap-2">
                                         <div>
                                           <label className="mb-1 block text-xs text-muted-foreground">TR Override</label>
@@ -1509,10 +1510,10 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                 }
 
                                 return (
-                                  <div className="mt-4 pt-4 border-t border-border/50">
+                                  <div className="mt-4 pt-4 border-t border-border">
                                     <div className="flex items-center gap-2 mb-2">
                                       <Zap className="w-3.5 h-3.5 text-amber-500" />
-                                      <span className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                                      <span className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                                         AC Recommendation ({rec.recommendedType})
                                       </span>
                                       {rec.deratingFactor < 1 && (
@@ -1537,7 +1538,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                           return (
                                             <div
                                               key={idx}
-                                              className="flex items-center justify-between gap-2 rounded border border-border/55 bg-secondary/45 px-3 py-2 text-sm"
+                                              className="flex items-center justify-between gap-2 rounded border border-border bg-secondary/50 px-3 py-2 text-sm"
                                             >
                                               <div className="flex-1 min-w-0">
                                                 <span className="font-medium">{unit.manufacturer}</span>
@@ -1601,24 +1602,24 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 }
               />
             ) : (
-              <div className="overflow-x-auto rounded-2xl border border-border/70 bg-card/85 p-3 shadow-[0_14px_26px_-24px_rgba(19,32,51,0.66)]">
+              <div className="overflow-x-auto rounded-xl border border-border bg-card p-3 shadow-sm">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-border/50">
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Brand / Model</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Type</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">State</th>
-                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Capacity</th>
-                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Qty</th>
-                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                    <tr className="border-b border-border">
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Brand / Model</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Type</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">State</th>
+                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Capacity</th>
+                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Qty</th>
+                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         <TermHint
                           term="EER"
                           definition="Energy Efficiency Ratio. Higher EER indicates better efficiency at rated operating conditions."
                         />
                       </th>
-                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Unit Price</th>
-                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Total</th>
-                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Actions</th>
+                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Unit Price</th>
+                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total</th>
+                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1649,7 +1650,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                       const previewTotal = previewQuantity * previewUnitPrice;
 
                       return [
-                        <tr key={`${eq.id}-main`} className="border-b border-border/30">
+                        <tr key={`${eq.id}-main`} className="border-b border-border">
                           <td className="px-4 py-2.5">
                             <div className="font-medium">{eq.brand}</div>
                             <div className="text-sm text-muted-foreground">{eq.model}</div>
@@ -1722,7 +1723,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                             </div>
                           </td>
                         </tr>,
-                        <tr key={`${eq.id}-explain`} className="border-b border-border/20 bg-secondary/20">
+                        <tr key={`${eq.id}-explain`} className="border-b border-border bg-secondary/20">
                           <td colSpan={9} className="px-4 pb-3 pt-2">
                             <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
                               <DualValueExplainer
@@ -1775,7 +1776,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               )}
             </div>
 
-            <Card className="mb-4 border border-border/70 bg-card/90 shadow-[0_14px_28px_-24px_rgba(19,32,51,0.66)]">
+            <Card className="mb-4 border border-border bg-card shadow-sm">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Pricing Policy Overrides</CardTitle>
                 <CardDescription>
@@ -1783,7 +1784,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 </CardDescription>
               </CardHeader>
               <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <div className="rounded-lg border border-border/60 bg-secondary/35 p-4">
+                <div className="rounded-lg border border-border bg-secondary/50 p-4">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Labor Multiplier</p>
                   <p className="mt-1 text-xs text-muted-foreground">Suggested: {project.suggestedLaborMultiplier ?? 1}</p>
                   <input
@@ -1798,7 +1799,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   <p className="mt-2 text-sm text-muted-foreground">Final: {pricingFinal.laborMultiplier}</p>
                 </div>
 
-                <div className="rounded-lg border border-border/60 bg-secondary/35 p-4">
+                <div className="rounded-lg border border-border bg-secondary/50 p-4">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Overhead %</p>
                   <p className="mt-1 text-xs text-muted-foreground">Suggested: {project.suggestedOverheadPercent ?? 12}%</p>
                   <input
@@ -1813,7 +1814,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   <p className="mt-2 text-sm text-muted-foreground">Final: {pricingFinal.overheadPercent}%</p>
                 </div>
 
-                <div className="rounded-lg border border-border/60 bg-secondary/35 p-4">
+                <div className="rounded-lg border border-border bg-secondary/50 p-4">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Contingency %</p>
                   <p className="mt-1 text-xs text-muted-foreground">Suggested: {project.suggestedContingencyPercent ?? 8}%</p>
                   <input
@@ -1828,7 +1829,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   <p className="mt-2 text-sm text-muted-foreground">Final: {pricingFinal.contingencyPercent}%</p>
                 </div>
 
-                <div className="rounded-lg border border-border/60 bg-secondary/35 p-4">
+                <div className="rounded-lg border border-border bg-secondary/50 p-4">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">VAT %</p>
                   <p className="mt-1 text-xs text-muted-foreground">Suggested: {project.suggestedVatRate ?? 12}%</p>
                   <input
@@ -1871,18 +1872,18 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 }
               />
             ) : (
-              <div className="overflow-x-auto rounded-2xl border border-border/70 bg-card/85 p-3 shadow-[0_14px_26px_-24px_rgba(19,32,51,0.66)]">
+              <div className="overflow-x-auto rounded-xl border border-border bg-card p-3 shadow-sm">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-border/50">
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Section</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Description</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">State</th>
-                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Qty</th>
-                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Unit</th>
-                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Unit Price</th>
-                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Total</th>
-                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Actions</th>
+                    <tr className="border-b border-border">
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Section</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Description</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">State</th>
+                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Qty</th>
+                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Unit</th>
+                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Unit Price</th>
+                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total</th>
+                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1897,7 +1898,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                       const finalTotalPrice = item.finalTotalPrice ?? item.totalPrice;
 
                       return [
-                        <tr key={`${item.id}-main`} className="border-b border-border/30">
+                        <tr key={`${item.id}-main`} className="border-b border-border">
                           <td className="px-4 py-2.5 text-sm text-muted-foreground">{item.section}</td>
                           <td className="px-4 py-2.5">{item.description}</td>
                           <td className="px-4 py-2.5">
@@ -1952,7 +1953,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                             </div>
                           </td>
                         </tr>,
-                        <tr key={`${item.id}-explain`} className="border-b border-border/20 bg-secondary/20">
+                        <tr key={`${item.id}-explain`} className="border-b border-border bg-secondary/20">
                           <td colSpan={8} className="px-4 pb-3 pt-2">
                             <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
                               <DualValueExplainer
@@ -2005,7 +2006,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               <p className="text-sm text-muted-foreground">Download project data in various formats for documentation, CAD, or spreadsheet analysis.</p>
             </div>
 
-            <Card className="mb-4 border border-border/70 bg-card/90 shadow-[0_14px_28px_-24px_rgba(19,32,51,0.66)]">
+            <Card className="mb-4 border border-border bg-card shadow-sm">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Offline Snapshot (v1)</CardTitle>
                 <CardDescription>
@@ -2035,7 +2036,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {/* PDF Report */}
-              <Card className="cursor-pointer border border-border/65 bg-card/90 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/45 hover:shadow-[0_16px_28px_-24px_rgba(19,32,51,0.78)]" onClick={() => {
+              <Card className="cursor-pointer border border-border bg-card transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/45 hover:shadow-md" onClick={() => {
                 exportProjectPDF(project);
                 showToast('success', 'PDF report downloaded');
               }}>
@@ -2049,13 +2050,13 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               </Card>
 
               {/* DXF / CAD */}
-              <Card className="cursor-pointer border border-border/65 bg-card/90 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/45 hover:shadow-[0_16px_28px_-24px_rgba(19,32,51,0.78)]" onClick={() => {
+              <Card className="cursor-pointer border border-border bg-card transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/45 hover:shadow-md" onClick={() => {
                 exportProjectDXF(project);
                 showToast('success', 'DXF file downloaded — open in AutoCAD or BricsCAD');
               }}>
                 <CardContent className="p-5 text-center">
                   <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl border border-[rgba(15,139,141,0.3)] bg-[rgba(15,139,141,0.14)]">
-                    <FileDown className="w-6 h-6 text-[color:var(--accent-dark)]" />
+                    <FileDown className="w-6 h-6 text-accent" />
                   </div>
                   <h4 className="font-semibold mb-1">CAD Export (DXF)</h4>
                   <p className="text-sm text-muted-foreground">AutoCAD-compatible floor plans with room labels and loads</p>
@@ -2063,7 +2064,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               </Card>
 
               {/* Excel */}
-              <Card className="cursor-pointer border border-border/65 bg-card/90 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/45 hover:shadow-[0_16px_28px_-24px_rgba(19,32,51,0.78)]" onClick={async () => {
+              <Card className="cursor-pointer border border-border bg-card transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/45 hover:shadow-md" onClick={async () => {
                 await exportProjectExcel(project);
                 showToast('success', 'Excel workbook downloaded');
               }}>
@@ -2077,7 +2078,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               </Card>
 
               {/* CSV */}
-              <Card className="cursor-pointer border border-border/65 bg-card/90 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/45 hover:shadow-[0_16px_28px_-24px_rgba(19,32,51,0.78)]" onClick={() => {
+              <Card className="cursor-pointer border border-border bg-card transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/45 hover:shadow-md" onClick={() => {
                 exportProjectCSV(project);
                 showToast('success', 'CSV file downloaded');
               }}>
