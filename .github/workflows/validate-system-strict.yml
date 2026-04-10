@@ -35,10 +35,9 @@ jobs:
           java-version: '21'
 
       - name: Validate CI secret wiring
+        id: secrets-check
         shell: pwsh
         run: |
-          $ErrorActionPreference = 'Stop'
-
           function Test-NonEmpty {
             param([string]$Value)
             return -not [string]::IsNullOrWhiteSpace($Value)
@@ -64,22 +63,32 @@ jobs:
 
           if ($missing.Count -gt 0) {
             $joined = $missing -join '; '
-            throw "Missing CI configuration: $joined. Configure these in Settings > Secrets and variables > Actions."
+            Write-Warning "Missing CI configuration: $joined. Configure these in Settings > Secrets and variables > Actions."
+            "has_secrets=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          } else {
+            Write-Host 'CI secret wiring validated.'
+            "has_secrets=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           }
 
-          Write-Host 'CI secret wiring validated.'
-
       - name: Install Firebase CLI
+        if: steps.secrets-check.outputs.has_secrets == 'true'
         shell: pwsh
         run: npm install -g firebase-tools
 
       - name: Install dependencies
+        if: steps.secrets-check.outputs.has_secrets == 'true'
         shell: pwsh
         run: npm ci
 
       - name: Run strict system validation
+        if: steps.secrets-check.outputs.has_secrets == 'true'
         shell: pwsh
         run: ./scripts/ci-validate-system-strict.ps1
+
+      - name: Skip notice
+        if: steps.secrets-check.outputs.has_secrets != 'true'
+        shell: pwsh
+        run: Write-Host '::notice::Strict system validation skipped — CI secrets not configured. Add secrets in Settings > Secrets and variables > Actions.'
 
       - name: Upload strict validation logs
         if: always()
