@@ -6,7 +6,6 @@ import {
   TrendingDown,
   AlertTriangle,
   CheckCircle2,
-  Info,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
@@ -51,7 +50,7 @@ function MetricRow({ metric }: { metric: MetricDef }) {
         : 'text-foreground';
 
   return (
-    <div className="flex items-center justify-between py-1.5 px-3 rounded hover:bg-secondary/30 transition-colors">
+    <div className="flex items-center justify-between rounded-xl border border-border/60 px-3 py-2 transition-colors hover:bg-secondary/35">
       <span className="text-[11px] text-muted-foreground truncate mr-2">
         {metric.label}
       </span>
@@ -73,11 +72,11 @@ function MetricRow({ metric }: { metric: MetricDef }) {
 
 function ResultSectionBlock({ section }: { section: ResultSection }) {
   return (
-    <div className="border-b border-border/60 last:border-b-0 py-2">
-      <h3 className="px-4 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+    <div className="border-b border-border/70 px-3 py-3 last:border-b-0">
+      <h3 className="px-1 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
         {section.title}
       </h3>
-      <div>
+      <div className="space-y-1.5">
         {section.metrics.map((m) => (
           <MetricRow key={m.key} metric={m} />
         ))}
@@ -112,10 +111,11 @@ export function ResultsPanel({
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="shrink-0 px-4 pt-4 pb-3 border-b border-border">
-        <h2 className="text-sm font-semibold text-foreground display-heading">{title}</h2>
+      <div className="shrink-0 border-b border-border/70 bg-card/45 px-4 pb-3 pt-4">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Output Deck</p>
+        <h2 className="display-heading mt-1 text-sm font-semibold text-foreground">{title}</h2>
         {subtitle && (
-          <p className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">{subtitle}</p>
         )}
 
         {/* Alerts */}
@@ -137,7 +137,7 @@ export function ResultsPanel({
 
       {/* Footer */}
       {footer && (
-        <div className="shrink-0 border-t border-border p-3">
+        <div className="shrink-0 border-t border-border/70 bg-card/45 p-3">
           {footer}
         </div>
       )}

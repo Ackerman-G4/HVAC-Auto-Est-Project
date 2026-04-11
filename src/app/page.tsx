@@ -37,16 +37,17 @@ const CHART_COLORS = [
 ];
 
 const CHART_DOT_CLASSES = [
-  'bg-(--accent)',
-  'bg-(--primary)',
-  'bg-(--warning)',
-  'bg-(--success)',
-  'bg-(--muted-foreground)',
+  'bg-accent',
+  'bg-primary',
+  'bg-warning',
+  'bg-success',
+  'bg-muted-foreground',
 ];
 
 export default function DashboardPage() {
   const router = useRouter();
   const loadResult = useLoadWorkspaceStore((state) => state.result);
+  const loadInputs = useLoadWorkspaceStore((state) => state.inputs);
   const equipResult = useEquipmentWorkspaceStore((state) => state.result);
   const projects = useProjectStore((state) => state.projects);
   const fetchProjects = useProjectStore((state) => state.fetchProjects);
@@ -87,6 +88,10 @@ export default function DashboardPage() {
   }));
 
   const recentProjects = projects.slice(0, 5);
+  const ambientTemp = loadInputs.outdoorTempC.toFixed(1);
+  const indoorSetpoint = loadInputs.indoorTempC.toFixed(1);
+  const ventilation = loadInputs.ventilationCfmPerPerson.toFixed(0);
+  const safetyMargin = `${Math.round((loadInputs.safetyFactor - 1) * 100)}%`;
 
   return (
     <div className="space-y-(--space-section-gap)">
@@ -114,10 +119,11 @@ export default function DashboardPage() {
         />
       </section>
 
-      {/* 2×2 Grid */}
-      <section className="grid gap-(--space-component-gap) lg:grid-cols-2">
+      {/* Main Intelligence Grid */}
+      <section className="grid gap-(--space-component-gap) xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+        <div className="grid gap-(--space-component-gap)">
         {/* Load Distribution Chart */}
-        <Card className="p-8">
+        <Card className="p-(--space-card-padding)">
           <h3 className="mb-5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Load Distribution
           </h3>
@@ -167,7 +173,7 @@ export default function DashboardPage() {
         </Card>
 
         {/* Cost Breakdown Chart */}
-        <Card className="p-8">
+        <Card className="p-(--space-card-padding)">
           <h3 className="mb-5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Cost Breakdown
           </h3>
@@ -205,12 +211,59 @@ export default function DashboardPage() {
             </div>
           )}
         </Card>
+        </div>
 
-        {/* Recent Projects */}
-        <Card className="p-8">
+        <div className="grid gap-(--space-component-gap)">
+          <Card className="p-(--space-card-padding)">
+            <h3 className="mb-5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Environment Snapshot
+            </h3>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-border/70 bg-secondary/45 p-4">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Outdoor Temperature</p>
+                <p className="mt-2 text-2xl font-semibold text-foreground">{ambientTemp} C</p>
+              </div>
+              <div className="rounded-2xl border border-border/70 bg-secondary/45 p-4">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Indoor Setpoint</p>
+                <p className="mt-2 text-2xl font-semibold text-foreground">{indoorSetpoint} C</p>
+              </div>
+              <div className="rounded-2xl border border-border/70 bg-secondary/45 p-4">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Ventilation Rate</p>
+                <p className="mt-2 text-2xl font-semibold text-foreground">{ventilation} CFM/P</p>
+              </div>
+              <div className="rounded-2xl border border-border/70 bg-secondary/45 p-4">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Safety Margin</p>
+                <p className="mt-2 text-2xl font-semibold text-accent">{safetyMargin}</p>
+              </div>
+            </div>
+          </Card>
+
+          {/* System Status */}
+          <Card className="p-(--space-card-padding)">
           <h3 className="mb-5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Recent Projects
+            System Status
           </h3>
+          <div className="space-y-4">
+            <StatusRow label="Load Engine" ok={breakdown.totalBtuAfterFactors > 0} />
+            <StatusRow label="Equipment Engine" ok={equipResult.candidates.length > 0} />
+            <StatusRow label="Project Data" ok={projects.length > 0} />
+          </div>
+        </Card>
+        </div>
+      </section>
+
+      {/* Recent Projects */}
+      <section>
+        <Card className="p-(--space-card-padding)">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Recent Projects
+            </h3>
+            <Link href="/projects" className="text-xs font-semibold text-primary hover:text-primary/80">
+              View all
+            </Link>
+          </div>
           {recentProjects.length > 0 ? (
             <ul className="divide-y divide-border">
               {recentProjects.map((project) => (
@@ -237,18 +290,6 @@ export default function DashboardPage() {
               No projects yet
             </div>
           )}
-        </Card>
-
-        {/* System Status */}
-        <Card className="p-8">
-          <h3 className="mb-5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            System Status
-          </h3>
-          <div className="space-y-4">
-            <StatusRow label="Load Engine" ok={breakdown.totalBtuAfterFactors > 0} />
-            <StatusRow label="Equipment Engine" ok={equipResult.candidates.length > 0} />
-            <StatusRow label="Project Data" ok={projects.length > 0} />
-          </div>
         </Card>
       </section>
     </div>

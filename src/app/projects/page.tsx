@@ -340,14 +340,14 @@ export default function ProjectsPage() {
 
       <div className="grid grid-cols-1 gap-7 xl:grid-cols-4">
         <div className="xl:col-span-3">
-          <Card className="mb-6 border-border bg-accent/5 shadow-sm">
+          <Card className="panel-glass mb-6 border-border/70 bg-accent/5 shadow-sm">
             <CardContent className="py-4">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Project Workspace</p>
                   <p className="text-sm font-medium text-foreground mt-0.5">Manage active jobs, updates, and archival lifecycle in one view.</p>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted-foreground">
                   <FolderKanban className="h-4 w-4" />
                   <span className="tabular-nums">{loading ? '—' : projects.length} total projects</span>
                 </div>
@@ -355,7 +355,7 @@ export default function ProjectsPage() {
             </CardContent>
           </Card>
 
-          <div className="mb-6 flex flex-col gap-4 rounded-xl border border-border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:p-5">
+          <div className="panel-glass mb-6 flex flex-col gap-4 rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
             <div className="flex-1 flex gap-2">
               <Input
                 placeholder="Search projects..."
@@ -380,7 +380,7 @@ export default function ProjectsPage() {
                 </Button>
               ))}
             </div>
-            <div className="flex gap-2 items-center">
+            <div className="flex flex-wrap gap-2 items-center">
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as (typeof DASHBOARD_SORT_FIELDS)[number]['value'])}
@@ -442,7 +442,7 @@ export default function ProjectsPage() {
 
                 return (
                   <motion.div key={project.id} variants={cardItemVariants}>
-                    <Card className="h-full border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-border hover:shadow-md">
+                    <Card className="panel-glass h-full border-border/70 bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-border hover:shadow-md">
                       <CardContent className="p-5">
                         <div
                           onClick={() => router.push(`/projects/${project.id}`)}
@@ -565,7 +565,7 @@ export default function ProjectsPage() {
         </div>
 
         <div className="space-y-6">
-          <Card className="border-border bg-accent/5 shadow-sm">
+          <Card className="panel-glass border-border/70 bg-accent/5 shadow-sm">
             <CardContent className="space-y-4 p-5">
               <div className="flex items-center gap-2">
                 <ClipboardList className="w-4 h-4 text-accent" />
@@ -596,7 +596,7 @@ export default function ProjectsPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-border bg-card shadow-sm">
+          <Card className="panel-glass border-border/70 bg-card shadow-sm">
             <CardContent className="space-y-4 p-5">
               <h3 className="text-[13px] font-semibold text-foreground">Capacity & BOQ</h3>
               <div className="rounded-lg border border-border bg-secondary/50 p-4">

@@ -539,7 +539,7 @@ export default function MaterialsPage() {
       )}
 
       <Tabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab}>
-      <Card className="mb-5 border-border bg-primary/5 shadow-sm">
+      <Card className="panel-glass mb-5 border-border/70 bg-primary/5 shadow-sm">
         <CardContent className="py-4">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -632,7 +632,7 @@ export default function MaterialsPage() {
                   description="Try a different search term or category"
                 />
               ) : (
-                <Card className="border-border bg-card shadow-sm">
+                <Card className="panel-glass border-border/70 bg-card shadow-sm">
                   <CardContent className="p-0 overflow-x-auto">
                     <table className="w-full text-[13px]">
                       <thead>
@@ -732,7 +732,7 @@ export default function MaterialsPage() {
 
                     return (
                       <motion.div key={supplier.id} variants={cardItemVariants}>
-                        <Card className="h-full border-border bg-card shadow-sm">
+                        <Card className="panel-glass h-full border-border/70 bg-card shadow-sm">
                           <CardContent className="p-6">
                           <div className="mb-3 flex items-start gap-3">
                             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-secondary">
@@ -812,7 +812,7 @@ export default function MaterialsPage() {
         </div>
 
         <div className="space-y-4">
-          <Card className="border-border bg-primary/5 shadow-sm">
+          <Card className="panel-glass border-border/70 bg-primary/5 shadow-sm">
             <CardHeader>
               <CardTitle className="text-[13px] flex items-center gap-2">
                 <ClipboardList className="w-4 h-4 text-accent" /> Catalog Snapshot
@@ -834,7 +834,7 @@ export default function MaterialsPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-border bg-card shadow-sm">
+          <Card className="panel-glass border-border/70 bg-card shadow-sm">
             <CardHeader>
               <CardTitle className="text-[13px] flex items-center gap-2">
                 <Layers3 className="w-4 h-4 text-muted-foreground" /> Coverage

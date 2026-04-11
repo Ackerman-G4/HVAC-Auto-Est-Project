@@ -16,7 +16,7 @@ interface StatCardProps {
 export function StatCard({ title, value, subtitle, icon: Icon, trend, className }: StatCardProps) {
   return (
     <div className={cn(
-      'rounded-xl border border-border bg-card p-8 shadow-sm',
+      'glass-card rounded-2xl border border-border/70 p-(--space-card-padding) shadow-[var(--panel-shadow)]',
       className
     )}>
       <div className="flex items-start justify-between gap-4">
@@ -34,7 +34,7 @@ export function StatCard({ title, value, subtitle, icon: Icon, trend, className 
           )}
         </div>
         {Icon && (
-          <div className="h-12 w-12 shrink-0 rounded-lg bg-primary/10 flex items-center justify-center">
+          <div className="h-12 w-12 shrink-0 rounded-xl border border-border/70 bg-primary/10 flex items-center justify-center">
             <Icon size={20} className="text-primary" />
           </div>
         )}

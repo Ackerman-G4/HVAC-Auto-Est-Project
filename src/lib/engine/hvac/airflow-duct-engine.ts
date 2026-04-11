@@ -1,5 +1,5 @@
 import { getRuleSetSync } from '@/lib/engine/rules';
-import { constantFromRuleSet, lookupFromRuleSet } from '@/lib/engine/rules/rule-evaluator';
+import { constantFromRuleSet } from '@/lib/engine/rules/rule-evaluator';
 
 export interface AirflowInputs {
   supplyCfm: number;

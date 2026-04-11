@@ -264,6 +264,22 @@ export default function DiagnosticsPage() {
         }
       />
 
+      <Card className="panel-glass border-border/70 bg-primary/5 shadow-sm">
+        <CardContent className="py-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Diagnostics Command Deck</p>
+              <p className="mt-0.5 text-sm text-foreground">
+                Capture symptoms, blend optional field readings, and generate ranked root-cause guidance.
+              </p>
+            </div>
+            <div className="rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
+              {result ? `${result.faults.length} fault candidates` : 'Awaiting analysis run'}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* ── INPUT SECTION ── */}
       <div className="space-y-5">
 
@@ -292,7 +308,7 @@ export default function DiagnosticsPage() {
         )}
 
         {/* Row 2: Symptoms */}
-        <Card className="border-border bg-card shadow-sm">
+        <Card className="panel-glass border-border/70 bg-card shadow-sm">
           <CardContent className="px-5 py-5">
             <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Symptoms</p>
             <div className="flex flex-wrap gap-2">
@@ -317,7 +333,7 @@ export default function DiagnosticsPage() {
         </button>
 
         {showMeasurements && (
-          <Card className="border-border bg-card shadow-sm">
+          <Card className="panel-glass border-border/70 bg-card shadow-sm">
             <CardContent className="px-5 py-5">
               <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
                 <NumField label="Supply (cold)" field="supplyTempCold" unit="°C" ph="14" />
@@ -350,7 +366,7 @@ export default function DiagnosticsPage() {
 
           {/* Summary row */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <Card className="lg:col-span-2 border-border bg-card shadow-sm">
+            <Card className="panel-glass lg:col-span-2 border-border/70 bg-card shadow-sm">
               <CardContent className="px-5 py-5">
                 <p className="text-sm font-semibold text-foreground">{result.summaryTitle}</p>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{result.summaryDescription}</p>
@@ -363,7 +379,7 @@ export default function DiagnosticsPage() {
 
             <div className="flex flex-col gap-4">
               {result.deltaT && (
-                <Card className="border-border bg-card shadow-sm">
+                <Card className="panel-glass border-border/70 bg-card shadow-sm">
                   <CardContent className="flex items-center justify-between px-5 py-4">
                     <div>
                       <p className="text-xs font-medium text-muted-foreground">ΔT</p>
@@ -377,7 +393,7 @@ export default function DiagnosticsPage() {
                 </Card>
               )}
               {result.sensibleHeatRatio && (
-                <Card className="border-border bg-card shadow-sm">
+                <Card className="panel-glass border-border/70 bg-card shadow-sm">
                   <CardContent className="flex items-center justify-between px-5 py-4">
                     <div>
                       <p className="text-xs font-medium text-muted-foreground">SHR</p>
@@ -394,7 +410,7 @@ export default function DiagnosticsPage() {
           </div>
 
           {/* Immediate actions */}
-          <Card className="border-border bg-card shadow-sm">
+          <Card className="panel-glass border-border/70 bg-card shadow-sm">
             <CardContent className="px-5 py-4">
               <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Immediate Actions</p>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -419,7 +435,7 @@ export default function DiagnosticsPage() {
           </div>
 
           {/* Preventive */}
-          <Card className="border-border bg-card shadow-sm">
+          <Card className="panel-glass border-border/70 bg-card shadow-sm">
             <CardContent className="px-5 py-4">
               <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Preventive Maintenance</p>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -454,7 +470,7 @@ function FaultRow({ fault, expanded, onToggle }: { fault: DiagnosticFault; expan
   const conf = confidenceConfig[fault.probability];
 
   return (
-    <Card className="overflow-hidden border-border bg-card p-0 shadow-sm">
+    <Card className="panel-glass overflow-hidden border-border/70 bg-card p-0 shadow-sm">
       <button type="button" onClick={onToggle} className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-secondary/50">
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-bold">{fault.rank}</span>
         <div className="flex-1 min-w-0">

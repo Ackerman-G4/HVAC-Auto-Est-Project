@@ -3,91 +3,104 @@
 /* ── Modern Enterprise Design System ─────────────────────── */
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  --card: #ffffff;
-  --card-foreground: #0f172a;
-  --primary: #3b5998;
+  --background: #f3f7ff;
+  --foreground: #0b1220;
+  --card: rgba(255, 255, 255, 0.82);
+  --card-foreground: #0b1220;
+  --primary: #3b82f6;
   --primary-foreground: #ffffff;
-  --secondary: #f1f5f9;
-  --secondary-foreground: #475569;
-  --muted: #e2e8f0;
-  --muted-foreground: #64748b;
-  --accent: #0d9488;
-  --accent-light: #14b8a6;
-  --accent-dark: #0f766e;
+  --secondary: rgba(15, 23, 42, 0.06);
+  --secondary-foreground: #1e293b;
+  --muted: rgba(100, 116, 139, 0.18);
+  --muted-foreground: #475569;
+  --accent: #22c55e;
+  --accent-light: #4ade80;
+  --accent-dark: #16a34a;
   --accent-foreground: #ffffff;
-  --border: #e2e8f0;
-  --input: #e2e8f0;
-  --ring: #3b5998;
+  --border: rgba(15, 23, 42, 0.12);
+  --input: rgba(15, 23, 42, 0.12);
+  --ring: #3b82f6;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
   --success: #22c55e;
   --warning: #f59e0b;
 
+  --glass-bg: rgba(255, 255, 255, 0.62);
+  --glass-bg-strong: rgba(255, 255, 255, 0.78);
+  --glass-border: rgba(15, 23, 42, 0.12);
+  --panel-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
+  --panel-shadow-strong: 0 28px 70px rgba(15, 23, 42, 0.14);
+
   /* Backward-compat aliases (will be removed after component migration) */
   --silver: #94a3b8;
   --silver-light: #f1f5f9;
   --silver-dark: #64748b;
-  --brand-ink: #3b5998;
-  --brand-jade: #0d9488;
+  --brand-ink: #3b82f6;
+  --brand-jade: #22c55e;
   --brand-copper: #f59e0b;
   --brand-paper: #ffffff;
   --surface-0: var(--background);
-  --surface-1: var(--card);
-  --surface-2: #f1f5f9;
-  --surface-3: #e2e8f0;
-  --text-subtle: #94a3b8;
+  --surface-1: var(--glass-bg-strong);
+  --surface-2: rgba(255, 255, 255, 0.55);
+  --surface-3: rgba(15, 23, 42, 0.08);
+  --text-subtle: #475569;
 
-  --radius: 0.75rem;
-  --radius-card: 0.75rem;
-  --radius-sm: 0.5rem;
-  --content-max-width: 1400px;
-  --space-page-x: clamp(2rem, 3vw + 1rem, 5rem);
-  --space-page-y: clamp(2rem, 2.5vw + 1rem, 4rem);
-  --space-card-padding: 32px;
-  --space-component-gap: 24px;
-  --space-section-gap: 56px;
-  --space-header-gap: 32px;
+  --radius: 1rem;
+  --radius-card: 1.25rem;
+  --radius-sm: 0.65rem;
+  --layout-header-height: 84px;
+  --content-max-width-constrained: 1580px;
+  --space-page-x: clamp(1rem, 1.35vw + 0.75rem, 2.3rem);
+  --space-page-y: clamp(1rem, 1.1vw + 0.7rem, 1.8rem);
+  --space-card-padding: clamp(1rem, 1vw + 0.75rem, 1.6rem);
+  --space-component-gap: clamp(0.8rem, 0.9vw + 0.5rem, 1.3rem);
+  --space-section-gap: clamp(1.4rem, 1.4vw + 1rem, 2.4rem);
+  --space-header-gap: clamp(1rem, 0.9vw + 0.5rem, 1.6rem);
   color-scheme: light;
 }
 
 [data-theme='dark'] {
-  --background: #0f172a;
-  --foreground: #f1f5f9;
-  --card: #1e293b;
-  --card-foreground: #f1f5f9;
-  --primary: #6b8cce;
-  --primary-foreground: #0f172a;
-  --secondary: #334155;
+  --background: #0b1220;
+  --foreground: #e8eefc;
+  --card: rgba(255, 255, 255, 0.05);
+  --card-foreground: #e8eefc;
+  --primary: #3b82f6;
+  --primary-foreground: #eaf2ff;
+  --secondary: rgba(148, 163, 184, 0.14);
   --secondary-foreground: #cbd5e1;
-  --muted: #475569;
-  --muted-foreground: #94a3b8;
-  --accent: #2dd4bf;
-  --accent-light: #5eead4;
-  --accent-dark: #14b8a6;
-  --accent-foreground: #042f2e;
-  --border: #334155;
-  --input: #475569;
-  --ring: #6b8cce;
-  --destructive: #f87171;
-  --destructive-foreground: #450a0a;
-  --success: #4ade80;
+  --muted: rgba(148, 163, 184, 0.16);
+  --muted-foreground: #a9b6d6;
+  --accent: #22c55e;
+  --accent-light: #4ade80;
+  --accent-dark: #16a34a;
+  --accent-foreground: #f0fff4;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.16);
+  --ring: #3b82f6;
+  --destructive: #ef4444;
+  --destructive-foreground: #fff1f1;
+  --success: #22c55e;
   --warning: #fbbf24;
+
+  --glass-bg: rgba(17, 25, 40, 0.5);
+  --glass-bg-strong: rgba(17, 25, 40, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.14);
+  --panel-shadow: 0 18px 42px rgba(0, 0, 0, 0.36);
+  --panel-shadow-strong: 0 30px 78px rgba(0, 0, 0, 0.5);
 
   /* Backward-compat aliases */
   --silver: #94a3b8;
   --silver-light: #334155;
   --silver-dark: #cbd5e1;
-  --brand-ink: #6b8cce;
-  --brand-jade: #2dd4bf;
+  --brand-ink: #3b82f6;
+  --brand-jade: #22c55e;
   --brand-copper: #fbbf24;
-  --brand-paper: #1e293b;
+  --brand-paper: #182337;
   --surface-0: var(--background);
-  --surface-1: var(--card);
-  --surface-2: #334155;
-  --surface-3: #475569;
-  --text-subtle: #94a3b8;
+  --surface-1: var(--glass-bg-strong);
+  --surface-2: rgba(255, 255, 255, 0.07);
+  --surface-3: rgba(255, 255, 255, 0.12);
+  --text-subtle: #a9b6d6;
 
   color-scheme: dark;
 }
@@ -134,12 +147,14 @@
 
 body {
   min-height: 100vh;
-  background: var(--background);
+  background: radial-gradient(circle at 20% 12%, color-mix(in oklab, var(--primary) 16%, transparent), transparent 32%),
+    radial-gradient(circle at 82% 84%, color-mix(in oklab, var(--accent) 12%, transparent), transparent 36%),
+    var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), "Segoe UI", sans-serif;
-  font-size: 15px;
-  line-height: 1.6;
-  letter-spacing: 0.01em;
+  font-family: var(--font-sans), 'Segoe UI', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: 0.012em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   transition: background-color 0.2s ease, color 0.2s ease;
@@ -152,13 +167,11 @@ h3,
   font-family: var(--font-display), var(--font-sans), sans-serif;
   letter-spacing: -0.025em;
   line-height: 1.15;
-  text-wrap: balance;
 }
 
 p,
 li,
 dd {
-  text-wrap: pretty;
 }
 
 /* Custom select arrow (replaces inline style) */
@@ -208,6 +221,27 @@ dd {
   animation: fade-rise 400ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+.system-grid-bg {
+  background-image: linear-gradient(to right, color-mix(in oklab, var(--border) 55%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--border) 55%, transparent) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.glass-card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  box-shadow: var(--panel-shadow);
+}
+
+.panel-glass {
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  box-shadow: var(--panel-shadow);
+}
+
 @keyframes fade-rise {
   from {
     opacity: 0;
@@ -222,6 +256,30 @@ dd {
 @media print {
   .no-print { display: none !important; }
   body { background: white; }
+}
+
+@media (max-width: 1280px) {
+  :root {
+    --space-page-x: clamp(0.85rem, 1vw + 0.6rem, 1.3rem);
+    --space-page-y: clamp(0.85rem, 1vw + 0.6rem, 1.2rem);
+    --space-section-gap: clamp(1rem, 1vw + 0.7rem, 1.8rem);
+  }
+}
+
+@media (max-width: 1024px) {
+  :root {
+    --layout-header-height: 76px;
+    --space-card-padding: 1rem;
+    --space-component-gap: 0.8rem;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --layout-header-height: 70px;
+    --space-page-x: 0.85rem;
+    --space-page-y: 0.85rem;
+  }
 }
 
 /* ── Workspace Panel Enhancements ────────────────────────────── */

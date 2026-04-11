@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils/cn';
 export function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn('animate-pulse rounded-xl bg-secondary/75', className)}
+      className={cn('animate-pulse rounded-2xl bg-secondary/70', className)}
       {...props}
     />
   );
@@ -33,7 +33,7 @@ export function TableSkeleton({ rows = 5, cols = 4 }: { rows?: number; cols?: nu
 
 export function CardSkeleton() {
   return (
-    <div className="space-y-4 rounded-xl border border-border bg-card p-6">
+    <div className="space-y-4 rounded-2xl border border-border/70 bg-card/80 p-6 backdrop-blur-sm">
       <Skeleton className="h-5 w-1/3" />
       <Skeleton className="h-4 w-2/3" />
       <div className="flex gap-2">

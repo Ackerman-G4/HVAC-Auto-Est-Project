@@ -69,6 +69,19 @@ const ROOM_BORDER_COLORS = [
   '#D97706',
 ];
 
+const ROOM_SWATCH_CLASSES = [
+  'bg-[rgba(37,99,235,0.2)] border-[#2563EB]',
+  'bg-[rgba(22,163,74,0.2)] border-[#16A34A]',
+  'bg-[rgba(234,179,8,0.2)] border-[#CA8A04]',
+  'bg-[rgba(239,68,68,0.2)] border-[#DC2626]',
+  'bg-[rgba(168,85,247,0.2)] border-[#9333EA]',
+  'bg-[rgba(14,165,233,0.2)] border-[#0EA5E9]',
+  'bg-[rgba(249,115,22,0.2)] border-[#EA580C]',
+  'bg-[rgba(236,72,153,0.2)] border-[#DB2777]',
+  'bg-[rgba(20,184,166,0.2)] border-[#0D9488]',
+  'bg-[rgba(245,158,11,0.2)] border-[#D97706]',
+];
+
 const SPACE_TYPE_LABELS: Record<string, string> = {
   office: 'Office',
   conference_room: 'Conference Room',
@@ -406,7 +419,7 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
       ) : (
         <div className="space-y-4">
           {/* Controls bar */}
-          <div className="no-print flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card px-3 py-2 shadow-sm">
+          <div className="panel-glass no-print flex flex-wrap items-center gap-3 rounded-xl border border-border/70 bg-card px-3 py-2 shadow-sm">
             {/* Floor selector */}
             {floors.length > 1 && (
               <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-0.5">
@@ -497,7 +510,7 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
           </Card>
 
           {/* Room summary table */}
-          <Card className="border border-border bg-card shadow-sm">
+          <Card className="panel-glass border border-border/70 bg-card shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-sm">
                 <Layers className="w-4 h-4 text-muted-foreground" />
@@ -526,13 +539,7 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
                       return (
                         <tr key={room.id} className="border-b border-border hover:bg-secondary/30 transition-colors">
                           <td className="py-2.5 pr-4">
-                            <div
-                              className="w-3.5 h-3.5 rounded-sm border"
-                              style={{
-                                backgroundColor: ROOM_COLORS[idx % ROOM_COLORS.length],
-                                borderColor: ROOM_BORDER_COLORS[idx % ROOM_BORDER_COLORS.length],
-                              }}
-                            />
+                            <div className={`h-3.5 w-3.5 rounded-sm border ${ROOM_SWATCH_CLASSES[idx % ROOM_SWATCH_CLASSES.length]}`} />
                           </td>
                           <td className="py-2.5 pr-4 font-medium">{room.name}</td>
                           <td className="py-2.5 pr-4">

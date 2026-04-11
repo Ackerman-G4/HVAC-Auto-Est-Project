@@ -16,8 +16,6 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import {
   saturationPressure,
   humidityRatio,
-  wetBulb as calcWetBulb,
-  enthalpy as calcEnthalpy,
   psychrometricState,
   type PsychrometricState,
 } from '@/lib/functions/psychrometric';

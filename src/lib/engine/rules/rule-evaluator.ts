@@ -45,7 +45,6 @@ import type {
   LookupRule,
   ConstantsRule,
   RuleSet,
-  RuleCategory,
   RuleEvaluationResult,
 } from './rule-types';
 
@@ -83,6 +82,7 @@ const math: MathJsInstance = create({
 }) as MathJsInstance;
 
 // Safe functions list (for reference / external validation)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const ALLOWED_FUNCTIONS = new Set([
   'abs', 'ceil', 'floor', 'round', 'sqrt', 'cbrt', 'pow',
   'min', 'max', 'log', 'log10', 'exp',

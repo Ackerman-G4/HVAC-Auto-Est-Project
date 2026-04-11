@@ -13,7 +13,7 @@
  */
 import React, { Suspense, useMemo, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Text, Environment } from '@react-three/drei';
+import { OrbitControls, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import type { SimulationResult, ServerRack, HVACUnit } from '@/types/simulation';
 import { HeatmapSlice, VelocityArrows, AirflowParticles } from './CFDOverlay3D';

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAuthResponse } from '@/lib/auth/session';
 import { evaluateRateLimit } from '@/lib/auth/rate-limit';
+import { isLocalAuthMode } from '@/lib/auth/local-auth';
 import {
   lookupAccountByIdToken,
   signInWithGoogleCredential,
@@ -47,6 +48,13 @@ export async function POST(req: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json({ error: getFirstZodErrorMessage(parsed.error) }, { status: 400 });
+    }
+
+    if (isLocalAuthMode()) {
+      return NextResponse.json(
+        { error: 'Google login is not available in local development mode' },
+        { status: 501 },
+      );
     }
 
     const requestUri = req.nextUrl.origin || 'http://localhost';

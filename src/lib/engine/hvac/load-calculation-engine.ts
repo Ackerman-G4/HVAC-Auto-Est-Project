@@ -153,10 +153,6 @@ function round(value: number, digits = 2) {
   return Math.round(value * factor) / factor;
 }
 
-function celsiusToFahrenheit(value: number) {
-  return value * 1.8 + 32;
-}
-
 /** Convert a Celsius temperature DIFFERENCE to Fahrenheit difference (no +32 offset). */
 function celsiusDeltaToFahrenheit(deltaC: number) {
   return deltaC * 1.8;

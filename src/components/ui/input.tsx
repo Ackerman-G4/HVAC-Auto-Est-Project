@@ -64,16 +64,16 @@ export function Input({ className, label, error, hint, unit, prefix, showRangeHi
           ref={ref}
           id={inputId}
           className={cn(
-            'h-10 w-full rounded-lg border border-input bg-card px-3 text-sm text-foreground',
+            'h-10 w-full rounded-xl border border-input bg-card/85 px-3 text-sm text-foreground backdrop-blur-sm',
             hasLeading && 'pl-9',
             hasTrailing && 'pr-14',
             'placeholder:text-muted-foreground/60',
-            'focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-ring',
+            'focus:outline-none focus:ring-2 focus:ring-ring/55 focus:border-primary focus:shadow-[0_0_0_4px_color-mix(in_oklab,var(--primary)_22%,transparent)]',
             'transition-colors duration-150',
             'disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-secondary',
             activeError
-              ? 'border-destructive focus:border-destructive focus:ring-destructive/20'
-              : 'hover:border-muted-foreground/40',
+              ? 'border-destructive focus:border-destructive focus:ring-destructive/45'
+              : 'hover:border-muted-foreground/55',
             className
           )}
           {...props}
@@ -109,14 +109,14 @@ export function Textarea({ className, label, error, id, ref, ...props }: Textare
         ref={ref}
         id={inputId}
         className={cn(
-          'min-h-[120px] w-full resize-y rounded-lg border border-input bg-card px-3 py-3 text-sm text-foreground',
+          'min-h-30 w-full resize-y rounded-xl border border-input bg-card/85 px-3 py-3 text-sm text-foreground backdrop-blur-sm',
           'placeholder:text-muted-foreground/60',
-          'focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-ring',
+          'focus:outline-none focus:ring-2 focus:ring-ring/55 focus:border-primary',
           'transition-colors duration-150',
           'disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-secondary',
           error
-            ? 'border-destructive focus:border-destructive focus:ring-destructive/20'
-            : 'hover:border-muted-foreground/40',
+            ? 'border-destructive focus:border-destructive focus:ring-destructive/45'
+            : 'hover:border-muted-foreground/55',
           className
         )}
         {...props}

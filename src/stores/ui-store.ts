@@ -9,6 +9,7 @@ interface UIStore {
   workspaceMode: WorkspaceMode;
   theme: AppTheme;
   toggleSidebar: () => void;
+  setSidebarCollapsed: (collapsed: boolean) => void;
   setMobileSidebar: (open: boolean) => void;
   setWorkspaceMode: (mode: WorkspaceMode) => void;
   setTheme: (theme: AppTheme) => void;
@@ -21,6 +22,7 @@ export const useUIStore = create<UIStore>((set) => ({
   workspaceMode: 'professional',
   theme: 'dark',
   toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+  setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
   setMobileSidebar: (open) => set({ mobileSidebarOpen: open }),
   setWorkspaceMode: (mode) => set({ workspaceMode: mode }),
   setTheme: (theme) => set({ theme }),

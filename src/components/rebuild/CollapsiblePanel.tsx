@@ -20,11 +20,11 @@ export function CollapsiblePanel({
   const [open, setOpen] = React.useState(defaultOpen);
 
   return (
-    <section className="rounded-xl border border-border bg-card shadow-sm">
+    <section className="panel-glass rounded-2xl border border-border/70 shadow-[var(--panel-shadow)]">
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex w-full items-center justify-between gap-4 px-8 py-6 text-left"
+        className="flex w-full items-center justify-between gap-4 px-(--space-card-padding) py-5 text-left transition-colors hover:bg-secondary/30"
       >
         <div>
           <h4 className="display-heading text-base font-semibold tracking-tight text-foreground">
@@ -47,7 +47,7 @@ export function CollapsiblePanel({
             transition={{ duration: 0.18, ease: 'easeOut' }}
             className="overflow-hidden"
           >
-            <div className="border-t border-border px-8 py-6">{children}</div>
+            <div className="border-t border-border/70 px-(--space-card-padding) py-5">{children}</div>
           </motion.div>
         )}
       </AnimatePresence>

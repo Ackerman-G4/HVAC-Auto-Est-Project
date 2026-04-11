@@ -1,4 +1,4 @@
-import { getApp, getApps, initializeApp } from 'firebase/app';
+import { getApp, getApps, initializeApp, type FirebaseApp } from 'firebase/app';
 import type { Analytics } from 'firebase/analytics';
 
 const firebaseConfig = {
@@ -22,15 +22,25 @@ const requiredEnvVars = [
 ] as const;
 
 const missingEnvVars = requiredEnvVars.filter((key) => !process.env[key]?.trim());
-if (missingEnvVars.length > 0) {
-  throw new Error(`Missing Firebase client environment variables: ${missingEnvVars.join(', ')}`);
-}
 
-export const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+/** Firebase client app — null when env vars are missing (local dev mode). */
+export const app: FirebaseApp | null =
+  missingEnvVars.length > 0
+    ? null
+    : getApps().length > 0
+      ? getApp()
+      : initializeApp(firebaseConfig);
+
+/** True when Firebase client SDK is NOT available (local dev mode). */
+export function isFirebaseClientMissing(): boolean {
+  return app === null;
+}
 
 let cachedAnalytics: Analytics | null = null;
 
 export async function getFirebaseAnalytics(): Promise<Analytics | null> {
+  if (!app) return null;
+
   if (cachedAnalytics) {
     return cachedAnalytics;
   }

@@ -46,7 +46,7 @@ export function DualValueExplainer({
   return (
     <div
       className={cn(
-        'rounded-lg border border-border bg-card p-3 shadow-sm',
+        'rounded-xl border border-border/70 bg-card/85 p-3 shadow-sm backdrop-blur-sm',
         compact && 'p-2.5',
         className,
       )}

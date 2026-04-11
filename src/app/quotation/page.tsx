@@ -367,7 +367,7 @@ export default function QuotationPage() {
 				}
 			/>
 
-			<Card className="mb-6 no-print border-border bg-primary/5 shadow-sm">
+			<Card className="panel-glass mb-6 no-print border-border/70 bg-primary/5 shadow-sm">
 				<CardContent className="py-4">
 					<div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
 						<div>
@@ -385,7 +385,7 @@ export default function QuotationPage() {
 
 			<div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
 				<div className="xl:col-span-3">
-					<Card className="mb-6 no-print border-border bg-card shadow-sm">
+					<Card className="panel-glass mb-6 no-print border-border/70 bg-card shadow-sm">
 						<CardContent className="p-5">
 							<Select
 								label="Select project"
@@ -536,7 +536,7 @@ export default function QuotationPage() {
 				</div>
 
 				<div className="space-y-5 no-print">
-					<Card className="border-border bg-primary/5 shadow-sm">
+					<Card className="panel-glass border-border/70 bg-primary/5 shadow-sm">
 						<CardHeader><CardTitle className="text-[13px]">Quotation Snapshot</CardTitle></CardHeader>
 						<CardContent className="space-y-2">
 							<div className="rounded-lg border border-border bg-card p-4"><p className="text-xs uppercase tracking-wider text-muted-foreground">Quotation No.</p><p className="text-sm font-semibold truncate">{quotationNumber || '—'}</p></div>
@@ -545,7 +545,7 @@ export default function QuotationPage() {
 						</CardContent>
 					</Card>
 
-					<Card className="border-border bg-card shadow-sm">
+					<Card className="panel-glass border-border/70 bg-card shadow-sm">
 						<CardHeader><CardTitle className="text-[13px]">Output Readiness</CardTitle></CardHeader>
 						<CardContent className="space-y-2 text-[12px]">
 							<div className="flex items-center justify-between rounded-lg border border-border bg-secondary/50 px-3.5 py-2.5"><span className="text-muted-foreground">Project selected</span><Badge size="sm" variant={project ? 'success' : 'default'}>{project ? 'Ready' : 'Pending'}</Badge></div>

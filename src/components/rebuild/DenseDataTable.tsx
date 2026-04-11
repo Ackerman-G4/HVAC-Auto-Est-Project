@@ -68,18 +68,18 @@ export function DenseDataTable<T extends object>({
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder={filterPlaceholder}
-          className="h-9 w-[260px] rounded-lg border border-input bg-card px-3 text-sm text-foreground placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:border-ring"
+          className="h-9 w-65 rounded-xl border border-input bg-card/85 px-3 text-sm text-foreground backdrop-blur-sm placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/55 focus-visible:border-primary"
         />
       </div>
 
-      <div className="max-h-[360px] overflow-auto rounded-xl border border-border">
+      <div className="max-h-90 overflow-auto rounded-2xl border border-border/70">
         <table className="w-full border-collapse text-sm">
-          <thead className="sticky top-0 z-10 bg-secondary text-foreground">
+          <thead className="sticky top-0 z-10 bg-secondary/70 text-foreground backdrop-blur-sm">
             <tr>
               {columns.map((column) => (
                 <th
                   key={String(column.key)}
-                  className={`cursor-pointer border-b border-border px-5 py-3.5 text-[11px] font-medium uppercase tracking-wider ${column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left'}`}
+                  className={`cursor-pointer border-b border-border/70 px-5 py-3.5 text-[11px] font-medium uppercase tracking-wider ${column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left'}`}
                   onClick={() => {
                     if (sortBy === column.key) {
                       setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
@@ -96,7 +96,7 @@ export function DenseDataTable<T extends object>({
           </thead>
           <tbody>
             {sortedRows.map((row, rowIndex) => (
-              <tr key={rowIndex} className="border-b border-border bg-card hover:bg-secondary/50">
+              <tr key={rowIndex} className="border-b border-border/70 bg-card/60 hover:bg-secondary/50">
                 {columns.map((column) => (
                   <td
                     key={String(column.key)}

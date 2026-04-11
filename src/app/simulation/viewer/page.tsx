@@ -22,7 +22,7 @@ import { showToast } from '@/components/ui/toast';
 
 const AirflowViewer3D = dynamic(
   () => import('@/components/building/AirflowViewer3D').then(mod => mod.default),
-  { ssr: false, loading: () => <div className="flex h-125 items-center justify-center rounded-xl border border-border bg-card text-sm font-medium text-muted-foreground shadow-sm">Loading 3D viewer...</div> }
+  { ssr: false, loading: () => <div className="panel-glass flex h-125 items-center justify-center rounded-xl border border-border/70 bg-card text-sm font-medium text-muted-foreground shadow-sm">Loading 3D viewer...</div> }
 );
 
 // ─── Auto-Detect Types & Logic ──────────────────────────────────────
@@ -139,7 +139,7 @@ function TemperatureHeatmap() {
 
   if (!result) {
     return (
-      <div className="flex h-64 items-center justify-center rounded-xl border border-border bg-card shadow-sm">
+      <div className="panel-glass flex h-64 items-center justify-center rounded-xl border border-border/70 bg-card shadow-sm">
         <p className="text-sm font-medium text-muted-foreground">Run a simulation to see temperature distribution</p>
       </div>
     );
@@ -162,6 +162,8 @@ function TemperatureHeatmap() {
   }
 
   const cellSize = Math.min(24, Math.floor(600 / Math.max(config.gridSizeX, config.gridSizeY)));
+  const gridPixelWidth = config.gridSizeX * cellSize;
+  const gridPixelHeight = config.gridSizeY * cellSize;
 
   return (
     <div>
@@ -185,27 +187,35 @@ function TemperatureHeatmap() {
       </div>
 
       <div className="overflow-auto rounded-xl border border-border bg-slate-900 p-4 shadow-sm">
-        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${config.gridSizeX}, ${cellSize}px)`, gap: '1px' }}>
+        <svg
+          width={gridPixelWidth}
+          height={gridPixelHeight}
+          viewBox={`0 0 ${gridPixelWidth} ${gridPixelHeight}`}
+          role="img"
+          aria-label="Temperature heatmap"
+        >
           {slice.map((row, x) =>
             row.map((temp, y) => (
-              <div
-                key={`${x}-${y}`}
-                title={`(${x},${y}) ${temp.toFixed(1)}°C`}
-                style={{
-                  width: cellSize,
-                  height: cellSize,
-                  backgroundColor: tempToColor(temp),
-                  opacity: 0.85,
-                  borderRadius: 2,
-                }}
-              />
+              <g key={`${x}-${y}`}>
+                <title>{`(${x},${y}) ${temp.toFixed(1)}°C`}</title>
+                <rect
+                  x={x * cellSize}
+                  y={y * cellSize}
+                  width={Math.max(1, cellSize - 1)}
+                  height={Math.max(1, cellSize - 1)}
+                  rx={2}
+                  ry={2}
+                  fill={tempToColor(temp)}
+                  fillOpacity={0.85}
+                />
+              </g>
             ))
           )}
-        </div>
+        </svg>
       </div>
 
       {/* Color legend */}
-      <div className="mt-4 flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+      <div className="panel-glass mt-4 flex items-center gap-3 rounded-xl border border-border/70 bg-card px-4 py-3">
         <span className="text-sm font-medium text-muted-foreground">{minT.toFixed(1)}°C</span>
         <div className="flex-1 h-3 rounded-full cfd-heatmap-legend" />
         <span className="text-sm font-medium text-muted-foreground">{maxT.toFixed(1)}°C</span>
@@ -358,7 +368,7 @@ function EquipmentPanel({ floors, selectedFloorId, onFloorChange, onAutoDetect, 
         <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
           <Server size={20} className="text-accent" /> Server Racks
         </h3>
-        <div className="mb-5 grid grid-cols-2 gap-4 rounded-xl border border-border bg-card p-4 md:grid-cols-5">
+        <div className="panel-glass mb-5 grid grid-cols-2 gap-4 rounded-xl border border-border/70 bg-card p-4 md:grid-cols-5">
           <input className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" placeholder="Name" value={rackForm.name} onChange={e => setRackForm(f => ({ ...f, name: e.target.value }))} />
           <input className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="X (m)" value={rackForm.posX} onChange={e => setRackForm(f => ({ ...f, posX: +e.target.value }))} />
           <input className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="Y (m)" value={rackForm.posY} onChange={e => setRackForm(f => ({ ...f, posY: +e.target.value }))} />
@@ -368,7 +378,7 @@ function EquipmentPanel({ floors, selectedFloorId, onFloorChange, onAutoDetect, 
           </button>
         </div>
         {racks.length > 0 && (
-          <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+          <div className="panel-glass overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm">
             <table className="w-full text-sm">
               <thead className="border-b border-border bg-secondary/50">
                 <tr>
@@ -404,7 +414,7 @@ function EquipmentPanel({ floors, selectedFloorId, onFloorChange, onAutoDetect, 
         <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
           <AirVent size={20} className="text-accent" /> HVAC Cooling Units
         </h3>
-        <div className="mb-5 grid grid-cols-2 gap-4 rounded-xl border border-border bg-card p-4 md:grid-cols-6">
+        <div className="panel-glass mb-5 grid grid-cols-2 gap-4 rounded-xl border border-border/70 bg-card p-4 md:grid-cols-6">
           <select className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" value={hvacForm.type} onChange={e => setHvacForm(f => ({ ...f, type: e.target.value as HVACUnitType }))} aria-label="HVAC unit type">
             <option value="crac">CRAC</option>
             <option value="crah">CRAH</option>
@@ -421,7 +431,7 @@ function EquipmentPanel({ floors, selectedFloorId, onFloorChange, onAutoDetect, 
           </button>
         </div>
         {hvacUnits.length > 0 && (
-          <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+          <div className="panel-glass overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm">
             <table className="w-full text-sm">
               <thead className="border-b border-border bg-secondary/50">
                 <tr>
@@ -459,7 +469,7 @@ function EquipmentPanel({ floors, selectedFloorId, onFloorChange, onAutoDetect, 
         <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
           <Grid3x3 size={20} className="text-accent" /> Perforated Floor Tiles
         </h3>
-        <div className="mb-5 flex gap-3 rounded-xl border border-border bg-card p-4">
+        <div className="panel-glass mb-5 flex gap-3 rounded-xl border border-border/70 bg-card p-4">
           <input id="tileX" className="w-24 rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="Grid X" defaultValue={5} />
           <input id="tileY" className="w-24 rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="Grid Y" defaultValue={5} />
           <input id="tileOpen" className="w-32 rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" step="0.05" placeholder="Open Area (0-1)" defaultValue={0.25} />
@@ -502,7 +512,7 @@ function ConfigPanel() {
   const { config, setConfig } = useSimulationStore();
 
   return (
-    <div className="grid grid-cols-2 gap-5 rounded-xl border border-border bg-card p-6 shadow-sm md:grid-cols-4">
+    <div className="panel-glass grid grid-cols-2 gap-5 rounded-xl border border-border/70 bg-card p-6 shadow-sm md:grid-cols-4">
       <div>
         <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Grid Resolution (m)</label>
         <input className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" step="0.1" value={config.gridResolution} onChange={e => setConfig({ gridResolution: +e.target.value })} aria-label="Grid Resolution" />
@@ -546,7 +556,7 @@ function ResultsPanel() {
 
   if (!result) {
     return (
-      <div className="flex h-64 flex-col items-center justify-center rounded-xl border border-border bg-card shadow-sm">
+      <div className="panel-glass flex h-64 flex-col items-center justify-center rounded-xl border border-border/70 bg-card shadow-sm">
         <Wind size={48} className="mb-4 text-muted-foreground/45" />
         <p className="text-lg font-bold text-foreground">No simulation results yet</p>
         <p className="mt-1 text-sm text-muted-foreground">Place equipment and run a CFD simulation</p>
@@ -567,23 +577,29 @@ function ResultsPanel() {
       </div>
 
       {/* Temperature Heatmap */}
-        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+        <div className="panel-glass rounded-xl border border-border/70 bg-card p-6 shadow-sm">
         <TemperatureHeatmap />
       </div>
 
       {/* Rack Inlet Temperatures */}
       {m.rackInletTemps.length > 0 && (
-        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+        <div className="panel-glass rounded-xl border border-border/70 bg-card p-6 shadow-sm">
           <h3 className="mb-4 text-lg font-semibold text-foreground">Rack Inlet Temperatures</h3>
           <div className="space-y-2">
             {m.rackInletTemps.map(rack => {
               const pct = ((rack.avgTemp - 15) / 30) * 100;
               const barColor = rack.avgTemp > 35 ? 'bg-red-500' : rack.avgTemp > 27 ? 'bg-amber-500' : 'bg-emerald-500';
+              const filledSegments = Math.max(1, Math.min(20, Math.round(pct / 5)));
               return (
                 <div key={rack.rackId} className="flex items-center gap-4">
                   <span className="w-32 truncate text-sm font-medium text-muted-foreground">{rack.rackId.slice(0, 8)}</span>
-                  <div className="h-3 flex-1 overflow-hidden rounded-full bg-secondary/70">
-                    <div className={`h-full rounded-full ${barColor} transition-all`} style={{ width: `${Math.min(100, Math.max(5, pct))}%` }} />
+                  <div className="grid h-3 flex-1 grid-cols-20 gap-0.5 overflow-hidden rounded-full bg-secondary/70 p-0.5">
+                    {Array.from({ length: 20 }).map((_, index) => (
+                      <span
+                        key={`${rack.rackId}-seg-${index}`}
+                        className={`rounded-sm ${index < filledSegments ? barColor : 'bg-secondary/40'}`}
+                      />
+                    ))}
                   </div>
                   <span className="w-16 text-right text-sm font-bold text-foreground">{rack.avgTemp.toFixed(1)}°C</span>
                   <span className="w-24 text-sm text-muted-foreground">(max {rack.maxTemp.toFixed(1)}°C)</span>
@@ -596,7 +612,7 @@ function ResultsPanel() {
 
       {/* Hotspots Detail */}
       {m.hotspots.length > 0 && (
-        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+        <div className="panel-glass rounded-xl border border-border/70 bg-card p-6 shadow-sm">
           <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
             <AlertTriangle size={20} className="text-amber-500" /> Detected Hotspots
           </h3>
@@ -626,7 +642,7 @@ function ResultsPanel() {
 
       {/* ASHRAE Compliance */}
       {complianceReport && (
-        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+        <div className="panel-glass rounded-xl border border-border/70 bg-card p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="flex items-center gap-2 text-lg font-semibold text-foreground">
               <ShieldCheck size={20} className={complianceReport.overallPass ? 'text-emerald-500' : 'text-red-500'} />
@@ -660,7 +676,7 @@ function ResultsPanel() {
 
       {/* PUE Analysis */}
       {pueAnalysis && (
-        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+        <div className="panel-glass rounded-xl border border-border/70 bg-card p-6 shadow-sm">
           <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
             <Zap size={20} className="text-accent" /> Energy Efficiency (PUE)
           </h3>
@@ -707,7 +723,7 @@ function ResultsPanel() {
 
       {/* Failure Simulation */}
       {failureResult && (
-        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+        <div className="panel-glass rounded-xl border border-border/70 bg-card p-6 shadow-sm">
           <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
             <AlertTriangle size={20} className="text-red-500" /> Failure Analysis: {failureResult.scenario.replace(/_/g, ' ').toUpperCase()}
           </h3>
@@ -797,7 +813,7 @@ function FailurePanel() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-5 rounded-xl border border-border bg-card p-5 md:grid-cols-3">
+      <div className="panel-glass grid grid-cols-2 gap-5 rounded-xl border border-border/70 bg-card p-5 md:grid-cols-3">
         <div>
           <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Failure Scenario</label>
           <select className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" value={scenario} onChange={e => setScenario(e.target.value as FailureScenario)} aria-label="Failure Scenario">
@@ -824,7 +840,7 @@ function FailurePanel() {
       {scenario !== 'power_loss' && hvacUnits.length > 0 && (
         <div>
           <label className="mb-2 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Select Failed Units</label>
-          <div className="flex flex-wrap gap-2 rounded-xl border border-border bg-card p-4">
+          <div className="panel-glass flex flex-wrap gap-2 rounded-xl border border-border/70 bg-card p-4">
             {hvacUnits.map(unit => (
               <button
                 key={unit.id}
@@ -853,7 +869,7 @@ function FailurePanel() {
 
 function ProjectDropdown({ projects, onSelect, selectedId }: ProjectDropdownProps) {
   return (
-    <div className="mb-6 rounded-xl border border-border bg-card p-4 shadow-sm">
+    <div className="panel-glass mb-6 rounded-xl border border-border/70 bg-card p-4 shadow-sm">
       <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Choose Project</label>
       <select
         className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm"
@@ -1013,7 +1029,7 @@ export default function SimulationPage() {
         title="CFD Simulation"
         description="Airflow simulation, thermal analysis, and cooling optimization"
         actions={
-          <div className="flex flex-wrap items-center gap-2.5 rounded-xl border border-border bg-card p-2 shadow-sm">
+          <div className="panel-glass flex flex-wrap items-center gap-2.5 rounded-xl border border-border/70 bg-card p-2 shadow-sm">
             <button
               onClick={() => { runPUE(); }}
               disabled={racks.length === 0}
@@ -1044,6 +1060,20 @@ export default function SimulationPage() {
           </div>
         }
       />
+
+      <div className="panel-glass mb-6 rounded-xl border border-border/70 bg-primary/5 px-5 py-4 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Simulation Command Deck</p>
+            <p className="mt-0.5 text-sm text-foreground">
+              Configure thermal model inputs, run airflow scenarios, and evaluate compliance and energy outcomes.
+            </p>
+          </div>
+          <div className="rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground tabular-nums">
+            {racks.length} racks · {hvacUnits.length} HVAC units · {result ? 'Result ready' : 'Awaiting run'}
+          </div>
+        </div>
+      </div>
 
       <div className="max-w-4xl mx-auto">
         {loadingProjects ? (
@@ -1097,7 +1127,7 @@ export default function SimulationPage() {
         <TabPanel tabId="3d" activeTab={activeTab}>
           {result ? (
             <>
-              <div className="mb-4 rounded-xl border border-border bg-card p-4 shadow-sm">
+              <div className="panel-glass mb-4 rounded-xl border border-border/70 bg-card p-4 shadow-sm">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="mr-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
                     View Mode
@@ -1167,7 +1197,7 @@ export default function SimulationPage() {
               />
             </>
           ) : (
-            <div className="flex h-125 flex-col items-center justify-center rounded-xl border border-border bg-card shadow-sm">
+            <div className="panel-glass flex h-125 flex-col items-center justify-center rounded-xl border border-border/70 bg-card shadow-sm">
               <Box size={48} className="mb-4 text-muted-foreground/45" />
               <p className="font-semibold text-foreground">Run a simulation to view 3D airflow</p>
             </div>

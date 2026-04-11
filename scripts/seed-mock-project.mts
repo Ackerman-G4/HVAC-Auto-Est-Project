@@ -1,31 +1,13 @@
 /**
- * Seed a realistic 4-floor office building directly into Firestore
- * using the Firebase *client* SDK (no Admin SDK needed).
+ * Seed a realistic multi-floor building via the app's REST API.
+ * Works in both local mode and Firebase mode — no Firebase SDK needed.
  *
  * Usage:
- *   npm run seed:mock
+ *   npm run seed:mock          (dev server must be running on localhost:3000)
  *
- * Requires:
- *   - .env.local with NEXT_PUBLIC_FIREBASE_* config values
- *   - Firestore rules that allow writes (currently open)
+ * Env overrides:
+ *   SEED_BASE_URL=http://localhost:3000   (change target host)
  */
-
-import dotenv from 'dotenv';
-import process from 'node:process';
-import { randomUUID } from 'node:crypto';
-
-// Load .env then .env.local (later overrides earlier)
-dotenv.config({ path: '.env' });
-dotenv.config({ path: '.env.local', override: true });
-
-import { initializeApp, type FirebaseApp } from 'firebase/app';
-import {
-  getAuth,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  updateProfile,
-} from 'firebase/auth';
-import { getFirestore, doc, setDoc } from 'firebase/firestore';
 
 interface RoomDef {
   name: string;
@@ -60,74 +42,152 @@ const TEST_USER = {
 
 // ─── Mock Building Definition ──────────────────────────────
 const PROJECT_INPUT = {
-  name: 'Makati CBD Office Tower',
-  clientName: 'Ayala Land Inc.',
-  buildingType: 'office',
-  location: 'Makati City, Metro Manila',
+  name: 'BGC Mixed-Use Tower',
+  clientName: 'Megaworld Corp.',
+  buildingType: 'mixed',
+  location: 'Bonifacio Global City, Taguig',
   city: 'Manila',
-  totalFloorArea: 3200,
-  floorsAboveGrade: 4,
-  floorsBelowGrade: 0,
+  totalFloorArea: 8400,
+  floorsAboveGrade: 8,
+  floorsBelowGrade: 1,
   outdoorDB: 35,
   outdoorWB: 28.3,
   outdoorRH: 65,
   indoorDB: 24,
   indoorRH: 50,
-  notes: 'Mock 4-floor CBD office building for development & testing.',
+  notes: 'Mock 8-floor + basement mixed-use tower for full system testing.',
 };
 
 const FLOORS: FloorDef[] = [
-  // ── Floor 1: Lobby + Reception ───────────────────────────
+  // ── Basement: Parking + Mechanical ───────────────────────
   {
-    floorNumber: 1,
-    name: 'Ground Floor — Lobby',
-    ceilingHeight: 4.0,
+    floorNumber: -1,
+    name: 'Basement — Parking & MEP',
+    ceilingHeight: 3.2,
     rooms: [
       {
-        name: 'Main Lobby',
-        spaceType: 'lobby',
-        area: 180,
-        ceilingHeight: 4.0,
-        occupantCount: 25,
-        lightingDensity: 18,
-        equipmentLoad: 2000,
-        wallConstruction: 'curtain_wall',
-        windowArea: 40,
-        windowOrientation: 'S',
-        windowType: 'double_tinted',
-        notes: 'Double-height entrance lobby with curtain wall.',
+        name: 'Parking Zone A',
+        spaceType: 'parking',
+        area: 400,
+        ceilingHeight: 3.2,
+        occupantCount: 0,
+        lightingDensity: 6,
+        equipmentLoad: 500,
+        wallConstruction: 'concrete_200mm',
+        windowArea: 0,
+        windowOrientation: 'N',
+        windowType: 'single_clear_6mm',
+        notes: '80-slot parking, ventilation exhaust fans.',
       },
       {
-        name: 'Reception Office',
+        name: 'Chiller Plant Room',
+        spaceType: 'mechanical',
+        area: 120,
+        ceilingHeight: 3.2,
+        occupantCount: 0,
+        lightingDensity: 10,
+        equipmentLoad: 45000,
+        wallConstruction: 'concrete_200mm',
+        windowArea: 0,
+        windowOrientation: 'N',
+        windowType: 'single_clear_6mm',
+        notes: '3x screw chillers, cooling towers on roof.',
+      },
+      {
+        name: 'Electrical Room',
+        spaceType: 'utility',
+        area: 50,
+        ceilingHeight: 3.2,
+        occupantCount: 0,
+        lightingDensity: 10,
+        equipmentLoad: 8000,
+        wallConstruction: 'concrete_200mm',
+        windowArea: 0,
+        windowOrientation: 'N',
+        windowType: 'single_clear_6mm',
+        notes: 'Main switchgear, transformers, UPS.',
+      },
+      {
+        name: 'Fire Pump Room',
+        spaceType: 'mechanical',
+        area: 30,
+        ceilingHeight: 3.2,
+        occupantCount: 0,
+        lightingDensity: 8,
+        equipmentLoad: 3000,
+        wallConstruction: 'concrete_200mm',
+        windowArea: 0,
+        windowOrientation: 'N',
+        windowType: 'single_clear_6mm',
+      },
+    ],
+  },
+
+  // ── Floor 1: Lobby + Retail ──────────────────────────────
+  {
+    floorNumber: 1,
+    name: 'Ground Floor — Lobby & Retail',
+    ceilingHeight: 4.5,
+    rooms: [
+      {
+        name: 'Grand Lobby',
+        spaceType: 'lobby',
+        area: 250,
+        ceilingHeight: 4.5,
+        occupantCount: 40,
+        lightingDensity: 22,
+        equipmentLoad: 3000,
+        wallConstruction: 'curtain_wall',
+        windowArea: 60,
+        windowOrientation: 'S',
+        windowType: 'double_low_e',
+        notes: 'Double-height entrance with curtain wall facade.',
+      },
+      {
+        name: 'Retail Unit A — Café',
+        spaceType: 'restaurant',
+        area: 80,
+        ceilingHeight: 3.5,
+        occupantCount: 30,
+        lightingDensity: 18,
+        equipmentLoad: 6000,
+        wallConstruction: 'curtain_wall',
+        windowArea: 16,
+        windowOrientation: 'SW',
+        windowType: 'double_tinted',
+        notes: 'Coffee shop with kitchen equipment.',
+      },
+      {
+        name: 'Retail Unit B — Convenience Store',
+        spaceType: 'retail',
+        area: 60,
+        ceilingHeight: 3.5,
+        occupantCount: 15,
+        lightingDensity: 22,
+        equipmentLoad: 4500,
+        wallConstruction: 'curtain_wall',
+        windowArea: 12,
+        windowOrientation: 'SE',
+        windowType: 'double_tinted',
+        notes: 'Refrigerated displays.',
+      },
+      {
+        name: 'Reception & Security',
         spaceType: 'office',
         area: 35,
         ceilingHeight: 3.0,
         occupantCount: 4,
         lightingDensity: 14,
-        equipmentLoad: 800,
+        equipmentLoad: 1200,
         wallConstruction: 'concrete_block_200mm',
-        windowArea: 4,
+        windowArea: 2,
         windowOrientation: 'E',
         windowType: 'single_clear_6mm',
       },
       {
-        name: 'Security Room',
-        spaceType: 'utility',
-        area: 18,
-        ceilingHeight: 3.0,
-        occupantCount: 2,
-        lightingDensity: 12,
-        equipmentLoad: 1500,
-        wallConstruction: 'concrete_block_200mm',
-        windowArea: 0,
-        windowOrientation: 'N',
-        windowType: 'single_clear_6mm',
-        notes: 'CCTV monitoring, no windows.',
-      },
-      {
-        name: 'Ground Floor Restrooms',
+        name: 'GF Restrooms',
         spaceType: 'restroom',
-        area: 30,
+        area: 35,
         ceilingHeight: 3.0,
         occupantCount: 0,
         lightingDensity: 10,
@@ -138,18 +198,17 @@ const FLOORS: FloorDef[] = [
         windowType: 'single_clear_6mm',
       },
       {
-        name: 'Retail Space',
-        spaceType: 'retail',
-        area: 65,
-        ceilingHeight: 3.5,
-        occupantCount: 15,
-        lightingDensity: 22,
-        equipmentLoad: 3000,
-        wallConstruction: 'curtain_wall',
-        windowArea: 14,
-        windowOrientation: 'SW',
-        windowType: 'double_tinted',
-        notes: 'Street-facing retail unit.',
+        name: 'Loading Dock',
+        spaceType: 'warehouse',
+        area: 50,
+        ceilingHeight: 4.0,
+        occupantCount: 2,
+        lightingDensity: 8,
+        equipmentLoad: 300,
+        wallConstruction: 'concrete_200mm',
+        windowArea: 0,
+        windowOrientation: 'N',
+        windowType: 'single_clear_6mm',
       },
     ],
   },
@@ -163,27 +222,27 @@ const FLOORS: FloorDef[] = [
       {
         name: 'Open Plan Office A',
         spaceType: 'open_office',
-        area: 220,
+        area: 280,
         ceilingHeight: 2.85,
-        occupantCount: 40,
+        occupantCount: 55,
         lightingDensity: 16,
-        equipmentLoad: 8000,
+        equipmentLoad: 11000,
         wallConstruction: 'concrete_block_200mm',
-        windowArea: 25,
+        windowArea: 30,
         windowOrientation: 'SE',
         windowType: 'double_low_e',
-        notes: 'Primary workspace zone.',
+        notes: 'Primary workspace — 55 workstations.',
       },
       {
         name: 'Open Plan Office B',
         spaceType: 'open_office',
-        area: 180,
+        area: 200,
         ceilingHeight: 2.85,
-        occupantCount: 32,
+        occupantCount: 38,
         lightingDensity: 16,
-        equipmentLoad: 6400,
+        equipmentLoad: 7600,
         wallConstruction: 'concrete_block_200mm',
-        windowArea: 20,
+        windowArea: 22,
         windowOrientation: 'NW',
         windowType: 'double_low_e',
       },
@@ -214,23 +273,36 @@ const FLOORS: FloorDef[] = [
         windowType: 'double_tinted',
       },
       {
+        name: 'Phone Booths (x4)',
+        spaceType: 'private_office',
+        area: 12,
+        ceilingHeight: 2.85,
+        occupantCount: 4,
+        lightingDensity: 12,
+        equipmentLoad: 400,
+        wallConstruction: 'gypsum_partition',
+        windowArea: 0,
+        windowOrientation: 'N',
+        windowType: 'single_clear_6mm',
+      },
+      {
         name: 'Pantry / Break Room',
         spaceType: 'kitchen',
-        area: 28,
+        area: 32,
         ceilingHeight: 2.85,
-        occupantCount: 6,
+        occupantCount: 8,
         lightingDensity: 12,
         equipmentLoad: 3500,
         wallConstruction: 'concrete_block_200mm',
         windowArea: 3,
         windowOrientation: 'N',
         windowType: 'single_clear_6mm',
-        notes: 'Microwave, fridge, coffee machine, water dispenser.',
+        notes: 'Microwave, fridge, coffee machine.',
       },
       {
-        name: '2nd Floor Restrooms',
+        name: '2F Restrooms',
         spaceType: 'restroom',
-        area: 24,
+        area: 28,
         ceilingHeight: 2.85,
         occupantCount: 0,
         lightingDensity: 10,
@@ -258,7 +330,7 @@ const FLOORS: FloorDef[] = [
         lightingDensity: 14,
         equipmentLoad: 1200,
         wallConstruction: 'concrete_block_200mm',
-        windowArea: 10,
+        windowArea: 12,
         windowOrientation: 'SE',
         windowType: 'double_low_e',
         notes: 'Corner office, panoramic windows.',
@@ -292,16 +364,16 @@ const FLOORS: FloorDef[] = [
       {
         name: 'Boardroom',
         spaceType: 'conference',
-        area: 75,
+        area: 80,
         ceilingHeight: 2.85,
         occupantCount: 24,
         lightingDensity: 16,
         equipmentLoad: 2500,
         wallConstruction: 'gypsum_partition',
-        windowArea: 12,
+        windowArea: 14,
         windowOrientation: 'SW',
         windowType: 'double_tinted',
-        notes: 'Video-conferencing, 24-seat table.',
+        notes: 'Video conferencing, 24-seat table.',
       },
       {
         name: 'Executive Lounge',
@@ -330,7 +402,7 @@ const FLOORS: FloorDef[] = [
         windowType: 'double_low_e',
       },
       {
-        name: '3rd Floor Restrooms',
+        name: '3F Restrooms',
         spaceType: 'restroom',
         area: 24,
         ceilingHeight: 2.85,
@@ -345,81 +417,348 @@ const FLOORS: FloorDef[] = [
     ],
   },
 
-  // ── Floor 4: Server Room + Training ──────────────────────
+  // ── Floor 4: Training + Clinic ───────────────────────────
   {
     floorNumber: 4,
-    name: '4th Floor — IT & Training',
+    name: '4th Floor — Training & Amenities',
     ceilingHeight: 3.0,
     rooms: [
       {
-        name: 'Server Room / Data Center',
-        spaceType: 'server_room',
-        area: 60,
-        ceilingHeight: 3.0,
-        occupantCount: 2,
-        lightingDensity: 10,
-        equipmentLoad: 25000,
-        wallConstruction: 'concrete_block_200mm',
-        windowArea: 0,
-        windowOrientation: 'N',
-        windowType: 'single_clear_6mm',
-        notes: 'High heat load — racks, UPS, network gear. No windows.',
-      },
-      {
         name: 'Training Room A',
         spaceType: 'classroom',
-        area: 80,
+        area: 90,
         ceilingHeight: 3.0,
-        occupantCount: 30,
+        occupantCount: 35,
         lightingDensity: 16,
-        equipmentLoad: 3000,
+        equipmentLoad: 3500,
         wallConstruction: 'gypsum_partition',
-        windowArea: 10,
+        windowArea: 12,
         windowOrientation: 'SE',
         windowType: 'double_tinted',
-        notes: 'Projector + 30 desks.',
+        notes: 'Projector + 35 desks.',
       },
       {
         name: 'Training Room B',
         spaceType: 'classroom',
-        area: 50,
+        area: 60,
         ceilingHeight: 3.0,
-        occupantCount: 20,
+        occupantCount: 24,
         lightingDensity: 16,
-        equipmentLoad: 2000,
+        equipmentLoad: 2400,
         wallConstruction: 'gypsum_partition',
-        windowArea: 6,
+        windowArea: 8,
         windowOrientation: 'SW',
         windowType: 'double_tinted',
       },
       {
-        name: 'IT Support Office',
-        spaceType: 'office',
-        area: 40,
+        name: 'Company Gym',
+        spaceType: 'gym',
+        area: 100,
         ceilingHeight: 3.0,
-        occupantCount: 6,
+        occupantCount: 18,
         lightingDensity: 14,
-        equipmentLoad: 3000,
+        equipmentLoad: 4000,
+        wallConstruction: 'concrete_block_200mm',
+        windowArea: 10,
+        windowOrientation: 'W',
+        windowType: 'double_tinted',
+        notes: 'Treadmills, weights, shower rooms adjacent.',
+      },
+      {
+        name: 'Clinic / First Aid',
+        spaceType: 'hospital_ward',
+        area: 35,
+        ceilingHeight: 3.0,
+        occupantCount: 4,
+        lightingDensity: 18,
+        equipmentLoad: 1500,
+        wallConstruction: 'concrete_block_200mm',
+        windowArea: 4,
+        windowOrientation: 'E',
+        windowType: 'double_low_e',
+      },
+      {
+        name: 'Multi-Purpose Hall',
+        spaceType: 'theater',
+        area: 150,
+        ceilingHeight: 3.0,
+        occupantCount: 80,
+        lightingDensity: 16,
+        equipmentLoad: 5000,
+        wallConstruction: 'concrete_block_200mm',
+        windowArea: 0,
+        windowOrientation: 'N',
+        windowType: 'single_clear_6mm',
+        notes: 'Town hall events, presentations. Blackout room.',
+      },
+      {
+        name: '4F Restrooms',
+        spaceType: 'restroom',
+        area: 28,
+        ceilingHeight: 3.0,
+        occupantCount: 0,
+        lightingDensity: 10,
+        equipmentLoad: 400,
+        wallConstruction: 'concrete_block_200mm',
+        windowArea: 1.5,
+        windowOrientation: 'N',
+        windowType: 'single_clear_6mm',
+      },
+    ],
+  },
+
+  // ── Floor 5: Hotel Rooms ─────────────────────────────────
+  {
+    floorNumber: 5,
+    name: '5th Floor — Hotel Suites',
+    ceilingHeight: 2.7,
+    rooms: [
+      {
+        name: 'Suite 501',
+        spaceType: 'hotel_room',
+        area: 45,
+        ceilingHeight: 2.7,
+        occupantCount: 2,
+        lightingDensity: 12,
+        equipmentLoad: 800,
+        wallConstruction: 'concrete_block_200mm',
+        windowArea: 8,
+        windowOrientation: 'SE',
+        windowType: 'double_low_e',
+      },
+      {
+        name: 'Suite 502',
+        spaceType: 'hotel_room',
+        area: 45,
+        ceilingHeight: 2.7,
+        occupantCount: 2,
+        lightingDensity: 12,
+        equipmentLoad: 800,
+        wallConstruction: 'concrete_block_200mm',
+        windowArea: 8,
+        windowOrientation: 'S',
+        windowType: 'double_low_e',
+      },
+      {
+        name: 'Suite 503',
+        spaceType: 'hotel_room',
+        area: 55,
+        ceilingHeight: 2.7,
+        occupantCount: 3,
+        lightingDensity: 12,
+        equipmentLoad: 1000,
+        wallConstruction: 'concrete_block_200mm',
+        windowArea: 10,
+        windowOrientation: 'SW',
+        windowType: 'double_low_e',
+        notes: 'Premium corner suite.',
+      },
+      {
+        name: 'Suite 504',
+        spaceType: 'hotel_room',
+        area: 40,
+        ceilingHeight: 2.7,
+        occupantCount: 2,
+        lightingDensity: 12,
+        equipmentLoad: 800,
+        wallConstruction: 'concrete_block_200mm',
+        windowArea: 6,
+        windowOrientation: 'NW',
+        windowType: 'double_low_e',
+      },
+      {
+        name: 'Suite 505',
+        spaceType: 'hotel_room',
+        area: 40,
+        ceilingHeight: 2.7,
+        occupantCount: 2,
+        lightingDensity: 12,
+        equipmentLoad: 800,
+        wallConstruction: 'concrete_block_200mm',
+        windowArea: 6,
+        windowOrientation: 'N',
+        windowType: 'double_low_e',
+      },
+      {
+        name: '5F Corridor',
+        spaceType: 'corridor',
+        area: 45,
+        ceilingHeight: 2.7,
+        occupantCount: 0,
+        lightingDensity: 8,
+        equipmentLoad: 200,
+        wallConstruction: 'concrete_block_200mm',
+        windowArea: 2,
+        windowOrientation: 'E',
+        windowType: 'single_clear_6mm',
+      },
+      {
+        name: '5F Housekeeping',
+        spaceType: 'storage',
+        area: 15,
+        ceilingHeight: 2.7,
+        occupantCount: 1,
+        lightingDensity: 10,
+        equipmentLoad: 300,
+        wallConstruction: 'concrete_block_200mm',
+        windowArea: 0,
+        windowOrientation: 'N',
+        windowType: 'single_clear_6mm',
+      },
+    ],
+  },
+
+  // ── Floor 6: Residential ─────────────────────────────────
+  {
+    floorNumber: 6,
+    name: '6th Floor — Residential Units',
+    ceilingHeight: 2.7,
+    rooms: [
+      {
+        name: 'Unit 601 — 2BR',
+        spaceType: 'residential',
+        area: 75,
+        ceilingHeight: 2.7,
+        occupantCount: 4,
+        lightingDensity: 10,
+        equipmentLoad: 1800,
+        wallConstruction: 'concrete_block_200mm',
+        windowArea: 12,
+        windowOrientation: 'SE',
+        windowType: 'double_low_e',
+      },
+      {
+        name: 'Unit 602 — 1BR',
+        spaceType: 'residential',
+        area: 50,
+        ceilingHeight: 2.7,
+        occupantCount: 2,
+        lightingDensity: 10,
+        equipmentLoad: 1200,
+        wallConstruction: 'concrete_block_200mm',
+        windowArea: 8,
+        windowOrientation: 'S',
+        windowType: 'double_low_e',
+      },
+      {
+        name: 'Unit 603 — Studio',
+        spaceType: 'residential',
+        area: 32,
+        ceilingHeight: 2.7,
+        occupantCount: 1,
+        lightingDensity: 10,
+        equipmentLoad: 800,
         wallConstruction: 'concrete_block_200mm',
         windowArea: 5,
         windowOrientation: 'W',
         windowType: 'double_low_e',
       },
       {
-        name: 'Storage / Archive',
-        spaceType: 'storage',
-        area: 25,
-        ceilingHeight: 3.0,
+        name: 'Unit 604 — 3BR Penthouse',
+        spaceType: 'residential',
+        area: 120,
+        ceilingHeight: 2.7,
+        occupantCount: 5,
+        lightingDensity: 12,
+        equipmentLoad: 2800,
+        wallConstruction: 'concrete_block_200mm',
+        windowArea: 20,
+        windowOrientation: 'NW',
+        windowType: 'double_low_e',
+        notes: 'Premium unit with balcony.',
+      },
+      {
+        name: '6F Corridor',
+        spaceType: 'corridor',
+        area: 30,
+        ceilingHeight: 2.7,
         occupantCount: 0,
         lightingDensity: 8,
         equipmentLoad: 200,
         wallConstruction: 'concrete_block_200mm',
+        windowArea: 2,
+        windowOrientation: 'N',
+        windowType: 'single_clear_6mm',
+      },
+    ],
+  },
+
+  // ── Floor 7: Data Center + IT ────────────────────────────
+  {
+    floorNumber: 7,
+    name: '7th Floor — Data Center & IT',
+    ceilingHeight: 3.0,
+    rooms: [
+      {
+        name: 'Primary Data Center',
+        spaceType: 'server_room',
+        area: 100,
+        ceilingHeight: 3.0,
+        occupantCount: 3,
+        lightingDensity: 10,
+        equipmentLoad: 60000,
+        wallConstruction: 'concrete_200mm',
+        windowArea: 0,
+        windowOrientation: 'N',
+        windowType: 'single_clear_6mm',
+        notes: 'Main DC — raised floor, hot/cold aisle, UPS-backed.',
+      },
+      {
+        name: 'Secondary Server Closet',
+        spaceType: 'server_room',
+        area: 25,
+        ceilingHeight: 3.0,
+        occupantCount: 1,
+        lightingDensity: 10,
+        equipmentLoad: 8000,
+        wallConstruction: 'concrete_200mm',
+        windowArea: 0,
+        windowOrientation: 'N',
+        windowType: 'single_clear_6mm',
+        notes: 'Network closet — switches, patch panels.',
+      },
+      {
+        name: 'UPS / Battery Room',
+        spaceType: 'utility',
+        area: 30,
+        ceilingHeight: 3.0,
+        occupantCount: 0,
+        lightingDensity: 10,
+        equipmentLoad: 5000,
+        wallConstruction: 'concrete_200mm',
         windowArea: 0,
         windowOrientation: 'N',
         windowType: 'single_clear_6mm',
       },
       {
-        name: '4th Floor Restrooms',
+        name: 'IT Workshop',
+        spaceType: 'office',
+        area: 45,
+        ceilingHeight: 3.0,
+        occupantCount: 6,
+        lightingDensity: 14,
+        equipmentLoad: 3500,
+        wallConstruction: 'concrete_block_200mm',
+        windowArea: 6,
+        windowOrientation: 'W',
+        windowType: 'double_low_e',
+      },
+      {
+        name: 'NOC — Network Operations Center',
+        spaceType: 'office',
+        area: 55,
+        ceilingHeight: 3.0,
+        occupantCount: 8,
+        lightingDensity: 16,
+        equipmentLoad: 6000,
+        wallConstruction: 'concrete_block_200mm',
+        windowArea: 4,
+        windowOrientation: 'E',
+        windowType: 'double_tinted',
+        notes: 'Video-wall monitors, 24/7 ops.',
+      },
+      {
+        name: '7F Restrooms',
         spaceType: 'restroom',
         area: 24,
         ceilingHeight: 3.0,
@@ -431,156 +770,172 @@ const FLOORS: FloorDef[] = [
         windowOrientation: 'N',
         windowType: 'single_clear_6mm',
       },
+    ],
+  },
+
+  // ── Floor 8: Roof Mechanical + Amenity ───────────────────
+  {
+    floorNumber: 8,
+    name: '8th Floor — Roof Deck & Mechanical',
+    ceilingHeight: 3.5,
+    rooms: [
       {
         name: 'Roof Mechanical Room',
         spaceType: 'mechanical',
-        area: 35,
-        ceilingHeight: 3.0,
+        area: 60,
+        ceilingHeight: 3.5,
         occupantCount: 0,
         lightingDensity: 8,
-        equipmentLoad: 5000,
-        wallConstruction: 'concrete_block_200mm',
-        windowArea: 2,
+        equipmentLoad: 15000,
+        wallConstruction: 'concrete_200mm',
+        windowArea: 4,
         windowOrientation: 'N',
         windowType: 'single_clear_6mm',
         hasRoofExposure: true,
-        notes: 'AHU, chiller controls, roof-exposed.',
+        notes: 'AHU, cooling towers, exhaust fans. Full roof exposure.',
+      },
+      {
+        name: 'Elevator Machine Room',
+        spaceType: 'mechanical',
+        area: 25,
+        ceilingHeight: 3.5,
+        occupantCount: 0,
+        lightingDensity: 8,
+        equipmentLoad: 8000,
+        wallConstruction: 'concrete_200mm',
+        windowArea: 0,
+        windowOrientation: 'N',
+        windowType: 'single_clear_6mm',
+        hasRoofExposure: true,
+      },
+      {
+        name: 'Roof Deck Lounge',
+        spaceType: 'lobby',
+        area: 100,
+        ceilingHeight: 3.5,
+        occupantCount: 20,
+        lightingDensity: 14,
+        equipmentLoad: 2000,
+        wallConstruction: 'curtain_wall',
+        windowArea: 30,
+        windowOrientation: 'S',
+        windowType: 'double_low_e',
+        hasRoofExposure: true,
+        notes: 'Open-air amenity deck with partial canopy.',
+      },
+      {
+        name: 'Sky Bar Kitchen',
+        spaceType: 'kitchen',
+        area: 35,
+        ceilingHeight: 3.0,
+        occupantCount: 5,
+        lightingDensity: 16,
+        equipmentLoad: 8000,
+        wallConstruction: 'concrete_block_200mm',
+        windowArea: 3,
+        windowOrientation: 'W',
+        windowType: 'single_tinted_6mm',
+        hasRoofExposure: true,
+        notes: 'Commercial kitchen — hood exhaust, gas range.',
       },
     ],
   },
 ];
 
-// ─── Firebase Client Init ──────────────────────────────────
-function initFirebase(): FirebaseApp {
-  const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-  const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
-  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-  if (!apiKey || !authDomain || !projectId) {
-    throw new Error('Missing NEXT_PUBLIC_FIREBASE_* env vars in .env.local');
-  }
-  return initializeApp({ apiKey, authDomain, projectId });
-}
+// ─── API Helpers ───────────────────────────────────────────
+const BASE_URL = process.env.SEED_BASE_URL || 'http://localhost:3000';
 
-function nowIso(): string {
-  return new Date().toISOString();
+async function apiPost(path: string, body: unknown, token?: string): Promise<unknown> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`${res.status} ${path}: ${text}`);
+  }
+  return res.json();
 }
 
 // ─── Main ──────────────────────────────────────────────────
 async function main() {
-  const app = initFirebase();
-  const auth = getAuth(app);
-  const db = getFirestore(app);
-
-  // ── 1. Create / sign-in test user ──────────────────────
+  // 1. Register or login test user
   console.log(`Setting up test user: ${TEST_USER.email}`);
+  let token: string;
   try {
-    const cred = await createUserWithEmailAndPassword(auth, TEST_USER.email, TEST_USER.password);
-    await updateProfile(cred.user, { displayName: TEST_USER.displayName });
+    const regResult = (await apiPost('/api/auth/register', {
+      email: TEST_USER.email,
+      password: TEST_USER.password,
+      name: TEST_USER.displayName,
+      role: TEST_USER.role,
+    })) as { token: string };
+    token = regResult.token;
     console.log('  → User created.\n');
-  } catch (err: unknown) {
-    const code = (err as { code?: string }).code;
-    if (code === 'auth/email-already-in-use') {
-      console.log('  → User already exists, signing in.\n');
-      await signInWithEmailAndPassword(auth, TEST_USER.email, TEST_USER.password);
-    } else {
-      throw err;
-    }
+  } catch {
+    const loginResult = (await apiPost('/api/auth/login', {
+      email: TEST_USER.email,
+      password: TEST_USER.password,
+    })) as { token: string };
+    token = loginResult.token;
+    console.log('  → User already exists, logged in.\n');
   }
 
-  // ── 2. Create project document ─────────────────────────
-  const projectId = randomUUID();
-  const now = nowIso();
+  // 2. Create project
   console.log(`Creating project: ${PROJECT_INPUT.name}`);
-
-  await setDoc(doc(db, 'projects', projectId), {
-    id: projectId,
-    name: PROJECT_INPUT.name,
-    clientName: PROJECT_INPUT.clientName,
-    location: PROJECT_INPUT.location,
-    city: PROJECT_INPUT.city,
-    buildingType: PROJECT_INPUT.buildingType,
-    status: 'draft',
-    outputClassification: 'preliminary',
-    totalFloorArea: PROJECT_INPUT.totalFloorArea,
-    floorsAboveGrade: PROJECT_INPUT.floorsAboveGrade,
-    floorsBelowGrade: PROJECT_INPUT.floorsBelowGrade,
-    outdoorDB: PROJECT_INPUT.outdoorDB,
-    outdoorWB: PROJECT_INPUT.outdoorWB,
-    outdoorRH: PROJECT_INPUT.outdoorRH,
-    indoorDB: PROJECT_INPUT.indoorDB,
-    indoorRH: PROJECT_INPUT.indoorRH,
-    designConditions: '{}',
-    safetyFactor: 1.1,
-    diversityFactor: 0.85,
-    notes: PROJECT_INPUT.notes,
-    suggestedLaborMultiplier: 0.35,
-    laborMultiplierOverride: null,
-    suggestedOverheadPercent: 0.15,
-    overheadPercentOverride: null,
-    suggestedContingencyPercent: 0.05,
-    contingencyPercentOverride: null,
-    suggestedVatRate: 0.12,
-    vatRateOverride: null,
-    isEquipmentStale: false,
-    isBoqStale: false,
-    lastCoolingLoadAt: null,
-    lastEquipmentSyncAt: null,
-    lastBoqGeneratedAt: null,
-    createdAt: now,
-    updatedAt: now,
-  });
+  const projResult = (await apiPost(
+    '/api/projects',
+    {
+      name: PROJECT_INPUT.name,
+      clientName: PROJECT_INPUT.clientName,
+      buildingType: PROJECT_INPUT.buildingType,
+      location: PROJECT_INPUT.location,
+      city: PROJECT_INPUT.city,
+      totalFloorArea: PROJECT_INPUT.totalFloorArea,
+      floorsAboveGrade: PROJECT_INPUT.floorsAboveGrade,
+      floorsBelowGrade: PROJECT_INPUT.floorsBelowGrade,
+      outdoorDB: PROJECT_INPUT.outdoorDB,
+      outdoorWB: PROJECT_INPUT.outdoorWB,
+      outdoorRH: PROJECT_INPUT.outdoorRH,
+      indoorDB: PROJECT_INPUT.indoorDB,
+      indoorRH: PROJECT_INPUT.indoorRH,
+      notes: PROJECT_INPUT.notes,
+    },
+    token,
+  )) as { project: { id: string } };
+  const projectId = projResult.project.id;
   console.log(`  → ${projectId}\n`);
 
-  // ── 3. Create floors + rooms ───────────────────────────
+  // 3. Create floors + rooms via the rooms API (auto-creates floors)
   let totalRooms = 0;
   for (const floorDef of FLOORS) {
-    const floorId = randomUUID();
-    const floorNow = nowIso();
-
-    // Create floor document
-    await setDoc(doc(db, 'floors', floorId), {
-      id: floorId,
-      projectId,
-      floorNumber: floorDef.floorNumber,
-      name: floorDef.name,
-      floorPlanImage: null,
-      scale: 50,
-      ceilingHeight: floorDef.ceilingHeight,
-      createdAt: floorNow,
-      updatedAt: floorNow,
-    });
-
     console.log(`Floor ${floorDef.floorNumber}: ${floorDef.name}`);
 
     for (const room of floorDef.rooms) {
-      const roomId = randomUUID();
-      const roomNow = nowIso();
-      const perimeter = room.area > 0 ? Math.sqrt(room.area) * 4 : 0;
-
-      await setDoc(doc(db, 'rooms', roomId), {
-        id: roomId,
-        projectId,
-        floorId,
-        name: room.name,
-        polygon: '[]',
-        area: room.area,
-        perimeter: Math.round(perimeter * 100) / 100,
-        spaceType: room.spaceType,
-        occupantCount: room.occupantCount,
-        lightingDensity: room.lightingDensity,
-        equipmentLoad: room.equipmentLoad,
-        wallConstruction: room.wallConstruction,
-        windowArea: room.windowArea,
-        windowOrientation: room.windowOrientation,
-        windowType: room.windowType,
-        ceilingHeight: room.ceilingHeight,
-        hasRoofExposure: room.hasRoofExposure ?? false,
-        notes: room.notes ?? '',
-        coolingLoad: null,
-        createdAt: roomNow,
-        updatedAt: roomNow,
-      });
-
+      await apiPost(
+        `/api/projects/${projectId}/rooms`,
+        {
+          name: room.name,
+          floorNumber: floorDef.floorNumber,
+          floorName: floorDef.name,
+          spaceType: room.spaceType,
+          area: room.area,
+          perimeter: room.area > 0 ? Math.round(Math.sqrt(room.area) * 4 * 100) / 100 : 0,
+          ceilingHeight: room.ceilingHeight,
+          wallConstruction: room.wallConstruction,
+          windowType: room.windowType,
+          windowArea: room.windowArea,
+          windowOrientation: room.windowOrientation,
+          occupantCount: room.occupantCount,
+          lightingDensity: room.lightingDensity,
+          equipmentLoad: room.equipmentLoad,
+          hasRoofExposure: room.hasRoofExposure ?? false,
+          notes: room.notes ?? '',
+        },
+        token,
+      );
       totalRooms++;
       console.log(`  + ${room.name} (${room.area} m²)`);
     }
@@ -590,9 +945,6 @@ async function main() {
   console.log(`  Project ID : ${projectId}`);
   console.log(`  Test login : ${TEST_USER.email} / ${TEST_USER.password}`);
   console.log(`  Open the app and log in to view the project.`);
-
-  // Force exit — Firebase client SDK keeps a persistent connection
-  process.exit(0);
 }
 
 main().catch((err) => {

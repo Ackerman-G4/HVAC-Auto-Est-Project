@@ -7,19 +7,19 @@ import Link from 'next/link';
 
 export default function SimulationLauncherPage() {
   return (
-    <div className="mx-auto max-w-xl py-16 space-y-4">
-      <Card className="p-8 text-center">
-        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-xl bg-secondary text-accent">
-          <Box size={28} />
+    <div className="mx-auto max-w-3xl space-y-5 py-12">
+      <Card className="panel-glass border-border/70 p-7 text-center sm:p-10">
+        <div className="mx-auto mb-6 flex h-18 w-18 items-center justify-center rounded-2xl border border-border/70 bg-card text-accent shadow-sm">
+          <Box size={30} />
         </div>
-        <h2 className="text-xl font-semibold tracking-tight text-foreground">
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Simulation Command Deck</p>
+        <h2 className="mt-2 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
           CFD Simulation Viewer
         </h2>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          The data-center airflow simulator runs in a dedicated full-screen window for performance. Configure rack
-          densities, HVAC units, and failure scenarios, then visualise temperature fields and 3D airflow in real time.
+        <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+          Run server-room airflow studies with dedicated high-performance visualization. Configure rack densities, HVAC assets, and failure scenarios, then inspect thermal behavior across both 3D and analytics views.
         </p>
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+        <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center">
           <Link href="/simulation/workspace">
             <Button>
               <Columns3 size={14} className="mr-1.5" />

@@ -1,0 +1,27 @@
+[debug] [2026-04-11T16:27:53.648Z] ----------------------------------------------------------------------
+[debug] [2026-04-11T16:27:53.651Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\emman\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js apps:list WEB --project hvac-auto-67f97 --json
+[debug] [2026-04-11T16:27:53.651Z] CLI Version:   15.13.0
+[debug] [2026-04-11T16:27:53.651Z] Platform:      win32
+[debug] [2026-04-11T16:27:53.651Z] Node Version:  v24.12.0
+[debug] [2026-04-11T16:27:53.652Z] Time:          Sun Apr 12 2026 00:27:53 GMT+0800 (Singapore Standard Time)
+[debug] [2026-04-11T16:27:53.652Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-04-11T16:27:53.846Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-04-11T16:27:53.846Z] > authorizing via signed-in user (emmanromel.04@gmail.com)
+[debug] [2026-04-11T16:27:53.854Z] Checked if tokens are valid: false, expires at: 1775881030722
+[debug] [2026-04-11T16:27:53.854Z] Checked if tokens are valid: false, expires at: 1775881030722
+[debug] [2026-04-11T16:27:53.854Z] > refreshing access token with scopes: []
+[debug] [2026-04-11T16:27:53.856Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-04-11T16:27:53.856Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-04-11T16:27:54.028Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2026-04-11T16:27:54.028Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-04-11T16:27:54.035Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/hvac-auto-67f97/webApps pageSize=100
+[debug] [2026-04-11T16:27:54.533Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/hvac-auto-67f97/webApps 403
+[debug] [2026-04-11T16:27:54.533Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/hvac-auto-67f97/webApps {"error":{"code":403,"message":"The caller does not have permission","status":"PERMISSION_DENIED"}}
+[debug] [2026-04-11T16:27:54.534Z] Request to https://firebase.googleapis.com/v1beta1/projects/hvac-auto-67f97/webApps?pageSize=100 had HTTP Error: 403, The caller does not have permission
+[debug] [2026-04-11T16:27:54.657Z] FirebaseError: Request to https://firebase.googleapis.com/v1beta1/projects/hvac-auto-67f97/webApps?pageSize=100 had HTTP Error: 403, The caller does not have permission
+    at responseToError (C:\Users\emman\AppData\Roaming\npm\node_modules\firebase-tools\lib\responseToError.js:53:12)
+    at RetryOperation._fn (C:\Users\emman\AppData\Roaming\npm\node_modules\firebase-tools\lib\apiv2.js:333:77)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[error] 
+[error] Error: Failed to list Firebase WEB apps. See firebase-debug.log for more info.

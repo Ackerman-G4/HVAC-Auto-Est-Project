@@ -7,11 +7,12 @@
  * Center: 3D viewer tabs (Airflow 3D, Heatmap, Psychrometric)
  * Right:  Results metrics + compliance alerts
  */
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import {
-  Play, RotateCcw, Server, AirVent, Layers, Settings2,
-  Box, Thermometer, Wind, Droplets, BarChart3,
+  RotateCcw, Layers, Settings2,
+  Box, Wind, Droplets, BarChart3,
+  Scan, Server, Fan, Grid3x3,
 } from 'lucide-react';
 
 import { WorkspaceLayout } from '@/components/layout/WorkspaceLayout';
@@ -21,6 +22,7 @@ import { ResultsPanel, type ResultSection } from '@/components/layout/ResultsPan
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useSimulationStore } from '@/stores/simulation-store';
+import { authFetch } from '@/lib/api-client';
 
 /* ── Lazy-loaded viewers ───────────────────────────────────────── */
 
@@ -29,8 +31,10 @@ const AirflowViewer3D = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
-        Loading 3D viewer…
+      <div className="flex h-full items-center justify-center">
+        <div className="rounded-xl border border-border/70 bg-card/60 px-4 py-2 text-sm text-muted-foreground">
+          Loading 3D viewer...
+        </div>
       </div>
     ),
   },
@@ -41,8 +45,10 @@ const PsychrometricChart = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
-        Loading chart…
+      <div className="flex h-full items-center justify-center">
+        <div className="rounded-xl border border-border/70 bg-card/60 px-4 py-2 text-sm text-muted-foreground">
+          Loading chart...
+        </div>
       </div>
     ),
   },
@@ -50,8 +56,30 @@ const PsychrometricChart = dynamic(
 
 /* ── Input Sections ────────────────────────────────────────────── */
 
-function useInputSections(): InputSection[] {
+interface ProjectOption {
+  id: string;
+  name: string;
+}
+
+function useInputSections(projects: ProjectOption[]): InputSection[] {
   return useMemo(() => [
+    {
+      id: 'project',
+      title: 'Project Source',
+      icon: <Scan size={14} />,
+      defaultOpen: true,
+      fields: [
+        {
+          key: 'projectId',
+          label: 'Project',
+          type: 'select' as const,
+          options: [
+            { value: '', label: '— Select project —' },
+            ...projects.map(p => ({ value: p.id, label: p.name })),
+          ],
+        },
+      ],
+    },
     {
       id: 'mode',
       title: 'Simulation Mode',
@@ -91,7 +119,7 @@ function useInputSections(): InputSection[] {
         { key: 'ambientTempC', label: 'Ambient Temp', type: 'number' as const, unit: '°C', min: 10, max: 50, step: 0.5 },
         { key: 'ambientHumidityRatio', label: 'Ambient ω', type: 'number' as const, unit: 'kg/kg', min: 0, max: 0.03, step: 0.0001 },
         { key: 'iterations', label: 'Iterations', type: 'number' as const, min: 10, max: 2000, step: 10 },
-        { key: 'timeStepS', label: 'Time Step', type: 'number' as const, unit: 's', min: 0.01, max: 2, step: 0.01 },
+        { key: 'timeStep', label: 'Time Step', type: 'number' as const, unit: 's', min: 0.01, max: 2, step: 0.01 },
       ],
     },
     {
@@ -116,7 +144,7 @@ function useInputSections(): InputSection[] {
         { key: 'showAirflow', label: 'Show Particles', type: 'toggle' as const },
       ],
     },
-  ], []);
+  ], [projects]);
 }
 
 /* ── Main Page ─────────────────────────────────────────────────── */
@@ -125,16 +153,42 @@ export default function SimulationWorkspacePage() {
   const store = useSimulationStore();
   const {
     config, result, isRunning,
-    racks, hvacUnits,
+    racks, hvacUnits, tiles,
     activeView, showHotspots, showAirflow, selectedSliceZ,
     setConfig, setMode,
+    autoDetectFromProject,
     runSimulation,
   } = store;
 
-  const sections = useInputSections();
+  // ── Project picker state ────────────────────────────────
+  const [projects, setProjects] = useState<ProjectOption[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState('');
+  const [detectSummary, setDetectSummary] = useState<string[]>([]);
+  const [isDetecting, setIsDetecting] = useState(false);
+
+  // Fetch project list on mount
+  useEffect(() => {
+    authFetch('/api/projects')
+      .then(r => r.ok ? r.json() : { projects: [] })
+      .then(data => {
+        setProjects((data.projects ?? []).map((p: { id: string; name: string }) => ({ id: p.id, name: p.name })));
+      })
+      .catch(() => setProjects([]));
+  }, []);
+
+  const handleAutoDetect = useCallback(async () => {
+    if (!selectedProjectId) return;
+    setIsDetecting(true);
+    const summary = await autoDetectFromProject(selectedProjectId);
+    setDetectSummary(summary);
+    setIsDetecting(false);
+  }, [selectedProjectId, autoDetectFromProject]);
+
+  const sections = useInputSections(projects);
 
   /* Flatten store values → input panel */
   const inputValues = useMemo(() => ({
+    projectId: selectedProjectId,
     mode: config.mode ?? 'balanced',
     gridSizeX: config.gridSizeX,
     gridSizeY: config.gridSizeY,
@@ -148,9 +202,14 @@ export default function SimulationWorkspacePage() {
     selectedSliceZ,
     showHotspots,
     showAirflow,
-  }), [config, activeView, selectedSliceZ, showHotspots, showAirflow]);
+  }), [selectedProjectId, config, activeView, selectedSliceZ, showHotspots, showAirflow]);
 
   const handleInputChange = useCallback((key: string, value: string | number | boolean) => {
+    // Project selection
+    if (key === 'projectId') {
+      setSelectedProjectId(value as string);
+      return;
+    }
     // UI state
     if (key === 'activeView') {
       store.setActiveView(value as 'temperature' | 'velocity' | 'pressure' | 'humidity');
@@ -177,8 +236,8 @@ export default function SimulationWorkspacePage() {
   }, [store, setConfig, setMode]);
 
   const handleRun = useCallback(() => {
-    void runSimulation('workspace', 'default');
-  }, [runSimulation]);
+    void runSimulation(selectedProjectId || 'workspace', 'default');
+  }, [runSimulation, selectedProjectId]);
 
   /* ── Viewer tabs ─────────────────────────────────────────────── */
   const viewerTabs: ViewerTab[] = useMemo(() => {
@@ -322,14 +381,14 @@ export default function SimulationWorkspacePage() {
   /* ── Toolbar ─────────────────────────────────────────────────── */
   const viewerToolbar = useMemo(() => (
     <div className="flex items-center gap-2">
-      <Badge variant="secondary" className="text-[10px]">
+      <Badge variant="outline" className="text-[10px]">
         {racks.length} racks
       </Badge>
-      <Badge variant="secondary" className="text-[10px]">
+      <Badge variant="outline" className="text-[10px]">
         {hvacUnits.length} HVAC
       </Badge>
       {result && (
-        <Badge variant="default" className="text-[10px]">
+        <Badge variant="accent" className="text-[10px]">
           Iter {result.iteration}
         </Badge>
       )}
@@ -351,15 +410,22 @@ export default function SimulationWorkspacePage() {
 
   /* ── Workspace header ────────────────────────────────────────── */
   const header = (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-3">
-        <Box size={18} className="text-accent" />
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 rounded-xl border border-border/70 bg-card/65 p-2 text-accent">
+          <Box size={16} />
+        </div>
         <div>
-          <h1 className="text-sm font-semibold text-foreground">CFD Simulation Workspace</h1>
-          <p className="text-[10px] text-muted-foreground">Data-center airflow analysis</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Simulation Command Deck</p>
+          <h1 className="mt-0.5 text-sm font-semibold text-foreground">CFD Simulation Workspace</h1>
+          <p className="text-[11px] text-muted-foreground">Data-center airflow analysis and thermal compliance inspection.</p>
         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant="outline" className="text-[10px]">Mode {config.mode ?? 'balanced'}</Badge>
+        <Badge variant="outline" className="text-[10px]">
+          Grid {config.gridSizeX}x{config.gridSizeY}x{config.gridSizeZ}
+        </Badge>
         <Button size="sm" variant="ghost" onClick={() => setConfig({
           ambientTempC: 24,
           iterations: 200,
@@ -372,7 +438,7 @@ export default function SimulationWorkspacePage() {
 
   /* ── Footer status ───────────────────────────────────────────── */
   const footer = (
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between gap-3">
       <span>{isRunning ? 'Simulation running…' : result ? `Completed in ${result.iteration} iterations` : 'Idle'}</span>
       <span className="text-muted-foreground">{new Date().toLocaleTimeString()}</span>
     </div>
@@ -386,7 +452,7 @@ export default function SimulationWorkspacePage() {
       inputPanel={
         <InputPanel
           title="Configuration"
-          subtitle="Simulation parameters"
+          subtitle="Simulation parameters and domain setup"
           sections={sections}
           values={inputValues}
           onChange={handleInputChange}
@@ -394,8 +460,34 @@ export default function SimulationWorkspacePage() {
           runLabel={isRunning ? 'Running…' : 'Run Simulation'}
           running={isRunning}
           footer={
-            <div className="text-[10px] text-muted-foreground">
-              {racks.length} racks · {hvacUnits.length} HVAC units
+            <div className="space-y-2">
+              {/* Auto-detect button */}
+              <Button
+                size="sm"
+                variant="secondary"
+                className="w-full text-xs"
+                onClick={handleAutoDetect}
+                disabled={!selectedProjectId || isDetecting}
+              >
+                <Scan size={12} className="mr-1.5" />
+                {isDetecting ? 'Detecting…' : 'Auto-Detect Racks & Tiles'}
+              </Button>
+
+              {/* Equipment summary */}
+              <div className="space-y-1 text-[10px] text-muted-foreground">
+                <div className="flex items-center gap-1.5">
+                  <Server size={10} /> {racks.length} rack(s)
+                  <Fan size={10} className="ml-2" /> {hvacUnits.length} HVAC unit(s)
+                  <Grid3x3 size={10} className="ml-2" /> {tiles.length} tile(s)
+                </div>
+                {detectSummary.length > 0 && (
+                  <div className="mt-1 max-h-20 overflow-auto rounded-lg border border-border/70 bg-card/60 p-1.5 text-[9px] leading-relaxed">
+                    {detectSummary.map((line, i) => (
+                      <p key={i}>{line}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           }
         />

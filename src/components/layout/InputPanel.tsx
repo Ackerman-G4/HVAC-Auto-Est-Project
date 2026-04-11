@@ -69,11 +69,11 @@ function Section({
   const [open, setOpen] = useState(section.defaultOpen ?? true);
 
   return (
-    <div className="border-b border-border/60 last:border-b-0">
+    <div className="border-b border-border/70 last:border-b-0">
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center gap-2 px-4 py-3 text-left hover:bg-secondary/40 transition-colors"
+        className="flex w-full items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-secondary/55"
       >
         <span className="text-muted-foreground">
           {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -93,7 +93,7 @@ function Section({
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="px-4 pb-3 space-y-2.5">
+            <div className="space-y-3 px-4 pb-3">
               {section.fields.map((field) => (
                 <FieldRow
                   key={field.key}
@@ -138,15 +138,13 @@ function FieldRow({
 
   if (field.type === 'toggle') {
     return (
-      <label className="flex items-center justify-between gap-3 py-1 cursor-pointer">
+      <label className="flex cursor-pointer items-center justify-between gap-3 py-1">
         <span className="text-[11px] font-medium text-muted-foreground">{field.label}</span>
         <button
           type="button"
-          role="switch"
-          aria-checked={!!value}
           onClick={() => onChange(field.key, !value)}
-          className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
-            value ? 'bg-accent' : 'bg-muted'
+          className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors ${
+            value ? 'border-accent/40 bg-accent' : 'border-border bg-muted/70'
           }`}
         >
           <span
@@ -232,10 +230,11 @@ export function InputPanel({
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="shrink-0 px-4 pt-4 pb-3 border-b border-border">
-        <h2 className="text-sm font-semibold text-foreground display-heading">{title}</h2>
+      <div className="shrink-0 border-b border-border/70 bg-card/45 px-4 pb-3 pt-4">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Input Deck</p>
+        <h2 className="display-heading mt-1 text-sm font-semibold text-foreground">{title}</h2>
         {subtitle && (
-          <p className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">{subtitle}</p>
         )}
       </div>
 
@@ -252,7 +251,7 @@ export function InputPanel({
       </div>
 
       {/* Footer / Run button */}
-      <div className="shrink-0 border-t border-border p-3 space-y-2">
+      <div className="shrink-0 space-y-2 border-t border-border/70 bg-card/45 p-3">
         {onRun && (
           <Button
             variant="accent"

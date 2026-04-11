@@ -115,31 +115,38 @@ export default function EquipmentSelectionPage() {
 
   return (
     <div className="space-y-(--space-section-gap)">
-      {/* Actions */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">Equipment & Costing</h2>
-          <p className="text-xs text-muted-foreground">
-            {inputs.requiredTr.toFixed(1)} TR required &middot; {inputs.budgetBand} &middot; {inputs.optimizationPriority} priority
-          </p>
+      <Card className="panel-glass border-border/70 p-6 lg:p-7">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Equipment Command Deck</p>
+            <h2 className="mt-1 text-xl font-semibold text-foreground">Equipment & Costing</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Compare shortlisted systems by lifecycle cost, utilization, and scoring policy.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+              <span className="rounded-full border border-border bg-card px-2.5 py-1 tabular-nums">{inputs.requiredTr.toFixed(1)} TR demand</span>
+              <span className="rounded-full border border-border bg-card px-2.5 py-1">{inputs.budgetBand} budget</span>
+              <span className="rounded-full border border-border bg-card px-2.5 py-1">{inputs.optimizationPriority} priority</span>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" onClick={reset}>
+              <RefreshCcw size={14} className="mr-1" />
+              Reset
+            </Button>
+            <Button size="sm" isLoading={loading} onClick={() => void simulateRun()}>
+              <WandSparkles size={14} className="mr-1" />
+              Recalculate
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={reset}>
-            <RefreshCcw size={14} className="mr-1" />
-            Reset
-          </Button>
-          <Button size="sm" isLoading={loading} onClick={() => void simulateRun()}>
-            <WandSparkles size={14} className="mr-1" />
-            Recalculate
-          </Button>
-        </div>
-      </div>
+      </Card>
 
       {/* Main: left config + right cost breakdown */}
       <section className="grid gap-(--space-component-gap) xl:grid-cols-[380px_minmax(0,1fr)]">
         {/* Left — System Config */}
         <div className="space-y-(--space-component-gap)">
-          <Card className="p-8">
+          <Card className="panel-glass border-border/70 p-6 lg:p-8">
             <h3 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">
               System Configuration
             </h3>
@@ -186,7 +193,7 @@ export default function EquipmentSelectionPage() {
           </Card>
 
           {/* Lock Override */}
-          <Card className="p-8">
+          <Card className="panel-glass border-border/70 p-6 lg:p-8">
             <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Lock Override
             </h3>
@@ -218,7 +225,7 @@ export default function EquipmentSelectionPage() {
 
           {/* Cost Pie + Score Bar */}
           <div className="grid gap-(--space-component-gap) lg:grid-cols-2">
-            <Card className="p-8">
+            <Card className="panel-glass border-border/70 p-6 lg:p-8">
               <h3 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Cost Distribution
               </h3>
@@ -248,7 +255,7 @@ export default function EquipmentSelectionPage() {
               )}
             </Card>
 
-            <Card className="p-8">
+            <Card className="panel-glass border-border/70 p-6 lg:p-8">
               <h3 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Candidate Scores
               </h3>
@@ -271,7 +278,7 @@ export default function EquipmentSelectionPage() {
           </div>
 
           {/* Full-width candidate table */}
-          <Card className="p-8">
+          <Card className="panel-glass border-border/70 p-6 lg:p-8">
             <h3 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Equipment Shortlist
             </h3>
@@ -280,7 +287,7 @@ export default function EquipmentSelectionPage() {
 
           {/* Detailed Cost Table */}
           {costBreakdown && (
-            <Card className="p-8">
+            <Card className="panel-glass border-border/70 p-6 lg:p-8">
               <h3 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Cost Summary
               </h3>

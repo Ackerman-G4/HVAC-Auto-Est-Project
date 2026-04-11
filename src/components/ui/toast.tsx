@@ -84,7 +84,7 @@ export function ToastContainer() {
             role="status"
             aria-live="polite"
             className={cn(
-              'pointer-events-auto flex items-start gap-3 rounded-xl border border-border bg-background p-4 shadow-lg backdrop-blur-md border-l-4',
+              'pointer-events-auto flex items-start gap-3 rounded-2xl border border-border/70 bg-card/80 p-4 shadow-[var(--panel-shadow)] backdrop-blur-md border-l-4',
               borderColors[toast.type]
             )}
           >
@@ -97,7 +97,8 @@ export function ToastContainer() {
             </div>
             <button
               onClick={() => removeToast(toast.id)}
-              className="rounded-lg border border-transparent p-1 text-muted-foreground transition-colors hover:border-border hover:bg-secondary hover:text-foreground"
+              className="rounded-xl border border-transparent p-1 text-muted-foreground transition-colors hover:border-border/70 hover:bg-secondary/80 hover:text-foreground"
+              title="Dismiss"
             >
               <X size={14} />
             </button>

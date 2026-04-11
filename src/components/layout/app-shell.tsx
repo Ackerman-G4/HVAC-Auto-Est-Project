@@ -6,8 +6,12 @@ import { MoonStar, Sun, UserCircle2 } from 'lucide-react';
 import { Sidebar } from './sidebar';
 import { ToastContainer } from '@/components/ui/toast';
 import { Button } from '@/components/ui/button';
+import { SystemLoadingScreen } from '@/components/layout/system-loading-screen';
+import { WelcomeOverlay } from '@/components/layout/welcome-overlay';
 import { useAuthStore } from '@/stores/auth-store';
 import { useUIStore } from '@/stores/ui-store';
+import { getRouteMeta } from '@/config/routes';
+import { cn } from '@/lib/utils/cn';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -15,38 +19,28 @@ interface AppShellProps {
 
 const UI_THEME_STORAGE_KEY = 'hvac-ui-theme';
 
-function resolveWorkspaceTitle(pathname: string): string {
-  if (pathname === '/') return 'Dashboard';
-  if (pathname.startsWith('/load-calculation')) return 'Load Calculation Workspace';
-  if (pathname.startsWith('/airflow-duct-design')) return 'Airflow And Duct Design Workspace';
-  if (pathname.startsWith('/equipment-selection')) return 'Equipment Selection Workspace';
-  if (pathname.startsWith('/simulation/workspace')) return 'CFD Simulation Workspace';
-  if (pathname.startsWith('/simulation')) return 'CFD Simulation';
-  if (pathname.startsWith('/reports')) return 'Engineering Reports Workspace';
-  return 'HVAC Engineering Platform';
-}
-
-function resolveWorkspaceSubtitle(pathname: string): string {
-  if (pathname.startsWith('/load-calculation')) return 'Thermal analytics';
-  if (pathname.startsWith('/airflow-duct-design')) return 'Air distribution';
-  if (pathname.startsWith('/equipment-selection')) return 'Plant optimization';
-  if (pathname.startsWith('/simulation/workspace')) return 'Data-center airflow analysis';
-  if (pathname.startsWith('/simulation')) return 'CFD simulation';
-  if (pathname.startsWith('/reports')) return 'Decision reporting';
-  return 'Program cockpit';
-}
-
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const routeMeta = getRouteMeta(pathname);
   const theme = useUIStore((state) => state.theme);
   const setTheme = useUIStore((state) => state.setTheme);
   const toggleTheme = useUIStore((state) => state.toggleTheme);
+  const setSidebarCollapsed = useUIStore((state) => state.setSidebarCollapsed);
+  const setMobileSidebar = useUIStore((state) => state.setMobileSidebar);
   const user = useAuthStore((state) => state.user);
+  const initialized = useAuthStore((state) => state.initialized);
   const initializeAuth = useAuthStore((state) => state.initialize);
   const logout = useAuthStore((state) => state.logout);
 
   const isAuthRoute = pathname.startsWith('/auth');
+  const [bootReady, setBootReady] = React.useState(false);
+  const [showWelcome, setShowWelcome] = React.useState(false);
+
+  React.useEffect(() => {
+    const timer = window.setTimeout(() => setBootReady(true), 1100);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   React.useEffect(() => {
     if (isAuthRoute) {
@@ -69,84 +63,135 @@ export function AppShell({ children }: AppShellProps) {
     window.localStorage.setItem(UI_THEME_STORAGE_KEY, theme);
   }, [theme]);
 
+  React.useEffect(() => {
+    const applyResponsiveShell = () => {
+      const width = window.innerWidth;
+
+      if (width < 768) {
+        setMobileSidebar(false);
+        return;
+      }
+
+      if (width < 1440) {
+        setSidebarCollapsed(true);
+      } else {
+        setSidebarCollapsed(false);
+      }
+    };
+
+    applyResponsiveShell();
+    window.addEventListener('resize', applyResponsiveShell);
+    return () => window.removeEventListener('resize', applyResponsiveShell);
+  }, [setMobileSidebar, setSidebarCollapsed]);
+
+  React.useEffect(() => {
+    if (isAuthRoute || pathname !== '/' || !user) {
+      return;
+    }
+
+    const shouldShow = window.sessionStorage.getItem('hvac-show-welcome');
+    if (shouldShow !== '1') {
+      return;
+    }
+
+    window.sessionStorage.removeItem('hvac-show-welcome');
+    setShowWelcome(true);
+  }, [isAuthRoute, pathname, user]);
+
+  const showBootScreen = !bootReady || (!isAuthRoute && !initialized);
+
+  if (showBootScreen) {
+    return <SystemLoadingScreen />;
+  }
+
   if (isAuthRoute) {
     return (
-      <div className="relative min-h-screen overflow-hidden font-sans text-foreground">
-        <div className="relative z-10 animate-fade-rise">{children}</div>
+      <div className="relative min-h-screen overflow-hidden bg-background font-sans text-foreground">
+        <div className="relative z-10 animate-fade-rise">
+          {children}
+        </div>
         <ToastContainer />
       </div>
     );
   }
 
-  const workspaceTitle = resolveWorkspaceTitle(pathname);
-  const workspaceSubtitle = resolveWorkspaceSubtitle(pathname);
-
-  // Full-bleed workspace routes (3-panel layout manages its own chrome)
-  const isWorkspaceRoute = pathname.includes('/workspace');
-
   return (
-    <div className="relative flex min-h-screen font-sans text-foreground">
+    <div className="relative grid min-h-screen grid-cols-[auto_minmax(0,1fr)] overflow-hidden bg-background font-sans text-foreground">
       <Sidebar />
-      {isWorkspaceRoute ? (
-        <main className="relative w-full flex-1 overflow-hidden">
-          {children}
-        </main>
-      ) : (
-        <main className="relative w-full flex-1 overflow-y-auto">
-        <div className="mx-auto min-h-screen w-full max-w-(--content-max-width) px-(--space-page-x) pb-28 pt-(--space-page-y)">
-          <header className="mb-6 border-b border-border pb-5 sm:mb-(--space-header-gap)">
-            <div className="flex items-center justify-between gap-4">
-              <div className="min-w-0 pl-14 lg:pl-0">
-                <p className="text-xs font-medium text-muted-foreground">
-                  {workspaceSubtitle}
-                </p>
-                <h1 className="display-heading truncate text-lg font-semibold tracking-tight text-foreground sm:text-xl md:text-2xl">
-                  {workspaceTitle}
-                </h1>
+      <main className="relative min-w-0 overflow-hidden">
+        <div className="flex h-screen min-h-0 flex-col">
+          {!routeMeta.hideHeader && (
+            <header className="panel-glass sticky top-0 z-20 border-b border-border/70 px-4 py-3 md:px-6">
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0 pl-13 md:pl-0">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    {routeMeta.subtitle}
+                  </p>
+                  <h1 className="display-heading mt-1 truncate text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+                    {routeMeta.title}
+                  </h1>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    onClick={toggleTheme}
+                    aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+                    className="hidden md:inline-flex"
+                  >
+                    {theme === 'dark' ? <Sun size={16} /> : <MoonStar size={16} />}
+                  </Button>
+
+                  <button
+                    type="button"
+                    className="hidden h-9 items-center rounded-xl border border-border/70 bg-card/60 px-3 text-sm font-medium text-foreground md:flex"
+                  >
+                    <UserCircle2 size={14} className="mr-1.5 text-muted-foreground" />
+                    {user?.name || user?.email || 'Engineer'}
+                  </button>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => {
+                      await logout();
+                      router.replace('/auth/login');
+                    }}
+                  >
+                    Sign out
+                  </Button>
+                </div>
               </div>
+            </header>
+          )}
 
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  onClick={toggleTheme}
-                  aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-                  className="hidden sm:inline-flex"
-                >
-                  {theme === 'dark' ? <Sun size={16} /> : <MoonStar size={16} />}
-                </Button>
-
-                <button
-                  type="button"
-                  className="hidden h-9 items-center rounded-lg border border-border bg-secondary px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted md:flex"
-                >
-                  <UserCircle2 size={14} className="mr-1.5 text-muted-foreground" />
-                  {user?.name || user?.email || 'Engineer'}
-                </button>
-
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  className="border-transparent hover:bg-secondary"
-                  onClick={async () => {
-                    await logout();
-                    router.replace('/auth/login');
-                  }}
-                >
-                  Sign out
-                </Button>
-              </div>
+          <div className="relative min-h-0 flex-1 overflow-auto">
+            <div
+              className={cn(
+                'relative min-h-full w-full',
+                routeMeta.constrained ? 'mx-auto max-w-(--content-max-width-constrained)' : '',
+                routeMeta.hideHeader
+                  ? 'p-0'
+                  : routeMeta.fullBleed
+                  ? 'px-[clamp(1rem,1.2vw+0.7rem,1.8rem)] py-[clamp(1rem,1vw+0.7rem,1.6rem)]'
+                  : 'px-(--space-page-x) py-(--space-page-y)',
+              )}
+            >
+              {children}
             </div>
-          </header>
-
-          <div className="relative">
-            {children}
           </div>
         </div>
       </main>
-      )}
+
+      <WelcomeOverlay
+        open={showWelcome}
+        userName={user?.name || user?.email}
+        onComplete={() => setShowWelcome(false)}
+      />
+
       <ToastContainer />
     </div>
   );

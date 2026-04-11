@@ -1094,7 +1094,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           { label: project.name },
         ]}
         actions={
-          <div className="flex flex-wrap gap-2.5 rounded-xl border border-border bg-card p-2">
+          <div className="panel-glass flex flex-wrap gap-2.5 rounded-xl border border-border/70 bg-card p-2">
             <Button variant="secondary" size="md" onClick={runCalculation} isLoading={calculating}>
               <Calculator className="w-4 h-4 mr-1" /> Calculate
             </Button>
@@ -1122,7 +1122,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         const outdoorPS = psychrometricState(project.outdoorDB, project.outdoorRH || 50);
         const indoorPS = psychrometricState(project.indoorDB, project.indoorRH);
         return (
-          <Card className="mb-6 border-border bg-accent/5 shadow-sm">
+          <Card className="panel-glass mb-6 border-border/70 bg-accent/5 shadow-sm">
             <CardContent className="p-5">
               <div className="mb-4 flex items-center gap-2">
                 <Thermometer className="w-4 h-4 text-accent" />
@@ -1169,7 +1169,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
               >
-                <Card className="mb-4 border-border bg-card shadow-sm">
+                <Card className="panel-glass mb-4 border-border/70 bg-card shadow-sm">
                   <CardHeader>
                     <CardTitle>Add New Room</CardTitle>
                   </CardHeader>
@@ -1299,7 +1299,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
                         return (
                         <motion.div key={room.id} variants={listItemVariants}>
-                          <Card className="border border-border bg-card shadow-sm">
+                          <Card className="panel-glass border border-border/70 bg-card shadow-sm">
                             <CardContent className="p-5">
                               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                                 <div className="flex-1 min-w-0">
@@ -1776,7 +1776,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               )}
             </div>
 
-            <Card className="mb-4 border border-border bg-card shadow-sm">
+            <Card className="panel-glass mb-4 border border-border/70 bg-card shadow-sm">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Pricing Policy Overrides</CardTitle>
                 <CardDescription>
@@ -2007,7 +2007,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               <p className="text-sm text-muted-foreground">Download project data in various formats for documentation, CAD, or spreadsheet analysis.</p>
             </div>
 
-            <Card className="mb-4 border border-border bg-card shadow-sm">
+            <Card className="panel-glass mb-4 border border-border/70 bg-card shadow-sm">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Offline Snapshot (v1)</CardTitle>
                 <CardDescription>
@@ -2037,7 +2037,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {/* PDF Report */}
-              <Card className="cursor-pointer border border-border bg-card transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/45 hover:shadow-md" onClick={() => {
+              <Card className="panel-glass cursor-pointer border border-border/70 bg-card transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/45 hover:shadow-md" onClick={() => {
                 exportProjectPDF(project);
                 showToast('success', 'PDF report downloaded');
               }}>
@@ -2051,7 +2051,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               </Card>
 
               {/* DXF / CAD */}
-              <Card className="cursor-pointer border border-border bg-card transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/45 hover:shadow-md" onClick={() => {
+              <Card className="panel-glass cursor-pointer border border-border/70 bg-card transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/45 hover:shadow-md" onClick={() => {
                 exportProjectDXF(project);
                 showToast('success', 'DXF file downloaded — open in AutoCAD or BricsCAD');
               }}>
@@ -2065,7 +2065,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               </Card>
 
               {/* Excel */}
-              <Card className="cursor-pointer border border-border bg-card transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/45 hover:shadow-md" onClick={async () => {
+              <Card className="panel-glass cursor-pointer border border-border/70 bg-card transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/45 hover:shadow-md" onClick={async () => {
                 await exportProjectExcel(project);
                 showToast('success', 'Excel workbook downloaded');
               }}>
@@ -2079,7 +2079,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               </Card>
 
               {/* CSV */}
-              <Card className="cursor-pointer border border-border bg-card transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/45 hover:shadow-md" onClick={() => {
+              <Card className="panel-glass cursor-pointer border border-border/70 bg-card transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/45 hover:shadow-md" onClick={() => {
                 exportProjectCSV(project);
                 showToast('success', 'CSV file downloaded');
               }}>

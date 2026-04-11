@@ -8,7 +8,7 @@
  * - Instanced velocity arrows (streamlines)
  * - GPU-instanced animated particles for airflow visualization
  */
-import React, { useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { SimulationResult } from '@/types/simulation';
@@ -103,8 +103,8 @@ export function HeatmapSlice({ result, sliceZ, viewMode }: HeatmapProps) {
     return { matrices: mats, colors: cols };
   }, [result, sliceZ, viewMode, config, res]);
 
-  // Apply instance data
-  useMemo(() => {
+  // Apply instance data (useEffect because it accesses refs)
+  useEffect(() => {
     const mesh = meshRef.current;
     if (!mesh) return;
     const colorAttr = new Float32Array(count * 3);
@@ -195,8 +195,13 @@ export function AirflowParticles({ result, count = 500 }: ParticlesProps) {
   const centerX = (config.gridSizeX * res) / 2;
   const centerY = (config.gridSizeY * res) / 2;
 
-  // Initialize particle state
-  const particleState = useMemo(() => {
+  // Mutable particle state — stored in refs for useFrame mutations
+  const stateRef = useRef<{ positions: Float32Array; velocities: Float32Array; lives: Float32Array } | null>(null);
+  const tempMatrixRef = useRef(new THREE.Matrix4());
+  const colorArrRef = useRef(new Float32Array(count * 3));
+
+  // Initialize / reinitialize particle state when simulation changes
+  useEffect(() => {
     const positions = new Float32Array(count * 3);
     const velocities = new Float32Array(count * 3);
     const lives = new Float32Array(count);
@@ -216,17 +221,18 @@ export function AirflowParticles({ result, count = 500 }: ParticlesProps) {
       lives[i] = Math.random() * 100;
     }
 
-    return { positions, velocities, lives };
+    stateRef.current = { positions, velocities, lives };
+    colorArrRef.current = new Float32Array(count * 3);
   }, [result, count, config, res, centerX, centerY]);
-
-  const tempMatrix = useMemo(() => new THREE.Matrix4(), []);
-  const colorArr = useMemo(() => new Float32Array(count * 3), [count]);
 
   useFrame((_, delta) => {
     const mesh = meshRef.current;
-    if (!mesh) return;
+    const state = stateRef.current;
+    if (!mesh || !state) return;
 
-    const { positions, velocities, lives } = particleState;
+    const { positions, velocities, lives } = state;
+    const colorArr = colorArrRef.current;
+    const tempMatrix = tempMatrixRef.current;
     const maxX = config.gridSizeX * res;
     const maxY = config.gridSizeY * res;
     const maxZ = config.gridSizeZ * res;

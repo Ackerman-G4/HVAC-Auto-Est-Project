@@ -55,7 +55,7 @@ export function Dialog({ open, onClose, title, description, children, size = 'md
           />
           <motion.div
             className={cn(
-              'relative z-50 w-full rounded-xl border border-border bg-background shadow-lg',
+              'relative z-50 w-full rounded-2xl border border-border/70 bg-card/80 shadow-(--panel-shadow-strong) backdrop-blur-xl',
               'max-h-[88vh] overflow-y-auto',
               sizes[size],
               className
@@ -66,14 +66,14 @@ export function Dialog({ open, onClose, title, description, children, size = 'md
             exit="exit"
           >
             {(title || description) && (
-              <div className="sticky top-0 z-10 flex items-start justify-between border-b border-border bg-card px-6 py-5 backdrop-blur sm:px-8">
+              <div className="sticky top-0 z-10 flex items-start justify-between border-b border-border/70 bg-card/60 px-6 py-5 backdrop-blur-md sm:px-8">
                 <div>
                   {title && <h2 className="text-xl font-bold tracking-tight text-foreground">{title}</h2>}
                   {description && <p className="mt-1 text-sm font-medium text-muted-foreground">{description}</p>}
                 </div>
                 <button
                   onClick={onClose}
-                  className="rounded-full border border-transparent bg-secondary p-2 text-muted-foreground transition-colors hover:border-border hover:bg-secondary hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="rounded-xl border border-transparent bg-secondary/80 p-2 text-muted-foreground transition-colors hover:border-border/70 hover:bg-secondary hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                   <X className="h-5 w-5" />
                   <span className="sr-only">Close</span>
@@ -113,7 +113,7 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   return (
     <Dialog open={open} onClose={onClose} title={title} description={description} size="sm">
-      <div className="mt-5 flex justify-end gap-3 border-t border-border pt-4">
+      <div className="mt-5 flex justify-end gap-3 border-t border-border/70 pt-4">
         <Button onClick={onClose} variant="outline" disabled={isLoading}>
           {cancelText}
         </Button>

@@ -10,13 +10,13 @@ interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 
 export function Badge({ className, variant = 'default', size = 'md', children, ...props }: BadgeProps) {
   const variants = {
-    default: 'border border-border bg-secondary text-foreground',
+    default: 'border border-border/70 bg-secondary/80 text-foreground',
     secondary: 'border border-transparent bg-primary text-primary-foreground',
-    accent: 'border border-accent/25 bg-accent/10 text-accent-dark',
-    destructive: 'border border-destructive/25 bg-destructive/10 text-destructive',
-    success: 'border border-success/25 bg-success/10 text-success',
-    warning: 'border border-warning/25 bg-warning/10 text-warning',
-    outline: 'border border-border bg-card text-muted-foreground hover:bg-secondary',
+    accent: 'border border-accent/30 bg-accent/10 text-accent-dark',
+    destructive: 'border border-destructive/30 bg-destructive/10 text-destructive',
+    success: 'border border-success/30 bg-success/10 text-success',
+    warning: 'border border-warning/30 bg-warning/10 text-warning',
+    outline: 'border border-border/70 bg-card/75 text-muted-foreground backdrop-blur-sm hover:bg-secondary/80',
   };
 
   const sizes = {
@@ -27,7 +27,7 @@ export function Badge({ className, variant = 'default', size = 'md', children, .
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-md whitespace-nowrap transition-colors duration-150',
+        'inline-flex items-center rounded-lg whitespace-nowrap transition-colors duration-150',
         variants[variant],
         sizes[size],
         className

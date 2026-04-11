@@ -59,6 +59,8 @@ export interface Room {
 
 export type SpaceType =
   | 'office'
+  | 'open_office'
+  | 'private_office'
   | 'conference'
   | 'lobby'
   | 'retail'
@@ -76,7 +78,9 @@ export type SpaceType =
   | 'gym'
   | 'theater'
   | 'warehouse'
-  | 'parking';
+  | 'parking'
+  | 'mechanical'
+  | 'utility';
 
 export type WallType =
   | 'concrete_200mm'
@@ -85,6 +89,7 @@ export type WallType =
   | 'concrete_block_150mm'
   | 'brick_200mm'
   | 'drywall_metal_stud'
+  | 'gypsum_partition'
   | 'curtain_wall'
   | 'insulated_panel';
 

@@ -3,9 +3,6 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import {
   runPipeline,
   runLoadStage,
-  runEquipmentStage,
-  runAirflowStage,
-  runPricingStage,
   defaultPipelineInputs,
   type PipelineInputs,
   type PipelineResult,
@@ -186,7 +183,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
 
       runStage: (stage) => {
         set({ activeStage: stage });
-        const { inputs, result: prev } = get();
+        const { inputs } = get();
 
         if (stage === 'load') {
           const loadResult = runLoadStage(inputs.load, inputs.loadOverrides);

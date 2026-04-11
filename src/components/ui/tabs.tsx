@@ -23,16 +23,16 @@ interface TabsProps {
 export function Tabs({ tabs, activeTab, onTabChange, children, className }: TabsProps) {
   return (
     <div className={cn('w-full', className)}>
-      <div className="no-print flex w-fit max-w-full gap-1 overflow-x-auto rounded-xl border border-border bg-secondary/50 p-1.5">
+      <div className="no-print flex w-fit max-w-full gap-1 overflow-x-auto rounded-2xl border border-border/70 bg-secondary/50 p-1.5 backdrop-blur-sm">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => onTabChange(tab.id)}
             className={cn(
-              'group relative flex items-center gap-2 whitespace-nowrap rounded-lg border px-4 py-2 text-sm font-medium transition-colors duration-150',
+              'group relative flex items-center gap-2 whitespace-nowrap rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-150',
               activeTab === tab.id
-                ? 'border-border bg-card text-foreground shadow-sm'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
+                ? 'border-border/80 bg-card text-foreground shadow-sm'
+                : 'border-transparent text-muted-foreground hover:border-border/70 hover:bg-secondary/50 hover:text-foreground'
             )}
           >
             {tab.icon && (
@@ -68,7 +68,7 @@ export function Tabs({ tabs, activeTab, onTabChange, children, className }: Tabs
           initial="initial"
           animate="animate"
           exit="exit"
-          className="pt-8"
+          className="pt-6"
         >
           {children}
         </motion.div>

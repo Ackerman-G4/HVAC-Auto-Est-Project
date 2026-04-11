@@ -197,7 +197,7 @@ export default function SettingsPage() {
         description="Configure default values and system preferences"
       />
 
-      <Card className="mb-6 border-border bg-accent/5">
+      <Card className="panel-glass mb-6 border-border/70 bg-accent/5">
         <CardContent className="py-4">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -228,7 +228,7 @@ export default function SettingsPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Design Defaults */}
-        <Card className="border-border bg-card">
+        <Card className="panel-glass border-border/70 bg-card">
           <CardHeader>
             <div className="flex items-center gap-2">
               <Thermometer className="w-4 h-4 text-muted-foreground" />
@@ -325,7 +325,7 @@ export default function SettingsPage() {
         </Card>
 
         {/* Cost Defaults */}
-        <Card className="border-border bg-card">
+        <Card className="panel-glass border-border/70 bg-card">
           <CardHeader>
             <div className="flex items-center gap-2">
               <PhilippinePeso className="w-4 h-4 text-muted-foreground" />
@@ -396,7 +396,7 @@ export default function SettingsPage() {
         </Card>
 
         {/* System */}
-        <Card className="lg:col-span-2 border-border bg-card">
+        <Card className="panel-glass lg:col-span-2 border-border/70 bg-card">
           <CardHeader>
             <div className="flex items-center gap-2">
               <Building2 className="w-4 h-4 text-muted-foreground" />
@@ -446,7 +446,7 @@ export default function SettingsPage() {
         </Card>
 
         {/* Unit Placement Rules */}
-        <Card className="lg:col-span-2 border-border bg-card">
+        <Card className="panel-glass lg:col-span-2 border-border/70 bg-card">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">

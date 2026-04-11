@@ -555,41 +555,43 @@ export default function ReportsPage() {
         }}
       />
 
-      {/* Actions */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">Engineering Reports</h2>
-          <p className="text-xs text-muted-foreground">
-            Live report surface combining load, airflow, equipment, and cost modules
-          </p>
+      <Card className="panel-glass border-border/70 p-6 lg:p-7">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Reporting Command Deck</p>
+            <h2 className="mt-1 text-xl font-semibold text-foreground">Engineering Reports</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Consolidate load, airflow, equipment, and costing outputs into client-ready deliverables.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="secondary" size="sm" onClick={() => void exportWorkspaceSnapshot()} isLoading={snapshotTransfer === 'export'}>
+              <Download size={14} className="mr-1" />
+              Export Snapshot
+            </Button>
+            <Button variant="secondary" size="sm" onClick={triggerSnapshotImport} isLoading={snapshotTransfer === 'import'}>
+              <Upload size={14} className="mr-1" />
+              Import Snapshot
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => void exportPdf()} isLoading={exporting === 'pdf'}>
+              <FileText size={14} className="mr-1" />
+              PDF
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => void exportExcel()} isLoading={exporting === 'excel'}>
+              <FileSpreadsheet size={14} className="mr-1" />
+              Excel
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => void exportCsv()} isLoading={exporting === 'csv'}>
+              <FileDown size={14} className="mr-1" />
+              CSV
+            </Button>
+            <Button size="sm" onClick={() => void exportJson()} isLoading={exporting === 'json'}>
+              <Download size={14} className="mr-1" />
+              JSON
+            </Button>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="secondary" size="sm" onClick={() => void exportWorkspaceSnapshot()} isLoading={snapshotTransfer === 'export'}>
-            <Download size={14} className="mr-1" />
-            Export Snapshot
-          </Button>
-          <Button variant="secondary" size="sm" onClick={triggerSnapshotImport} isLoading={snapshotTransfer === 'import'}>
-            <Upload size={14} className="mr-1" />
-            Import Snapshot
-          </Button>
-          <Button variant="secondary" size="sm" onClick={() => void exportPdf()} isLoading={exporting === 'pdf'}>
-            <FileText size={14} className="mr-1" />
-            PDF
-          </Button>
-          <Button variant="secondary" size="sm" onClick={() => void exportExcel()} isLoading={exporting === 'excel'}>
-            <FileSpreadsheet size={14} className="mr-1" />
-            Excel
-          </Button>
-          <Button variant="secondary" size="sm" onClick={() => void exportCsv()} isLoading={exporting === 'csv'}>
-            <FileDown size={14} className="mr-1" />
-            CSV
-          </Button>
-          <Button size="sm" onClick={() => void exportJson()} isLoading={exporting === 'json'}>
-            <Download size={14} className="mr-1" />
-            JSON
-          </Button>
-        </div>
-      </div>
+      </Card>
 
       {/* KPI Row */}
       <div className="grid gap-(--space-component-gap) sm:grid-cols-2 lg:grid-cols-4">
@@ -600,7 +602,7 @@ export default function ReportsPage() {
       </div>
 
       <section className="grid gap-(--space-component-gap) xl:grid-cols-3">
-        <Card className="p-8">
+        <Card className="panel-glass border-border/70 p-6 lg:p-8">
           <h3 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">Load Breakdown</h3>
           <div className="h-85 w-full">
             {chartsReady ? (
@@ -619,7 +621,7 @@ export default function ReportsPage() {
           </div>
         </Card>
 
-        <Card className="p-8">
+        <Card className="panel-glass border-border/70 p-6 lg:p-8">
           <h3 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">Branch Velocity</h3>
           <div className="h-85 w-full">
             {chartsReady ? (
@@ -641,7 +643,7 @@ export default function ReportsPage() {
           </div>
         </Card>
 
-        <Card className="p-8">
+        <Card className="panel-glass border-border/70 p-6 lg:p-8">
           <h3 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">Equipment Ranking</h3>
           <div className="h-85 w-full">
             {chartsReady ? (
@@ -744,7 +746,7 @@ export default function ReportsPage() {
       </CollapsiblePanel>
 
       {(loadResult.alerts.length > 0 || airflowResult.alerts.length > 0 || equipmentResult.alerts.length > 0) && (
-        <Card className="p-8">
+        <Card className="panel-glass border-border/70 p-6 lg:p-8">
           <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Advisories</h3>
           <div className="space-y-2 rounded-lg border border-warning bg-secondary p-4 text-sm text-foreground">
             {loadResult.alerts.map((alert) => (

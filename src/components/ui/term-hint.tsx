@@ -17,7 +17,7 @@ export function TermHint({ term, definition, className, compact = false }: TermH
       <span>{term}</span>
       <span
         className={cn(
-          'inline-flex items-center justify-center rounded-full border border-border text-muted-foreground',
+          'inline-flex items-center justify-center rounded-full border border-border/70 text-muted-foreground',
           compact ? 'h-3.5 w-3.5' : 'h-4 w-4',
         )}
         title={definition}

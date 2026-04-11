@@ -100,32 +100,45 @@ export default function LoadCalculationPage() {
 
   return (
     <div className="space-y-(--space-section-gap)">
-      {/* Top: actions bar */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">
-            {inputs.projectName || 'Untitled Project'}
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            {inputs.spaceType.replace('_', ' ')} &middot; {inputs.areaM2} m² &middot; {inputs.occupants} pax
-          </p>
+      <Card className="panel-glass border-border/70 p-6 lg:p-7">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Load Command Deck</p>
+            <h2 className="mt-1 text-xl font-semibold text-foreground">
+              {inputs.projectName || 'Untitled Project'}
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Tune room assumptions, run cooling load analysis, then pass calibrated demand downstream.
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <span className="rounded-full border border-border bg-card px-2.5 py-1">
+                {inputs.spaceType.replace('_', ' ')}
+              </span>
+              <span className="rounded-full border border-border bg-card px-2.5 py-1 tabular-nums">
+                {inputs.areaM2} m²
+              </span>
+              <span className="rounded-full border border-border bg-card px-2.5 py-1 tabular-nums">
+                {inputs.occupants} pax
+              </span>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" onClick={reset}>
+              <RefreshCcw size={14} className="mr-1" />
+              Reset
+            </Button>
+            <Button size="sm" isLoading={loading} onClick={() => void simulateRun()}>
+              <WandSparkles size={14} className="mr-1" />
+              Run Calculation
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={reset}>
-            <RefreshCcw size={14} className="mr-1" />
-            Reset
-          </Button>
-          <Button size="sm" isLoading={loading} onClick={() => void simulateRun()}>
-            <WandSparkles size={14} className="mr-1" />
-            Run Calculation
-          </Button>
-        </div>
-      </div>
+      </Card>
 
       {/* Main: left room list + right editor */}
       <section className="grid gap-(--space-component-gap) xl:grid-cols-[320px_minmax(0,1fr)]">
         {/* Left — Room List */}
-        <Card className="p-8">
+        <Card className="panel-glass border-border/70 p-6 lg:p-8">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Rooms
@@ -152,7 +165,7 @@ export default function LoadCalculationPage() {
         </Card>
 
         {/* Right — Active Room Editor */}
-        <Card className="p-8">
+        <Card className="panel-glass border-border/70 p-6 lg:p-8">
           <h3 className="mb-5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Room Parameters
           </h3>
@@ -259,7 +272,7 @@ export default function LoadCalculationPage() {
 
       {/* Bottom — Load Breakdown + Charts */}
       <section className="grid gap-(--space-component-gap) lg:grid-cols-2">
-        <Card className="p-8">
+        <Card className="panel-glass border-border/70 p-6 lg:p-8">
           <h3 className="mb-5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Load Component Breakdown
           </h3>
@@ -280,7 +293,7 @@ export default function LoadCalculationPage() {
           </div>
         </Card>
 
-        <Card className="p-8">
+        <Card className="panel-glass border-border/70 p-6 lg:p-8">
           <h3 className="mb-5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Airflow & Velocity Profile
           </h3>
@@ -307,7 +320,7 @@ export default function LoadCalculationPage() {
       </section>
 
       {/* Equipment Table */}
-      <Card className="p-8">
+      <Card className="panel-glass border-border/70 p-6 lg:p-8">
         <h3 className="mb-5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
           Equipment Comparison
         </h3>

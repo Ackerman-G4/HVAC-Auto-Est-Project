@@ -59,7 +59,17 @@ export default function AirflowDuctDesignPage() {
   return (
     <div className="space-y-(--space-section-gap)">
       {/* Top Controls Bar */}
-      <Card className="p-8">
+      <Card className="panel-glass border-border/70 p-6 lg:p-8">
+        <div className="mb-5 flex flex-wrap items-start justify-between gap-3 border-b border-border/80 pb-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Airflow Command Deck</p>
+            <h2 className="mt-1 text-xl font-semibold text-foreground">Duct Network Sizing</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Adjust distribution constraints, then recompute branch velocity, pressure loss, and fan duty.</p>
+          </div>
+          <div className="rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground tabular-nums">
+            Load-linked supply: {Math.max(200, Math.round(loadCfm)).toLocaleString()} CFM
+          </div>
+        </div>
         <div className="flex flex-wrap items-end gap-4">
           <div className="grid flex-1 grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-8">
             <InputField label="Supply CFM" value={inputs.supplyCfm} onValueChange={(next) => setInput('supplyCfm', Number(next))} unit="CFM" min={200} max={60000} step={50} />
@@ -92,7 +102,7 @@ export default function AirflowDuctDesignPage() {
       </section>
 
       {/* Full-Width Branch Sizing Table */}
-      <Card className="p-8">
+      <Card className="panel-glass border-border/70 p-6 lg:p-8">
         <h3 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">
           Branch Sizing Table
         </h3>
@@ -101,7 +111,7 @@ export default function AirflowDuctDesignPage() {
 
       {/* Charts */}
       <section className="grid gap-(--space-component-gap) lg:grid-cols-2">
-        <Card className="p-8">
+        <Card className="panel-glass border-border/70 p-6 lg:p-8">
           <h3 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Velocity & Pressure Profile
           </h3>
@@ -126,7 +136,7 @@ export default function AirflowDuctDesignPage() {
           </div>
         </Card>
 
-        <Card className="p-8">
+        <Card className="panel-glass border-border/70 p-6 lg:p-8">
           <h3 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">
             CFM Distribution
           </h3>

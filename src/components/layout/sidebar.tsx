@@ -67,15 +67,16 @@ export function Sidebar() {
         key={item.href}
         href={item.href}
         onClick={() => setMobileSidebar(false)}
+        title={collapsed ? item.label : undefined}
         className={cn(
-          'group relative flex items-center gap-3 overflow-hidden rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors duration-150',
+          'group relative flex items-center gap-3 overflow-hidden rounded-xl px-3 py-2.5 text-[13px] font-medium transition-all duration-150',
           collapsed ? 'justify-center' : '',
           active
-            ? 'bg-primary/10 text-primary'
-            : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+            ? 'bg-primary/16 text-primary shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--primary)_35%,transparent)]'
+            : 'text-muted-foreground hover:bg-secondary/80 hover:text-foreground'
         )}
       >
-        {active && <span className="absolute inset-y-0 left-0 w-0.75 rounded-r-full bg-primary" />}
+        {active && <span className="absolute inset-y-0 left-0 w-1 rounded-r-full bg-primary" />}
         <item.icon
           size={18}
           className={cn(
@@ -90,14 +91,14 @@ export function Sidebar() {
   };
 
   const sidebarContent = (
-    <div className="relative z-10 flex h-full flex-col bg-card shadow-[1px_0_0_0_var(--border)]">
+    <div className="relative z-10 flex h-full flex-col panel-glass shadow-[1px_0_0_0_var(--border)]">
       <div
         className={cn(
-          'flex h-16 shrink-0 items-center gap-3 border-b border-border px-5',
+          'flex h-(--layout-header-height) shrink-0 items-center gap-3 border-b border-border/70 px-5',
           collapsed && 'justify-center px-0'
         )}
       >
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-white">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-linear-to-br from-primary to-accent text-white shadow-md">
           <Zap size={18} />
         </div>
         {!collapsed && (
@@ -126,10 +127,10 @@ export function Sidebar() {
         </div>
       </nav>
 
-      <div className="hidden border-t border-border p-4 lg:flex">
+      <div className="hidden border-t border-border p-4 md:flex">
         <button
           onClick={toggleSidebar}
-          className="flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors duration-150 hover:bg-secondary hover:text-foreground"
+          className="flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors duration-150 hover:bg-secondary hover:text-foreground"
         >
           {collapsed ? <ChevronRight size={18} /> : <><ChevronLeft size={18} /><span>Collapse</span></>}
         </button>
@@ -141,7 +142,7 @@ export function Sidebar() {
     <>
       <button
           onClick={() => setMobileSidebar(true)}
-          className="fixed left-4 top-4 z-50 rounded-lg border border-border bg-card p-2.5 text-foreground shadow-sm transition-colors hover:bg-secondary lg:hidden"
+          className="fixed left-3 top-3 z-50 rounded-xl border border-border bg-card/90 p-2.5 text-foreground shadow-md transition-colors hover:bg-secondary md:hidden"
           aria-label="Open navigation menu"
         >
         <Menu size={18} />
@@ -151,14 +152,14 @@ export function Sidebar() {
         {mobileOpen && (
           <>
             <motion.div
-              className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden"
+              className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm md:hidden"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setMobileSidebar(false)}
             />
             <motion.aside
-              className="fixed bottom-0 left-0 top-0 z-50 w-70 bg-card shadow-xl lg:hidden"
+              className="fixed bottom-0 left-0 top-0 z-50 w-[min(86vw,20rem)] panel-glass shadow-xl md:hidden"
               variants={sidebarVariants}
               initial="closed"
               animate="open"
@@ -179,7 +180,7 @@ export function Sidebar() {
 
       <aside
         className={cn(
-          'hidden lg:flex flex-col h-screen shrink-0 transition-all duration-300 ease-in-out z-40',
+          'hidden md:flex flex-col h-screen shrink-0 transition-all duration-300 ease-in-out z-40',
           collapsed ? 'w-18' : 'w-70'
         )}
       >

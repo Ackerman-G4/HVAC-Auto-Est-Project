@@ -1,20 +1,20 @@
 import type { Metadata, Viewport } from "next";
-import { JetBrains_Mono, Plus_Jakarta_Sans, Space_Grotesk } from "next/font/google";
+import { Inter, JetBrains_Mono, Poppins } from "next/font/google";
 import { GoogleAuthProvider } from "@/components/auth/google-auth-provider";
 import { AppShell } from "@/components/layout/app-shell";
 import "./globals.css";
 
-const jakarta = Plus_Jakarta_Sans({
+const jakarta = Inter({
   variable: "--font-jakarta",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: ["400", "500", "600", "700"],
   display: "swap",
 });
 
-const spaceGrotesk = Space_Grotesk({
+const spaceGrotesk = Poppins({
   variable: "--font-space-grotesk",
   subsets: ["latin"],
-  weight: ["500", "700"],
+  weight: ["500", "600", "700"],
   display: "swap",
 });
 
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#148673",
+  themeColor: "#3b82f6",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,

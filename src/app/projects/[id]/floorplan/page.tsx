@@ -712,9 +712,9 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
         }
       />
 
-      <div className="flex gap-4 h-[calc(100vh-200px)]">
+      <div className="flex h-auto min-h-[70vh] flex-col gap-4 xl:h-[calc(100vh-200px)] xl:flex-row">
         {/* Toolbar */}
-        <div className="w-12 flex flex-col gap-1 bg-secondary rounded-lg p-1.5">
+        <div className="panel-glass flex w-full flex-row gap-1 overflow-x-auto rounded-xl border border-border/70 p-1.5 xl:w-12 xl:flex-col xl:overflow-visible">
           {([
             { t: 'select' as Tool, icon: MousePointer, label: 'Select' },
             { t: 'draw' as Tool, icon: Square, label: 'Draw Room' },
@@ -786,7 +786,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
         </div>
 
         {/* Canvas */}
-        <div className="relative flex-1 overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+        <div className="panel-glass relative min-h-112 flex-1 overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm">
           <canvas
             ref={canvasRef}
             className={`w-full h-full ${
@@ -839,7 +839,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
         </div>
 
         {/* Right Panel */}
-        <div className="w-72 flex flex-col gap-3 overflow-y-auto">
+        <div className="flex w-full flex-col gap-3 overflow-y-auto xl:w-72">
           {/* Floor selector */}
           <Card>
             <CardHeader className="py-3 px-4">
@@ -891,7 +891,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
           </Card>
 
           {/* Room list */}
-          <Card className="flex-1">
+          <Card className="panel-glass flex-1 border-border/70">
             <CardHeader className="py-3 px-4">
               <CardTitle className="text-sm flex items-center justify-between">
                 <span className="flex items-center gap-2">
@@ -939,7 +939,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              <Card className="border-accent">
+              <Card className="panel-glass border-accent/50">
                 <CardHeader className="py-3 px-4">
                   <CardTitle className="text-sm flex items-center justify-between">
                     <span className="flex items-center gap-2">

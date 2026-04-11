@@ -157,16 +157,16 @@ export default function NewProjectPage() {
         ]}
       />
 
-      <Card className="mb-6 border-border bg-primary/5 shadow-sm">
+      <Card className="panel-glass mb-6 border-border/70 shadow-sm">
         <CardContent className="py-4">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Project Setup Workspace</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Project Setup Workspace</p>
               <p className="mt-0.5 text-sm font-medium text-foreground">
                 Define design conditions, building profile, and psychrometric inputs before room modeling.
               </p>
             </div>
-            <div className="text-sm tabular-nums text-muted-foreground">
+              <div className="rounded-lg border border-border bg-card px-3 py-2 text-sm tabular-nums text-muted-foreground">
               Draft mode · unsaved
             </div>
           </div>
@@ -174,9 +174,9 @@ export default function NewProjectPage() {
       </Card>
 
       <form onSubmit={handleSubmit}>
-        <div className="grid grid-cols-1 gap-7 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-7 xl:grid-cols-2">
           {/* Project Details */}
-          <Card className="border-border bg-card shadow-sm">
+          <Card className="panel-glass border-border/70 bg-card shadow-sm">
             <CardHeader>
               <CardTitle>Project Details</CardTitle>
             </CardHeader>
@@ -248,12 +248,12 @@ export default function NewProjectPage() {
           </Card>
 
           {/* Design Conditions */}
-          <Card className="border-border bg-card shadow-sm">
+          <Card className="panel-glass border-border/70 bg-card shadow-sm">
             <CardHeader>
               <CardTitle>Design Conditions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="rounded-lg border border-border bg-secondary/50 p-3">
+              <div className="rounded-lg border border-border bg-secondary/40 p-3">
                 <p className="text-sm font-medium text-muted-foreground mb-1">
                   Carrier Psychrometric Chart
                 </p>

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { showToast } from '@/components/ui/toast';
 import { authFetch } from '@/lib/api-client';
+import { autoDetectEquipment, type AutoDetectInput } from '@/lib/functions/auto-detect-equipment';
 import type {
   SimulationConfig,
   SimulationMode,
@@ -53,6 +54,7 @@ interface SimulationStore {
   // Actions - Simulation
   setConfig: (config: Partial<SimulationConfig>) => void;
   setMode: (mode: SimulationMode) => void;
+  autoDetectFromProject: (projectId: string) => Promise<string[]>;
   runSimulation: (projectId: string, floorId: string) => Promise<void>;
   runCompliance: () => void;
   runFailure: (config: FailureConfig) => Promise<void>;
@@ -168,6 +170,39 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
   setMode: (mode) => {
     const modeOverrides = MODE_CONFIGS[mode];
     set(state => ({ config: { ...state.config, ...modeOverrides, mode } }));
+  },
+
+  // ─── Auto-detect from project ─────────────────────────────
+
+  autoDetectFromProject: async (projectId: string) => {
+    try {
+      // Fetch floors + rooms from the project API
+      const res = await authFetch(`/api/projects/${encodeURIComponent(projectId)}/floors`);
+      if (!res.ok) throw new Error('Failed to fetch project floors');
+      const data = await res.json();
+      const floors = data.floors ?? [];
+
+      const { config } = get();
+      const input: AutoDetectInput = { floors, gridResolution: config.gridResolution };
+      const result = autoDetectEquipment(input);
+
+      // Apply detected equipment to the store
+      const newRacks = result.racks.map(r => ({ ...r, id: crypto.randomUUID() }));
+      const newHvac = result.hvacUnits.map(u => ({ ...u, id: crypto.randomUUID() }));
+
+      set({
+        racks: newRacks,
+        hvacUnits: newHvac,
+        tiles: result.tiles,
+      });
+
+      showToast('success', `Detected ${newRacks.length} rack(s), ${newHvac.length} HVAC unit(s), ${result.tiles.length} tile(s)`);
+      return result.summary;
+    } catch (error) {
+      console.error('Auto-detect failed:', error);
+      showToast('error', 'Auto-detect failed — check project data');
+      return ['Auto-detect failed'];
+    }
   },
 
   // ─── Simulation Actions ─────────────────────────────────────
