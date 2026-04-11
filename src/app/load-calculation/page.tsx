@@ -79,10 +79,12 @@ export default function LoadCalculationPage() {
 
   const breakdownData = [
     { item: 'Envelope', btu: result.breakdown.envelopeBtu },
-    { item: 'People', btu: result.breakdown.peopleBtu },
+    { item: 'People (Sensible)', btu: result.breakdown.peopleSensibleBtu },
+    { item: 'People (Latent)', btu: result.breakdown.peopleLatentBtu },
     { item: 'Lighting', btu: result.breakdown.lightingBtu },
     { item: 'Equipment', btu: result.breakdown.equipmentBtu },
-    { item: 'Ventilation', btu: result.breakdown.ventilationBtu },
+    { item: 'Ventilation (Sensible)', btu: result.breakdown.ventilationSensibleBtu },
+    { item: 'Ventilation (Latent)', btu: result.breakdown.ventilationLatentBtu },
   ];
 
   const equipmentRows: EquipmentRow[] = result.equipmentOptions.map((option) => ({
@@ -97,7 +99,7 @@ export default function LoadCalculationPage() {
   }));
 
   return (
-    <div className="space-y-[var(--space-section-gap)]">
+    <div className="space-y-(--space-section-gap)">
       {/* Top: actions bar */}
       <div className="flex items-center justify-between">
         <div>
@@ -121,7 +123,7 @@ export default function LoadCalculationPage() {
       </div>
 
       {/* Main: left room list + right editor */}
-      <section className="grid gap-[var(--space-component-gap)] xl:grid-cols-[320px_minmax(0,1fr)]">
+      <section className="grid gap-(--space-component-gap) xl:grid-cols-[320px_minmax(0,1fr)]">
         {/* Left — Room List */}
         <Card className="p-8">
           <div className="mb-4 flex items-center justify-between">
@@ -169,6 +171,7 @@ export default function LoadCalculationPage() {
                 value={inputs.spaceType}
                 onChange={(event) => setSpaceType(event.target.value as SpaceType)}
                 className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20"
+                aria-label="Space Type"
               >
                 {spaceTypes.map((item) => (
                   <option key={item.value} value={item.value}>
@@ -248,19 +251,19 @@ export default function LoadCalculationPage() {
       </section>
 
       {/* Bottom — Project Summary KPIs */}
-      <section className="grid gap-[var(--space-component-gap)] sm:grid-cols-3">
+      <section className="grid gap-(--space-component-gap) sm:grid-cols-3">
         <StatCard title="Design Load" value={`${result.breakdown.totalBtuAfterFactors.toLocaleString()} BTU/h`} />
         <StatCard title="Cooling Tonnage" value={`${result.breakdown.trRequired.toFixed(2)} TR`} />
         <StatCard title="Airflow" value={`${result.breakdown.cfmRequired.toLocaleString()} CFM`} />
       </section>
 
       {/* Bottom — Load Breakdown + Charts */}
-      <section className="grid gap-[var(--space-component-gap)] lg:grid-cols-2">
+      <section className="grid gap-(--space-component-gap) lg:grid-cols-2">
         <Card className="p-8">
           <h3 className="mb-5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Load Component Breakdown
           </h3>
-          <div className="h-[300px] w-full">
+          <div className="h-75 w-full">
             {chartsReady ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={breakdownData} margin={{ top: 6, right: 14, bottom: 6, left: 0 }}>
@@ -281,7 +284,7 @@ export default function LoadCalculationPage() {
           <h3 className="mb-5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Airflow & Velocity Profile
           </h3>
-          <div className="h-[300px] w-full">
+          <div className="h-75 w-full">
             {chartsReady ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={result.airflowMap} margin={{ top: 6, right: 14, bottom: 6, left: 0 }}>

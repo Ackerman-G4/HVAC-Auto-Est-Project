@@ -1,0 +1,91 @@
+{
+  "id": "cfd-rules",
+  "category": "cfd",
+  "version": 1,
+  "updatedAt": "2026-04-11T00:00:00Z",
+  "rules": [
+    {
+      "id": "cfd_physics_constants",
+      "name": "CFD Physics Constants",
+      "category": "cfd",
+      "type": "constants",
+      "values": {
+        "air_density": 1.2,
+        "air_viscosity": 0.000018,
+        "thermal_diffusivity": 0.000022,
+        "specific_heat": 1005,
+        "gravity": 9.81,
+        "damping_factor": 0.98,
+        "sor_relaxation": 0.3,
+        "cfm_to_mps": 0.000472,
+        "standard_pressure": 101325,
+        "tile_delta_p": 10,
+        "tile_correction_factor": 1.6,
+        "plenum_temp_offset": 5
+      },
+      "description": "Physical constants for CFD simulation"
+    },
+    {
+      "id": "cfd_thermal_thresholds",
+      "name": "Temperature Alert Thresholds",
+      "category": "cfd",
+      "type": "constants",
+      "values": {
+        "temp_warning": 27,
+        "temp_critical": 35,
+        "temp_emergency": 40,
+        "temp_min_clamp": 5,
+        "temp_max_clamp": 60
+      },
+      "description": "ASHRAE TC 9.9 thermal guideline thresholds"
+    },
+    {
+      "id": "simulation_modes",
+      "name": "Simulation Resolution Modes",
+      "category": "cfd",
+      "type": "constants",
+      "values": {
+        "fast_grid_size": 10,
+        "fast_iterations": 50,
+        "fast_time_step": 0.5,
+        "balanced_grid_size": 20,
+        "balanced_iterations": 200,
+        "balanced_time_step": 0.1,
+        "engineering_grid_size": 40,
+        "engineering_iterations": 1000,
+        "engineering_time_step": 0.02
+      },
+      "description": "Grid resolution and iteration settings for each performance mode"
+    },
+    {
+      "id": "buoyancy_formula",
+      "name": "Buoyancy Force",
+      "category": "cfd",
+      "type": "formula",
+      "formula": "rho * g * beta * (T_cell - T_ambient)",
+      "variables": { "rho": 1.2, "g": 9.81, "beta": 0.00336, "T_cell": 0, "T_ambient": 24 },
+      "unit": "N/m³",
+      "description": "Thermal buoyancy: F = ρgβ(T - T_ref), β ≈ 1/(273.15 + T_ref)"
+    },
+    {
+      "id": "perforated_tile_velocity_formula",
+      "name": "Perforated Tile Airflow Velocity",
+      "category": "cfd",
+      "type": "formula",
+      "formula": "correction * sqrt(2 * delta_p / rho) * open_area",
+      "variables": { "correction": 1.6, "delta_p": 10, "rho": 1.2, "open_area": 0.25 },
+      "unit": "m/s",
+      "description": "Tile velocity: V = C × sqrt(2ΔP/ρ) × open_area_fraction"
+    },
+    {
+      "id": "cfl_condition_formula",
+      "name": "CFL Stability Condition",
+      "category": "cfd",
+      "type": "formula",
+      "formula": "dx / max_velocity",
+      "variables": { "dx": 0.5, "max_velocity": 1.0 },
+      "unit": "seconds",
+      "description": "Maximum stable timestep: dt ≤ dx / max(|v|)"
+    }
+  ]
+}

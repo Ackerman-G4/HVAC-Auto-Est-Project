@@ -46,6 +46,10 @@ yarn-error.log*
 # sqlite database
 *.db
 *.db-journal
+
+# local dev auth store
+.local-users.json
+.local-firestore.json
 next-env.d.ts
 
 /src/generated/prisma

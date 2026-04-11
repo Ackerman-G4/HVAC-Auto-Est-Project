@@ -1,3 +1,11 @@
+import {
+  getRuleSetSync,
+  lookupFromRuleSet,
+  constantFromRuleSet,
+  evaluateFromRuleSet,
+} from '@/lib/engine/rules';
+import { humidityRatio } from '@/lib/functions/psychrometric';
+
 export type SpaceType =
   | 'office'
   | 'retail'
@@ -31,10 +39,14 @@ export interface ManualOverrides {
 
 export interface LoadBreakdown {
   envelopeBtu: number;
-  peopleBtu: number;
+  peopleSensibleBtu: number;
+  peopleLatentBtu: number;
   lightingBtu: number;
   equipmentBtu: number;
-  ventilationBtu: number;
+  ventilationSensibleBtu: number;
+  ventilationLatentBtu: number;
+  totalSensibleBtu: number;
+  totalLatentBtu: number;
   totalBtuBeforeFactors: number;
   totalBtuAfterFactors: number;
   trRequired: number;
@@ -72,18 +84,36 @@ export interface LoadCalculationResult {
   alerts: string[];
 }
 
-const SPACE_ENVELOPE_BTU_PER_M2: Record<SpaceType, number> = {
-  office: 120,
-  retail: 140,
-  residential: 95,
-  server_room: 220,
-  conference_room: 135,
-  restaurant: 180,
-};
+// ─── Rules-driven constants ───────────────────────────────────────
+function getLoadRules() {
+  return getRuleSetSync('cooling_load');
+}
 
-const PEOPLE_BTU_PER_PERSON = 245;
-const WATT_TO_BTU_PER_HR = 3.412;
-const CFM_CONSTANT = 1.08;
+function getEnvelopeFactor(spaceType: SpaceType): number {
+  try {
+    return lookupFromRuleSet(getLoadRules(), 'envelope_btu_per_m2', spaceType);
+  } catch {
+    return 120; // safe default
+  }
+}
+
+function getConstant(name: string): number {
+  return constantFromRuleSet(getLoadRules(), 'cooling_load_constants', name);
+}
+
+const PEOPLE_BTU_PER_PERSON = () => getConstant('people_btu_per_person');
+const WATT_TO_BTU_PER_HR = () => getConstant('watt_to_btu_per_hr');
+const CFM_CONSTANT = () => getConstant('cfm_constant');
+const BTU_PER_TR = () => getConstant('btu_per_tr');
+
+/** Get per-person latent heat gain in W from rules (space-type aware) */
+function getPeopleLatentW(spaceType: SpaceType): number {
+  try {
+    return lookupFromRuleSet(getLoadRules(), 'heat_gain_per_person', spaceType as string, 'latent');
+  } catch {
+    return 55; // ASHRAE default for office
+  }
+}
 
 const CATALOG: Array<Pick<EquipmentOption, 'model' | 'type' | 'capacityTr' | 'efficiencyEer' | 'estimatedPhp'>> = [
   {
@@ -127,31 +157,97 @@ function celsiusToFahrenheit(value: number) {
   return value * 1.8 + 32;
 }
 
-function calculateBreakdown(inputs: LoadCalculationInputs, overrides: ManualOverrides): LoadBreakdown {
-  const deltaTF = Math.max(1, celsiusToFahrenheit(inputs.outdoorTempC - inputs.indoorTempC));
-  const envelopeBtu = inputs.areaM2 * SPACE_ENVELOPE_BTU_PER_M2[inputs.spaceType];
-  const peopleBtu = inputs.occupants * PEOPLE_BTU_PER_PERSON;
-  const lightingBtu = inputs.areaM2 * inputs.lightingWPerM2 * WATT_TO_BTU_PER_HR;
-  const equipmentBtu = inputs.equipmentLoadW * WATT_TO_BTU_PER_HR;
-  const ventilationCfm = inputs.occupants * inputs.ventilationCfmPerPerson;
-  const ventilationBtu = CFM_CONSTANT * ventilationCfm * deltaTF;
+/** Convert a Celsius temperature DIFFERENCE to Fahrenheit difference (no +32 offset). */
+function celsiusDeltaToFahrenheit(deltaC: number) {
+  return deltaC * 1.8;
+}
 
-  const totalBtuBeforeFactors = envelopeBtu + peopleBtu + lightingBtu + equipmentBtu + ventilationBtu;
-  const adjustedByFactor = totalBtuBeforeFactors * inputs.safetyFactor * inputs.diversityFactor;
+function calculateBreakdown(inputs: LoadCalculationInputs, overrides: ManualOverrides): LoadBreakdown {
+  const rules = getLoadRules();
+  const cfmConst = CFM_CONSTANT();
+  const wattToBtu = WATT_TO_BTU_PER_HR();
+  const peopleBtuPP = PEOPLE_BTU_PER_PERSON();
+  const btuPerTr = BTU_PER_TR();
+
+  // Input validation
+  if (inputs.areaM2 <= 0) throw new Error('Floor area must be positive');
+  if (inputs.occupants < 0) throw new Error('Occupants cannot be negative');
+  if (inputs.ceilingHeightM <= 0) throw new Error('Ceiling height must be positive');
+
+  const deltaTF = Math.max(1, celsiusDeltaToFahrenheit(inputs.outdoorTempC - inputs.indoorTempC));
+
+  // ── Sensible loads ──────────────────────────────────────────────
+  const envelopeBtu = evaluateFromRuleSet(rules, 'envelope_load_formula', {
+    area: inputs.areaM2,
+    factor: getEnvelopeFactor(inputs.spaceType),
+  }).value;
+  const peopleSensibleBtu = evaluateFromRuleSet(rules, 'people_load_formula', {
+    occupants: inputs.occupants,
+    btu_per_person: peopleBtuPP,
+  }).value;
+  const lightingBtu = evaluateFromRuleSet(rules, 'lighting_load_formula', {
+    area: inputs.areaM2,
+    density: inputs.lightingWPerM2,
+    watt_to_btu: wattToBtu,
+  }).value;
+  const equipmentBtu = evaluateFromRuleSet(rules, 'equipment_load_formula', {
+    watts: inputs.equipmentLoadW,
+    watt_to_btu: wattToBtu,
+  }).value;
+  const ventilationCfm = inputs.occupants * inputs.ventilationCfmPerPerson;
+  const ventilationSensibleBtu = evaluateFromRuleSet(rules, 'ventilation_sensible_formula', {
+    cfm_constant: cfmConst,
+    cfm: ventilationCfm,
+    delta_t: deltaTF,
+  }).value;
+
+  // ── Latent loads ────────────────────────────────────────────────
+  // People latent: occupants × latent W/person × W→BTU conversion
+  const peopleLatentW = getPeopleLatentW(inputs.spaceType);
+  const peopleLatentBtu = inputs.occupants * peopleLatentW * wattToBtu;
+
+  // Ventilation latent: 0.68 × CFM × ΔW × 7000
+  // ΔW = outdoor humidity ratio - indoor humidity ratio (grains/lb)
+  const outdoorW = humidityRatio(inputs.outdoorTempC, 70); // assume 70% outdoor RH for Philippines
+  const indoorW = humidityRatio(inputs.indoorTempC, 50);   // assume 50% indoor design RH
+  const deltaW = Math.max(0, outdoorW - indoorW); // kg/kg
+  const ventilationLatentBtu = evaluateFromRuleSet(rules, 'ventilation_latent_formula', {
+    cfm: ventilationCfm,
+    delta_w: deltaW,
+  }).value;
+
+  // ── Totals ──────────────────────────────────────────────────────
+  const totalSensibleBtu = envelopeBtu + peopleSensibleBtu + lightingBtu + equipmentBtu + ventilationSensibleBtu;
+  const totalLatentBtu = peopleLatentBtu + ventilationLatentBtu;
+  const totalBtuBeforeFactors = totalSensibleBtu + totalLatentBtu;
+
+  const adjustedByFactor = evaluateFromRuleSet(rules, 'design_load_formula', {
+    raw_total: totalBtuBeforeFactors,
+    safety_factor: inputs.safetyFactor,
+    diversity_factor: inputs.diversityFactor,
+  }).value;
   const totalBtuAfterFactors = overrides.useManualTotalBtu && overrides.manualTotalBtu
     ? overrides.manualTotalBtu
     : adjustedByFactor;
 
-  const trRequired = totalBtuAfterFactors / 12000;
-  const computedCfm = totalBtuAfterFactors / (CFM_CONSTANT * Math.max(1, inputs.supplyDeltaTF));
+  const trRequired = totalBtuAfterFactors / btuPerTr;
+  const computedCfm = evaluateFromRuleSet(rules, 'cfm_from_btu_formula', {
+    total_btu: totalBtuAfterFactors,
+    cfm_constant: cfmConst,
+    supply_delta_t: Math.max(1, inputs.supplyDeltaTF),
+  }).value;
   const cfmRequired = overrides.useManualCfm && overrides.manualCfm ? overrides.manualCfm : computedCfm;
 
   return {
     envelopeBtu: round(envelopeBtu),
-    peopleBtu: round(peopleBtu),
+    peopleSensibleBtu: round(peopleSensibleBtu),
+    peopleLatentBtu: round(peopleLatentBtu),
     lightingBtu: round(lightingBtu),
     equipmentBtu: round(equipmentBtu),
-    ventilationBtu: round(ventilationBtu),
+    ventilationSensibleBtu: round(ventilationSensibleBtu),
+    ventilationLatentBtu: round(ventilationLatentBtu),
+    totalSensibleBtu: round(totalSensibleBtu),
+    totalLatentBtu: round(totalLatentBtu),
     totalBtuBeforeFactors: round(totalBtuBeforeFactors),
     totalBtuAfterFactors: round(totalBtuAfterFactors),
     trRequired: round(trRequired),
@@ -160,11 +256,12 @@ function calculateBreakdown(inputs: LoadCalculationInputs, overrides: ManualOver
 }
 
 function buildEquipmentOptions(trRequired: number): EquipmentOption[] {
+  const operatingHours = 3200; // annual operating hours — matches equipment-selection-engine default
   return CATALOG.map((item) => {
     const quantity = Math.max(1, Math.ceil(trRequired / item.capacityTr));
     const providedTr = quantity * item.capacityTr;
     const utilization = clamp((trRequired / Math.max(0.1, providedTr)) * 100, 0, 160);
-    const annualEnergyKwh = (providedTr * 12000 * 1200) / (item.efficiencyEer * 1000);
+    const annualEnergyKwh = (providedTr * 12000 * operatingHours) / (item.efficiencyEer * 1000);
 
     return {
       ...item,
@@ -195,13 +292,14 @@ function buildAirflowMap(cfm: number): AirflowNode[] {
 
 function buildFormulas(inputs: LoadCalculationInputs, breakdown: LoadBreakdown): FormulaRow[] {
   const airflow = inputs.occupants * inputs.ventilationCfmPerPerson;
-  const deltaTF = Math.max(1, celsiusToFahrenheit(inputs.outdoorTempC - inputs.indoorTempC));
+  const deltaTF = Math.max(1, celsiusDeltaToFahrenheit(inputs.outdoorTempC - inputs.indoorTempC));
+  const envelopeFactor = getEnvelopeFactor(inputs.spaceType);
 
   return [
     {
       label: 'Envelope Load',
       expression: 'Envelope BTU = Area x Space Factor',
-      value: `${inputs.areaM2} x ${SPACE_ENVELOPE_BTU_PER_M2[inputs.spaceType]} = ${breakdown.envelopeBtu.toLocaleString()} BTU/h`,
+      value: `${inputs.areaM2} x ${envelopeFactor} = ${breakdown.envelopeBtu.toLocaleString()} BTU/h`,
     },
     {
       label: 'Lighting Load',
@@ -209,18 +307,38 @@ function buildFormulas(inputs: LoadCalculationInputs, breakdown: LoadBreakdown):
       value: `${inputs.areaM2} x ${inputs.lightingWPerM2} x 3.412 = ${breakdown.lightingBtu.toLocaleString()} BTU/h`,
     },
     {
-      label: 'Ventilation Load',
-      expression: 'Ventilation BTU = 1.08 x CFM x DeltaT(F)',
-      value: `1.08 x ${airflow.toFixed(1)} x ${deltaTF.toFixed(1)} = ${breakdown.ventilationBtu.toLocaleString()} BTU/h`,
+      label: 'Ventilation Sensible',
+      expression: 'Vent Sensible = 1.08 x CFM x ΔT(°F)',
+      value: `1.08 x ${airflow.toFixed(1)} x ${deltaTF.toFixed(1)} = ${breakdown.ventilationSensibleBtu.toLocaleString()} BTU/h`,
+    },
+    {
+      label: 'Ventilation Latent',
+      expression: 'Vent Latent = 0.68 x CFM x ΔW x 7000',
+      value: `${breakdown.ventilationLatentBtu.toLocaleString()} BTU/h`,
+    },
+    {
+      label: 'People Latent',
+      expression: 'People Latent = Occupants x Latent W/person x 3.412',
+      value: `${breakdown.peopleLatentBtu.toLocaleString()} BTU/h`,
+    },
+    {
+      label: 'Total Sensible',
+      expression: 'Sensible = Envelope + People + Lighting + Equipment + Vent Sensible',
+      value: `${breakdown.totalSensibleBtu.toLocaleString()} BTU/h`,
+    },
+    {
+      label: 'Total Latent',
+      expression: 'Latent = People Latent + Ventilation Latent',
+      value: `${breakdown.totalLatentBtu.toLocaleString()} BTU/h`,
     },
     {
       label: 'Design Load',
-      expression: 'Design BTU = Raw Total x Safety x Diversity',
+      expression: 'Design BTU = (Sensible + Latent) x Safety x Diversity',
       value: `${breakdown.totalBtuBeforeFactors.toLocaleString()} x ${inputs.safetyFactor} x ${inputs.diversityFactor} = ${breakdown.totalBtuAfterFactors.toLocaleString()} BTU/h`,
     },
     {
       label: 'Airflow Requirement',
-      expression: 'CFM = BTU / (1.08 x Supply DeltaT(F))',
+      expression: 'CFM = BTU / (1.08 x Supply ΔT(°F))',
       value: `${breakdown.totalBtuAfterFactors.toLocaleString()} / (1.08 x ${inputs.supplyDeltaTF}) = ${breakdown.cfmRequired.toLocaleString()} CFM`,
     },
   ];

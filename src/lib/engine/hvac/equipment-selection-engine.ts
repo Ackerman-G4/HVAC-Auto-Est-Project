@@ -1,5 +1,23 @@
+import { getRuleSetSync } from '@/lib/engine/rules';
+import { constantFromRuleSet, lookupFromRuleSet } from '@/lib/engine/rules/rule-evaluator';
+
 export type BudgetBand = 'economy' | 'balanced' | 'premium';
 export type OptimizationPriority = 'capex' | 'efficiency' | 'balanced';
+
+// ─── Rules-driven constants ─────────────────────────────────────────
+
+function getEquipmentConstant(name: string, fallback: number): number {
+  try {
+    return constantFromRuleSet(getRuleSetSync('equipment'), 'equipment_constants', name);
+  } catch { return fallback; }
+}
+
+function getScoringWeight(priority: OptimizationPriority, weightName: string, fallback: number): number {
+  try {
+    const ruleId = `scoring_weights_${priority}`;
+    return lookupFromRuleSet(getRuleSetSync('equipment'), ruleId, weightName);
+  } catch { return fallback; }
+}
 
 export interface EquipmentSelectionInputs {
   requiredTr: number;
@@ -114,15 +132,11 @@ function scoreCandidate(
   const capexSpan = Math.max(1, maxCapex - minCapex);
   const capexScore = 100 - (((candidate.capexPhp - minCapex) / capexSpan) * 100);
 
-  let score = 0;
+  const wCapacity = getScoringWeight(inputs.optimizationPriority, 'capacity', inputs.optimizationPriority === 'balanced' ? 0.4 : 0.3);
+  const wEfficiency = getScoringWeight(inputs.optimizationPriority, 'efficiency', inputs.optimizationPriority === 'efficiency' ? 0.5 : inputs.optimizationPriority === 'capex' ? 0.2 : 0.3);
+  const wCapex = getScoringWeight(inputs.optimizationPriority, 'capex', inputs.optimizationPriority === 'capex' ? 0.5 : inputs.optimizationPriority === 'efficiency' ? 0.2 : 0.3);
 
-  if (inputs.optimizationPriority === 'capex') {
-    score = capacityScore * 0.3 + efficiencyScore * 0.2 + capexScore * 0.5;
-  } else if (inputs.optimizationPriority === 'efficiency') {
-    score = capacityScore * 0.3 + efficiencyScore * 0.5 + capexScore * 0.2;
-  } else {
-    score = capacityScore * 0.4 + efficiencyScore * 0.3 + capexScore * 0.3;
-  }
+  const score = capacityScore * wCapacity + efficiencyScore * wEfficiency + capexScore * wCapex;
 
   return round(clamp(score, 0, 100));
 }
@@ -140,7 +154,9 @@ export function calculateEquipmentSelection(
   overrides: EquipmentSelectionOverrides,
 ): EquipmentSelectionResult {
   const filtered = filterCatalog(inputs);
-  const targetTr = inputs.redundancyNPlusOne ? inputs.requiredTr * 1.15 : inputs.requiredTr;
+  const redundancyMultiplier = getEquipmentConstant('redundancy_multiplier', 1.15);
+  const maxCandidates = getEquipmentConstant('max_candidates', 12);
+  const targetTr = inputs.redundancyNPlusOne ? inputs.requiredTr * redundancyMultiplier : inputs.requiredTr;
 
   const candidates: EquipmentCandidate[] = filtered.flatMap((item) => {
     const minQty = Math.max(1, Math.ceil(targetTr / item.capacityTr));
@@ -183,7 +199,7 @@ export function calculateEquipmentSelection(
       score: scoreCandidate(item, inputs, maxCapex, minCapex),
     }))
     .sort((a, b) => b.score - a.score)
-    .slice(0, 12);
+    .slice(0, maxCandidates);
 
   const selectedCandidateId = overrides.lockOptionId && scored.some((item) => item.id === overrides.lockOptionId)
     ? overrides.lockOptionId
@@ -193,7 +209,7 @@ export function calculateEquipmentSelection(
     {
       label: 'Capacity Target',
       expression: 'Target TR = Required TR x Redundancy Factor',
-      value: `${inputs.requiredTr.toFixed(2)} x ${inputs.redundancyNPlusOne ? '1.15' : '1.00'} = ${targetTr.toFixed(2)} TR`,
+      value: `${inputs.requiredTr.toFixed(2)} x ${inputs.redundancyNPlusOne ? redundancyMultiplier.toFixed(2) : '1.00'} = ${targetTr.toFixed(2)} TR`,
     },
     {
       label: 'Energy Use',

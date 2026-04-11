@@ -4,6 +4,7 @@ import { createAuthResponse } from '@/lib/auth/session';
 import { getFirebaseAuth } from '@/lib/firebase/server';
 import { lookupAccountByIdToken } from '@/lib/firebase/auth-rest';
 import { resolveLocalFallbackRole } from '@/lib/auth/fallback-role';
+import { isLocalAuthMode, localRefreshToken } from '@/lib/auth/local-auth';
 
 const REFRESH_RATE_LIMIT = {
 	windowMs: 60_000,
@@ -42,6 +43,16 @@ export async function POST(req: NextRequest) {
 
 		if (!refreshToken) {
 			return NextResponse.json({ error: 'Missing refresh token' }, { status: 400 });
+		}
+
+		// Use local auth when Firebase is not configured
+		if (isLocalAuthMode()) {
+			const result = localRefreshToken(refreshToken);
+			return createAuthResponse({
+				token: result.token,
+				refreshToken: result.refreshToken,
+				user: result.user,
+			});
 		}
 
 		const apiKey = process.env.FIREBASE_WEB_API_KEY;

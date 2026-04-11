@@ -18,6 +18,7 @@ import {
   Cpu,
   FolderKanban,
   Settings,
+  Columns3,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { sidebarVariants } from '@/animations/shared';
@@ -39,6 +40,7 @@ const mainNavItems: NavItem[] = [
 ];
 
 const externalNavItems: NavItem[] = [
+  { href: '/simulation/workspace', label: 'CFD Workspace', icon: Columns3 },
   { href: '/simulation', label: 'CFD Simulator', icon: Activity },
 ];
 
@@ -73,7 +75,7 @@ export function Sidebar() {
             : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
         )}
       >
-        {active && <span className="absolute inset-y-0 left-0 w-[3px] rounded-r-full bg-primary" />}
+        {active && <span className="absolute inset-y-0 left-0 w-0.75 rounded-r-full bg-primary" />}
         <item.icon
           size={18}
           className={cn(
@@ -138,9 +140,10 @@ export function Sidebar() {
   return (
     <>
       <button
-        onClick={() => setMobileSidebar(true)}
-        className="fixed left-4 top-4 z-50 rounded-lg border border-border bg-card p-2.5 text-foreground shadow-sm transition-colors hover:bg-secondary lg:hidden"
-      >
+          onClick={() => setMobileSidebar(true)}
+          className="fixed left-4 top-4 z-50 rounded-lg border border-border bg-card p-2.5 text-foreground shadow-sm transition-colors hover:bg-secondary lg:hidden"
+          aria-label="Open navigation menu"
+        >
         <Menu size={18} />
       </button>
 
@@ -155,7 +158,7 @@ export function Sidebar() {
               onClick={() => setMobileSidebar(false)}
             />
             <motion.aside
-              className="fixed bottom-0 left-0 top-0 z-50 w-[280px] bg-card shadow-xl lg:hidden"
+              className="fixed bottom-0 left-0 top-0 z-50 w-70 bg-card shadow-xl lg:hidden"
               variants={sidebarVariants}
               initial="closed"
               animate="open"
@@ -164,6 +167,7 @@ export function Sidebar() {
               <button
                 onClick={() => setMobileSidebar(false)}
                 className="absolute right-4 top-4 z-50 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                aria-label="Close navigation menu"
               >
                 <X size={18} />
               </button>
@@ -176,7 +180,7 @@ export function Sidebar() {
       <aside
         className={cn(
           'hidden lg:flex flex-col h-screen shrink-0 transition-all duration-300 ease-in-out z-40',
-          collapsed ? 'w-[72px]' : 'w-[280px]'
+          collapsed ? 'w-18' : 'w-70'
         )}
       >
         {sidebarContent}

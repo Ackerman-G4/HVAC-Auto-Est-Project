@@ -36,6 +36,14 @@ const CHART_COLORS = [
   'var(--muted-foreground)',
 ];
 
+const CHART_DOT_CLASSES = [
+  'bg-(--accent)',
+  'bg-(--primary)',
+  'bg-(--warning)',
+  'bg-(--success)',
+  'bg-(--muted-foreground)',
+];
+
 export default function DashboardPage() {
   const router = useRouter();
   const loadResult = useLoadWorkspaceStore((state) => state.result);
@@ -64,10 +72,12 @@ export default function DashboardPage() {
 
   const loadDistData = [
     { name: 'Envelope', value: breakdown.envelopeBtu },
-    { name: 'People', value: breakdown.peopleBtu },
+    { name: 'People (Sensible)', value: breakdown.peopleSensibleBtu },
+    { name: 'People (Latent)', value: breakdown.peopleLatentBtu },
     { name: 'Lighting', value: breakdown.lightingBtu },
     { name: 'Equipment', value: breakdown.equipmentBtu },
-    { name: 'Ventilation', value: breakdown.ventilationBtu },
+    { name: 'Ventilation (Sensible)', value: breakdown.ventilationSensibleBtu },
+    { name: 'Ventilation (Latent)', value: breakdown.ventilationLatentBtu },
   ].filter((d) => d.value > 0);
 
   const costData = equipResult.candidates.slice(0, 5).map((c) => ({
@@ -79,9 +89,9 @@ export default function DashboardPage() {
   const recentProjects = projects.slice(0, 5);
 
   return (
-    <div className="space-y-[var(--space-section-gap)]">
+    <div className="space-y-(--space-section-gap)">
       {/* KPI Row */}
-      <section className="grid gap-[var(--space-component-gap)] sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid gap-(--space-component-gap) sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Load"
           value={`${breakdown.totalBtuAfterFactors.toLocaleString()} BTU/h`}
@@ -105,7 +115,7 @@ export default function DashboardPage() {
       </section>
 
       {/* 2×2 Grid */}
-      <section className="grid gap-[var(--space-component-gap)] lg:grid-cols-2">
+      <section className="grid gap-(--space-component-gap) lg:grid-cols-2">
         {/* Load Distribution Chart */}
         <Card className="p-8">
           <h3 className="mb-5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -140,7 +150,7 @@ export default function DashboardPage() {
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <div className="flex h-[280px] items-center justify-center text-sm text-muted-foreground">
+            <div className="flex h-70 items-center justify-center text-sm text-muted-foreground">
               Run a load calculation to see distribution
             </div>
           )}
@@ -148,8 +158,7 @@ export default function DashboardPage() {
             {loadDistData.map((d, i) => (
               <span key={d.name} className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <span
-                  className="inline-block h-2.5 w-2.5 rounded-full"
-                  style={{ background: CHART_COLORS[i % CHART_COLORS.length] }}
+                  className={`inline-block h-2.5 w-2.5 rounded-full ${CHART_DOT_CLASSES[i % CHART_DOT_CLASSES.length]}`}
                 />
                 {d.name}
               </span>
@@ -191,7 +200,7 @@ export default function DashboardPage() {
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="flex h-[280px] items-center justify-center text-sm text-muted-foreground">
+            <div className="flex h-70 items-center justify-center text-sm text-muted-foreground">
               Select equipment to see cost comparison
             </div>
           )}
@@ -224,7 +233,7 @@ export default function DashboardPage() {
               ))}
             </ul>
           ) : (
-            <div className="flex h-[180px] items-center justify-center text-sm text-muted-foreground">
+            <div className="flex h-45 items-center justify-center text-sm text-muted-foreground">
               No projects yet
             </div>
           )}

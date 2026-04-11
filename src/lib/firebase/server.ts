@@ -8,6 +8,7 @@ import {
 } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { Firestore, getFirestore } from 'firebase-admin/firestore';
+import { isLocalFirestoreMode, getLocalFirestore } from '@/lib/firebase/local-firestore';
 
 type GlobalFirebaseCache = typeof globalThis & {
   __firebaseAdminApp?: App;
@@ -132,6 +133,9 @@ export function getFirebaseAdminApp(): App {
 }
 
 export function getFirebaseDb(): Firestore {
+  if (isLocalFirestoreMode()) {
+    return getLocalFirestore() as unknown as Firestore;
+  }
   if (!globalCache.__firebaseDb) {
     globalCache.__firebaseDb = getFirestore(getFirebaseAdminApp());
   }

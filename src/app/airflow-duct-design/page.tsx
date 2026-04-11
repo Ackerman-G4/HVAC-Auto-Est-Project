@@ -57,7 +57,7 @@ export default function AirflowDuctDesignPage() {
   }, [loadCfm, setSupplyCfm]);
 
   return (
-    <div className="space-y-[var(--space-section-gap)]">
+    <div className="space-y-(--space-section-gap)">
       {/* Top Controls Bar */}
       <Card className="p-8">
         <div className="flex flex-wrap items-end gap-4">
@@ -85,7 +85,7 @@ export default function AirflowDuctDesignPage() {
       </Card>
 
       {/* KPI Cards */}
-      <section className="grid gap-[var(--space-component-gap)] sm:grid-cols-3">
+      <section className="grid gap-(--space-component-gap) sm:grid-cols-3">
         <StatCard title="Total Static Pressure" value={`${result.totalStaticPressureInWg.toFixed(2)} in.wg`} />
         <StatCard title="Fan Power" value={`${result.requiredFanPowerHp.toFixed(2)} HP`} />
         <StatCard title="Trunk Duct" value={`${result.trunkDiameterIn} in`} />
@@ -100,12 +100,12 @@ export default function AirflowDuctDesignPage() {
       </Card>
 
       {/* Charts */}
-      <section className="grid gap-[var(--space-component-gap)] lg:grid-cols-2">
+      <section className="grid gap-(--space-component-gap) lg:grid-cols-2">
         <Card className="p-8">
           <h3 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Velocity & Pressure Profile
           </h3>
-          <div className="h-[300px] w-full">
+          <div className="h-75 w-full">
             {chartsReady ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={result.branchRows} margin={{ top: 6, right: 14, bottom: 6, left: 0 }}>
@@ -130,7 +130,7 @@ export default function AirflowDuctDesignPage() {
           <h3 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">
             CFM Distribution
           </h3>
-          <div className="h-[300px] w-full">
+          <div className="h-75 w-full">
             {chartsReady ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={result.branchRows} margin={{ top: 6, right: 14, bottom: 6, left: 0 }}>
@@ -149,7 +149,7 @@ export default function AirflowDuctDesignPage() {
       </section>
 
       {/* Override + Formula Transparency */}
-      <section className="grid gap-[var(--space-component-gap)] lg:grid-cols-2">
+      <section className="grid gap-(--space-component-gap) lg:grid-cols-2">
         <CollapsiblePanel
           title="Manual Override"
           subtitle="Force total static pressure for field validation"

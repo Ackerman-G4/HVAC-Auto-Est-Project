@@ -69,6 +69,7 @@ export async function POST(request: NextRequest) {
 
     const project = await createProjectRecord({
       name: body.name,
+      createdBy: auth.user.id,
       clientName: body.clientName || '',
       buildingType: body.buildingType || 'commercial',
       location: body.location || '',

@@ -45,7 +45,7 @@ import { authFetch } from '@/lib/api-client';
 const BuildingViewer3D = dynamic(() => import('@/components/building/BuildingViewer3D'), {
   ssr: false,
   loading: () => (
-    <div className="flex items-center justify-center h-[500px] border border-border rounded-xl bg-secondary/30">
+    <div className="flex items-center justify-center h-125 border border-border rounded-xl bg-secondary/30">
       <div className="text-center text-muted-foreground">
         <div className="animate-spin w-8 h-8 border-2 border-accent border-t-transparent rounded-full mx-auto mb-3" />
         <p className="text-sm">Loading 3D viewer...</p>
@@ -1369,7 +1369,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                       </div>
                                     </div>
 
-                                    <div className="mt-2 grid w-full grid-cols-2 gap-2.5 sm:w-[430px]">
+                                    <div className="mt-2 grid w-full grid-cols-2 gap-2.5 sm:w-107.5">
                                       <div className="rounded-lg border border-border bg-secondary/50 px-3.5 py-2 text-right">
                                         <p className="text-sm font-semibold tabular-nums">
                                           {Math.round(room.coolingLoad.totalSensibleLoad).toLocaleString()} W
@@ -1396,7 +1396,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                       </div>
                                     </div>
 
-                                    <div className="mt-2 grid w-full gap-2 sm:w-[430px]">
+                                    <div className="mt-2 grid w-full gap-2 sm:w-107.5">
                                       <DualValueExplainer
                                         compact
                                         title="TR Decision"
@@ -1429,7 +1429,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                       />
                                     </div>
 
-                                    <div className="w-full rounded-lg border border-border bg-card p-3.5 shadow-sm sm:w-[360px]">
+                                    <div className="w-full rounded-lg border border-border bg-card p-3.5 shadow-sm sm:w-90">
                                       <p className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">Cooling Load Overrides</p>
                                       <div className="grid grid-cols-2 gap-2">
                                         <div>
@@ -1919,6 +1919,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                 step="0.01"
                                 value={draftValue}
                                 onChange={(event) => handleBoqDraftChange(item.id, event.target.value)}
+                                aria-label="Unit price"
                                 className="w-28 rounded-md border border-border bg-background px-2.5 py-1.5 text-right text-sm"
                               />
                             </div>

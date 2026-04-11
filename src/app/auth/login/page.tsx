@@ -90,13 +90,15 @@ function LoginPageContent() {
               </Button>
             </form>
 
-            <div className="my-6 flex items-center gap-3">
-              <div className="h-px flex-1 bg-border" />
-              <span className="text-xs font-medium text-muted-foreground">
-                or
-              </span>
-              <div className="h-px flex-1 bg-border" />
-            </div>
+            {googleEnabled && (
+              <div className="my-6 flex items-center gap-3">
+                <div className="h-px flex-1 bg-border" />
+                <span className="text-xs font-medium text-muted-foreground">
+                  or
+                </span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+            )}
 
             {googleEnabled ? (
               <div className="flex justify-center">
@@ -118,11 +120,7 @@ function LoginPageContent() {
                   shape="pill"
                 />
               </div>
-            ) : (
-              <p className="text-center text-xs text-muted-foreground">
-                Google sign-in is not configured yet. Set NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID.
-              </p>
-            )}
+            ) : null}
 
             <p className="mt-6 text-center text-sm text-muted-foreground">
               Need an account?{' '}

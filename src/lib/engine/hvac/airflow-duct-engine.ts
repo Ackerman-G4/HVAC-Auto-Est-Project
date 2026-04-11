@@ -1,3 +1,6 @@
+import { getRuleSetSync } from '@/lib/engine/rules';
+import { constantFromRuleSet, lookupFromRuleSet } from '@/lib/engine/rules/rule-evaluator';
+
 export interface AirflowInputs {
   supplyCfm: number;
   branches: number;
@@ -39,9 +42,26 @@ export interface AirflowResult {
   alerts: string[];
 }
 
-const STANDARD_ROUND_DUCT_DIAMETERS_IN = [
-  6, 7, 8, 9, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30,
-];
+// ─── Rules-driven constants ─────────────────────────────────────────
+
+function getDuctConstant(name: string, fallback: number): number {
+  try {
+    return constantFromRuleSet(getRuleSetSync('duct_sizing'), 'duct_sizing_constants', name);
+  } catch { return fallback; }
+}
+
+function getStandardDiameters(): number[] {
+  try {
+    const rules = getRuleSetSync('duct_sizing');
+    const rule = rules.rules.find(r => r.id === 'standard_round_diameters');
+    if (rule && rule.type === 'lookup') {
+      return Object.values(rule.table).map(Number).sort((a, b) => a - b);
+    }
+  } catch { /* use fallback */ }
+  return [6, 7, 8, 9, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30];
+}
+
+const STANDARD_ROUND_DUCT_DIAMETERS_IN = getStandardDiameters();
 
 function round(value: number, digits = 2) {
   const factor = 10 ** digits;
@@ -71,13 +91,16 @@ function toRectangularFromRound(diameterIn: number) {
 }
 
 function buildBranchRatios(branches: number): number[] {
+  const branchBoost = getDuctConstant('branch_boost_first', 0.06);
+  const branchReduce = getDuctConstant('branch_reduce_last', 0.06);
+
   if (branches <= 1) {
     return [1];
   }
 
   const base = Array.from({ length: branches }, () => 1 / branches);
-  base[0] += 0.06;
-  base[branches - 1] -= 0.06;
+  base[0] += branchBoost;
+  base[branches - 1] -= branchReduce;
   return base;
 }
 
@@ -119,7 +142,7 @@ export function calculateAirflowScenario(
   const requiredFanPowerHp =
     (inputs.supplyCfm * totalStaticPressureInWg) /
     (6356 * clamp(inputs.fanEfficiency, 0.4, 0.85));
-  const requiredFanPowerKw = requiredFanPowerHp * 0.746;
+  const requiredFanPowerKw = requiredFanPowerHp * getDuctConstant('hp_to_kw', 0.746);
 
   const formulas: AirflowFormulaRow[] = [
     {
@@ -146,16 +169,20 @@ export function calculateAirflowScenario(
 
   const alerts: string[] = [];
 
-  if (totalStaticPressureInWg > 4) {
+  const maxStaticWarning = getDuctConstant('max_static_pressure_warning', 4);
+  const maxFanPowerWarning = getDuctConstant('max_fan_power_hp_warning', 15);
+  const maxBranchVelocity = getDuctConstant('max_branch_velocity_fpm', 1400);
+
+  if (totalStaticPressureInWg > maxStaticWarning) {
     alerts.push('Static pressure is high; review duct routing and fitting count.');
   }
 
-  if (requiredFanPowerHp > 15) {
+  if (requiredFanPowerHp > maxFanPowerWarning) {
     alerts.push('Fan power requirement is high; evaluate zoning or lower velocity design.');
   }
 
-  if (branchRows.some((row) => row.velocityFpm > 1400)) {
-    alerts.push('One or more branches exceed 1400 FPM; potential noise and pressure issues.');
+  if (branchRows.some((row) => row.velocityFpm > maxBranchVelocity)) {
+    alerts.push(`One or more branches exceed ${maxBranchVelocity} FPM; potential noise and pressure issues.`);
   }
 
   return {

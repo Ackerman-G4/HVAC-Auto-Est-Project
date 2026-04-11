@@ -17,7 +17,7 @@ export function PageWrapper({ children, className }: PageWrapperProps) {
       initial="initial"
       animate="animate"
       exit="exit"
-      className={cn('w-full space-y-8 sm:space-y-[var(--space-section-gap)]', className)}
+      className={cn('w-full space-y-8 sm:space-y-(--space-section-gap)', className)}
     >
       {children}
     </motion.div>

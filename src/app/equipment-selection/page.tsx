@@ -36,6 +36,13 @@ const CHART_COLORS = [
   'var(--muted-foreground)',
 ];
 
+const CHART_DOT_CLASSES = [
+  'bg-(--accent)',
+  'bg-(--warning)',
+  'bg-(--primary)',
+  'bg-(--muted-foreground)',
+];
+
 const columns: DenseColumn<EquipmentCandidate>[] = [
   { key: 'model', header: 'Model' },
   { key: 'type', header: 'Type' },
@@ -107,7 +114,7 @@ export default function EquipmentSelectionPage() {
     : [];
 
   return (
-    <div className="space-y-[var(--space-section-gap)]">
+    <div className="space-y-(--space-section-gap)">
       {/* Actions */}
       <div className="flex items-center justify-between">
         <div>
@@ -129,9 +136,9 @@ export default function EquipmentSelectionPage() {
       </div>
 
       {/* Main: left config + right cost breakdown */}
-      <section className="grid gap-[var(--space-component-gap)] xl:grid-cols-[380px_minmax(0,1fr)]">
+      <section className="grid gap-(--space-component-gap) xl:grid-cols-[380px_minmax(0,1fr)]">
         {/* Left — System Config */}
-        <div className="space-y-[var(--space-component-gap)]">
+        <div className="space-y-(--space-component-gap)">
           <Card className="p-8">
             <h3 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">
               System Configuration
@@ -145,6 +152,7 @@ export default function EquipmentSelectionPage() {
                   value={inputs.budgetBand}
                   onChange={(event) => setInput('budgetBand', event.target.value as typeof inputs.budgetBand)}
                   className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20"
+                  aria-label="Budget Band"
                 >
                   <option value="economy">Economy</option>
                   <option value="balanced">Balanced</option>
@@ -158,6 +166,7 @@ export default function EquipmentSelectionPage() {
                   value={inputs.optimizationPriority}
                   onChange={(event) => setInput('optimizationPriority', event.target.value as typeof inputs.optimizationPriority)}
                   className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20"
+                  aria-label="Optimization Priority"
                 >
                   <option value="capex">Capex</option>
                   <option value="balanced">Balanced</option>
@@ -185,6 +194,7 @@ export default function EquipmentSelectionPage() {
               value={overrides.lockOptionId ?? ''}
               onChange={(event) => setOverride('lockOptionId', event.target.value || null)}
               className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20"
+              aria-label="Lock Override"
             >
               <option value="">Auto-select top score</option>
               {result.candidates.map((candidate) => (
@@ -197,9 +207,9 @@ export default function EquipmentSelectionPage() {
         </div>
 
         {/* Right — Cost Breakdown + Chart */}
-        <div className="space-y-[var(--space-component-gap)]">
+        <div className="space-y-(--space-component-gap)">
           {/* KPI Row */}
-          <div className="grid gap-[var(--space-component-gap)] sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-(--space-component-gap) sm:grid-cols-2 lg:grid-cols-4">
             <StatCard title="Equipment" value={costBreakdown ? `₱${costBreakdown.equipmentCost.toLocaleString()}` : '—'} />
             <StatCard title="Materials" value={costBreakdown ? `₱${costBreakdown.materialCost.toLocaleString()}` : '—'} />
             <StatCard title="Labor" value={costBreakdown ? `₱${costBreakdown.laborCost.toLocaleString()}` : '—'} />
@@ -207,7 +217,7 @@ export default function EquipmentSelectionPage() {
           </div>
 
           {/* Cost Pie + Score Bar */}
-          <div className="grid gap-[var(--space-component-gap)] lg:grid-cols-2">
+          <div className="grid gap-(--space-component-gap) lg:grid-cols-2">
             <Card className="p-8">
               <h3 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Cost Distribution
@@ -227,14 +237,14 @@ export default function EquipmentSelectionPage() {
                   <div className="mt-2 flex flex-wrap gap-3">
                     {costPieData.map((d, i) => (
                       <span key={d.name} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
+                        <span className={`inline-block h-2.5 w-2.5 rounded-full ${CHART_DOT_CLASSES[i % CHART_DOT_CLASSES.length]}`} />
                         {d.name}
                       </span>
                     ))}
                   </div>
                 </>
               ) : (
-                <div className="flex h-[260px] items-center justify-center text-sm text-muted-foreground">Run calculation to see costs</div>
+                <div className="flex h-65 items-center justify-center text-sm text-muted-foreground">Run calculation to see costs</div>
               )}
             </Card>
 
@@ -255,7 +265,7 @@ export default function EquipmentSelectionPage() {
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex h-[260px] items-center justify-center text-sm text-muted-foreground">Preparing chart...</div>
+                <div className="flex h-65 items-center justify-center text-sm text-muted-foreground">Preparing chart...</div>
               )}
             </Card>
           </div>

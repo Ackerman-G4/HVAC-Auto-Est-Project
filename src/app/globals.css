@@ -161,6 +161,24 @@ dd {
   text-wrap: pretty;
 }
 
+/* Custom select arrow (replaces inline style) */
+.select-arrow {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+
+/* Temperature gradient legend */
+.temp-gradient-legend {
+  background: linear-gradient(to right, rgb(0,255,130), rgb(128,128,90), rgb(255,0,65));
+}
+
+/* CFD heatmap gradient legend */
+.cfd-heatmap-legend {
+  background: linear-gradient(to right, rgb(0,0,255), rgb(255,255,0), rgb(255,200,0), rgb(255,0,0));
+}
+
 ::selection {
   background: color-mix(in oklab, var(--primary) 30%, var(--card));
   color: var(--foreground);
@@ -204,4 +222,36 @@ dd {
 @media print {
   .no-print { display: none !important; }
   body { background: white; }
+}
+
+/* ── Workspace Panel Enhancements ────────────────────────────── */
+
+/* react-resizable-panels handles */
+[data-panel-group-direction="horizontal"] > [data-resize-handle] {
+  width: 6px;
+  background: transparent;
+  transition: background-color 0.15s ease;
+}
+
+[data-panel-group-direction="horizontal"] > [data-resize-handle]:hover,
+[data-panel-group-direction="horizontal"] > [data-resize-handle][data-resize-handle-active] {
+  background: color-mix(in oklab, var(--accent) 20%, transparent);
+}
+
+/* Workspace panel scrollbar styling */
+.workspace-panel::-webkit-scrollbar {
+  width: 4px;
+}
+.workspace-panel::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 999px;
+}
+
+/* Pipeline stage indicator pulse */
+@keyframes stage-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.stage-running {
+  animation: stage-pulse 0.8s ease-in-out infinite;
 }

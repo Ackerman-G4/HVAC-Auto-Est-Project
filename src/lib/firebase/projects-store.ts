@@ -26,6 +26,7 @@ type SortOrder = 'asc' | 'desc';
 export interface FirebaseProjectRecord {
   id: string;
   name: string;
+  createdBy: string;
   clientName: string;
   location: string;
   city: string;
@@ -281,6 +282,7 @@ function mapProjectRecord(id: string, data: DocumentData): FirebaseProjectRecord
   return {
     id,
     name: toStringValue(data.name, ''),
+    createdBy: toStringValue(data.createdBy, ''),
     clientName: toStringValue(data.clientName, PROJECT_DEFAULTS.clientName),
     location: toStringValue(data.location, PROJECT_DEFAULTS.location),
     city: toStringValue(data.city, PROJECT_DEFAULTS.city),
@@ -647,6 +649,7 @@ export async function createProjectRecord(
   const project: FirebaseProjectRecord = {
     id,
     name: toStringValue(input.name, ''),
+    createdBy: toStringValue(input.createdBy, ''),
     clientName: toStringValue(input.clientName, PROJECT_DEFAULTS.clientName),
     location: toStringValue(input.location, PROJECT_DEFAULTS.location),
     city: toStringValue(input.city, PROJECT_DEFAULTS.city),

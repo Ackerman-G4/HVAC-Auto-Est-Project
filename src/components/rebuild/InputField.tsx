@@ -72,6 +72,7 @@ export function InputField({
           max={max}
           step={step}
           disabled={disabled}
+          aria-label={label}
           onChange={(event) => {
             if (type === 'number') {
               const parsed = Number(event.target.value);

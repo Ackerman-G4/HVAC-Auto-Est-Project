@@ -63,7 +63,7 @@ function RegisterPageContent() {
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-10">
-      <div className="w-full max-w-[460px]">
+      <div className="w-full max-w-115">
         <div className="mb-8 text-center">
           <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
             HVAC Studio
@@ -129,13 +129,15 @@ function RegisterPageContent() {
               </Button>
             </form>
 
-            <div className="my-6 flex items-center gap-3">
-              <div className="h-px flex-1 bg-border" />
-              <span className="text-xs font-medium text-muted-foreground">
-                or
-              </span>
-              <div className="h-px flex-1 bg-border" />
-            </div>
+            {googleEnabled && (
+              <div className="my-6 flex items-center gap-3">
+                <div className="h-px flex-1 bg-border" />
+                <span className="text-xs font-medium text-muted-foreground">
+                  or
+                </span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+            )}
 
             {googleEnabled ? (
               <div className="flex justify-center">
@@ -157,11 +159,7 @@ function RegisterPageContent() {
                   shape="pill"
                 />
               </div>
-            ) : (
-              <p className="text-center text-xs text-muted-foreground">
-                Google sign-up is not configured yet. Set NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID.
-              </p>
-            )}
+            ) : null}
 
             <p className="mt-6 text-center text-sm text-muted-foreground">
               Already have an account?{' '}

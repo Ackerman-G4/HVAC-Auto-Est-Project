@@ -115,17 +115,21 @@ export default function ReportsPage() {
   const loadBreakdownData = React.useMemo(
     () => [
       { component: 'Envelope', btu: loadResult.breakdown.envelopeBtu },
-      { component: 'People', btu: loadResult.breakdown.peopleBtu },
+      { component: 'People (Sensible)', btu: loadResult.breakdown.peopleSensibleBtu },
+      { component: 'People (Latent)', btu: loadResult.breakdown.peopleLatentBtu },
       { component: 'Lighting', btu: loadResult.breakdown.lightingBtu },
       { component: 'Equipment', btu: loadResult.breakdown.equipmentBtu },
-      { component: 'Ventilation', btu: loadResult.breakdown.ventilationBtu },
+      { component: 'Ventilation (Sensible)', btu: loadResult.breakdown.ventilationSensibleBtu },
+      { component: 'Ventilation (Latent)', btu: loadResult.breakdown.ventilationLatentBtu },
     ],
     [
       loadResult.breakdown.envelopeBtu,
       loadResult.breakdown.equipmentBtu,
       loadResult.breakdown.lightingBtu,
-      loadResult.breakdown.peopleBtu,
-      loadResult.breakdown.ventilationBtu,
+      loadResult.breakdown.peopleSensibleBtu,
+      loadResult.breakdown.peopleLatentBtu,
+      loadResult.breakdown.ventilationSensibleBtu,
+      loadResult.breakdown.ventilationLatentBtu,
     ],
   );
 
@@ -539,12 +543,13 @@ export default function ReportsPage() {
   ]);
 
   return (
-    <div className="space-y-[var(--space-section-gap)]">
+    <div className="space-y-(--space-section-gap)">
       <input
         ref={snapshotInputRef}
         type="file"
         accept="application/json,.json"
         className="hidden"
+        aria-label="Import snapshot file"
         onChange={(event) => {
           void handleSnapshotFileSelected(event);
         }}
@@ -587,17 +592,17 @@ export default function ReportsPage() {
       </div>
 
       {/* KPI Row */}
-      <div className="grid gap-[var(--space-component-gap)] sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-(--space-component-gap) sm:grid-cols-2 lg:grid-cols-4">
         <StatCard title="Design Load" value={`${loadResult.breakdown.totalBtuAfterFactors.toLocaleString()} BTU/h`} />
         <StatCard title="Total Static" value={`${airflowResult.totalStaticPressureInWg.toFixed(2)} in.wg`} />
         <StatCard title="Selected Lifecycle" value={toPhp(selectedCandidate?.totalLifecyclePhp ?? 0)} />
         <StatCard title="Project Grand Total" value={costBreakdown ? toPhp(costBreakdown.grandTotal) : '—'} />
       </div>
 
-      <section className="grid gap-[var(--space-component-gap)] xl:grid-cols-3">
+      <section className="grid gap-(--space-component-gap) xl:grid-cols-3">
         <Card className="p-8">
           <h3 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">Load Breakdown</h3>
-          <div className="h-[340px] w-full">
+          <div className="h-85 w-full">
             {chartsReady ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={loadBreakdownData} margin={{ top: 6, right: 12, bottom: 6, left: 0 }}>
@@ -616,7 +621,7 @@ export default function ReportsPage() {
 
         <Card className="p-8">
           <h3 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">Branch Velocity</h3>
-          <div className="h-[340px] w-full">
+          <div className="h-85 w-full">
             {chartsReady ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={branchVelocityData} margin={{ top: 6, right: 12, bottom: 6, left: 0 }}>
@@ -638,7 +643,7 @@ export default function ReportsPage() {
 
         <Card className="p-8">
           <h3 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">Equipment Ranking</h3>
-          <div className="h-[340px] w-full">
+          <div className="h-85 w-full">
             {chartsReady ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={equipmentScoreData} margin={{ top: 6, right: 12, bottom: 6, left: 0 }}>

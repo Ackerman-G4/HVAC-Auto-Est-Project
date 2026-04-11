@@ -32,6 +32,14 @@ function toNullableNumber(value: unknown, fallback: number | null): number | nul
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function isProjectOwnerOrAdmin(
+  user: { id: string; role: string },
+  project: { createdBy?: string },
+): boolean {
+  if (user.role === 'admin') return true;
+  return !!project.createdBy && project.createdBy === user.id;
+}
+
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
     const auth = await requireAuth(request);
@@ -49,6 +57,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
         'The project ID does not match any existing project record.',
         'PROJECT_NOT_FOUND',
       );
+    }
+
+    if (!isProjectOwnerOrAdmin(auth.user, project)) {
+      return errorResponse(403, 'Forbidden', 'You do not have access to this project.', 'FORBIDDEN');
     }
 
     return NextResponse.json({
@@ -78,6 +90,10 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         'The project you are trying to update no longer exists.',
         'PROJECT_NOT_FOUND',
       );
+    }
+
+    if (!isProjectOwnerOrAdmin(auth.user, existing)) {
+      return errorResponse(403, 'Forbidden', 'You do not have permission to update this project.', 'FORBIDDEN');
     }
 
     const finalOutdoorDB = toNumber(body.outdoorDB, existing.outdoorDB);
@@ -183,7 +199,20 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       );
     }
 
+    if (!isProjectOwnerOrAdmin(auth.user, existing)) {
+      return errorResponse(403, 'Forbidden', 'You do not have permission to delete this project.', 'FORBIDDEN');
+    }
+
     if (permanent) {
+      if (auth.user.role !== 'admin') {
+        return errorResponse(403, 'Forbidden', 'Only admins can permanently delete projects.', 'FORBIDDEN');
+      }
+      await writeAuditLog({
+        projectId: id,
+        action: 'permanently_deleted',
+        entity: 'project',
+        entityId: id,
+      });
       await deleteProjectRecordPermanently(id);
     } else {
       await updateProjectRecord(id, { status: 'deleted' });

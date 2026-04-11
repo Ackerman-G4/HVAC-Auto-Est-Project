@@ -22,7 +22,7 @@ import { showToast } from '@/components/ui/toast';
 
 const AirflowViewer3D = dynamic(
   () => import('@/components/building/AirflowViewer3D').then(mod => mod.default),
-  { ssr: false, loading: () => <div className="flex h-[500px] items-center justify-center rounded-xl border border-border bg-card text-sm font-medium text-muted-foreground shadow-sm">Loading 3D viewer...</div> }
+  { ssr: false, loading: () => <div className="flex h-125 items-center justify-center rounded-xl border border-border bg-card text-sm font-medium text-muted-foreground shadow-sm">Loading 3D viewer...</div> }
 );
 
 // ─── Auto-Detect Types & Logic ──────────────────────────────────────
@@ -176,6 +176,7 @@ function TemperatureHeatmap() {
             value={selectedSliceZ}
             onChange={e => setSelectedSliceZ(Number(e.target.value))}
             className="w-32"
+            aria-label="Height Layer"
           />
           <span className="w-20 text-sm font-semibold tabular-nums text-foreground">
             {(selectedSliceZ * config.gridResolution).toFixed(1)}m
@@ -206,9 +207,7 @@ function TemperatureHeatmap() {
       {/* Color legend */}
       <div className="mt-4 flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
         <span className="text-sm font-medium text-muted-foreground">{minT.toFixed(1)}°C</span>
-        <div className="flex-1 h-3 rounded-full" style={{
-          background: 'linear-gradient(to right, rgb(0,0,255), rgb(255,255,0), rgb(255,200,0), rgb(255,0,0))',
-        }} />
+        <div className="flex-1 h-3 rounded-full cfd-heatmap-legend" />
         <span className="text-sm font-medium text-muted-foreground">{maxT.toFixed(1)}°C</span>
       </div>
     </div>
@@ -283,12 +282,13 @@ function EquipmentPanel({ floors, selectedFloorId, onFloorChange, onAutoDetect, 
           <div className="space-y-4">
             {/* Floor Selector */}
             <div className="flex flex-wrap items-end gap-4">
-              <div className="flex-1 min-w-[200px]">
-                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Select Floor</label>
+              <div className="flex-1 min-w-50">
+                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Select Floor</label>
                 <select
                   className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm"
                   value={selectedFloorId}
                   onChange={e => onFloorChange(e.target.value)}
+                  aria-label="Select Floor"
                 >
                   {floors.map(f => (
                     <option key={f.id} value={f.id}>
@@ -372,11 +372,11 @@ function EquipmentPanel({ floors, selectedFloorId, onFloorChange, onAutoDetect, 
             <table className="w-full text-sm">
               <thead className="border-b border-border bg-secondary/50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Name</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Position</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Power</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">BTU/hr</th>
-                  <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground"></th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Name</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Position</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Power</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">BTU/hr</th>
+                  <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-muted-foreground"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
@@ -387,7 +387,7 @@ function EquipmentPanel({ floors, selectedFloorId, onFloorChange, onAutoDetect, 
                     <td className="px-4 py-3 font-bold text-warning">{rack.powerKW} kW</td>
                     <td className="px-4 py-3 text-muted-foreground">{(rack.powerKW * 3412).toLocaleString()}</td>
                     <td className="px-4 py-3 text-right">
-                      <button onClick={() => removeRack(rack.id)} className="rounded-lg p-1.5 text-destructive/70 transition-colors hover:bg-[rgba(216,77,87,0.12)] hover:text-destructive">
+                      <button onClick={() => removeRack(rack.id)} aria-label="Remove rack" className="rounded-lg p-1.5 text-destructive/70 transition-colors hover:bg-[rgba(216,77,87,0.12)] hover:text-destructive">
                         <Trash2 size={16} />
                       </button>
                     </td>
@@ -405,7 +405,7 @@ function EquipmentPanel({ floors, selectedFloorId, onFloorChange, onAutoDetect, 
           <AirVent size={20} className="text-accent" /> HVAC Cooling Units
         </h3>
         <div className="mb-5 grid grid-cols-2 gap-4 rounded-xl border border-border bg-card p-4 md:grid-cols-6">
-          <select className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" value={hvacForm.type} onChange={e => setHvacForm(f => ({ ...f, type: e.target.value as HVACUnitType }))}>
+          <select className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" value={hvacForm.type} onChange={e => setHvacForm(f => ({ ...f, type: e.target.value as HVACUnitType }))} aria-label="HVAC unit type">
             <option value="crac">CRAC</option>
             <option value="crah">CRAH</option>
             <option value="ahu">AHU</option>
@@ -425,12 +425,12 @@ function EquipmentPanel({ floors, selectedFloorId, onFloorChange, onAutoDetect, 
             <table className="w-full text-sm">
               <thead className="border-b border-border bg-secondary/50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Name</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Type</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Position</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Capacity</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Airflow</th>
-                  <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground"></th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Name</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Type</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Position</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Capacity</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Airflow</th>
+                  <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-muted-foreground"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
@@ -442,7 +442,7 @@ function EquipmentPanel({ floors, selectedFloorId, onFloorChange, onAutoDetect, 
                     <td className="px-4 py-3 font-bold text-success">{unit.capacityKW} kW</td>
                     <td className="px-4 py-3 text-muted-foreground">{unit.airflowCFM.toLocaleString()} CFM</td>
                     <td className="px-4 py-3 text-right">
-                      <button onClick={() => removeHVACUnit(unit.id)} className="rounded-lg p-1.5 text-destructive/70 transition-colors hover:bg-[rgba(216,77,87,0.12)] hover:text-destructive">
+                      <button onClick={() => removeHVACUnit(unit.id)} aria-label="Remove HVAC unit" className="rounded-lg p-1.5 text-destructive/70 transition-colors hover:bg-[rgba(216,77,87,0.12)] hover:text-destructive">
                         <Trash2 size={16} />
                       </button>
                     </td>
@@ -484,7 +484,7 @@ function EquipmentPanel({ floors, selectedFloorId, onFloorChange, onAutoDetect, 
                 <Grid3x3 size={14} className="text-muted-foreground" />
                 <span>({tile.x}, {tile.y})</span>
                 <span className="text-muted-foreground">{(tile.openArea * 100).toFixed(0)}%</span>
-                <button onClick={() => removeTile(tile.x, tile.y)} className="text-destructive/70 hover:text-destructive">
+                <button onClick={() => removeTile(tile.x, tile.y)} aria-label="Remove tile" className="text-destructive/70 hover:text-destructive">
                   <Trash2 size={14} />
                 </button>
               </div>
@@ -504,36 +504,36 @@ function ConfigPanel() {
   return (
     <div className="grid grid-cols-2 gap-5 rounded-xl border border-border bg-card p-6 shadow-sm md:grid-cols-4">
       <div>
-        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Grid Resolution (m)</label>
-        <input className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" step="0.1" value={config.gridResolution} onChange={e => setConfig({ gridResolution: +e.target.value })} />
+        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Grid Resolution (m)</label>
+        <input className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" step="0.1" value={config.gridResolution} onChange={e => setConfig({ gridResolution: +e.target.value })} aria-label="Grid Resolution" />
       </div>
       <div>
-        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Grid Size X</label>
-        <input className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" value={config.gridSizeX} onChange={e => setConfig({ gridSizeX: +e.target.value })} />
+        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Grid Size X</label>
+        <input className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" value={config.gridSizeX} onChange={e => setConfig({ gridSizeX: +e.target.value })} aria-label="Grid Size X" />
       </div>
       <div>
-        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Grid Size Y</label>
-        <input className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" value={config.gridSizeY} onChange={e => setConfig({ gridSizeY: +e.target.value })} />
+        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Grid Size Y</label>
+        <input className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" value={config.gridSizeY} onChange={e => setConfig({ gridSizeY: +e.target.value })} aria-label="Grid Size Y" />
       </div>
       <div>
-        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Grid Size Z</label>
-        <input className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" value={config.gridSizeZ} onChange={e => setConfig({ gridSizeZ: +e.target.value })} />
+        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Grid Size Z</label>
+        <input className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" value={config.gridSizeZ} onChange={e => setConfig({ gridSizeZ: +e.target.value })} aria-label="Grid Size Z" />
       </div>
       <div>
-        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Iterations</label>
-        <input className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" value={config.iterations} onChange={e => setConfig({ iterations: +e.target.value })} />
+        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Iterations</label>
+        <input className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" value={config.iterations} onChange={e => setConfig({ iterations: +e.target.value })} aria-label="Iterations" />
       </div>
       <div>
-        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Convergence</label>
-        <input className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" step="0.001" value={config.convergence} onChange={e => setConfig({ convergence: +e.target.value })} />
+        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Convergence</label>
+        <input className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" step="0.001" value={config.convergence} onChange={e => setConfig({ convergence: +e.target.value })} aria-label="Convergence" />
       </div>
       <div>
-        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Time Step (s)</label>
-        <input className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" step="0.01" value={config.timeStep} onChange={e => setConfig({ timeStep: +e.target.value })} />
+        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Time Step (s)</label>
+        <input className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" step="0.01" value={config.timeStep} onChange={e => setConfig({ timeStep: +e.target.value })} aria-label="Time Step" />
       </div>
       <div>
-        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Ambient Temp (°C)</label>
-        <input className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" value={config.ambientTempC} onChange={e => setConfig({ ambientTempC: +e.target.value })} />
+        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Ambient Temp (°C)</label>
+        <input className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" value={config.ambientTempC} onChange={e => setConfig({ ambientTempC: +e.target.value })} aria-label="Ambient Temperature" />
       </div>
     </div>
   );
@@ -799,8 +799,8 @@ function FailurePanel() {
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-5 rounded-xl border border-border bg-card p-5 md:grid-cols-3">
         <div>
-          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Failure Scenario</label>
-          <select className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" value={scenario} onChange={e => setScenario(e.target.value as FailureScenario)}>
+          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Failure Scenario</label>
+          <select className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" value={scenario} onChange={e => setScenario(e.target.value as FailureScenario)} aria-label="Failure Scenario">
             <option value="crac_failure">CRAC Unit Failure</option>
             <option value="power_loss">Total Power Loss</option>
             <option value="cooling_restart">Cooling Restart</option>
@@ -808,8 +808,8 @@ function FailurePanel() {
           </select>
         </div>
         <div>
-          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Duration (seconds)</label>
-          <input className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" value={duration} onChange={e => setDuration(+e.target.value)} />
+          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Duration (seconds)</label>
+          <input className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" value={duration} onChange={e => setDuration(+e.target.value)} aria-label="Duration" />
         </div>
         <div className="flex items-end">
           <button
@@ -823,7 +823,7 @@ function FailurePanel() {
       </div>
       {scenario !== 'power_loss' && hvacUnits.length > 0 && (
         <div>
-          <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Select Failed Units</label>
+          <label className="mb-2 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Select Failed Units</label>
           <div className="flex flex-wrap gap-2 rounded-xl border border-border bg-card p-4">
             {hvacUnits.map(unit => (
               <button
@@ -854,11 +854,12 @@ function FailurePanel() {
 function ProjectDropdown({ projects, onSelect, selectedId }: ProjectDropdownProps) {
   return (
     <div className="mb-6 rounded-xl border border-border bg-card p-4 shadow-sm">
-      <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Choose Project</label>
+      <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Choose Project</label>
       <select
         className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm"
         value={selectedId}
         onChange={e => onSelect(e.target.value)}
+        aria-label="Choose Project"
       >
         {projects.map((p: Project) => (
           <option key={p.id} value={p.id}>{p.name}</option>
@@ -913,7 +914,6 @@ export default function SimulationPage() {
   // Fetch floors+rooms when project changes
   useEffect(() => {
     if (!selectedProjectId) {
-      setDetectedFloors([]);
       return;
     }
     authFetch(`/api/projects/${selectedProjectId}`)
@@ -1052,7 +1052,7 @@ export default function SimulationPage() {
           <ProjectDropdown
             projects={projectList}
             selectedId={selectedProjectId}
-            onSelect={setSelectedProjectId}
+            onSelect={(id) => { setDetectedFloors([]); setSelectedProjectId(id); }}
           />
         )}
       </div>
@@ -1099,7 +1099,7 @@ export default function SimulationPage() {
             <>
               <div className="mb-4 rounded-xl border border-border bg-card p-4 shadow-sm">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="mr-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                  <span className="mr-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
                     View Mode
                   </span>
                   {(['temperature', 'velocity', 'pressure'] as const).map((mode) => (
@@ -1118,8 +1118,8 @@ export default function SimulationPage() {
                 </div>
 
                 <div className="mt-4 flex flex-wrap items-center gap-4">
-                  <div className="flex min-w-[260px] flex-1 items-center gap-3">
-                    <label className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                  <div className="flex min-w-65 flex-1 items-center gap-3">
+                    <label className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
                       Slice Z
                     </label>
                     <input
@@ -1129,6 +1129,7 @@ export default function SimulationPage() {
                       value={Math.max(0, Math.min(selectedSliceZ, result.config.gridSizeZ - 1))}
                       onChange={(event) => setSelectedSliceZ(Number(event.target.value))}
                       className="w-full"
+                      aria-label="Slice Z"
                     />
                     <span className="w-24 text-right text-sm font-semibold tabular-nums text-foreground">
                       {Math.max(0, Math.min(selectedSliceZ, result.config.gridSizeZ - 1))} ({(Math.max(0, Math.min(selectedSliceZ, result.config.gridSizeZ - 1)) * result.config.gridResolution).toFixed(1)}m)
@@ -1166,7 +1167,7 @@ export default function SimulationPage() {
               />
             </>
           ) : (
-            <div className="flex h-[500px] flex-col items-center justify-center rounded-xl border border-border bg-card shadow-sm">
+            <div className="flex h-125 flex-col items-center justify-center rounded-xl border border-border bg-card shadow-sm">
               <Box size={48} className="mb-4 text-muted-foreground/45" />
               <p className="font-semibold text-foreground">Run a simulation to view 3D airflow</p>
             </div>

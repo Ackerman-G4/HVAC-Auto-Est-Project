@@ -384,6 +384,7 @@ export default function ProjectsPage() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as (typeof DASHBOARD_SORT_FIELDS)[number]['value'])}
+                aria-label="Sort by"
                 className="h-10 rounded-xl border border-border bg-background px-3.5 text-sm font-medium text-foreground"
               >
                 {DASHBOARD_SORT_FIELDS.map((field) => (
@@ -395,6 +396,7 @@ export default function ProjectsPage() {
               <select
                 value={sortOrder}
                 onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
+                aria-label="Sort order"
                 className="h-10 rounded-xl border border-border bg-background px-3.5 text-sm font-medium text-foreground"
               >
                 <option value="desc">Descending</option>

@@ -20,6 +20,8 @@ function resolveWorkspaceTitle(pathname: string): string {
   if (pathname.startsWith('/load-calculation')) return 'Load Calculation Workspace';
   if (pathname.startsWith('/airflow-duct-design')) return 'Airflow And Duct Design Workspace';
   if (pathname.startsWith('/equipment-selection')) return 'Equipment Selection Workspace';
+  if (pathname.startsWith('/simulation/workspace')) return 'CFD Simulation Workspace';
+  if (pathname.startsWith('/simulation')) return 'CFD Simulation';
   if (pathname.startsWith('/reports')) return 'Engineering Reports Workspace';
   return 'HVAC Engineering Platform';
 }
@@ -28,6 +30,8 @@ function resolveWorkspaceSubtitle(pathname: string): string {
   if (pathname.startsWith('/load-calculation')) return 'Thermal analytics';
   if (pathname.startsWith('/airflow-duct-design')) return 'Air distribution';
   if (pathname.startsWith('/equipment-selection')) return 'Plant optimization';
+  if (pathname.startsWith('/simulation/workspace')) return 'Data-center airflow analysis';
+  if (pathname.startsWith('/simulation')) return 'CFD simulation';
   if (pathname.startsWith('/reports')) return 'Decision reporting';
   return 'Program cockpit';
 }
@@ -77,12 +81,20 @@ export function AppShell({ children }: AppShellProps) {
   const workspaceTitle = resolveWorkspaceTitle(pathname);
   const workspaceSubtitle = resolveWorkspaceSubtitle(pathname);
 
+  // Full-bleed workspace routes (3-panel layout manages its own chrome)
+  const isWorkspaceRoute = pathname.includes('/workspace');
+
   return (
     <div className="relative flex min-h-screen font-sans text-foreground">
       <Sidebar />
-      <main className="relative w-full flex-1 overflow-y-auto">
-        <div className="mx-auto min-h-screen w-full max-w-[var(--content-max-width)] px-[var(--space-page-x)] pb-28 pt-[var(--space-page-y)]">
-          <header className="mb-6 border-b border-border pb-5 sm:mb-[var(--space-header-gap)]">
+      {isWorkspaceRoute ? (
+        <main className="relative w-full flex-1 overflow-hidden">
+          {children}
+        </main>
+      ) : (
+        <main className="relative w-full flex-1 overflow-y-auto">
+        <div className="mx-auto min-h-screen w-full max-w-(--content-max-width) px-(--space-page-x) pb-28 pt-(--space-page-y)">
+          <header className="mb-6 border-b border-border pb-5 sm:mb-(--space-header-gap)">
             <div className="flex items-center justify-between gap-4">
               <div className="min-w-0 pl-14 lg:pl-0">
                 <p className="text-xs font-medium text-muted-foreground">
@@ -134,6 +146,7 @@ export function AppShell({ children }: AppShellProps) {
           </div>
         </div>
       </main>
+      )}
       <ToastContainer />
     </div>
   );

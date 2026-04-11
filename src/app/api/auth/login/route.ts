@@ -5,6 +5,7 @@ import { createAuthResponse } from '@/lib/auth/session';
 import { getFirebaseAuth } from '@/lib/firebase/server';
 import { resolveLocalFallbackRole } from '@/lib/auth/fallback-role';
 import { getFirstZodErrorMessage, loginRequestSchema } from '@/lib/validation/auth';
+import { isLocalAuthMode, localSignIn } from '@/lib/auth/local-auth';
 
 const LOGIN_RATE_LIMIT = {
 	windowMs: 60_000,
@@ -45,6 +46,16 @@ export async function POST(req: NextRequest) {
 		}
 
 		const { email, password } = parsed.data;
+
+		// Use local auth when Firebase is not configured
+		if (isLocalAuthMode()) {
+			const result = await localSignIn(email, password);
+			return createAuthResponse({
+				token: result.token,
+				refreshToken: result.refreshToken,
+				user: result.user,
+			});
+		}
 
 		const authResponse = await signInWithEmailPassword(email, password);
 

@@ -1,7 +1,9 @@
 // ─── CFD Simulation Types ───────────────────────────────────────────
 
 export type SimulationStatus = 'pending' | 'running' | 'completed' | 'failed';
+export type SimulationMode = 'fast' | 'balanced' | 'engineering';
 export type TileType = 'open' | 'perforated' | 'solid' | 'inlet' | 'outlet';
+export type BoundaryType = 'wall' | 'inlet' | 'outlet' | 'symmetry' | 'open';
 export type RackDensity = 'low' | 'medium' | 'high' | 'ultra';
 export type HVACUnitType = 'crac' | 'crah' | 'ahu' | 'in_row' | 'rear_door' | 'vent_duct';
 export type FailureScenario = 'crac_failure' | 'power_loss' | 'cooling_restart' | 'partial_cooling';
@@ -29,11 +31,18 @@ export interface CFDCell {
   y: number;
   z: number;
   temperature: number;   // °C
+  humidity: number;       // kg water / kg dry air (humidity ratio)
   velocity: Vec3;        // m/s
-  pressure: number;      // Pa
+  pressure: number;      // Pa (gauge)
   heatSource: number;    // W
+  moistureSource: number; // kg/s moisture generation
   isObstacle: boolean;
   tileType: TileType;
+  boundaryType: BoundaryType;
+  // Turbulence fields (k-ε model)
+  k: number;             // turbulent kinetic energy m²/s²
+  epsilon: number;        // turbulent dissipation rate m²/s³
+  nutTurb: number;        // turbulent (eddy) viscosity m²/s
 }
 
 export interface CFDGrid {
@@ -85,6 +94,7 @@ export interface PerforatedTile {
 }
 
 export interface SimulationConfig {
+  mode: SimulationMode;
   gridResolution: number;  // m per cell
   gridSizeX: number;
   gridSizeY: number;
@@ -93,6 +103,7 @@ export interface SimulationConfig {
   convergence: number;
   timeStep: number;
   ambientTempC: number;
+  ambientHumidityRatio: number; // kg/kg (default ~0.0093 for 50% RH at 24°C)
   // Physics parameters
   airDensity: number;      // kg/m³ (default ~1.2)
   airViscosity: number;    // Pa·s (default ~1.8e-5)
@@ -127,6 +138,9 @@ export interface SimulationMetrics {
   maxTemperature: number;
   minTemperature: number;
   avgTemperature: number;
+  maxHumidityRatio: number;
+  minHumidityRatio: number;
+  avgHumidityRatio: number;
   maxVelocity: number;
   avgVelocity: number;
   totalHeatLoad: number;      // W
@@ -137,6 +151,16 @@ export interface SimulationMetrics {
   supplyHeatIndex: number;      // SHI
   returnHeatIndex: number;      // RHI
   rackInletTemps: { rackId: string; avgTemp: number; maxTemp: number }[];
+  // Convergence residuals
+  continuityResidual: number;
+  momentumResidual: number;
+  energyResidual: number;
+  turbulenceResidual: number;
+  maxDivergence: number;        // max |∇·u|
+  converged: boolean;
+  // Turbulence statistics
+  avgTurbulentViscosity: number; // average ν_t
+  maxTurbulentIntensity: number;
 }
 
 export interface SimulationResult {
@@ -146,10 +170,13 @@ export interface SimulationResult {
   config: SimulationConfig;
   metrics: SimulationMetrics;
   temperatureField: number[][][]; // [x][y][z] temperatures
+  humidityField: number[][][];    // [x][y][z] humidity ratios
   velocityField: Vec3[][][];      // [x][y][z] velocity vectors
   pressureField: number[][][];
   iteration: number;
   convergenceHistory: number[];
+  cflHistory: number[];           // CFL number per iteration
+  effectiveTimeStep: number;      // actual dt used (may be reduced by CFL)
   completedAt?: string;
 }
 

@@ -10,6 +10,22 @@ import {
   PROJECT_OVERHEAD,
   type BrandTier,
 } from '@/constants/pricing-engine';
+import { getRuleSetSync } from '@/lib/engine/rules';
+import { constantFromRuleSet, lookupFromRuleSet } from '@/lib/engine/rules/rule-evaluator';
+
+// ─── Rules-driven constants ─────────────────────────────────────────
+
+function getPricingConstant(name: string, fallback: number): number {
+  try {
+    return constantFromRuleSet(getRuleSetSync('pricing'), 'pricing_constants', name);
+  } catch { return fallback; }
+}
+
+function getRuleTierMultiplier(brand: string): number | null {
+  try {
+    return lookupFromRuleSet(getRuleSetSync('pricing'), 'brand_tier_multipliers', brand);
+  } catch { return null; }
+}
 
 export interface EquipmentCostInput {
   manufacturer: string;
@@ -50,9 +66,14 @@ export function getBrandTier(manufacturer: string): BrandTier {
   return BRAND_TIERS[manufacturer] ?? 'mid';
 }
 
-/** Calculate total equipment cost with tier-aware pricing */
+/** Calculate total equipment cost with tier-aware pricing (rules → constant fallback) */
 export function calculateEquipmentCost(items: EquipmentCostInput[]): number {
   return items.reduce((total, item) => {
+    // Try rules engine first for brand-specific multiplier, then fall back to tiers
+    const rulesMultiplier = getRuleTierMultiplier(item.manufacturer);
+    if (rulesMultiplier !== null) {
+      return total + item.unitPricePHP * rulesMultiplier * item.quantity;
+    }
     const tier = getBrandTier(item.manufacturer);
     const multiplier = TIER_MULTIPLIERS[tier];
     return total + item.unitPricePHP * multiplier * item.quantity;
@@ -105,9 +126,9 @@ export function calculateTotalProjectCost(input: ProjectCostInput): CostBreakdow
 
   const subtotal = equipmentCost + materialCost + laborCost;
 
-  const overheadRate = input.overheadPercent ?? PROJECT_OVERHEAD.overheadPercent;
-  const contingencyRate = input.contingencyPercent ?? PROJECT_OVERHEAD.contingencyPercent;
-  const vatRate = input.vatRate ?? PROJECT_OVERHEAD.vatPercent;
+  const overheadRate = input.overheadPercent ?? getPricingConstant('overhead_percent', PROJECT_OVERHEAD.overheadPercent);
+  const contingencyRate = input.contingencyPercent ?? getPricingConstant('contingency_percent', PROJECT_OVERHEAD.contingencyPercent);
+  const vatRate = input.vatRate ?? getPricingConstant('vat_percent', PROJECT_OVERHEAD.vatPercent);
 
   const overhead = subtotal * overheadRate;
   const contingency = subtotal * contingencyRate;

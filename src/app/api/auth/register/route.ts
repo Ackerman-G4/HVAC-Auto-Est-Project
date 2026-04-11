@@ -4,6 +4,7 @@ import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import { signUpWithEmailPassword } from '@/lib/firebase/auth-rest';
 import { getFirebaseAuth } from '@/lib/firebase/server';
 import { getFirstZodErrorMessage, registerRequestSchema } from '@/lib/validation/auth';
+import { isLocalAuthMode, localSignUp } from '@/lib/auth/local-auth';
 
 const REGISTER_RATE_LIMIT = {
 	windowMs: 60_000,
@@ -58,6 +59,16 @@ export async function POST(req: NextRequest) {
 				{ error: 'Admin role requires manual provisioning' },
 				{ status: 403 },
 			);
+		}
+
+		// Use local auth when Firebase is not configured
+		if (isLocalAuthMode()) {
+			const result = await localSignUp(email, password, name, requestedRole);
+			return createAuthResponse({
+				token: result.token,
+				refreshToken: result.refreshToken,
+				user: result.user,
+			});
 		}
 
 		const authResponse = await signUpWithEmailPassword(email, password);

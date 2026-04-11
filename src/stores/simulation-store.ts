@@ -3,6 +3,7 @@ import { showToast } from '@/components/ui/toast';
 import { authFetch } from '@/lib/api-client';
 import type {
   SimulationConfig,
+  SimulationMode,
   SimulationResult,
   ServerRack,
   HVACUnit,
@@ -34,7 +35,7 @@ interface SimulationStore {
   raisedFloorHeight: number;
 
   // UI state
-  activeView: 'temperature' | 'velocity' | 'pressure';
+  activeView: 'temperature' | 'velocity' | 'pressure' | 'humidity';
   showHotspots: boolean;
   showAirflow: boolean;
   selectedSliceZ: number;
@@ -51,6 +52,7 @@ interface SimulationStore {
 
   // Actions - Simulation
   setConfig: (config: Partial<SimulationConfig>) => void;
+  setMode: (mode: SimulationMode) => void;
   runSimulation: (projectId: string, floorId: string) => Promise<void>;
   runCompliance: () => void;
   runFailure: (config: FailureConfig) => Promise<void>;
@@ -60,21 +62,29 @@ interface SimulationStore {
   clearAll: () => void;
 
   // Actions - UI
-  setActiveView: (view: 'temperature' | 'velocity' | 'pressure') => void;
+  setActiveView: (view: 'temperature' | 'velocity' | 'pressure' | 'humidity') => void;
   setShowHotspots: (show: boolean) => void;
   setShowAirflow: (show: boolean) => void;
   setSelectedSliceZ: (z: number) => void;
 }
 
+const MODE_CONFIGS: Record<SimulationMode, Partial<SimulationConfig>> = {
+  fast: { gridSizeX: 10, gridSizeY: 10, gridSizeZ: 6, iterations: 50, timeStep: 0.5, gridResolution: 1.0 },
+  balanced: { gridSizeX: 20, gridSizeY: 20, gridSizeZ: 6, iterations: 200, timeStep: 0.1, gridResolution: 0.5 },
+  engineering: { gridSizeX: 40, gridSizeY: 40, gridSizeZ: 12, iterations: 1000, timeStep: 0.02, gridResolution: 0.25 },
+};
+
 const DEFAULT_CONFIG: SimulationConfig = {
+  mode: 'balanced',
   gridResolution: 0.5,
   gridSizeX: 20,
   gridSizeY: 20,
   gridSizeZ: 6,
-  iterations: 100,
+  iterations: 200,
   convergence: 0.001,
   timeStep: 0.1,
   ambientTempC: 24,
+  ambientHumidityRatio: 0.0093,
   airDensity: 1.2,
   airViscosity: 1.8e-5,
   thermalDiffusivity: 2.2e-5,
@@ -153,6 +163,11 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
 
   setConfig: (partial) => {
     set(state => ({ config: { ...state.config, ...partial } }));
+  },
+
+  setMode: (mode) => {
+    const modeOverrides = MODE_CONFIGS[mode];
+    set(state => ({ config: { ...state.config, ...modeOverrides, mode } }));
   },
 
   // ─── Simulation Actions ─────────────────────────────────────

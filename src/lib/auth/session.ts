@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export const AUTH_COOKIE_NAME = 'hvac_auth_token';
-const AUTH_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
+const AUTH_COOKIE_MAX_AGE_SECONDS = 60 * 60; // 1 hour — matches Firebase ID token lifetime
 
 export type AuthUserRole = 'admin' | 'engineer';
 

@@ -690,7 +690,7 @@ export default function BuildingViewer3D({ floors, buildingType, projectName }: 
   /* empty */
   if (totalRooms === 0) {
     return (
-      <div className="flex items-center justify-center h-[520px] border border-border rounded-xl bg-secondary/30">
+      <div className="flex items-center justify-center h-130 border border-border rounded-xl bg-secondary/30">
         <div className="text-center text-muted-foreground">
           <p className="text-lg font-semibold mb-1">No rooms to visualise</p>
           <p className="text-sm">Add rooms first, then open 3D View.</p>
@@ -809,7 +809,7 @@ export default function BuildingViewer3D({ floors, buildingType, projectName }: 
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px]">
         {/* 3D canvas */}
-        <div ref={wrapRef} className="relative min-h-[660px] bg-slate-950 cursor-grab active:cursor-grabbing select-none">
+        <div ref={wrapRef} className="relative min-h-165 bg-slate-950 cursor-grab active:cursor-grabbing select-none">
           <canvas ref={canvasRef} className="absolute inset-0" />
           <div className="absolute bottom-3 left-3 pointer-events-none text-[11px] text-slate-500 leading-relaxed">
             <p>Drag to rotate · Scroll or +/- to zoom</p>
@@ -818,7 +818,7 @@ export default function BuildingViewer3D({ floors, buildingType, projectName }: 
         </div>
 
         {/* sidebar */}
-        <div className="border-l border-border p-4 bg-secondary/10 overflow-auto max-h-[620px]">
+        <div className="border-l border-border p-4 bg-secondary/10 overflow-auto max-h-155">
           <h4 className="text-sm font-semibold mb-2">Room Details</h4>
           {selectedRoom && selDims ? (
             <div className="space-y-1.5 text-sm">
@@ -847,7 +847,7 @@ export default function BuildingViewer3D({ floors, buildingType, projectName }: 
           <div className="mt-5">
             <h4 className="text-sm font-semibold mb-2">Legend</h4>
             {colorMode === 'space' ? (
-              <div className="space-y-1.5 max-h-[200px] overflow-auto pr-1">
+              <div className="space-y-1.5 max-h-50 overflow-auto pr-1">
                 {Object.entries(PAL).map(([key, { front }]) => (
                   <div key={key} className="flex items-center gap-2 text-xs">
                     <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: front }} />
@@ -857,7 +857,7 @@ export default function BuildingViewer3D({ floors, buildingType, projectName }: 
               </div>
             ) : (
               <div className="text-xs text-muted-foreground space-y-2">
-                <div className="h-3 rounded" style={{ background: 'linear-gradient(to right, rgb(0,255,130), rgb(128,128,90), rgb(255,0,65))' }} />
+                <div className="h-3 rounded temp-gradient-legend" />
                 <div className="flex justify-between"><span>Low (0 TR)</span><span>High (10+ TR)</span></div>
               </div>
             )}
@@ -868,7 +868,7 @@ export default function BuildingViewer3D({ floors, buildingType, projectName }: 
             <h4 className="text-sm font-semibold mb-2">
               {viewFloor === 'all' ? 'All Rooms' : `${ordinal(viewFloor as number)} Floor Rooms`}
             </h4>
-            <div className="space-y-1 max-h-[180px] overflow-auto pr-1">
+            <div className="space-y-1 max-h-45 overflow-auto pr-1">
               {visibleBoxes.map(bx => (
                 <button
                   key={bx.room.id}
