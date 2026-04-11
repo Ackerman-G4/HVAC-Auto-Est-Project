@@ -35,20 +35,6 @@ npm run dev
 ```text
 http://localhost:3000
 ```
-
-## How To Try It Quickly
-
-Use one of these test accounts on the login page:
-
-1. Admin account
-	Email: `admin@hvac-auto.dev`
-	Password: `Admin1234!`
-2. Engineer account
-	Email: `engineer@example.com`
-	Password: `StrongPass123!`
-
-After login, open Projects and try the sample project data.
-
 ## Notes
 
 1. For local development, the app supports local auth/data fallback when Firebase credentials are not configured.
