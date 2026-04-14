@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, CheckCircle, AlertTriangle, Info, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { toastVariants } from '@/animations/shared';
+import { Z } from '@/lib/utils/z-indexes';
 
 type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -72,7 +73,7 @@ export function ToastContainer() {
   };
 
   return (
-    <div className="pointer-events-none fixed right-4 top-4 z-[100] flex w-full max-w-sm flex-col gap-3 sm:right-6 sm:top-6">
+    <div className="pointer-events-none fixed right-4 top-4 flex w-full max-w-sm flex-col gap-3 sm:right-6 sm:top-6" style={{ zIndex: Z.toast }}>
       <AnimatePresence>
         {toasts.map((toast) => (
           <motion.div
@@ -98,7 +99,7 @@ export function ToastContainer() {
             <button
               onClick={() => removeToast(toast.id)}
               className="rounded-xl border border-transparent p-1 text-muted-foreground transition-colors hover:border-border/70 hover:bg-secondary/80 hover:text-foreground"
-              title="Dismiss"
+              aria-label="Dismiss notification"
             >
               <X size={14} />
             </button>

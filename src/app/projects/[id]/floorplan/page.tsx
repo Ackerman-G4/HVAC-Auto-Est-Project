@@ -25,6 +25,8 @@ import {
   Eye,
   EyeOff,
   Maximize2,
+  AirVent,
+  Grid3x3 as TileIcon,
 } from 'lucide-react';
 import { PageWrapper, PageHeader } from '@/components/ui/page-wrapper';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -38,6 +40,8 @@ import { parseRoomPolygonRect } from '@/lib/utils/room-polygon';
 import Link from 'next/link';
 import Image from 'next/image';
 import { authFetch } from '@/lib/api-client';
+import { useSimulationStore } from '@/stores/simulation-store';
+import type { LayoutHVACPlacement, LayoutTilePlacement } from '@/types/simulation';
 
 const SPACE_TYPE_OPTIONS = [
   { value: 'office', label: 'Office' },
@@ -71,7 +75,7 @@ interface FloorData {
   scale: number;
 }
 
-type Tool = 'select' | 'draw' | 'measure' | 'wall';
+type Tool = 'select' | 'draw' | 'measure' | 'wall' | 'hvac' | 'tile';
 
 interface WallSegment {
   id: string;
@@ -120,6 +124,16 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
   const [showBgOnCanvas, setShowBgOnCanvas] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [showMultiView, setShowMultiView] = useState(false);
+
+  // Layout entities (HVAC units + airflow tiles)
+  const [layoutHVAC, setLayoutHVAC] = useState<LayoutHVACPlacement[]>([]);
+  const [layoutTiles, setLayoutTiles] = useState<LayoutTilePlacement[]>([]);
+  const [dragGhost, setDragGhost] = useState<{ x: number; y: number } | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const {
+    setLayoutHVAC: syncHVAC,
+    setLayoutTiles: syncTiles,
+  } = useSimulationStore();
 
   // Fetch project floors AND restore persisted rooms as canvas rectangles
   useEffect(() => {
@@ -176,6 +190,21 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
         showToast('error', 'Failed to load floor data');
       });
   }, [id]);
+
+  // Load simulation layout when floor changes
+  useEffect(() => {
+    const floorId = floors[activeFloor]?.id;
+    if (!floorId) return;
+    authFetch(`/api/projects/${id}/simulation-layout?floorId=${encodeURIComponent(floorId)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.layout) {
+          setLayoutHVAC(data.layout.hvacPlacements || []);
+          setLayoutTiles(data.layout.tilePlacements || []);
+        }
+      })
+      .catch(() => { /* no layout yet — that's fine */ });
+  }, [id, floors, activeFloor]);
 
   // Canvas rendering
   const render = useCallback(() => {
@@ -271,6 +300,71 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
       ctx.fillText(`${areaM2} m²`, room.x + room.width / 2, room.y + room.height / 2 + 18);
     });
 
+    // HVAC placements
+    layoutHVAC.forEach((h) => {
+      const px = h.position.x * scale;
+      const py = h.position.y * scale;
+      const sz = 1.2 * scale; // 1.2m icon size on canvas
+      const isDragging = draggingId === h.id;
+
+      ctx.save();
+      ctx.fillStyle = isDragging ? 'rgba(16, 185, 129, 0.35)' : 'rgba(16, 185, 129, 0.2)';
+      ctx.strokeStyle = isDragging ? '#10b981' : '#059669';
+      ctx.lineWidth = isDragging ? 2.5 : 1.5;
+      ctx.fillRect(px - sz / 2, py - sz / 2, sz, sz);
+      ctx.strokeRect(px - sz / 2, py - sz / 2, sz, sz);
+
+      // HVAC icon label
+      ctx.fillStyle = '#059669';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('❄', px, py - 4);
+      ctx.font = '9px sans-serif';
+      ctx.fillText(h.label || h.type, px, py + 10);
+      ctx.restore();
+    });
+
+    // Tile placements
+    layoutTiles.forEach((t) => {
+      const px = t.x * scale;
+      const py = t.y * scale;
+      const sz = t.tileSize * scale;
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(99, 102, 241, 0.18)';
+      ctx.strokeStyle = '#6366f1';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 2]);
+      ctx.fillRect(px - sz / 2, py - sz / 2, sz, sz);
+      ctx.strokeRect(px - sz / 2, py - sz / 2, sz, sz);
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = '#6366f1';
+      ctx.font = '8px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${(t.openArea * 100).toFixed(0)}%`, px, py);
+      ctx.restore();
+    });
+
+    // HVAC/Tile drag ghost
+    if (dragGhost && (tool === 'hvac' || tool === 'tile')) {
+      const gx = snapToGrid(dragGhost.x);
+      const gy = snapToGrid(dragGhost.y);
+      const sz = (tool === 'hvac' ? 1.2 : 0.6) * scale;
+      ctx.save();
+      ctx.globalAlpha = 0.5;
+      ctx.fillStyle = tool === 'hvac' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(99, 102, 241, 0.3)';
+      ctx.strokeStyle = tool === 'hvac' ? '#10b981' : '#6366f1';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 3]);
+      ctx.fillRect(gx - sz / 2, gy - sz / 2, sz, sz);
+      ctx.strokeRect(gx - sz / 2, gy - sz / 2, sz, sz);
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+
     // Drawing preview
     if (isDrawing && drawStart && drawCurrent) {
       const x = Math.min(drawStart.x, drawCurrent.x);
@@ -298,7 +392,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
     }
 
     ctx.restore();
-  }, [rooms, selectedRoom, bgImage, showBgOnCanvas, showGrid, scale, zoom, Pan, isDrawing, drawStart, drawCurrent, walls]);
+  }, [rooms, selectedRoom, bgImage, showBgOnCanvas, showGrid, scale, zoom, Pan, isDrawing, drawStart, drawCurrent, walls, layoutHVAC, layoutTiles, dragGhost, draggingId, tool]);
 
   useEffect(() => {
     render();
@@ -338,6 +432,49 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const pos = getCanvasPos(e);
 
+    if (tool === 'hvac') {
+      // Check if clicking an existing HVAC to start drag
+      const existing = layoutHVAC.find((h) => {
+        const px = h.position.x * scale;
+        const py = h.position.y * scale;
+        const sz = 1.2 * scale;
+        return pos.x >= px - sz / 2 && pos.x <= px + sz / 2 && pos.y >= py - sz / 2 && pos.y <= py + sz / 2;
+      });
+      if (existing) {
+        setDraggingId(existing.id);
+        return;
+      }
+      // Place new HVAC unit
+      const mx = snapToGrid(pos.x) / scale; // convert to meters
+      const my = snapToGrid(pos.y) / scale;
+      const newH: LayoutHVACPlacement = {
+        id: `hvac_${Date.now()}`,
+        type: 'crac',
+        label: `CRAC ${layoutHVAC.length + 1}`,
+        position: { x: mx, y: my, z: 0 },
+        orientation: 0,
+        capacityKW: 50,
+        airflowCFM: 3000,
+      };
+      setLayoutHVAC([...layoutHVAC, newH]);
+      showToast('success', `HVAC unit placed at (${mx.toFixed(1)}, ${my.toFixed(1)}) m`);
+      return;
+    }
+    if (tool === 'tile') {
+      const mx = snapToGrid(pos.x) / scale;
+      const my = snapToGrid(pos.y) / scale;
+      const newT: LayoutTilePlacement = {
+        id: `tile_${Date.now()}`,
+        x: mx,
+        y: my,
+        openArea: 0.25,
+        tileSize: 0.6,
+      };
+      setLayoutTiles([...layoutTiles, newT]);
+      showToast('success', `Airflow tile placed at (${mx.toFixed(1)}, ${my.toFixed(1)}) m`);
+      return;
+    }
+
     if (tool === 'draw') {
       setIsDrawing(true);
       setDrawStart({ x: snapToGrid(pos.x), y: snapToGrid(pos.y) });
@@ -369,6 +506,23 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const pos = getCanvasPos(e);
+
+    // Drag ghost for hvac/tile placement preview
+    if (tool === 'hvac' || tool === 'tile') {
+      setDragGhost({ x: pos.x, y: pos.y });
+    }
+
+    // Dragging existing HVAC entity
+    if (draggingId) {
+      const mx = snapToGrid(pos.x) / scale;
+      const my = snapToGrid(pos.y) / scale;
+      setLayoutHVAC(layoutHVAC.map((h) =>
+        h.id === draggingId ? { ...h, position: { ...h.position, x: mx, y: my } } : h
+      ));
+      return;
+    }
+
     if (tool === 'draw') {
       if (!isDrawing || !drawStart) return;
       const pos = getCanvasPos(e);
@@ -377,6 +531,11 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
   };
 
   const handleMouseUp = () => {
+    if (draggingId) {
+      setDraggingId(null);
+      return;
+    }
+
     if (tool === 'draw') {
       if (!isDrawing || !drawStart || !drawCurrent) {
         setIsDrawing(false);
@@ -648,6 +807,25 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
         saved++;
       }
       showToast('success', `${saved} rooms saved with geometry and cooling loads`);
+
+      // Also persist simulation layout (HVAC + tiles)
+      const floorId = floors[activeFloor]?.id;
+      if (floorId && (layoutHVAC.length > 0 || layoutTiles.length > 0)) {
+        await authFetch(`/api/projects/${id}/simulation-layout`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            floorId,
+            hvacPlacements: layoutHVAC,
+            tilePlacements: layoutTiles,
+            canvasScale: scale,
+          }),
+        });
+        // Sync to simulation store
+        syncHVAC(layoutHVAC);
+        syncTiles(layoutTiles);
+        showToast('success', `Layout saved: ${layoutHVAC.length} HVAC, ${layoutTiles.length} tiles`);
+      }
     } catch {
       showToast('error', 'Failed to save rooms');
     }
@@ -706,7 +884,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
               <FileText className="w-4 h-4 mr-1" /> PDF
             </Button>
             <Button variant="accent" size="sm" onClick={handleSaveRooms}>
-              <Save className="w-4 h-4 mr-1" /> Save Rooms ({rooms.length})
+              <Save className="w-4 h-4 mr-1" /> Save All ({rooms.length}R / {layoutHVAC.length}H / {layoutTiles.length}T)
             </Button>
           </div>
         }
@@ -719,6 +897,8 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
             { t: 'select' as Tool, icon: MousePointer, label: 'Select' },
             { t: 'draw' as Tool, icon: Square, label: 'Draw Room' },
             { t: 'measure' as Tool, icon: Ruler, label: 'Measure' },
+            { t: 'hvac' as Tool, icon: AirVent, label: 'Place HVAC Unit' },
+            { t: 'tile' as Tool, icon: TileIcon, label: 'Place Airflow Tile' },
           ]).map(({ t, icon: Icon, label }) => (
             <button
               key={t}
@@ -790,7 +970,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
           <canvas
             ref={canvasRef}
             className={`w-full h-full ${
-              tool === 'draw' ? 'cursor-crosshair' : tool === 'measure' ? 'cursor-crosshair' : 'cursor-default'
+              tool === 'draw' || tool === 'measure' || tool === 'hvac' || tool === 'tile' ? 'cursor-crosshair' : 'cursor-default'
             }`}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
@@ -807,7 +987,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
             </div>
             <div className="flex items-center gap-2">
               <Badge size="sm" variant={tool === 'select' ? 'accent' : 'outline'}>
-                {tool === 'select' ? 'Select' : tool === 'draw' ? 'Draw Room' : 'Measure'}
+                {tool === 'select' ? 'Select' : tool === 'draw' ? 'Draw Room' : tool === 'hvac' ? 'Place HVAC' : tool === 'tile' ? 'Place Tile' : 'Measure'}
               </Badge>
             </div>
           </div>
@@ -984,6 +1164,55 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
                 </CardContent>
               </Card>
             </motion.div>
+          )}
+
+          {/* Layout Entities */}
+          {(layoutHVAC.length > 0 || layoutTiles.length > 0) && (
+            <Card className="panel-glass border-border/70">
+              <CardHeader className="py-3 px-4">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <AirVent className="w-4 h-4" /> Layout Entities
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-3 pt-0 space-y-2">
+                {layoutHVAC.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">HVAC Units ({layoutHVAC.length})</p>
+                    <div className="flex flex-col gap-1 max-h-30 overflow-y-auto">
+                      {layoutHVAC.map((h) => (
+                        <div key={h.id} className="flex items-center justify-between rounded-lg bg-secondary/50 px-2 py-1 text-xs">
+                          <span className="font-medium">{h.label}</span>
+                          <button
+                            onClick={() => setLayoutHVAC(layoutHVAC.filter((x) => x.id !== h.id))}
+                            className="text-red-400 hover:text-red-500"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {layoutTiles.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">Airflow Tiles ({layoutTiles.length})</p>
+                    <div className="flex flex-col gap-1 max-h-30 overflow-y-auto">
+                      {layoutTiles.map((t) => (
+                        <div key={t.id} className="flex items-center justify-between rounded-lg bg-secondary/50 px-2 py-1 text-xs">
+                          <span className="font-medium">({t.x.toFixed(1)}, {t.y.toFixed(1)}) m — {(t.openArea * 100).toFixed(0)}%</span>
+                          <button
+                            onClick={() => setLayoutTiles(layoutTiles.filter((x) => x.id !== t.id))}
+                            className="text-red-400 hover:text-red-500"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           )}
         </div>
       </div>

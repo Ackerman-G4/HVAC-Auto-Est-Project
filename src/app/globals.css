@@ -1,4 +1,7 @@
 @import "tailwindcss";
+@import "../styles/tokens.css";
+@import "../styles/typography.css";
+@import "../styles/spacing.css";
 
 /* ── Modern Enterprise Design System ─────────────────────── */
 
@@ -47,15 +50,7 @@
 
   --radius: 1rem;
   --radius-card: 1.25rem;
-  --radius-sm: 0.65rem;
-  --layout-header-height: 84px;
-  --content-max-width-constrained: 1580px;
-  --space-page-x: clamp(1rem, 1.35vw + 0.75rem, 2.3rem);
-  --space-page-y: clamp(1rem, 1.1vw + 0.7rem, 1.8rem);
-  --space-card-padding: clamp(1rem, 1vw + 0.75rem, 1.6rem);
-  --space-component-gap: clamp(0.8rem, 0.9vw + 0.5rem, 1.3rem);
-  --space-section-gap: clamp(1.4rem, 1.4vw + 1rem, 2.4rem);
-  --space-header-gap: clamp(1rem, 0.9vw + 0.5rem, 1.6rem);
+  --content-max-width-constrained: var(--content-max-width);
   color-scheme: light;
 }
 
@@ -164,9 +159,10 @@ h1,
 h2,
 h3,
 .display-heading {
-  font-family: var(--font-display), var(--font-sans), sans-serif;
-  letter-spacing: -0.025em;
+  font-family: var(--font-sans), 'Segoe UI', sans-serif;
+  letter-spacing: -0.02em;
   line-height: 1.15;
+  font-weight: 700;
 }
 
 p,
@@ -258,28 +254,35 @@ dd {
   body { background: white; }
 }
 
-@media (max-width: 1280px) {
-  :root {
-    --space-page-x: clamp(0.85rem, 1vw + 0.6rem, 1.3rem);
-    --space-page-y: clamp(0.85rem, 1vw + 0.6rem, 1.2rem);
-    --space-section-gap: clamp(1rem, 1vw + 0.7rem, 1.8rem);
+/* Responsive spacing overrides now in ../styles/spacing.css */
+
+/* ── Reduced Motion ───────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
-@media (max-width: 1024px) {
-  :root {
-    --layout-header-height: 76px;
-    --space-card-padding: 1rem;
-    --space-component-gap: 0.8rem;
-  }
+/* ── Skip-to-content link ─────────────────────────────────── */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 1rem;
+  z-index: 9999;
+  padding: 0.75rem 1.25rem;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-radius: var(--radius-control);
+  font-weight: 600;
+  text-decoration: none;
 }
-
-@media (max-width: 768px) {
-  :root {
-    --layout-header-height: 70px;
-    --space-page-x: 0.85rem;
-    --space-page-y: 0.85rem;
-  }
+.skip-link:focus {
+  top: 0.75rem;
 }
 
 /* ── Workspace Panel Enhancements ────────────────────────────── */

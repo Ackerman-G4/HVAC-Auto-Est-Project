@@ -34,7 +34,9 @@ import type {
   ServerRack,
   HVACUnit,
   PerforatedTile,
+  CalibrationCoefficients,
 } from '@/types/simulation';
+import { DEFAULT_CALIBRATION_COEFFICIENTS } from '@/types/simulation';
 import { getRuleSetSync, type RuleSet } from '@/lib/engine/rules';
 import { constantFromRuleSet } from '@/lib/engine/rules/rule-evaluator';
 
@@ -155,14 +157,14 @@ function posToGrid(pos: number, resolution: number): number {
   return Math.floor(pos / resolution);
 }
 
-function placeRacks(grid: CFDGrid, racks: ServerRack[], config: SimulationConfig): void {
+function placeRacks(grid: CFDGrid, racks: ServerRack[], config: SimulationConfig, coeffs: CalibrationCoefficients): void {
   for (const rack of racks) {
     const gx = posToGrid(rack.position.x, config.gridResolution);
     const gy = posToGrid(rack.position.y, config.gridResolution);
     const rackWidthCells = Math.ceil(rack.width / config.gridResolution);
     const rackDepthCells = Math.ceil(rack.depth / config.gridResolution);
     const rackHeightCells = Math.ceil(rack.height / config.gridResolution);
-    const totalHeatW = rack.powerKW * 1000;
+    const totalHeatW = rack.powerKW * 1000 * coeffs.thermalLossFactor;
     const heatPerCell = totalHeatW / Math.max(1, rackWidthCells * rackDepthCells * rackHeightCells);
 
     for (let dx = 0; dx < rackWidthCells; dx++) {
@@ -181,7 +183,7 @@ function placeRacks(grid: CFDGrid, racks: ServerRack[], config: SimulationConfig
   }
 }
 
-function placeHVACUnits(grid: CFDGrid, units: HVACUnit[], config: SimulationConfig): void {
+function placeHVACUnits(grid: CFDGrid, units: HVACUnit[], config: SimulationConfig, coeffs: CalibrationCoefficients): void {
   const cfmToMps = getPhysicsConstant('cfm_to_mps', 0.0004719);
 
   for (const unit of units) {
@@ -201,8 +203,8 @@ function placeHVACUnits(grid: CFDGrid, units: HVACUnit[], config: SimulationConf
     const vy = outletVelocity * Math.sin(dischargeAngleRad);
     const vz = outletVelocity * Math.cos(dischargeAngleRad);
 
-    // Turbulence at inlet: 5% intensity
-    const turbIntensity = 0.05;
+    // Turbulence at inlet: 5% intensity, adjusted by calibration
+    const turbIntensity = 0.05 * coeffs.turbulenceIntensityFactor;
     const kInlet = 1.5 * (turbIntensity * outletVelocity) ** 2;
     const epsInlet = K_EPSILON.Cmu * kInlet ** 1.5 / (0.07 * Math.max(unit.height, 0.1));
 
@@ -248,10 +250,10 @@ function placeOutlets(grid: CFDGrid, _hvacUnits: HVACUnit[], _config: Simulation
   }
 }
 
-function placePerforatedTiles(grid: CFDGrid, tiles: PerforatedTile[], config: SimulationConfig): void {
+function placePerforatedTiles(grid: CFDGrid, tiles: PerforatedTile[], config: SimulationConfig, coeffs: CalibrationCoefficients): void {
   const deltaP = getPhysicsConstant('tile_delta_p', 10);
-  const correctionFactor = getPhysicsConstant('tile_correction_factor', 1.6);
-  const plenumTempOffset = getPhysicsConstant('plenum_temp_offset', 5);
+  const correctionFactor = getPhysicsConstant('tile_correction_factor', 1.6) * coeffs.tileDischargeCoeff;
+  const plenumTempOffset = getPhysicsConstant('plenum_temp_offset', 5) * coeffs.plenumMixingFactor;
 
   for (const tile of tiles) {
     const cx = tile.x;
@@ -711,10 +713,11 @@ function solveTurbulence(grid: CFDGrid, config: SimulationConfig, dt: number): v
 
 // --- Temperature Transport (Semi-Lagrangian) ---
 
-function solveTemperature(grid: CFDGrid, config: SimulationConfig, dt: number): void {
-  const { gridResolution: dx, thermalDiffusivity: alpha, airDensity: rho, specificHeat: cp } = config;
+function solveTemperature(grid: CFDGrid, config: SimulationConfig, dt: number, coeffs: CalibrationCoefficients): void {
+  const { gridResolution: dx, thermalDiffusivity: alpha, airDensity: rho, specificHeat: cp, ambientTempC } = config;
   const dx2 = dx * dx;
   const cellVolume = dx * dx * dx;
+  const wallU = coeffs.wallConductivity; // W/(m²·K) — 0 = adiabatic
 
   const tempMinClamp = getThermalThreshold('temp_min_clamp', 5);
   const tempMaxClamp = getThermalThreshold('temp_max_clamp', 60);
@@ -753,7 +756,17 @@ function solveTemperature(grid: CFDGrid, config: SimulationConfig, dt: number): 
 
         const heatContrib = cell.heatSource / (rho * cp * cellVolume);
 
-        const tNew = advectedTemp + dt * (alphaEff * lapT + heatContrib);
+        // Wall heat leak: if cell is adjacent to a wall, add conductive heat gain
+        let wallLeak = 0;
+        if (wallU > 0) {
+          const isNearWall = x <= 1 || x >= grid.sizeX - 2 || y <= 1 || y >= grid.sizeY - 2;
+          if (isNearWall) {
+            const wallArea = dx * dx; // face area
+            wallLeak = (wallU * wallArea * (ambientTempC + 10 - oldTemps[x][y][z])) / (rho * cp * cellVolume);
+          }
+        }
+
+        const tNew = advectedTemp + dt * (alphaEff * lapT + heatContrib + wallLeak);
 
         // Under-relaxation and clamping
         cell.temperature = cell.temperature + SIMPLE.alphaT * (tNew - cell.temperature);
@@ -961,7 +974,7 @@ interface StepResult {
   maxDivergence: number;
 }
 
-export function stepCFDSimulation(grid: CFDGrid, config: SimulationConfig): StepResult {
+export function stepCFDSimulation(grid: CFDGrid, config: SimulationConfig, coeffs: CalibrationCoefficients = DEFAULT_CALIBRATION_COEFFICIENTS): StepResult {
   const { dt, cflNumber } = computeCFLTimeStep(grid, config);
 
   // Snapshot old velocity and temperature for residual computation
@@ -990,7 +1003,7 @@ export function stepCFDSimulation(grid: CFDGrid, config: SimulationConfig): Step
   solveTurbulence(grid, config, dt);
 
   // Step 5: Temperature transport
-  solveTemperature(grid, config, dt);
+  solveTemperature(grid, config, dt, coeffs);
 
   // Step 6: Humidity transport
   solveHumidity(grid, config, dt);
@@ -1246,13 +1259,14 @@ function extractHumidityField(grid: CFDGrid): number[][][] {
 
 export function runCFDSimulation(input: SimulationInput): SimulationResult {
   const config: SimulationConfig = { ...DEFAULT_CONFIG, ...input.config };
+  const coeffs: CalibrationCoefficients = input.calibration?.coefficients ?? DEFAULT_CALIBRATION_COEFFICIENTS;
   const grid = createGrid(config);
 
   // Place equipment on grid
-  placeRacks(grid, input.racks, config);
-  placeHVACUnits(grid, input.hvacUnits, config);
+  placeRacks(grid, input.racks, config, coeffs);
+  placeHVACUnits(grid, input.hvacUnits, config, coeffs);
   placeOutlets(grid, input.hvacUnits, config);
-  placePerforatedTiles(grid, input.tiles, config);
+  placePerforatedTiles(grid, input.tiles, config, coeffs);
 
   const convergenceHistory: number[] = [];
   const cflHistory: number[] = [];
@@ -1262,7 +1276,7 @@ export function runCFDSimulation(input: SimulationInput): SimulationResult {
 
   // SIMPLE iterative solver
   for (let iter = 0; iter < config.iterations; iter++) {
-    const result = stepCFDSimulation(grid, config);
+    const result = stepCFDSimulation(grid, config, coeffs);
     lastDt = result.dt;
     cflHistory.push(result.cflNumber);
 

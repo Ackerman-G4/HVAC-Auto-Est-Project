@@ -15,7 +15,18 @@ import type {
   PUEAnalysis,
   OptimizationResult,
   OptimizationConfig,
+  LayoutHVACPlacement,
+  LayoutTilePlacement,
+  InspectedCellInfo,
+  ThermalAlert,
+  TileAirflowData,
+  TileFlowViewConfig,
+  CalibrationCoefficients,
+  CalibrationResult,
+  CalibrationMode,
+  SensorReading,
 } from '@/types/simulation';
+import { DEFAULT_CALIBRATION_COEFFICIENTS } from '@/types/simulation';
 
 interface SimulationStore {
   // Equipment
@@ -40,6 +51,25 @@ interface SimulationStore {
   showHotspots: boolean;
   showAirflow: boolean;
   selectedSliceZ: number;
+
+  // Layout (floorplan ↔ simulation sync)
+  layoutHVAC: LayoutHVACPlacement[];
+  layoutTiles: LayoutTilePlacement[];
+  layoutDirty: boolean;
+
+  // Inspect
+  inspectedCell: InspectedCellInfo | null;
+
+  // TileFlow analysis
+  tileFlowView: TileFlowViewConfig;
+  alerts: ThermalAlert[];
+  tileAirflowData: TileAirflowData[];
+
+  // Calibration
+  calibrationResult: CalibrationResult | null;
+  calibrationCoefficients: CalibrationCoefficients;
+  sensorReadings: SensorReading[];
+  isCalibrating: boolean;
 
   // Actions - Equipment
   addRack: (rack: Omit<ServerRack, 'id'>) => void;
@@ -68,6 +98,32 @@ interface SimulationStore {
   setShowHotspots: (show: boolean) => void;
   setShowAirflow: (show: boolean) => void;
   setSelectedSliceZ: (z: number) => void;
+
+  // Actions - Layout
+  setLayoutHVAC: (placements: LayoutHVACPlacement[]) => void;
+  addLayoutHVAC: (placement: LayoutHVACPlacement) => void;
+  updateLayoutHVAC: (id: string, updates: Partial<LayoutHVACPlacement>) => void;
+  removeLayoutHVAC: (id: string) => void;
+  setLayoutTiles: (placements: LayoutTilePlacement[]) => void;
+  addLayoutTile: (placement: LayoutTilePlacement) => void;
+  removeLayoutTile: (id: string) => void;
+  markLayoutClean: () => void;
+
+  // Actions - Inspect
+  setInspectedCell: (cell: InspectedCellInfo | null) => void;
+
+  // Actions - TileFlow
+  setTileFlowView: (updates: Partial<TileFlowViewConfig>) => void;
+  computeAlerts: () => void;
+  computeTileAirflow: () => void;
+
+  // Actions - Calibration
+  addSensorReading: (reading: SensorReading) => void;
+  removeSensorReading: (id: string) => void;
+  clearSensorReadings: () => void;
+  runCalibration: (mode: CalibrationMode, projectId: string, floorId: string) => Promise<void>;
+  applyCalibration: (coefficients: CalibrationCoefficients) => void;
+  resetCalibration: () => void;
 }
 
 const MODE_CONFIGS: Record<SimulationMode, Partial<SimulationConfig>> = {
@@ -116,6 +172,33 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
   showHotspots: true,
   showAirflow: true,
   selectedSliceZ: 1,
+
+  // Layout
+  layoutHVAC: [],
+  layoutTiles: [],
+  layoutDirty: false,
+
+  // Inspect
+  inspectedCell: null,
+
+  // TileFlow analysis
+  tileFlowView: {
+    showStreamlines: false,
+    showFog: false,
+    showTileOverlay: true,
+    showAlerts: true,
+    streamlineConfig: { seedCount: 30, maxSteps: 200, stepSize: 0.15, colorBy: 'temperature', tubeRadius: 0.03 },
+    fogOpacity: 0.35,
+    alertThresholds: { maxTempC: 35, minCFM: 150 },
+  },
+  alerts: [],
+  tileAirflowData: [],
+
+  // Calibration
+  calibrationResult: null,
+  calibrationCoefficients: { ...DEFAULT_CALIBRATION_COEFFICIENTS },
+  sensorReadings: [],
+  isCalibrating: false,
 
   // ─── Equipment Actions ──────────────────────────────────────
 
@@ -217,13 +300,17 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'cfd',
-          input: { projectId, floorId, config, racks, hvacUnits, tiles, raisedFloorHeight },
+          input: { projectId, floorId, config, racks, hvacUnits, tiles, raisedFloorHeight,
+            calibration: { coefficients: get().calibrationCoefficients } },
         }),
       });
 
       if (!res.ok) throw new Error('Simulation failed');
       const data = await res.json();
       set({ result: data.result, isRunning: false });
+      // Auto-compute TileFlow analysis
+      get().computeAlerts();
+      get().computeTileAirflow();
       showToast('success', 'CFD simulation completed');
     } catch (error) {
       console.error(error);
@@ -364,4 +451,201 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
   setShowHotspots: (show) => set({ showHotspots: show }),
   setShowAirflow: (show) => set({ showAirflow: show }),
   setSelectedSliceZ: (z) => set({ selectedSliceZ: z }),
+
+  // ─── Layout Actions ─────────────────────────────────────────
+
+  setLayoutHVAC: (placements) => set({ layoutHVAC: placements, layoutDirty: true }),
+  addLayoutHVAC: (placement) => set(state => ({ layoutHVAC: [...state.layoutHVAC, placement], layoutDirty: true })),
+  updateLayoutHVAC: (id, updates) => set(state => ({
+    layoutHVAC: state.layoutHVAC.map(p => p.id === id ? { ...p, ...updates } : p),
+    layoutDirty: true,
+  })),
+  removeLayoutHVAC: (id) => set(state => ({ layoutHVAC: state.layoutHVAC.filter(p => p.id !== id), layoutDirty: true })),
+  setLayoutTiles: (placements) => set({ layoutTiles: placements, layoutDirty: true }),
+  addLayoutTile: (placement) => set(state => ({ layoutTiles: [...state.layoutTiles, placement], layoutDirty: true })),
+  removeLayoutTile: (id) => set(state => ({ layoutTiles: state.layoutTiles.filter(p => p.id !== id), layoutDirty: true })),
+  markLayoutClean: () => set({ layoutDirty: false }),
+
+  // ─── Inspect Actions ────────────────────────────────────────
+
+  setInspectedCell: (cell) => set({ inspectedCell: cell }),
+
+  // ─── TileFlow Actions ──────────────────────────────────────
+
+  setTileFlowView: (updates) => set(state => ({ tileFlowView: { ...state.tileFlowView, ...updates } })),
+
+  computeAlerts: () => {
+    const { result, racks, tileFlowView } = get();
+    if (!result) { set({ alerts: [] }); return; }
+    const { maxTempC, minCFM } = tileFlowView.alertThresholds;
+    const m = result.metrics;
+    const newAlerts: ThermalAlert[] = [];
+
+    // Hotspot-derived overheating alerts
+    for (const hs of m.hotspots) {
+      if (hs.temperature >= maxTempC) {
+        newAlerts.push({
+          id: crypto.randomUUID(),
+          type: 'overheating',
+          severity: hs.severity === 'emergency' ? 'emergency' : hs.severity === 'critical' ? 'critical' : 'warning',
+          position: hs.position,
+          value: hs.temperature,
+          threshold: maxTempC,
+          unit: '°C',
+          description: `Overheating zone at (${hs.position.x.toFixed(1)}, ${hs.position.y.toFixed(1)}, ${hs.position.z.toFixed(1)})m — ${hs.temperature.toFixed(1)}°C exceeds ${maxTempC}°C limit`,
+          affectedRacks: hs.nearestRack ? [hs.nearestRack] : [],
+        });
+      }
+    }
+
+    // Rack inlet temperature alerts
+    for (const ri of m.rackInletTemps) {
+      if (ri.maxTemp >= maxTempC) {
+        const rack = racks.find(r => r.id === ri.rackId);
+        newAlerts.push({
+          id: crypto.randomUUID(),
+          type: 'overheating',
+          severity: ri.maxTemp >= maxTempC + 5 ? 'critical' : 'warning',
+          position: rack ? rack.position : { x: 0, y: 0, z: 0 },
+          value: ri.maxTemp,
+          threshold: maxTempC,
+          unit: '°C',
+          description: `Rack ${ri.rackId.slice(0, 8)} inlet max ${ri.maxTemp.toFixed(1)}°C exceeds ${maxTempC}°C`,
+          affectedRacks: [ri.rackId],
+        });
+      }
+    }
+
+    set({ alerts: newAlerts });
+  },
+
+  computeTileAirflow: () => {
+    const { result, tiles, tileFlowView } = get();
+    if (!result || tiles.length === 0) { set({ tileAirflowData: [] }); return; }
+    const cfg = result.config;
+    const res = cfg.gridResolution;
+    const { minCFM } = tileFlowView.alertThresholds;
+    const data: TileAirflowData[] = [];
+
+    for (const tile of tiles) {
+      const gx = Math.min(Math.floor(tile.x / res), cfg.gridSizeX - 1);
+      const gy = Math.min(Math.floor(tile.y / res), cfg.gridSizeY - 1);
+      // Sample velocity at floor level (z=0)
+      const vel = result.velocityField[gx]?.[gy]?.[0];
+      const temp = result.temperatureField[gx]?.[gy]?.[0] ?? cfg.ambientTempC;
+      const vz = vel ? Math.abs(vel.z) : 0;
+      // Convert m/s through tile area to CFM (1 m³/s ≈ 2118.88 CFM)
+      const tileAreaM2 = (tile.tileSize ?? 0.6) * (tile.tileSize ?? 0.6) * (tile.openArea ?? 0.25);
+      const actualCFM = vz * tileAreaM2 * 2118.88;
+      const requiredCFM = minCFM;
+      const efficiency = requiredCFM > 0 ? actualCFM / requiredCFM : 1;
+      // Bypass: fraction of supply air above ambient that doesn't reach rack height
+      const velTop = result.velocityField[gx]?.[gy]?.[Math.min(3, cfg.gridSizeZ - 1)];
+      const vzTop = velTop ? Math.abs(velTop.z) : 0;
+      const bypassFraction = vz > 0.01 ? Math.max(0, 1 - vzTop / vz) : 0;
+
+      data.push({
+        tileId: `tile-${tile.x}-${tile.y}`,
+        x: tile.x,
+        y: tile.y,
+        actualCFM: Math.round(actualCFM * 10) / 10,
+        requiredCFM,
+        efficiency: Math.round(efficiency * 1000) / 1000,
+        supplyTempC: Math.round(temp * 10) / 10,
+        bypassFraction: Math.round(bypassFraction * 100) / 100,
+      });
+    }
+
+    // Also generate insufficient airflow alerts
+    const { alerts } = get();
+    const airflowAlerts: ThermalAlert[] = data
+      .filter(d => d.efficiency < 0.7)
+      .map(d => ({
+        id: crypto.randomUUID(),
+        type: 'insufficient_airflow' as const,
+        severity: (d.efficiency < 0.4 ? 'critical' : 'warning') as ThermalAlert['severity'],
+        position: { x: d.x, y: d.y, z: 0 },
+        value: d.actualCFM,
+        threshold: d.requiredCFM,
+        unit: 'CFM',
+        description: `Tile (${d.x}, ${d.y}) delivers ${d.actualCFM.toFixed(0)} CFM — ${(d.efficiency * 100).toFixed(0)}% of required ${d.requiredCFM} CFM`,
+        affectedRacks: [],
+      }));
+
+    set({ tileAirflowData: data, alerts: [...alerts, ...airflowAlerts] });
+  },
+
+  // ─── Calibration Actions ─────────────────────────────────────
+
+  addSensorReading: (reading) => {
+    set(state => ({ sensorReadings: [...state.sensorReadings, reading] }));
+  },
+
+  removeSensorReading: (id) => {
+    set(state => ({ sensorReadings: state.sensorReadings.filter(s => s.id !== id) }));
+  },
+
+  clearSensorReadings: () => {
+    set({ sensorReadings: [] });
+  },
+
+  runCalibration: async (mode, projectId, floorId) => {
+    const { config, racks, hvacUnits, tiles, raisedFloorHeight, calibrationCoefficients, sensorReadings } = get();
+    set({ isCalibrating: true, calibrationResult: null });
+
+    try {
+      const res = await authFetch('/api/simulation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'calibrate',
+          input: {
+            projectId, floorId, config, racks, hvacUnits, tiles, raisedFloorHeight,
+            calibration: { coefficients: calibrationCoefficients },
+          },
+          calibrationConfig: {
+            mode,
+            maxIterations: 20,
+            targetDeviationPct: 5,
+            dampingFactor: 0.5,
+          },
+          sensorReadings: mode === 'sensor' ? sensorReadings : undefined,
+        }),
+      });
+
+      if (!res.ok) throw new Error('Calibration failed');
+      const data = await res.json();
+      const calResult: CalibrationResult = data.calibrationResult;
+
+      set({
+        calibrationResult: calResult,
+        isCalibrating: false,
+      });
+
+      // Auto-apply coefficients for auto-adjust and sensor modes
+      if (mode !== 'compare') {
+        set({ calibrationCoefficients: calResult.adjustedCoefficients });
+        showToast('success', `Calibration complete — deviation: ${calResult.overallDeviationPct.temperature.toFixed(1)}%`);
+      } else {
+        showToast('success', 'Comparison complete');
+      }
+    } catch (error) {
+      console.error(error);
+      set({ isCalibrating: false });
+      showToast('error', 'Calibration failed');
+    }
+  },
+
+  applyCalibration: (coefficients) => {
+    set({ calibrationCoefficients: coefficients });
+    showToast('success', 'Calibration coefficients applied');
+  },
+
+  resetCalibration: () => {
+    set({
+      calibrationCoefficients: { ...DEFAULT_CALIBRATION_COEFFICIENTS },
+      calibrationResult: null,
+    });
+    showToast('success', 'Calibration reset to defaults');
+  },
 }));

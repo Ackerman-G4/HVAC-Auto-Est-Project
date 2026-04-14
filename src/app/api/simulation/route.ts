@@ -7,12 +7,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
 import { runCFDSimulation } from '@/lib/functions/cfd-simulation';
+import { compareOnly, autoCalibrate, calibrateWithSensors } from '@/lib/functions/calibration-engine';
 import { checkASHRAECompliance } from '@/lib/functions/ashrae-compliance';
 import { simulateFailure, calculatePUE } from '@/lib/functions/failure-simulation';
 import { runOptimization } from '@/lib/functions/cooling-optimization';
-import type { SimulationInput, FailureConfig } from '@/types/simulation';
+import type { SimulationInput, FailureConfig, CalibrationConfig } from '@/types/simulation';
 
-type SimAction = 'cfd' | 'compliance' | 'failure' | 'pue' | 'optimize';
+type SimAction = 'cfd' | 'compliance' | 'failure' | 'pue' | 'optimize' | 'calibrate';
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
 
     if (!action) {
       return NextResponse.json(
-        { error: 'action is required (cfd | compliance | failure | pue | optimize)' },
+        { error: 'action is required (cfd | compliance | failure | pue | optimize | calibrate)' },
         { status: 400 },
       );
     }
@@ -80,6 +81,37 @@ export async function POST(request: NextRequest) {
         }
         const result = runOptimization(input, optimizationConfig);
         return NextResponse.json({ result });
+      }
+
+      case 'calibrate': {
+        const { input, calibrationConfig, sensorReadings } = body;
+        if (!input || !input.config) {
+          return NextResponse.json({ error: 'Simulation input is required for calibration' }, { status: 400 });
+        }
+        if (!calibrationConfig) {
+          return NextResponse.json({ error: 'calibrationConfig is required' }, { status: 400 });
+        }
+        const calConfig: CalibrationConfig = calibrationConfig;
+        // Run initial CFD for comparison baseline
+        const cfdResult = runCFDSimulation(input);
+        let calibrationResult;
+        switch (calConfig.mode) {
+          case 'compare':
+            calibrationResult = compareOnly(input, cfdResult, sensorReadings);
+            break;
+          case 'auto-adjust':
+            calibrationResult = autoCalibrate(input, cfdResult, calConfig);
+            break;
+          case 'sensor':
+            if (!sensorReadings?.length) {
+              return NextResponse.json({ error: 'Sensor readings are required for sensor calibration' }, { status: 400 });
+            }
+            calibrationResult = calibrateWithSensors(input, cfdResult, sensorReadings, calConfig);
+            break;
+          default:
+            return NextResponse.json({ error: `Unknown calibration mode: ${calConfig.mode}` }, { status: 400 });
+        }
+        return NextResponse.json({ calibrationResult });
       }
 
       default:

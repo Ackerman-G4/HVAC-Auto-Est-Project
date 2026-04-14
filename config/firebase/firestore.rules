@@ -43,6 +43,30 @@ service cloud.firestore {
         allow read, write: if isAuthenticated()
           && get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid;
       }
+
+      // Simulation cases (project-scoped)
+      match /simulationCases/{caseId} {
+        allow read, write: if isAuthenticated()
+          && get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid;
+
+        // Run jobs per case
+        match /runJobs/{jobId} {
+          allow read, write: if isAuthenticated()
+            && get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid;
+        }
+
+        // Artifact manifests per case
+        match /artifacts/{artifactId} {
+          allow read, write: if isAuthenticated()
+            && get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid;
+        }
+      }
+
+      // Simulation layout (floorplan HVAC/tile placements)
+      match /simulationLayouts/{layoutId} {
+        allow read, write: if isAuthenticated()
+          && get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid;
+      }
     }
 
     // ── Simulations (owner-scoped) ──────────────────────────

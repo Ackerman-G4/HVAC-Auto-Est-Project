@@ -46,6 +46,9 @@ export function Input({ className, label, error, hint, unit, prefix, showRangeHi
   const helperText = hint || rangeHint;
   const hasLeading = !!prefix;
   const hasTrailing = !!unit;
+  const errorId = activeError ? `${inputId}-error` : undefined;
+  const hintId = helperText && !activeError ? `${inputId}-hint` : undefined;
+  const describedBy = [errorId, hintId].filter(Boolean).join(' ') || undefined;
 
   return (
     <div className="w-full">
@@ -63,6 +66,8 @@ export function Input({ className, label, error, hint, unit, prefix, showRangeHi
         <input
           ref={ref}
           id={inputId}
+          aria-invalid={activeError ? true : undefined}
+          aria-describedby={describedBy}
           className={cn(
             'h-10 w-full rounded-xl border border-input bg-card/85 px-3 text-sm text-foreground backdrop-blur-sm',
             hasLeading && 'pl-9',
@@ -84,8 +89,8 @@ export function Input({ className, label, error, hint, unit, prefix, showRangeHi
           </span>
         )}
       </div>
-      {activeError && <p className="mt-1.5 text-xs font-medium text-destructive">{activeError}</p>}
-      {helperText && !activeError && <p className="mt-1.5 text-xs text-muted-foreground">{helperText}</p>}
+      {activeError && <p id={errorId} className="mt-1.5 text-xs font-medium text-destructive">{activeError}</p>}
+      {helperText && !activeError && <p id={hintId} className="mt-1.5 text-xs text-muted-foreground">{helperText}</p>}
     </div>
   );
 }

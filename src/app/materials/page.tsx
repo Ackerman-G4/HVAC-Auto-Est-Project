@@ -30,6 +30,7 @@ import { Dialog, ConfirmDialog } from '@/components/ui/dialog';
 import { showToast } from '@/components/ui/toast';
 import { cardGridVariants, cardItemVariants } from '@/animations/list-variants';
 import { formatPHP } from '@/lib/utils/format-currency';
+import { cn } from '@/lib/utils/cn';
 import { safeJsonParse } from '@/lib/utils/safe-json';
 import { useAuthStore } from '@/stores/auth-store';
 import { authFetch } from '@/lib/api-client';
@@ -41,6 +42,7 @@ interface MaterialItem {
   unit: string;
   unitPricePHP: number;
   specification?: string;
+  location?: string;
   supplierId?: string | null;
   supplier?: { id: string; name: string } | null;
 }
@@ -62,6 +64,7 @@ interface MaterialFormState {
   unit: string;
   unitPricePHP: string;
   specification: string;
+  location: string;
   supplierId: string;
 }
 
@@ -81,6 +84,7 @@ const defaultMaterialForm: MaterialFormState = {
   unit: 'pc',
   unitPricePHP: '0',
   specification: '',
+  location: '',
   supplierId: '',
 };
 
@@ -104,6 +108,24 @@ function parseSupplierCategories(categories: SupplierItem['categories']): string
 
 function categoriesToInput(categories: SupplierItem['categories']): string {
   return parseSupplierCategories(categories).join(', ');
+}
+
+type BadgeVariant = 'default' | 'secondary' | 'accent' | 'destructive' | 'success' | 'warning' | 'outline';
+
+const CATEGORY_COLORS: Record<string, BadgeVariant> = {
+  mechanical: 'accent',
+  electrical: 'warning',
+  piping: 'success',
+  insulation: 'secondary',
+  general: 'default',
+};
+
+function categoryBadgeVariant(category: string): BadgeVariant {
+  const key = category.toLowerCase().replace(/[_\s]/g, '');
+  for (const [match, variant] of Object.entries(CATEGORY_COLORS)) {
+    if (key.includes(match)) return variant;
+  }
+  return 'default';
 }
 
 async function parseResponseError(response: Response, fallback: string): Promise<string> {
@@ -317,6 +339,7 @@ export default function MaterialsPage() {
       unit: material.unit,
       unitPricePHP: String(material.unitPricePHP || 0),
       specification: material.specification || '',
+      location: material.location || '',
       supplierId: material.supplierId || material.supplier?.id || '',
     });
     setMaterialDialogOpen(true);
@@ -390,6 +413,7 @@ export default function MaterialsPage() {
           unit,
           unitPricePHP,
           specification,
+          location: materialForm.location.trim(),
           supplierId: materialForm.supplierId || null,
         }),
       });
@@ -521,8 +545,8 @@ export default function MaterialsPage() {
   return (
     <PageWrapper>
       <PageHeader
-        title="Materials & Suppliers"
-        description="Browse HVAC materials catalog and Philippine suppliers directory"
+        title="Tools Inventory"
+        description="Browse HVAC tools & materials catalog and Philippine suppliers directory"
       />
 
       {!canManageCatalog && (
@@ -613,10 +637,43 @@ export default function MaterialsPage() {
                 }}
               >
                 <Plus className="mr-2 h-4 w-4" />
-                {activeTab === 'materials' ? 'Add Material' : 'Add Supplier'}
+                {activeTab === 'materials' ? 'Add Tool' : 'Add Supplier'}
               </Button>
             )}
           </div>
+
+          {/* Category filter pills */}
+          {activeTab === 'materials' && categories.length > 0 && (
+            <div className="mb-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setCategoryFilter('')}
+                className={cn(
+                  'rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors',
+                  !categoryFilter
+                    ? 'bg-primary text-primary-foreground'
+                    : 'border border-border bg-card text-muted-foreground hover:bg-secondary',
+                )}
+              >
+                All
+              </button>
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setCategoryFilter(cat === categoryFilter ? '' : cat)}
+                  className={cn(
+                    'rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors',
+                    cat === categoryFilter
+                      ? 'bg-primary text-primary-foreground'
+                      : 'border border-border bg-card text-muted-foreground hover:bg-secondary',
+                  )}
+                >
+                  {formatCategory(cat)}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Materials Tab */}
           {activeTab === 'materials' && (
@@ -639,6 +696,7 @@ export default function MaterialsPage() {
                         <tr className="border-b border-border">
                           <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Material</th>
                           <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground sm:table-cell">Category</th>
+                          <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground lg:table-cell">Location</th>
                           <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground md:table-cell">Specifications</th>
                           <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Unit</th>
                           <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Price</th>
@@ -662,11 +720,14 @@ export default function MaterialsPage() {
                                 <span className="text-[11px] text-muted-foreground">{mat.supplier.name}</span>
                               )}
                               <div className="sm:hidden">
-                                <Badge size="sm" className="mt-1">{formatCategory(mat.category)}</Badge>
+                                <Badge size="sm" variant={categoryBadgeVariant(mat.category)} className="mt-1">{formatCategory(mat.category)}</Badge>
                               </div>
                             </td>
                             <td className="hidden px-4 py-3 sm:table-cell">
-                              <Badge size="sm">{formatCategory(mat.category)}</Badge>
+                              <Badge size="sm" variant={categoryBadgeVariant(mat.category)}>{formatCategory(mat.category)}</Badge>
+                            </td>
+                            <td className="hidden px-4 py-3 text-sm text-muted-foreground lg:table-cell">
+                              {mat.location || '—'}
                             </td>
                             <td className="hidden px-4 py-3 text-sm text-muted-foreground md:table-cell">
                               {mat.specification || '—'}
@@ -858,14 +919,14 @@ export default function MaterialsPage() {
       <Dialog
         open={materialDialogOpen}
         onClose={closeMaterialDialog}
-        title={materialDialogMode === 'create' ? 'Add Material' : 'Edit Material'}
+        title={materialDialogMode === 'create' ? 'Add Tool' : 'Edit Tool'}
         description="Maintain catalog pricing and supplier linkage for takeoff and costing workflows."
         size="lg"
       >
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Input
-              label="Material Name"
+              label="Tool / Material Name"
               value={materialForm.name}
               onChange={(event) => setMaterialForm((prev) => ({ ...prev, name: event.target.value }))}
               maxLength={120}
@@ -875,6 +936,7 @@ export default function MaterialsPage() {
               value={materialForm.category}
               onChange={(event) => setMaterialForm((prev) => ({ ...prev, category: event.target.value }))}
               maxLength={80}
+              placeholder="Mechanical, Electrical, Piping, etc."
             />
             <Input
               label="Unit"
@@ -890,6 +952,13 @@ export default function MaterialsPage() {
               value={materialForm.unitPricePHP}
               onChange={(event) => setMaterialForm((prev) => ({ ...prev, unitPricePHP: event.target.value }))}
               showRangeHint={false}
+            />
+            <Input
+              label="Location"
+              value={materialForm.location}
+              onChange={(event) => setMaterialForm((prev) => ({ ...prev, location: event.target.value }))}
+              maxLength={200}
+              placeholder="Warehouse or site location"
             />
           </div>
 
@@ -913,7 +982,7 @@ export default function MaterialsPage() {
               Cancel
             </Button>
             <Button variant="accent" onClick={() => void handleMaterialSubmit()} isLoading={materialSubmitting}>
-              {materialDialogMode === 'create' ? 'Create Material' : 'Save Changes'}
+              {materialDialogMode === 'create' ? 'Create Tool' : 'Save Changes'}
             </Button>
           </div>
         </div>

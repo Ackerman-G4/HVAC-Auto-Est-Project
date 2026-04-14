@@ -1,8 +1,9 @@
 'use client';
 
 import React from 'react';
-import Image from 'next/image';
 import { motion } from 'framer-motion';
+import { HvacLogo } from '@/components/ui/hvac-logo';
+import { Z } from '@/lib/utils/z-indexes';
 
 const LOADING_STEPS = [
   'Initializing HVAC System...',
@@ -22,7 +23,7 @@ export function SystemLoadingScreen() {
   }, []);
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center overflow-hidden bg-background">
+    <div className="fixed inset-0 flex items-center justify-center overflow-hidden bg-background" style={{ zIndex: Z.loading }}>
       <div className="pointer-events-none absolute inset-0 system-grid-bg opacity-50" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_22%_20%,rgba(59,130,246,0.22),transparent_42%),radial-gradient(circle_at_78%_74%,rgba(34,197,94,0.18),transparent_44%)]" />
 
@@ -44,8 +45,8 @@ export function SystemLoadingScreen() {
               transition={{ repeat: Infinity, duration: 12, ease: 'linear' }}
               className="absolute h-20 w-20 rounded-full border border-accent/40"
             />
-            <div className="relative h-14 w-14 overflow-hidden rounded-2xl border border-border/60 bg-card/80 p-2">
-              <Image src="/icon-192x192.png" alt="HVAC Studio" fill sizes="56px" className="object-contain" priority />
+            <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl border border-border/60 bg-card/80">
+              <HvacLogo variant="color" size={36} />
             </div>
           </div>
 

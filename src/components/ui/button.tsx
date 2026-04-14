@@ -23,10 +23,10 @@ export function Button({ className, variant = 'primary', size = 'md', isLoading,
   };
 
   const sizes = {
-    sm: 'h-9 px-4 text-[13px]',
+    sm: 'h-10 px-4 text-[13px]',
     md: 'h-10 px-5 text-sm',
     lg: 'h-11 px-6 text-base',
-    icon: 'h-10 w-10 p-0',
+    icon: 'h-11 w-11 p-0',
   };
 
   return (

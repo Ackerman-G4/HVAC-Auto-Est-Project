@@ -21,13 +21,35 @@ interface TabsProps {
 }
 
 export function Tabs({ tabs, activeTab, onTabChange, children, className }: TabsProps) {
+  const handleKeyDown = (e: React.KeyboardEvent, idx: number) => {
+    let nextIdx = idx;
+    if (e.key === 'ArrowRight') nextIdx = (idx + 1) % tabs.length;
+    else if (e.key === 'ArrowLeft') nextIdx = (idx - 1 + tabs.length) % tabs.length;
+    else if (e.key === 'Home') nextIdx = 0;
+    else if (e.key === 'End') nextIdx = tabs.length - 1;
+    else return;
+    e.preventDefault();
+    onTabChange(tabs[nextIdx].id);
+    (e.currentTarget.parentElement?.children[nextIdx] as HTMLElement)?.focus();
+  };
+
   return (
     <div className={cn('w-full', className)}>
-      <div className="no-print flex w-fit max-w-full gap-1 overflow-x-auto rounded-2xl border border-border/70 bg-secondary/50 p-1.5 backdrop-blur-sm">
-        {tabs.map((tab) => (
+      <div
+        role="tablist"
+        aria-orientation="horizontal"
+        className="no-print flex w-fit max-w-full gap-1 overflow-x-auto rounded-2xl border border-border/70 bg-secondary/50 p-1.5 backdrop-blur-sm"
+      >
+        {tabs.map((tab, idx) => (
           <button
             key={tab.id}
+            role="tab"
+            id={`tab-${tab.id}`}
+            aria-selected={activeTab === tab.id}
+            aria-controls={`tabpanel-${tab.id}`}
+            tabIndex={activeTab === tab.id ? 0 : -1}
             onClick={() => onTabChange(tab.id)}
+            onKeyDown={(e) => handleKeyDown(e, idx)}
             className={cn(
               'group relative flex items-center gap-2 whitespace-nowrap rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-150',
               activeTab === tab.id
@@ -86,6 +108,10 @@ interface TabPanelProps {
 
 export function TabPanel({ tabId, activeTab, children }: TabPanelProps) {
   if (tabId !== activeTab) return null;
-  return <>{children}</>;
+  return (
+    <div role="tabpanel" id={`tabpanel-${tabId}`} aria-labelledby={`tab-${tabId}`}>
+      {children}
+    </div>
+  );
 }
 

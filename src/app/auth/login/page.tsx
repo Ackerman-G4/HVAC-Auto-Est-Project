@@ -4,11 +4,11 @@ import React from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { GoogleLogin } from '@react-oauth/google';
-import { Wind } from 'lucide-react';
 import { AuthSplitHero } from '@/components/auth/auth-split-hero';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { HvacLogo } from '@/components/ui/hvac-logo';
 import { CardSkeleton } from '@/components/ui/skeleton';
 import { showToast } from '@/components/ui/toast';
 import { getZodFieldErrors, loginRequestSchema } from '@/lib/validation/auth';
@@ -25,6 +25,10 @@ function LoginPageContent() {
 
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
+  const [rememberMe, setRememberMe] = React.useState(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('hvac-remember-me') === '1';
+    return false;
+  });
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
 
   const nextTarget = searchParams.get('next') || '/';
@@ -65,7 +69,7 @@ function LoginPageContent() {
         <div className="relative z-10 w-full max-w-115">
           <div className="mb-8 text-center">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-border/80 bg-card/70 px-3 py-1.5 text-xs font-medium text-muted-foreground">
-              <Wind size={12} className="text-primary" />
+              <HvacLogo variant="color" size={16} />
               Precision Cooling Workspace
             </div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
@@ -100,6 +104,28 @@ function LoginPageContent() {
                   error={fieldErrors.password}
                   placeholder="Enter your password"
                 />
+
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => {
+                        setRememberMe(e.target.checked);
+                        localStorage.setItem('hvac-remember-me', e.target.checked ? '1' : '0');
+                      }}
+                      className="h-4 w-4 rounded border-border accent-primary"
+                    />
+                    Remember me
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => showToast('info', 'Password Reset', 'Password reset functionality coming soon.')}
+                    className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
 
                 {serverError && (
                   <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">

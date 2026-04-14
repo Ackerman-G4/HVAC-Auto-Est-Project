@@ -2,10 +2,11 @@
 
 import React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { MoonStar, Sun, UserCircle2 } from 'lucide-react';
+import { MoonStar, Sun, UserCircle2, Gauge, GraduationCap, Search } from 'lucide-react';
 import { Sidebar } from './sidebar';
 import { ToastContainer } from '@/components/ui/toast';
 import { Button } from '@/components/ui/button';
+import { HvacLogo } from '@/components/ui/hvac-logo';
 import { SystemLoadingScreen } from '@/components/layout/system-loading-screen';
 import { WelcomeOverlay } from '@/components/layout/welcome-overlay';
 import { useAuthStore } from '@/stores/auth-store';
@@ -26,6 +27,8 @@ export function AppShell({ children }: AppShellProps) {
   const theme = useUIStore((state) => state.theme);
   const setTheme = useUIStore((state) => state.setTheme);
   const toggleTheme = useUIStore((state) => state.toggleTheme);
+  const workspaceMode = useUIStore((state) => state.workspaceMode);
+  const setWorkspaceMode = useUIStore((state) => state.setWorkspaceMode);
   const setSidebarCollapsed = useUIStore((state) => state.setSidebarCollapsed);
   const setMobileSidebar = useUIStore((state) => state.setMobileSidebar);
   const user = useAuthStore((state) => state.user);
@@ -118,21 +121,59 @@ export function AppShell({ children }: AppShellProps) {
   return (
     <div className="relative grid min-h-screen grid-cols-[auto_minmax(0,1fr)] overflow-hidden bg-background font-sans text-foreground">
       <Sidebar />
-      <main className="relative min-w-0 overflow-hidden">
+      <main id="main-content" className="relative min-w-0 overflow-hidden">
         <div className="flex h-screen min-h-0 flex-col">
           {!routeMeta.hideHeader && (
-            <header className="panel-glass sticky top-0 z-20 border-b border-border/70 px-4 py-3 md:px-6">
-              <div className="flex items-center justify-between gap-4">
-                <div className="min-w-0 pl-13 md:pl-0">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                    {routeMeta.subtitle}
-                  </p>
-                  <h1 className="display-heading mt-1 truncate text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+            <header className="panel-glass sticky top-0 z-20 flex h-16 shrink-0 items-center border-b border-border/70 px-4 md:px-6">
+              <div className="flex w-full items-center justify-between gap-4">
+                <div className="flex min-w-0 items-center gap-3 pl-13 md:pl-0">
+                  <HvacLogo variant="mono" size={24} className="hidden text-muted-foreground md:block" />
+                  <h1 className="truncate text-base font-semibold tracking-tight text-foreground sm:text-lg">
                     {routeMeta.title}
                   </h1>
                 </div>
 
                 <div className="flex items-center gap-2">
+                  {/* Search bar */}
+                  <div className="hidden items-center gap-2 rounded-xl border border-border/70 bg-card/60 px-3 py-1.5 text-sm text-muted-foreground md:flex">
+                    <Search size={14} />
+                    <span className="text-xs">Search...</span>
+                    <kbd className="ml-2 rounded-md border border-border/80 bg-secondary/50 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">⌘K</kbd>
+                  </div>
+                  {/* Workspace mode toggle pill */}
+                  <div className="hidden items-center rounded-lg border border-border/70 bg-card/60 p-0.5 md:flex" role="radiogroup" aria-label="Workspace mode">
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={workspaceMode === 'beginner'}
+                      onClick={() => setWorkspaceMode('beginner')}
+                      className={cn(
+                        'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
+                        workspaceMode === 'beginner'
+                          ? 'bg-primary/15 text-primary'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      <GraduationCap size={14} />
+                      Guided
+                    </button>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={workspaceMode === 'professional'}
+                      onClick={() => setWorkspaceMode('professional')}
+                      className={cn(
+                        'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
+                        workspaceMode === 'professional'
+                          ? 'bg-primary/15 text-primary'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      <Gauge size={14} />
+                      Pro
+                    </button>
+                  </div>
+
                   <Button
                     type="button"
                     size="icon"

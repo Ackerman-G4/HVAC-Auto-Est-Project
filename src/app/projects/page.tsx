@@ -314,6 +314,14 @@ export default function ProjectsPage() {
     deleted: 'destructive',
   };
 
+  const statusProgress: Record<string, { percent: number; color: string }> = {
+    draft: { percent: 15, color: 'bg-muted-foreground' },
+    active: { percent: 50, color: 'bg-primary' },
+    completed: { percent: 100, color: 'bg-success' },
+    archived: { percent: 100, color: 'bg-muted-foreground/50' },
+    deleted: { percent: 0, color: 'bg-destructive' },
+  };
+
   const statuses = DASHBOARD_STATUSES;
   const draftCount = projects.filter((p) => p.status === 'draft').length;
   const activeCount = projects.filter((p) => p.status === 'active').length;
@@ -431,7 +439,7 @@ export default function ProjectsPage() {
               variants={cardGridVariants}
               initial="hidden"
               animate="visible"
-              className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4"
+              className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-(--space-component-gap)"
             >
               {projects.map((project) => {
                 const projectTR = project.floors?.reduce(
@@ -484,6 +492,19 @@ export default function ProjectsPage() {
                               </p>
                               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Equip</p>
                             </div>
+                          </div>
+                        </div>
+                        {/* Progress indicator */}
+                        <div className="mt-4">
+                          <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+                            <span className="capitalize">{project.status}</span>
+                            <span className="tabular-nums">{statusProgress[project.status]?.percent ?? 0}%</span>
+                          </div>
+                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${statusProgress[project.status]?.color ?? 'bg-muted-foreground'}`}
+                              style={{ width: `${statusProgress[project.status]?.percent ?? 0}%` }}
+                            />
                           </div>
                         </div>
                         <div className="mt-4 flex flex-wrap gap-1 border-t border-border pt-3">

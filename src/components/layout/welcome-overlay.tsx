@@ -1,9 +1,10 @@
 'use client';
 
 import React from 'react';
-import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Wind, Thermometer, Droplets } from 'lucide-react';
+import { HvacLogo } from '@/components/ui/hvac-logo';
+import { Z } from '@/lib/utils/z-indexes';
 
 interface WelcomeOverlayProps {
   open: boolean;
@@ -52,7 +53,8 @@ export function WelcomeOverlay({ open, userName, onComplete }: WelcomeOverlayPro
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.25 }}
-          className="fixed inset-0 z-[110] flex items-center justify-center bg-background/85 px-4 backdrop-blur-md"
+          className="fixed inset-0 flex items-center justify-center bg-background/85 px-4 backdrop-blur-md"
+          style={{ zIndex: Z.welcome }}
         >
           <motion.div
             initial={{ opacity: 0, y: 24, scale: 0.98 }}
@@ -98,8 +100,8 @@ export function WelcomeOverlay({ open, userName, onComplete }: WelcomeOverlayPro
                   transition={{ duration: 5, repeat: Infinity, ease: 'linear' }}
                   className="absolute h-16 w-16 rounded-full border border-accent/60"
                 />
-                <div className="relative h-16 w-16 overflow-hidden rounded-2xl border border-border bg-card/80 p-2">
-                  <Image src="/icon-192x192.png" alt="HVAC Studio logo" fill sizes="64px" className="object-contain" priority />
+                <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl border border-border bg-card/80">
+                  <HvacLogo variant="color" size={40} />
                 </div>
               </div>
             </div>

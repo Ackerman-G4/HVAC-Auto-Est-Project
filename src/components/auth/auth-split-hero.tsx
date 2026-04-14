@@ -1,9 +1,9 @@
 'use client';
 
 import React from 'react';
-import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { Wind, Activity } from 'lucide-react';
+import { HvacLogo } from '@/components/ui/hvac-logo';
 
 interface AuthSplitHeroProps {
   heading: string;
@@ -16,8 +16,8 @@ export function AuthSplitHero({ heading, subtitle }: AuthSplitHeroProps) {
       <div className="system-grid-bg absolute inset-0 opacity-50" />
 
       <div className="relative z-10 flex items-center gap-3">
-        <div className="relative h-10 w-10 overflow-hidden rounded-xl border border-border/80 bg-card/70 p-1.5">
-          <Image src="/icon-192x192.png" alt="HVAC Studio" fill sizes="40px" className="object-contain" priority />
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-border/80 bg-card/70">
+          <HvacLogo variant="color" size={28} />
         </div>
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">HVAC Studio</p>

@@ -11,12 +11,13 @@
  * - Equipment boxes (racks + HVAC units) with labels
  * - Pulsing hotspot indicators
  */
-import React, { Suspense, useMemo, useRef } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import React, { Suspense, useMemo, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import { OrbitControls, Text } from '@react-three/drei';
 import * as THREE from 'three';
-import type { SimulationResult, ServerRack, HVACUnit } from '@/types/simulation';
-import { HeatmapSlice, VelocityArrows, AirflowParticles } from './CFDOverlay3D';
+import type { SimulationResult, ServerRack, HVACUnit, InspectedCellInfo, TileFlowViewConfig, TileAirflowData, ThermalAlert } from '@/types/simulation';
+import { useSimulationStore } from '@/stores/simulation-store';
+import { HeatmapSlice, VelocityArrows, AirflowParticles, Streamlines, TemperatureFog, TileAirflowOverlay, AlertZoneMarkers } from './CFDOverlay3D';
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -28,6 +29,15 @@ interface Props {
   showAirflow?: boolean;
   selectedSliceZ?: number;
   viewMode?: 'temperature' | 'velocity' | 'pressure' | 'humidity';
+  onInspect?: (cell: InspectedCellInfo | null) => void;
+  // TileFlow overlays
+  tileFlowView?: TileFlowViewConfig;
+  tileAirflowData?: TileAirflowData[];
+  alerts?: ThermalAlert[];
+}
+
+export interface AirflowViewerHandle {
+  captureSnapshot: () => string | null;
 }
 
 // ─── Equipment Meshes ───────────────────────────────────────────────
@@ -141,6 +151,54 @@ function HotspotMarker({ position, temperature, severity }: {
   );
 }
 
+// ─── Inspect Click Plane ────────────────────────────────────────────
+
+function InspectPlane({ result, sliceZ, centerX, centerZ, onInspect }: {
+  result: SimulationResult;
+  sliceZ: number;
+  centerX: number;
+  centerZ: number;
+  onInspect: (cell: InspectedCellInfo | null) => void;
+}) {
+  const { config, temperatureField, velocityField, pressureField, humidityField } = result;
+  const planeW = config.gridSizeX * config.gridResolution;
+  const planeH = config.gridSizeY * config.gridResolution;
+  const y = sliceZ * config.gridResolution;
+
+  const handleClick = useCallback((e: ThreeEvent<MouseEvent>) => {
+    e.stopPropagation();
+    const pt = e.point;
+    const ix = Math.floor((pt.x + centerX) / config.gridResolution);
+    const iz = Math.floor((pt.z + centerZ) / config.gridResolution);
+    const iy = Math.min(Math.max(sliceZ, 0), config.gridSizeZ - 1);
+
+    if (ix < 0 || ix >= config.gridSizeX || iz < 0 || iz >= config.gridSizeY) {
+      onInspect(null);
+      return;
+    }
+
+    const temp = temperatureField?.[ix]?.[iz]?.[iy] ?? 0;
+    const vel = velocityField?.[ix]?.[iz]?.[iy] ?? { x: 0, y: 0, z: 0 };
+    const pres = pressureField?.[ix]?.[iz]?.[iy] ?? 0;
+    const hum = humidityField?.[ix]?.[iz]?.[iy] ?? 0;
+
+    onInspect({
+      position: { x: ix * config.gridResolution, y: iz * config.gridResolution, z: iy * config.gridResolution },
+      temperature: temp,
+      velocity: vel,
+      pressure: pres,
+      humidity: hum,
+    });
+  }, [result, sliceZ, centerX, centerZ, config, temperatureField, velocityField, pressureField, humidityField, onInspect]);
+
+  return (
+    <mesh position={[0, y + 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} onClick={handleClick}>
+      <planeGeometry args={[planeW, planeH]} />
+      <meshBasicMaterial transparent opacity={0} side={THREE.DoubleSide} />
+    </mesh>
+  );
+}
+
 // ─── Floor Grid ─────────────────────────────────────────────────────
 
 function FloorGrid({ sizeX, sizeY, resolution }: { sizeX: number; sizeY: number; resolution: number }) {
@@ -159,11 +217,17 @@ function Scene(props: Props) {
     result, racks, hvacUnits,
     showHotspots = true, showAirflow = true,
     selectedSliceZ = 1, viewMode = 'temperature',
+    onInspect,
+    tileFlowView, tileAirflowData, alerts,
   } = props;
 
   const { config, metrics } = result;
   const centerX = (config.gridSizeX * config.gridResolution) / 2;
   const centerZ = (config.gridSizeY * config.gridResolution) / 2;
+
+  const handleInspect = useCallback((cell: InspectedCellInfo | null) => {
+    onInspect?.(cell);
+  }, [onInspect]);
 
   const hotspotPositions = useMemo(() =>
     metrics.hotspots.map(h => ({
@@ -214,6 +278,40 @@ function Scene(props: Props) {
         <HotspotMarker key={i} position={hs.position} temperature={hs.temperature} severity={hs.severity} />
       ))}
 
+      {/* Inspect click plane */}
+      <InspectPlane
+        result={result}
+        sliceZ={selectedSliceZ}
+        centerX={centerX}
+        centerZ={centerZ}
+        onInspect={handleInspect}
+      />
+
+      {/* TileFlow: Streamlines */}
+      {tileFlowView?.showStreamlines && (
+        <Streamlines result={result} config={tileFlowView.streamlineConfig} sliceZ={selectedSliceZ} />
+      )}
+
+      {/* TileFlow: Volumetric fog */}
+      {tileFlowView?.showFog && (
+        <TemperatureFog result={result} opacity={tileFlowView.fogOpacity} />
+      )}
+
+      {/* TileFlow: Tile airflow overlay */}
+      {tileFlowView?.showTileOverlay && tileAirflowData && tileAirflowData.length > 0 && (
+        <TileAirflowOverlay
+          tileData={tileAirflowData}
+          gridResolution={config.gridResolution}
+          gridSizeX={config.gridSizeX}
+          gridSizeY={config.gridSizeY}
+        />
+      )}
+
+      {/* TileFlow: Alert zone markers */}
+      {tileFlowView?.showAlerts && alerts && alerts.length > 0 && (
+        <AlertZoneMarkers alerts={alerts} gridResolution={config.gridResolution} />
+      )}
+
       <OrbitControls
         makeDefault
         enableDamping
@@ -228,15 +326,25 @@ function Scene(props: Props) {
 
 // ─── Main Component ─────────────────────────────────────────────────
 
-export default function AirflowViewer3D(props: Props) {
+const AirflowViewer3D = forwardRef<AirflowViewerHandle, Props>(function AirflowViewer3D(props, ref) {
   const { result, viewMode = 'temperature', selectedSliceZ = 1 } = props;
   const { metrics, config } = result;
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    captureSnapshot: () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return null;
+      return canvas.toDataURL('image/png');
+    },
+  }), []);
 
   return (
     <div className="relative w-full h-125 rounded-xl overflow-hidden border border-slate-700 bg-slate-900">
       <Canvas
+        ref={canvasRef}
         camera={{ position: [8, 6, 8], fov: 50, near: 0.1, far: 200 }}
-        gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping }}
+        gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, preserveDrawingBuffer: true }}
         style={{ background: '#0f172a' }}
       >
         <Suspense fallback={null}>
@@ -274,4 +382,6 @@ export default function AirflowViewer3D(props: Props) {
       </div>
     </div>
   );
-}
+});
+
+export default AirflowViewer3D;

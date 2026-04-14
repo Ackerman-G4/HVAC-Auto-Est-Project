@@ -16,15 +16,36 @@ interface UIStore {
   toggleTheme: () => void;
 }
 
-export const useUIStore = create<UIStore>((set) => ({
-  sidebarCollapsed: false,
-  mobileSidebarOpen: false,
-  workspaceMode: 'professional',
-  theme: 'dark',
-  toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
-  setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
-  setMobileSidebar: (open) => set({ mobileSidebarOpen: open }),
-  setWorkspaceMode: (mode) => set({ workspaceMode: mode }),
-  setTheme: (theme) => set({ theme }),
-  toggleTheme: () => set((state) => ({ theme: state.theme === 'light' ? 'dark' : 'light' })),
-}));
+function getStoredMode(): WorkspaceMode {
+  if (typeof window === 'undefined') return 'professional';
+  const stored = localStorage.getItem('hvac-workspace-mode');
+  return stored === 'beginner' ? 'beginner' : 'professional';
+}
+
+function syncModeAttribute(mode: WorkspaceMode) {
+  if (typeof document !== 'undefined') {
+    document.documentElement.setAttribute('data-workspace-mode', mode);
+  }
+}
+
+export const useUIStore = create<UIStore>((set) => {
+  const initialMode = getStoredMode();
+  syncModeAttribute(initialMode);
+
+  return {
+    sidebarCollapsed: false,
+    mobileSidebarOpen: false,
+    workspaceMode: initialMode,
+    theme: 'dark',
+    toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+    setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
+    setMobileSidebar: (open) => set({ mobileSidebarOpen: open }),
+    setWorkspaceMode: (mode) => {
+      localStorage.setItem('hvac-workspace-mode', mode);
+      syncModeAttribute(mode);
+      set({ workspaceMode: mode });
+    },
+    setTheme: (theme) => set({ theme }),
+    toggleTheme: () => set((state) => ({ theme: state.theme === 'light' ? 'dark' : 'light' })),
+  };
+});

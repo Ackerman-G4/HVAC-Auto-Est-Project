@@ -30,9 +30,9 @@ export const metadata: Metadata = {
   description: "Next-generation HVAC estimation platform: intelligent cooling load analysis, automated equipment sizing, BOQ generation, and construction-ready outputs.",
   manifest: "/manifest.json",
   icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon.ico",
-    apple: "/favicon.ico",
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+    apple: "/favicon.svg",
   },
   appleWebApp: {
     capable: true,
@@ -45,8 +45,8 @@ export const viewport: Viewport = {
   themeColor: "#3b82f6",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 5,
+  userScalable: true,
 };
 
 export default function RootLayout({
@@ -59,6 +59,9 @@ export default function RootLayout({
       <body
         className={`${jakarta.variable} ${spaceGrotesk.variable} ${jetBrainsMono.variable} antialiased`}
       >
+        <a href="#main-content" className="skip-link">
+          Skip to main content
+        </a>
         <GoogleAuthProvider>
           <AppShell>{children}</AppShell>
         </GoogleAuthProvider>

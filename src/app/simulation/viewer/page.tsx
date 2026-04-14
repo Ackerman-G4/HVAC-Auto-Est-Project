@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 import {
   Wind, Thermometer, Plus, Trash2, Play, ShieldCheck,
   AlertTriangle, Zap, TrendingUp, Server, AirVent, Grid3x3,
   RotateCcw, Settings2, BarChart3, Box, Wand2, Building2,
+  Gauge, Sliders, Activity, Layers, Crosshair,
 } from 'lucide-react';
 import { PageWrapper, PageHeader } from '@/components/ui/page-wrapper';
 import { StatCard } from '@/components/ui/stat-card';
@@ -23,6 +24,16 @@ import { showToast } from '@/components/ui/toast';
 const AirflowViewer3D = dynamic(
   () => import('@/components/building/AirflowViewer3D').then(mod => mod.default),
   { ssr: false, loading: () => <div className="panel-glass flex h-125 items-center justify-center rounded-xl border border-border/70 bg-card text-sm font-medium text-muted-foreground shadow-sm">Loading 3D viewer...</div> }
+);
+
+const TileFlowDashboard = dynamic(
+  () => import('@/components/building/TileFlowDashboard').then(mod => mod.default),
+  { ssr: false, loading: () => <div className="panel-glass flex h-64 items-center justify-center rounded-xl border border-border/70 bg-card text-sm font-medium text-muted-foreground shadow-sm">Loading dashboard...</div> }
+);
+
+const CalibrationPanel = dynamic(
+  () => import('@/components/building/CalibrationPanel').then(mod => mod.default),
+  { ssr: false, loading: () => <div className="panel-glass flex h-64 items-center justify-center rounded-xl border border-border/70 bg-card text-sm font-medium text-muted-foreground shadow-sm">Loading calibration...</div> }
 );
 
 // ─── Auto-Detect Types & Logic ──────────────────────────────────────
@@ -902,11 +913,14 @@ export default function SimulationPage() {
     runSimulation, runCompliance, runPUE, runOptimization,
     activeView, showHotspots, showAirflow, selectedSliceZ,
     setActiveView, setShowHotspots, setShowAirflow, setSelectedSliceZ,
-    addRack, addHVACUnit, setConfig, clearAll,
+    addRack, addHVACUnit, setConfig, setMode, config, clearAll,
+    inspectedCell, setInspectedCell,
+    tileFlowView, setTileFlowView, alerts, tileAirflowData,
   } = useSimulationStore();  const [selectedProjectId, setSelectedProjectId] = useState('');
   const [detectedFloors, setDetectedFloors] = useState<DetectedFloor[]>([]);
   const [selectedFloorId, setSelectedFloorId] = useState('');
   const [isDetecting, setIsDetecting] = useState(false);
+  const tileFlowViewerRef = useRef<import('@/components/building/AirflowViewer3D').AirflowViewerHandle>(null);
 
   // Fetch projects
   useEffect(() => {
@@ -1013,9 +1027,12 @@ export default function SimulationPage() {
   const tabs = [
     { id: 'equipment', label: 'Equipment', icon: <Server size={16} />, badge: racks.length + hvacUnits.length },
     { id: 'config', label: 'Configuration', icon: <Settings2 size={16} /> },
+    { id: 'simulation', label: 'Simulation', icon: <Activity size={16} /> },
     { id: '3d', label: '3D Airflow', icon: <Box size={16} /> },
     { id: 'results', label: 'Results & Analysis', icon: <BarChart3 size={16} /> },
+    { id: 'tileflow', label: 'TileFlow Analysis', icon: <Layers size={16} /> },
     { id: 'failure', label: 'Failure Simulation', icon: <AlertTriangle size={16} /> },
+    { id: 'calibration', label: 'Calibration', icon: <Crosshair size={16} /> },
   ];
 
   return (
@@ -1124,6 +1141,115 @@ export default function SimulationPage() {
         <TabPanel tabId="config" activeTab={activeTab}>
           <ConfigPanel />
         </TabPanel>
+        <TabPanel tabId="simulation" activeTab={activeTab}>
+          <div className="space-y-5">
+            {/* Run Simulation */}
+            <div className="panel-glass rounded-xl border border-border/70 bg-card p-5 shadow-sm">
+              <h3 className="mb-4 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Run Simulation</h3>
+              <button
+                onClick={() => runSimulation(selectedProjectId || '', selectedFloorId || '')}
+                disabled={racks.length === 0 || isRunning}
+                className="flex w-full items-center justify-center gap-2.5 rounded-xl bg-accent px-5 py-3.5 text-sm font-semibold text-accent-foreground shadow-md transition-colors hover:bg-accent/90 disabled:opacity-50"
+              >
+                {isRunning ? <><RotateCcw size={18} className="animate-spin" /> Running Simulation...</> : <><Play size={18} /> Run CFD Simulation</>}
+              </button>
+              {racks.length === 0 && (
+                <p className="mt-2 text-xs text-muted-foreground">Add equipment in the Equipment tab or auto-detect from project to enable simulation.</p>
+              )}
+            </div>
+
+            {/* Mesh Density */}
+            <div className="panel-glass rounded-xl border border-border/70 bg-card p-5 shadow-sm">
+              <h3 className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                <Sliders size={14} /> Mesh Density
+              </h3>
+              <div className="mb-3 flex items-center gap-3">
+                <span className="text-xs text-muted-foreground">Coarse</span>
+                <input
+                  type="range"
+                  min={0.25}
+                  max={2.0}
+                  step={0.25}
+                  value={config.gridResolution}
+                  onChange={(e) => setConfig({ gridResolution: Number(e.target.value) })}
+                  className="w-full"
+                  aria-label="Grid resolution"
+                />
+                <span className="text-xs text-muted-foreground">Fine</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium text-foreground">{config.gridResolution} m/cell</span>
+                <span className="text-xs text-muted-foreground">
+                  Grid: {config.gridSizeX}×{config.gridSizeY}×{config.gridSizeZ}
+                </span>
+              </div>
+              <div className="mt-3 flex gap-2">
+                {(['fast', 'balanced', 'engineering'] as const).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setMode(m)}
+                    className={`flex-1 rounded-lg border px-3 py-2 text-xs font-semibold capitalize transition-colors ${
+                      config.mode === m
+                        ? 'border-accent bg-accent/15 text-accent'
+                        : 'border-border bg-background text-muted-foreground hover:border-border'
+                    }`}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Accuracy Indicator */}
+            <div className="panel-glass rounded-xl border border-border/70 bg-card p-5 shadow-sm">
+              <h3 className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                <Gauge size={14} /> Accuracy Indicator
+              </h3>
+              {result ? (() => {
+                const converged = result.metrics.converged;
+                const residual = result.metrics.energyResidual;
+                const iterPct = Math.min(100, Math.round((result.iteration / result.config.iterations) * 100));
+                const qualityLabel = converged ? 'Converged' : residual < 0.01 ? 'Near-converged' : 'Not converged';
+                const qualityColor = converged ? 'text-green-500' : residual < 0.01 ? 'text-yellow-500' : 'text-red-500';
+                const barColor = converged ? 'bg-green-500' : residual < 0.01 ? 'bg-yellow-500' : 'bg-red-500';
+                return (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className={`text-sm font-semibold ${qualityColor}`}>{qualityLabel}</span>
+                      <span className="text-xs tabular-nums text-muted-foreground">{result.iteration}/{result.config.iterations} iters</span>
+                    </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+                      <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${iterPct}%` }} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <span className="text-muted-foreground">Energy Residual</span>
+                        <p className="font-semibold tabular-nums text-foreground">{residual.toExponential(2)}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Momentum Residual</span>
+                        <p className="font-semibold tabular-nums text-foreground">{result.metrics.momentumResidual.toExponential(2)}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Max Divergence</span>
+                        <p className="font-semibold tabular-nums text-foreground">{result.metrics.maxDivergence.toExponential(2)}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Effective Δt</span>
+                        <p className="font-semibold tabular-nums text-foreground">{result.effectiveTimeStep.toFixed(4)} s</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })() : (
+                <div className="flex flex-col items-center py-6 text-center">
+                  <Gauge size={32} className="mb-2 text-muted-foreground/40" />
+                  <p className="text-sm text-muted-foreground">Run a simulation to see convergence data</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </TabPanel>
         <TabPanel tabId="3d" activeTab={activeTab}>
           {result ? (
             <>
@@ -1132,7 +1258,7 @@ export default function SimulationPage() {
                   <span className="mr-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
                     View Mode
                   </span>
-                  {(['temperature', 'velocity', 'pressure'] as const).map((mode) => (
+                  {(['temperature', 'velocity', 'pressure', 'humidity'] as const).map((mode) => (
                     <button
                       key={mode}
                       onClick={() => setActiveView(mode)}
@@ -1194,7 +1320,45 @@ export default function SimulationPage() {
                 showAirflow={showAirflow}
                 selectedSliceZ={selectedSliceZ}
                 viewMode={activeView}
+                onInspect={setInspectedCell}
               />
+
+              {/* Inspect overlay card */}
+              {inspectedCell && (
+                <div className="mt-3 panel-glass rounded-xl border border-accent/30 bg-card p-4 shadow-sm">
+                  <div className="mb-2 flex items-center justify-between">
+                    <h4 className="text-[11px] font-semibold uppercase tracking-widest text-accent">Inspected Cell</h4>
+                    <button
+                      onClick={() => setInspectedCell(null)}
+                      className="text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-4">
+                    <div>
+                      <span className="text-xs text-muted-foreground">Position</span>
+                      <p className="font-semibold tabular-nums text-foreground">
+                        ({inspectedCell.position.x.toFixed(1)}, {inspectedCell.position.y.toFixed(1)}, {inspectedCell.position.z.toFixed(1)}) m
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Temperature</span>
+                      <p className="font-semibold tabular-nums text-foreground">{inspectedCell.temperature.toFixed(1)} °C</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Velocity</span>
+                      <p className="font-semibold tabular-nums text-foreground">
+                        {Math.sqrt(inspectedCell.velocity.x ** 2 + inspectedCell.velocity.y ** 2 + inspectedCell.velocity.z ** 2).toFixed(2)} m/s
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Pressure</span>
+                      <p className="font-semibold tabular-nums text-foreground">{inspectedCell.pressure.toFixed(1)} Pa</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             <div className="panel-glass flex h-125 flex-col items-center justify-center rounded-xl border border-border/70 bg-card shadow-sm">
@@ -1206,8 +1370,82 @@ export default function SimulationPage() {
         <TabPanel tabId="results" activeTab={activeTab}>
           <ResultsPanel />
         </TabPanel>
+        <TabPanel tabId="tileflow" activeTab={activeTab}>
+          {result ? (
+            <div className="space-y-6">
+              {/* TileFlow 3D Controls */}
+              <div className="panel-glass rounded-xl border border-border/70 bg-card p-4 shadow-sm">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="mr-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">TileFlow Overlays</span>
+                  {([
+                    { key: 'showStreamlines' as const, label: 'Streamlines' },
+                    { key: 'showFog' as const, label: 'Temp Fog' },
+                    { key: 'showTileOverlay' as const, label: 'Tile Airflow' },
+                    { key: 'showAlerts' as const, label: 'Alert Zones' },
+                  ]).map(({ key, label }) => (
+                    <label key={key} className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-semibold text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        checked={tileFlowView[key]}
+                        onChange={(e) => setTileFlowView({ [key]: e.target.checked })}
+                      />
+                      {label}
+                    </label>
+                  ))}
+                  <div className="ml-auto flex items-center gap-2">
+                    <label className="text-xs text-muted-foreground">Fog Opacity</label>
+                    <input
+                      type="range"
+                      min={0.05}
+                      max={0.8}
+                      step={0.05}
+                      value={tileFlowView.fogOpacity}
+                      onChange={(e) => setTileFlowView({ fogOpacity: Number(e.target.value) })}
+                      className="w-24"
+                      aria-label="Fog opacity"
+                    />
+                    <span className="w-8 text-xs tabular-nums text-foreground">{(tileFlowView.fogOpacity * 100).toFixed(0)}%</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3D Viewer with TileFlow overlays */}
+              <AirflowViewer3D
+                ref={tileFlowViewerRef}
+                result={result}
+                racks={racks}
+                hvacUnits={hvacUnits}
+                showHotspots={showHotspots}
+                showAirflow={false}
+                selectedSliceZ={selectedSliceZ}
+                viewMode={activeView}
+                onInspect={setInspectedCell}
+                tileFlowView={tileFlowView}
+                tileAirflowData={tileAirflowData}
+                alerts={alerts}
+              />
+
+              {/* TileFlow Dashboard */}
+              <TileFlowDashboard
+                result={result}
+                alerts={alerts}
+                tileAirflowData={tileAirflowData}
+                onSnapshotCapture={() => tileFlowViewerRef.current?.captureSnapshot() ?? null}
+              />
+            </div>
+          ) : (
+            <div className="panel-glass flex h-64 flex-col items-center justify-center rounded-xl border border-border/70 bg-card shadow-sm">
+              <Layers size={48} className="mb-4 text-muted-foreground/45" />
+              <p className="text-lg font-bold text-foreground">No simulation results yet</p>
+              <p className="mt-1 text-sm text-muted-foreground">Run a CFD simulation to view TileFlow analysis</p>
+            </div>
+          )}
+        </TabPanel>
         <TabPanel tabId="failure" activeTab={activeTab}>
           <FailurePanel />
+        </TabPanel>
+        <TabPanel tabId="calibration" activeTab={activeTab}>
+          <CalibrationPanel />
         </TabPanel>
       </Tabs>
     </PageWrapper>
