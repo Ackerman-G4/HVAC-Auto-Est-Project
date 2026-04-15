@@ -20,6 +20,8 @@ import {
   Wrench,
   Stethoscope,
   ClipboardList,
+  Waves,
+  Box,
 } from 'lucide-react';
 import { HvacLogo } from '@/components/ui/hvac-logo';
 import { cn } from '@/lib/utils/cn';
@@ -60,6 +62,14 @@ const mainNav: NavEntry[] = [
   { href: '/materials', label: 'Tools Inventory', icon: Wrench },
   { href: '/reports', label: 'Reports', icon: FileText },
   { href: '/quotation', label: 'Quotation', icon: ClipboardList },
+  {
+    label: 'CFD Simulation',
+    icon: Waves,
+    children: [
+      { href: '/simulation/workspace', label: 'Workspace', icon: Box },
+      { href: '/simulation/engine', label: 'Engine', icon: Cpu },
+    ],
+  },
 ];
 
 const bottomNav: NavItem[] = [

@@ -68,6 +68,10 @@ export function autoDetectEquipment(input: AutoDetectInput): AutoDetectResult {
   let rackCounter = 1;
   let hvacCounter = 1;
 
+  // Track cumulative offsets so each room's equipment occupies its own zone
+  let offsetX = 0;
+  const ROOM_GAP = 1.5; // gap between rooms in the layout
+
   for (const floor of input.floors) {
     for (const room of floor.rooms) {
       // ── Server rooms → racks + CRAC units + perforated tiles ──
@@ -88,12 +92,12 @@ export function autoDetectEquipment(input: AutoDetectInput): AutoDetectResult {
         for (let i = 0; i < rackCount; i++) {
           const row = Math.floor(i / racksPerRow);
           const col = i % racksPerRow;
-          const x = 0.5 + col * (RACK_W + 0.3);
+          const x = offsetX + 0.5 + col * (RACK_W + 0.3);
           const z = 0.8 + row * (RACK_D + rowSpacing);
 
           racks.push({
             name: `Rack-${String(rackCounter++).padStart(2, '0')}`,
-            position: { x: Math.min(x, roomWidthM - 0.5), y: 0, z: Math.min(z, roomDepthM - 0.5) },
+            position: { x: Math.min(x, offsetX + roomWidthM - 0.5), y: 0, z: Math.min(z, roomDepthM - 0.5) },
             width: RACK_W,
             depth: RACK_D,
             height: RACK_H,
@@ -117,7 +121,7 @@ export function autoDetectEquipment(input: AutoDetectInput): AutoDetectResult {
             type: 'crac' as HVACUnitType,
             name: `CRAC-${String(hvacCounter++).padStart(2, '0')}${isStandby ? ' (Standby)' : ''}`,
             position: {
-              x: c % 2 === 0 ? 0.3 : roomWidthM - 1.2,
+              x: offsetX + (c % 2 === 0 ? 0.3 : roomWidthM - 1.2),
               y: 0,
               z: 0.5 + Math.floor(c / 2) * 3,
             },
@@ -139,6 +143,7 @@ export function autoDetectEquipment(input: AutoDetectInput): AutoDetectResult {
         const tileGridW = Math.floor(roomWidthM / TILE_SIZE);
         const tileGridD = Math.floor(roomDepthM / TILE_SIZE);
         const cellsPerTile = Math.max(1, Math.round(TILE_SIZE / input.gridResolution));
+        const tileOffsetCells = Math.round(offsetX / input.gridResolution);
 
         for (let tx = 0; tx < tileGridW; tx++) {
           for (let tz = 0; tz < tileGridD; tz++) {
@@ -146,7 +151,7 @@ export function autoDetectEquipment(input: AutoDetectInput): AutoDetectResult {
             const isUnderRack = tx % 3 === 1; // skip hot-aisle positions
             if (!isUnderRack) {
               tiles.push({
-                x: tx * cellsPerTile,
+                x: tileOffsetCells + tx * cellsPerTile,
                 y: tz * cellsPerTile,
                 openArea: 0.25,
                 tileSize: TILE_SIZE,
@@ -159,6 +164,8 @@ export function autoDetectEquipment(input: AutoDetectInput): AutoDetectResult {
           `Floor ${floor.floorNumber} "${room.name}": ${rackCount} rack(s) [${density}], ` +
           `${cracCount} CRAC unit(s), ${tiles.length} perforated tile(s)`,
         );
+
+        offsetX += roomWidthM + ROOM_GAP;
       }
 
       // ── Mechanical rooms → AHU units ──────────────────────
@@ -166,12 +173,13 @@ export function autoDetectEquipment(input: AutoDetectInput): AutoDetectResult {
         const loadKW = room.equipmentLoad / 1000;
         const ahuCount = Math.max(1, Math.ceil(loadKW / 50));
         const perAhuKW = loadKW / ahuCount;
+        const roomWidthM = Math.sqrt(room.area * 1.5);
 
         for (let a = 0; a < ahuCount; a++) {
           hvacUnits.push({
             type: 'ahu' as HVACUnitType,
             name: `AHU-${String(hvacCounter++).padStart(2, '0')}`,
-            position: { x: 1 + a * 2.5, y: 0, z: 1 },
+            position: { x: offsetX + 1 + a * 2.5, y: 0, z: 1 },
             width: 2.0,
             depth: 1.5,
             height: 2.2,
@@ -189,6 +197,8 @@ export function autoDetectEquipment(input: AutoDetectInput): AutoDetectResult {
         summary.push(
           `Floor ${floor.floorNumber} "${room.name}": ${ahuCount} AHU(s) @ ${perAhuKW.toFixed(1)} kW each`,
         );
+
+        offsetX += roomWidthM + ROOM_GAP;
       }
 
       // ── High-load non-server rooms → in-row cooling ───────
@@ -201,7 +211,7 @@ export function autoDetectEquipment(input: AutoDetectInput): AutoDetectResult {
         hvacUnits.push({
           type: 'vent_duct' as HVACUnitType,
           name: `VD-${String(hvacCounter++).padStart(2, '0')} (${room.name})`,
-          position: { x: 1, y: 0, z: 1 },
+          position: { x: offsetX + 1, y: 0, z: 1 },
           width: 0.6,
           depth: 0.6,
           height: 0.3,
@@ -217,6 +227,8 @@ export function autoDetectEquipment(input: AutoDetectInput): AutoDetectResult {
         summary.push(
           `Floor ${floor.floorNumber} "${room.name}": 1 vent-duct unit @ ${loadKW.toFixed(1)} kW`,
         );
+
+        offsetX += 3 + ROOM_GAP;
       }
     }
   }

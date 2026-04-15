@@ -7,7 +7,7 @@
  * Center: 3D mesh preview + contour slice viewer
  * Right:  Run control, residual convergence, export/import
  */
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   Plus, Play, Download, Upload, Trash2, RefreshCw,
   Box, Settings2, Layers, BarChart3,
@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useSimulationEngineStore } from '@/stores/simulation-engine-store';
+import { useProjectStore } from '@/stores/project-store';
 import type {
   GeometryInput,
   CaseStatus,
@@ -56,6 +57,12 @@ export default function SimulationEnginePage() {
   const [selectedProjectId, setSelectedProjectId] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newCaseName, setNewCaseName] = useState('');
+
+  const { projects, fetchProjects } = useProjectStore();
+
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
 
   // Default geometry for new cases
   const [geometry, setGeometry] = useState<GeometryInput>({
@@ -112,15 +119,20 @@ export default function SimulationEnginePage() {
       <div className="flex w-80 shrink-0 flex-col gap-3 overflow-y-auto">
         {/* Project Selector */}
         <Card className="p-3">
-          <label className="text-xs font-medium text-muted-foreground">Project ID</label>
+          <label className="text-xs font-medium text-muted-foreground">Select Project</label>
           <div className="mt-1 flex gap-2">
-            <input
-              type="text"
+            <select
               value={selectedProjectId}
               onChange={(e) => setSelectedProjectId(e.target.value)}
-              placeholder="Enter project ID..."
               className="flex-1 rounded-md border border-border bg-background px-2 py-1 text-sm"
-            />
+            >
+              <option value="">Select a project...</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
             <Button size="sm" onClick={handleLoadProject} disabled={!selectedProjectId}>
               Load
             </Button>

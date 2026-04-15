@@ -44,8 +44,8 @@ export interface AirflowViewerHandle {
 
 function RackMesh({ rack, centerX, centerZ }: { rack: ServerRack; centerX: number; centerZ: number }) {
   const x = rack.position.x - centerX + rack.width / 2;
-  const z = rack.position.y - centerZ + rack.depth / 2;
-  const y = rack.height / 2;
+  const z = rack.position.z - centerZ + rack.depth / 2;
+  const y = rack.position.y + rack.height / 2;
 
   return (
     <group position={[x, y, z]}>
@@ -83,8 +83,8 @@ function RackMesh({ rack, centerX, centerZ }: { rack: ServerRack; centerX: numbe
 
 function HVACMesh({ unit, centerX, centerZ }: { unit: HVACUnit; centerX: number; centerZ: number }) {
   const x = unit.position.x - centerX + unit.width / 2;
-  const z = unit.position.y - centerZ + unit.depth / 2;
-  const y = unit.height / 2;
+  const z = unit.position.z - centerZ + unit.depth / 2;
+  const y = unit.position.y + unit.height / 2;
   const color = unit.status === 'failed' ? '#ef4444' : '#10b981';
 
   return (
