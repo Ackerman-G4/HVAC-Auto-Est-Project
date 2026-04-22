@@ -7,19 +7,28 @@ import {
   Wind, Thermometer, Plus, Trash2, Play, ShieldCheck,
   AlertTriangle, Zap, TrendingUp, Server, AirVent, Grid3x3,
   RotateCcw, Settings2, BarChart3, Box, Wand2, Building2,
-  Gauge, Sliders, Activity, Layers, Crosshair,
+  Gauge, Sliders, Activity, Layers, Crosshair, FileText, FileSpreadsheet, FileDown,
 } from 'lucide-react';
 import { PageWrapper, PageHeader } from '@/components/ui/page-wrapper';
 import { StatCard } from '@/components/ui/stat-card';
 import { Tabs, TabPanel } from '@/components/ui/tabs';
+import SimulationRunProgressCard from '@/components/building/SimulationRunProgressCard';
 import { useSimulationStore } from '@/stores/simulation-store';
 import type {
   RackDensity, HVACUnitType, FailureScenario,
+  OptimizationConfig,
   ServerRack, HVACUnit,
 } from '@/types/simulation';
 import type { Project } from '@/types/project';
 import { authFetch } from '@/lib/api-client';
 import { showToast } from '@/components/ui/toast';
+import {
+  buildSimulationEngineeringReport,
+  exportSimulationReportCsv,
+  exportSimulationReportJson,
+  exportSimulationReportPdf,
+} from '@/lib/reports/simulation-report';
+import { appendSimulationReportHistory } from '@/lib/reports/simulation-report-history';
 
 const AirflowViewer3D = dynamic(
   () => import('@/components/building/AirflowViewer3D').then(mod => mod.default),
@@ -520,7 +529,7 @@ function EquipmentPanel({ floors, selectedFloorId, onFloorChange, onAutoDetect, 
 // ─── Simulation Config Panel ────────────────────────────────────────
 
 function ConfigPanel() {
-  const { config, setConfig } = useSimulationStore();
+  const { config, runtimeMode, setRuntimeMode, setConfig } = useSimulationStore();
 
   return (
     <div className="panel-glass grid grid-cols-2 gap-5 rounded-xl border border-border/70 bg-card p-6 shadow-sm md:grid-cols-4">
@@ -555,6 +564,30 @@ function ConfigPanel() {
       <div>
         <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Ambient Temp (°C)</label>
         <input className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" value={config.ambientTempC} onChange={e => setConfig({ ambientTempC: +e.target.value })} aria-label="Ambient Temperature" />
+      </div>
+      <div>
+        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Runtime</label>
+        <select
+          className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm"
+          value={runtimeMode}
+          onChange={e => setRuntimeMode(e.target.value as 'worker' | 'server' | 'openfoam')}
+          aria-label="Runtime Mode"
+        >
+          <option value="worker">Web Worker</option>
+          <option value="server">Server API</option>
+        </select>
+      </div>
+      <div>
+        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Dimensionality</label>
+        <select
+          className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm"
+          value={config.dimensionMode ?? '3d'}
+          onChange={e => setConfig({ dimensionMode: e.target.value as '3d' | '2d-fast' })}
+          aria-label="Solver Dimensionality"
+        >
+          <option value="3d">3D Engineering</option>
+          <option value="2d-fast">2D Fast</option>
+        </select>
       </div>
     </div>
   );
@@ -788,9 +821,70 @@ function ResultsPanel() {
               </div>
             </div>
           </div>
+
+          {typeof optimizationResult.initialScore === 'number' && typeof optimizationResult.optimizedScore === 'number' && (
+            <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-3">
+              <div className="rounded-lg border border-border bg-secondary/50 p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Initial Score</p>
+                <p className="mt-1 text-base font-semibold text-foreground">{optimizationResult.initialScore.toFixed(3)}</p>
+              </div>
+              <div className="rounded-lg border border-border bg-secondary/50 p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Best Score</p>
+                <p className="mt-1 text-base font-semibold text-emerald-600">{optimizationResult.optimizedScore.toFixed(3)}</p>
+              </div>
+              <div className="rounded-lg border border-border bg-secondary/50 p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Best Iteration</p>
+                <p className="mt-1 text-base font-semibold text-foreground">{optimizationResult.bestIteration ?? optimizationResult.iterations}</p>
+              </div>
+            </div>
+          )}
+
+          {optimizationResult.optimizationHistory && optimizationResult.optimizationHistory.length > 0 && (
+            <div className="mb-6">
+              <h4 className="mb-2 text-sm font-bold text-foreground">Iteration Trace ({optimizationResult.optimizationHistory.length})</h4>
+              <div className="space-y-2">
+                {(() => {
+                  const scores = optimizationResult.optimizationHistory!.map((step) => step.score);
+                  const minScore = Math.min(...scores);
+                  const maxScore = Math.max(...scores);
+                  const spread = Math.max(1e-6, maxScore - minScore);
+
+                  return optimizationResult.optimizationHistory!.map((step) => {
+                    const quality = ((maxScore - step.score) / spread) * 100;
+                    return (
+                      <div key={`opt-iter-${step.iteration}`} className="rounded-lg border border-border bg-secondary/45 p-2.5">
+                        <div className="mb-1.5 flex items-center justify-between gap-2 text-xs">
+                          <span className="font-semibold text-foreground">Iter {step.iteration}</span>
+                          <span className={`rounded px-2 py-0.5 text-[10px] font-semibold uppercase ${step.accepted ? 'bg-emerald-500/10 text-emerald-700' : 'bg-amber-500/10 text-amber-700'}`}>
+                            {step.accepted ? 'accepted' : 'rejected'}
+                          </span>
+                        </div>
+
+                        <div className="mb-1.5 h-1.5 overflow-hidden rounded-full bg-secondary">
+                          <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.max(6, Math.min(100, quality))}%` }} />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-muted-foreground md:grid-cols-4">
+                          <span>Score: {step.score.toFixed(3)}</span>
+                          <span>Max T: {step.maxTemperature.toFixed(1)}°C</span>
+                          <span>Hotspots: {step.hotspotCount}</span>
+                          <span>PUE: {step.pue.toFixed(2)}</span>
+                        </div>
+
+                        {step.suggestionDescription && (
+                          <p className="mt-1 text-[11px] text-foreground/80">{step.suggestionDescription}</p>
+                        )}
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            </div>
+          )}
+
           <h4 className="mb-3 text-sm font-bold text-foreground">Suggestions ({optimizationResult.suggestions.length})</h4>
           <div className="space-y-2">
-            {optimizationResult.suggestions.map((sug, i) => (
+            {optimizationResult.suggestions.slice(0, 12).map((sug, i) => (
               <div key={i} className="flex items-center justify-between rounded-lg border border-border bg-secondary/50 p-3">
                 <span className="text-sm text-foreground">{sug.description}</span>
                 <span className="rounded-md bg-emerald-100 px-2.5 py-1 text-sm font-semibold text-emerald-700">{sug.impact}% impact</span>
@@ -909,17 +1003,30 @@ export default function SimulationPage() {
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [activeTab, setActiveTab] = useState('equipment');
   const {
-    racks, hvacUnits, isRunning, result,
+    racks, hvacUnits, tiles, isRunning, runtimeMode, runProgress, result,
+    complianceReport, failureResult, pueAnalysis, optimizationResult,
     runSimulation, runCompliance, runPUE, runOptimization,
     activeView, showHotspots, showAirflow, selectedSliceZ,
     setActiveView, setShowHotspots, setShowAirflow, setSelectedSliceZ,
-    addRack, addHVACUnit, setConfig, setMode, config, clearAll,
+    addRack, addHVACUnit, setConfig, setMode, setRuntimeMode, cancelSimulation, config, clearAll,
     inspectedCell, setInspectedCell,
     tileFlowView, setTileFlowView, alerts, tileAirflowData,
   } = useSimulationStore();  const [selectedProjectId, setSelectedProjectId] = useState('');
   const [detectedFloors, setDetectedFloors] = useState<DetectedFloor[]>([]);
   const [selectedFloorId, setSelectedFloorId] = useState('');
   const [isDetecting, setIsDetecting] = useState(false);
+  const [reportExporting, setReportExporting] = useState<null | 'pdf' | 'csv' | 'json'>(null);
+  const [optimizationConfig, setOptimizationConfig] = useState<OptimizationConfig>({
+    targets: [
+      { type: 'minimize_hotspots', weight: 0.6 },
+      { type: 'minimize_pue', weight: 0.2 },
+      { type: 'balance_airflow', weight: 0.2 },
+    ],
+    maxIterations: 5,
+    adjustableTiles: true,
+    adjustableCRAC: true,
+    adjustableRacks: true,
+  });
   const tileFlowViewerRef = useRef<import('@/components/building/AirflowViewer3D').AirflowViewerHandle>(null);
 
   // Fetch projects
@@ -1023,6 +1130,75 @@ export default function SimulationPage() {
   }, [detectedFloors, selectedFloorId, addRack, addHVACUnit, setConfig, clearAll]);
   const totalHeatKW = useMemo(() => racks.reduce((s, r) => s + r.powerKW, 0), [racks]);
   const totalCoolingKW = useMemo(() => hvacUnits.filter(u => u.status !== 'failed').reduce((s, u) => s + u.capacityKW, 0), [hvacUnits]);
+  const selectedProject = useMemo(
+    () => projectList.find((project) => project.id === selectedProjectId) ?? null,
+    [projectList, selectedProjectId],
+  );
+
+  const handleExportSimulationReport = useCallback(async (format: 'pdf' | 'csv' | 'json') => {
+    if (!result) {
+      showToast('error', 'Run CFD simulation first');
+      return;
+    }
+
+    setReportExporting(format);
+    try {
+      const report = buildSimulationEngineeringReport({
+        projectId: selectedProjectId,
+        projectName: selectedProject?.name,
+        floorId: selectedFloorId,
+        runtimeMode,
+        config,
+        rackCount: racks.length,
+        hvacCount: hvacUnits.length,
+        tileCount: tiles.length,
+        totalHeatKw: totalHeatKW,
+        totalCoolingKw: totalCoolingKW,
+        result,
+        complianceReport,
+        failureResult,
+        pueAnalysis,
+        optimizationResult,
+      });
+
+      if (format === 'pdf') {
+        await exportSimulationReportPdf(report);
+      } else if (format === 'csv') {
+        exportSimulationReportCsv(report);
+      } else {
+        exportSimulationReportJson(report);
+      }
+
+      try {
+        await appendSimulationReportHistory(report, format, 'viewer');
+      } catch (historyError) {
+        console.warn('Failed to persist simulation report history:', historyError);
+      }
+
+      showToast('success', `${format.toUpperCase()} report exported`);
+    } catch (error) {
+      console.error(error);
+      showToast('error', 'Report export failed');
+    } finally {
+      setReportExporting(null);
+    }
+  }, [
+    complianceReport,
+    config,
+    failureResult,
+    hvacUnits.length,
+    optimizationResult,
+    pueAnalysis,
+    racks.length,
+    result,
+    runtimeMode,
+    selectedFloorId,
+    selectedProject?.name,
+    selectedProjectId,
+    tiles.length,
+    totalCoolingKW,
+    totalHeatKW,
+  ]);
 
   const tabs = [
     { id: 'equipment', label: 'Equipment', icon: <Server size={16} />, badge: racks.length + hvacUnits.length },
@@ -1061,11 +1237,41 @@ export default function SimulationPage() {
               <ShieldCheck size={16} /> Compliance
             </button>
             <button
-              onClick={() => { runOptimization(); }}
+              onClick={() => { runOptimization(optimizationConfig); }}
               disabled={racks.length === 0 || isRunning}
               className="flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary/70 disabled:opacity-50"
             >
               <TrendingUp size={16} /> Optimize
+            </button>
+            <button
+              onClick={() => { void handleExportSimulationReport('pdf'); }}
+              disabled={!result || reportExporting !== null}
+              className="flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary/70 disabled:opacity-50"
+            >
+              {reportExporting === 'pdf'
+                ? <RotateCcw size={16} className="animate-spin" />
+                : <FileText size={16} />}
+              Report PDF
+            </button>
+            <button
+              onClick={() => { void handleExportSimulationReport('csv'); }}
+              disabled={!result || reportExporting !== null}
+              className="flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary/70 disabled:opacity-50"
+            >
+              {reportExporting === 'csv'
+                ? <RotateCcw size={16} className="animate-spin" />
+                : <FileSpreadsheet size={16} />}
+              Report CSV
+            </button>
+            <button
+              onClick={() => { void handleExportSimulationReport('json'); }}
+              disabled={!result || reportExporting !== null}
+              className="flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary/70 disabled:opacity-50"
+            >
+              {reportExporting === 'json'
+                ? <RotateCcw size={16} className="animate-spin" />
+                : <FileDown size={16} />}
+              Report JSON
             </button>
             <button
               onClick={() => runSimulation(selectedProjectId || '', selectedFloorId || '')}
@@ -1074,6 +1280,14 @@ export default function SimulationPage() {
             >
               {isRunning ? <><RotateCcw size={16} className="animate-spin" /> Running...</> : <><Play size={16} /> Run Simulation</>}
             </button>
+            {isRunning && (
+              <button
+                onClick={cancelSimulation}
+                className="flex items-center gap-2 rounded-xl border border-destructive/40 bg-background px-4 py-2.5 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/10"
+              >
+                Cancel
+              </button>
+            )}
           </div>
         }
       />
@@ -1146,6 +1360,18 @@ export default function SimulationPage() {
             {/* Run Simulation */}
             <div className="panel-glass rounded-xl border border-border/70 bg-card p-5 shadow-sm">
               <h3 className="mb-4 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Run Simulation</h3>
+              <div className="mb-3 flex items-center justify-between rounded-lg border border-border/70 bg-card/70 px-3 py-2 text-xs text-muted-foreground">
+                <span>Runtime: <span className="font-semibold text-foreground">{runtimeMode}</span></span>
+                <select
+                  className="rounded-md border border-border bg-background px-2 py-1 text-xs"
+                  value={runtimeMode}
+                  onChange={(e) => setRuntimeMode(e.target.value as 'worker' | 'server' | 'openfoam')}
+                  aria-label="Simulation Runtime"
+                >
+                  <option value="worker">Worker</option>
+                  <option value="server">Server</option>
+                </select>
+              </div>
               <button
                 onClick={() => runSimulation(selectedProjectId || '', selectedFloorId || '')}
                 disabled={racks.length === 0 || isRunning}
@@ -1153,6 +1379,108 @@ export default function SimulationPage() {
               >
                 {isRunning ? <><RotateCcw size={18} className="animate-spin" /> Running Simulation...</> : <><Play size={18} /> Run CFD Simulation</>}
               </button>
+              {isRunning && (
+                <button
+                  onClick={cancelSimulation}
+                  className="mt-2 flex w-full items-center justify-center gap-2.5 rounded-xl border border-destructive/40 bg-background px-5 py-3 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/10"
+                >
+                  Cancel Simulation
+                </button>
+              )}
+
+              {runProgress && (
+                <SimulationRunProgressCard
+                  className="mt-3"
+                  compact
+                  title="Progress"
+                  status={runProgress.status}
+                  iteration={runProgress.iteration}
+                  totalIterations={runProgress.totalIterations}
+                  elapsedSeconds={typeof runProgress.elapsedMs === 'number' ? runProgress.elapsedMs / 1000 : undefined}
+                  source={runtimeMode}
+                  residual={{
+                    continuity: runProgress.continuityResidual,
+                    momentum: runProgress.momentumResidual,
+                    energy: runProgress.energyResidual,
+                  }}
+                  errorMessage={runProgress.status === 'failed' ? runProgress.message : undefined}
+                  successMessage={runProgress.status === 'completed' ? (runProgress.message ?? 'Run completed') : undefined}
+                />
+              )}
+
+              <div className="mt-3 rounded-xl border border-border/70 bg-card/65 p-3">
+                <div className="mb-2 flex items-center justify-between text-xs">
+                  <span className="font-semibold uppercase tracking-widest text-muted-foreground">Optimization Study</span>
+                  {optimizationResult && (
+                    <span className="text-muted-foreground">
+                      Best Iter {optimizationResult.bestIteration ?? optimizationResult.iterations}
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <div>
+                    <label className="mb-1 block text-[11px] font-medium text-muted-foreground">
+                      Max Optimization Iterations: {optimizationConfig.maxIterations}
+                    </label>
+                    <input
+                      type="range"
+                      min={1}
+                      max={12}
+                      step={1}
+                      value={optimizationConfig.maxIterations}
+                      onChange={(event) => setOptimizationConfig((prev) => ({
+                        ...prev,
+                        maxIterations: Number(event.target.value),
+                      }))}
+                      className="w-full"
+                      aria-label="Optimization iterations"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-1.5 text-[11px]">
+                    <button
+                      onClick={() => setOptimizationConfig((prev) => ({ ...prev, adjustableTiles: !prev.adjustableTiles }))}
+                      className={`rounded-lg border px-2 py-1.5 font-semibold transition-colors ${
+                        optimizationConfig.adjustableTiles
+                          ? 'border-accent bg-accent/15 text-accent'
+                          : 'border-border bg-background text-muted-foreground'
+                      }`}
+                    >
+                      Tiles
+                    </button>
+                    <button
+                      onClick={() => setOptimizationConfig((prev) => ({ ...prev, adjustableCRAC: !prev.adjustableCRAC }))}
+                      className={`rounded-lg border px-2 py-1.5 font-semibold transition-colors ${
+                        optimizationConfig.adjustableCRAC
+                          ? 'border-accent bg-accent/15 text-accent'
+                          : 'border-border bg-background text-muted-foreground'
+                      }`}
+                    >
+                      CRAC
+                    </button>
+                    <button
+                      onClick={() => setOptimizationConfig((prev) => ({ ...prev, adjustableRacks: !prev.adjustableRacks }))}
+                      className={`rounded-lg border px-2 py-1.5 font-semibold transition-colors ${
+                        optimizationConfig.adjustableRacks
+                          ? 'border-accent bg-accent/15 text-accent'
+                          : 'border-border bg-background text-muted-foreground'
+                      }`}
+                    >
+                      Racks
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={() => runOptimization(optimizationConfig)}
+                    disabled={racks.length === 0 || isRunning}
+                    className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-500/15 disabled:opacity-50"
+                  >
+                    <TrendingUp size={16} /> Run Optimization Study
+                  </button>
+                </div>
+              </div>
+
               {racks.length === 0 && (
                 <p className="mt-2 text-xs text-muted-foreground">Add equipment in the Equipment tab or auto-detect from project to enable simulation.</p>
               )}

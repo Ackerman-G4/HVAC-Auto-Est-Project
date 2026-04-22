@@ -2,11 +2,28 @@
 
 export type SimulationStatus = 'pending' | 'running' | 'completed' | 'failed';
 export type SimulationMode = 'fast' | 'balanced' | 'engineering';
+export type SimulationRuntime = 'worker' | 'server' | 'openfoam';
+export type SimulationDimensionMode = '3d' | '2d-fast';
+export type SimulationRunState = 'idle' | 'running' | 'completed' | 'failed' | 'cancelled';
 export type TileType = 'open' | 'perforated' | 'solid' | 'inlet' | 'outlet';
 export type BoundaryType = 'wall' | 'inlet' | 'outlet' | 'symmetry' | 'open';
 export type RackDensity = 'low' | 'medium' | 'high' | 'ultra';
 export type HVACUnitType = 'crac' | 'crah' | 'ahu' | 'in_row' | 'rear_door' | 'vent_duct';
 export type FailureScenario = 'crac_failure' | 'power_loss' | 'cooling_restart' | 'partial_cooling';
+
+export interface SimulationRunProgress {
+  simulationId: string;
+  status: SimulationRunState;
+  iteration: number;
+  totalIterations: number;
+  percent: number;
+  continuityResidual?: number;
+  momentumResidual?: number;
+  energyResidual?: number;
+  elapsedMs?: number;
+  etaMs?: number;
+  message?: string;
+}
 
 /** Power density ranges in kW per rack */
 export const RACK_POWER_DENSITY: Record<RackDensity, { min: number; max: number; typical: number }> = {
@@ -95,6 +112,8 @@ export interface PerforatedTile {
 
 export interface SimulationConfig {
   mode: SimulationMode;
+  runtimeMode?: SimulationRuntime;
+  dimensionMode?: SimulationDimensionMode;
   gridResolution: number;  // m per cell
   gridSizeX: number;
   gridSizeY: number;
@@ -102,6 +121,8 @@ export interface SimulationConfig {
   iterations: number;
   convergence: number;
   timeStep: number;
+  progressEmitInterval?: number;
+  renderDownsampleStep?: number;
   ambientTempC: number;
   ambientHumidityRatio: number; // kg/kg (default ~0.0093 for 50% RH at 24°C)
   // Physics parameters
@@ -165,6 +186,13 @@ export interface SimulationMetrics {
   // Turbulence statistics
   avgTurbulentViscosity: number; // average ν_t
   maxTurbulentIntensity: number;
+  // Engineering metrics (Phase 4)
+  deadZoneCount?: number;
+  deadZoneRatio?: number;
+  airflowDistributionScore?: number;
+  uniformityIndex?: number;
+  pmvApprox?: number;
+  ppdApprox?: number;
 }
 
 export interface SimulationResult {
@@ -172,6 +200,8 @@ export interface SimulationResult {
   projectId: string;
   status: SimulationStatus;
   config: SimulationConfig;
+  runtimeMode?: SimulationRuntime;
+  dimensionMode?: SimulationDimensionMode;
   metrics: SimulationMetrics;
   temperatureField: number[][][]; // [x][y][z] temperatures
   humidityField: number[][][];    // [x][y][z] humidity ratios
@@ -181,8 +211,57 @@ export interface SimulationResult {
   convergenceHistory: number[];
   cflHistory: number[];           // CFL number per iteration
   effectiveTimeStep: number;      // actual dt used (may be reduced by CFL)
+  startedAt?: string;
   completedAt?: string;
 }
+
+// ─── Worker Runtime Protocol ───────────────────────────────────────
+
+export interface CFDWorkerStartPayload {
+  simulationId: string;
+  input: SimulationInput;
+}
+
+export interface CFDWorkerStartMessage {
+  type: 'start';
+  payload: CFDWorkerStartPayload;
+}
+
+export interface CFDWorkerCancelMessage {
+  type: 'cancel';
+  simulationId: string;
+}
+
+export type CFDWorkerIncomingMessage = CFDWorkerStartMessage | CFDWorkerCancelMessage;
+
+export interface CFDWorkerProgressMessage {
+  type: 'progress';
+  simulationId: string;
+  progress: SimulationRunProgress;
+}
+
+export interface CFDWorkerCompleteMessage {
+  type: 'completed';
+  simulationId: string;
+  result: SimulationResult;
+}
+
+export interface CFDWorkerErrorMessage {
+  type: 'error';
+  simulationId: string;
+  error: string;
+}
+
+export interface CFDWorkerCancelledMessage {
+  type: 'cancelled';
+  simulationId: string;
+}
+
+export type CFDWorkerOutgoingMessage =
+  | CFDWorkerProgressMessage
+  | CFDWorkerCompleteMessage
+  | CFDWorkerErrorMessage
+  | CFDWorkerCancelledMessage;
 
 // ─── ASHRAE Compliance ──────────────────────────────────────────────
 
@@ -281,12 +360,27 @@ export interface OptimizationSuggestion {
   parameters?: Record<string, number>;
 }
 
+export interface OptimizationIteration {
+  iteration: number;
+  score: number;
+  maxTemperature: number;
+  hotspotCount: number;
+  pue: number;
+  accepted: boolean;
+  suggestionType?: OptimizationSuggestion['type'];
+  suggestionDescription?: string;
+}
+
 export interface OptimizationResult {
   initialMetrics: SimulationMetrics;
   optimizedMetrics: SimulationMetrics;
   suggestions: OptimizationSuggestion[];
   improvement: number;   // percentage
   iterations: number;
+  initialScore?: number;
+  optimizedScore?: number;
+  bestIteration?: number;
+  optimizationHistory?: OptimizationIteration[];
 }
 
 // ─── Simulation Engine: Geometry & Mesh ─────────────────────────────

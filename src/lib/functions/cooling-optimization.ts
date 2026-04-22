@@ -11,8 +11,10 @@ import type {
   OptimizationConfig,
   OptimizationResult,
   OptimizationSuggestion,
+  OptimizationIteration,
   PerforatedTile,
   HVACUnit,
+  ServerRack,
 } from '@/types/simulation';
 import { runCFDSimulation } from './cfd-simulation';
 
@@ -135,6 +137,7 @@ function optimizeCRAC(
         description: `Move ${closestUnit.name} closer to hotspot area. Current distance: ${closestDist.toFixed(1)}m`,
         impact: 8,
         position: { x: midX, y: midY, z: closestUnit.position.z },
+        parameters: { unitIndex: input.hvacUnits.findIndex((u) => u.id === closestUnit.id) },
       });
     }
   }
@@ -153,6 +156,99 @@ function optimizeCRAC(
   }
 
   return suggestions;
+}
+
+function cloneInput(input: SimulationInput): SimulationInput {
+  return {
+    ...input,
+    config: { ...input.config },
+    racks: input.racks.map((rack) => ({
+      ...rack,
+      position: { ...rack.position },
+    })),
+    hvacUnits: input.hvacUnits.map((unit) => ({
+      ...unit,
+      position: { ...unit.position },
+    })),
+    tiles: input.tiles.map((tile) => ({ ...tile })),
+  };
+}
+
+function applySuggestion(input: SimulationInput, suggestion: OptimizationSuggestion): SimulationInput {
+  const next = cloneInput(input);
+
+  if (suggestion.type === 'add_tile' && suggestion.position) {
+    const gridX = Math.floor(suggestion.position.x / input.config.gridResolution);
+    const gridY = Math.floor(suggestion.position.y / input.config.gridResolution);
+    const newTile: PerforatedTile = {
+      x: gridX,
+      y: gridY,
+      openArea: suggestion.parameters?.openArea || 0.25,
+      tileSize: 0.6,
+    };
+    next.tiles = [...next.tiles.filter((tile) => !(tile.x === newTile.x && tile.y === newTile.y)), newTile];
+    return next;
+  }
+
+  if (suggestion.type === 'remove_tile' && suggestion.position) {
+    const gridX = Math.floor(suggestion.position.x / input.config.gridResolution);
+    const gridY = Math.floor(suggestion.position.y / input.config.gridResolution);
+    next.tiles = next.tiles.filter((tile) => !(tile.x === gridX && tile.y === gridY));
+    return next;
+  }
+
+  if (suggestion.type === 'move_crac' && suggestion.position) {
+    const indexed = typeof suggestion.parameters?.unitIndex === 'number'
+      ? Math.floor(suggestion.parameters.unitIndex)
+      : -1;
+    const candidateIndex = indexed >= 0 && indexed < next.hvacUnits.length
+      ? indexed
+      : next.hvacUnits.findIndex((unit) => unit.type === 'crac' || unit.type === 'crah');
+
+    if (candidateIndex >= 0) {
+      next.hvacUnits = next.hvacUnits.map((unit, idx) => idx === candidateIndex
+        ? { ...unit, position: { ...suggestion.position! } }
+        : unit);
+    }
+
+    return next;
+  }
+
+  if (suggestion.type === 'adjust_airflow') {
+    const additionalCapacity = suggestion.parameters?.additionalCapacityKW || 0;
+    if (additionalCapacity > 0 && next.hvacUnits.length > 0) {
+      const perUnitDelta = additionalCapacity / next.hvacUnits.length;
+      next.hvacUnits = next.hvacUnits.map((unit) => {
+        const nextCapacity = unit.capacityKW + perUnitDelta;
+        return {
+          ...unit,
+          capacityKW: Math.max(0.5, nextCapacity),
+          capacityTR: Math.max(0.1, nextCapacity / 3.517),
+          airflowCFM: Math.max(200, Math.round(unit.airflowCFM * (1 + (perUnitDelta / Math.max(1, unit.capacityKW)) * 0.5))),
+        };
+      });
+    }
+
+    return next;
+  }
+
+  if (suggestion.type === 'rearrange_racks') {
+    const sorted: ServerRack[] = [...next.racks]
+      .sort((a, b) => (b.powerKW - a.powerKW))
+      .map((rack, index) => ({
+        ...rack,
+        position: {
+          ...rack.position,
+          x: rack.position.x + (index % 2 === 0 ? 0.8 : -0.8),
+          y: rack.position.y + (index % 3 === 0 ? 0.6 : -0.6),
+        },
+      }));
+
+    next.racks = sorted;
+    return next;
+  }
+
+  return next;
 }
 
 // ─── Rack Layout Optimization ───────────────────────────────────────
@@ -233,40 +329,62 @@ export function runOptimization(
   // Sort by impact
   allSuggestions.sort((a, b) => b.impact - a.impact);
 
-  // Apply top suggestions and re-simulate
-  let optimizedInput = { ...input };
-  let iterations = 0;
+  const maxTries = Math.min(Math.max(0, config.maxIterations), allSuggestions.length);
+  const history: OptimizationIteration[] = [
+    {
+      iteration: 0,
+      score: baseScore,
+      maxTemperature: baseResult.metrics.maxTemperature,
+      hotspotCount: baseResult.metrics.hotspots.length,
+      pue: baseResult.metrics.pue,
+      accepted: true,
+      suggestionDescription: 'Baseline',
+    },
+  ];
 
-  for (let i = 0; i < Math.min(config.maxIterations, allSuggestions.length); i++) {
+  let bestInput = cloneInput(input);
+  let bestResult = baseResult;
+  let bestScore = baseScore;
+  let bestIteration = 0;
+
+  for (let i = 0; i < maxTries; i++) {
     const suggestion = allSuggestions[i];
-    iterations++;
+    const trialInput = applySuggestion(bestInput, suggestion);
+    const trialResult = runCFDSimulation(trialInput);
+    const trialScore = computeScore(trialResult.metrics, config);
+    const accepted = trialScore < bestScore;
 
-    // Apply suggestion to input
-    if (suggestion.type === 'add_tile' && suggestion.position) {
-      const newTile: PerforatedTile = {
-        x: Math.floor(suggestion.position.x / input.config.gridResolution),
-        y: Math.floor(suggestion.position.y / input.config.gridResolution),
-        openArea: suggestion.parameters?.openArea || 0.25,
-        tileSize: 0.6,
-      };
-      optimizedInput = {
-        ...optimizedInput,
-        tiles: [...optimizedInput.tiles.filter(t => !(t.x === newTile.x && t.y === newTile.y)), newTile],
-      };
+    history.push({
+      iteration: i + 1,
+      score: trialScore,
+      maxTemperature: trialResult.metrics.maxTemperature,
+      hotspotCount: trialResult.metrics.hotspots.length,
+      pue: trialResult.metrics.pue,
+      accepted,
+      suggestionType: suggestion.type,
+      suggestionDescription: suggestion.description,
+    });
+
+    if (accepted) {
+      bestInput = trialInput;
+      bestResult = trialResult;
+      bestScore = trialScore;
+      bestIteration = i + 1;
     }
   }
 
-  // Run optimized simulation
-  const optimizedResult = runCFDSimulation(optimizedInput);
-  const optimizedScore = computeScore(optimizedResult.metrics, config);
-
-  const improvement = baseScore > 0 ? ((baseScore - optimizedScore) / baseScore) * 100 : 0;
+  const improvementBase = Math.max(1, Math.abs(baseScore));
+  const improvement = ((baseScore - bestScore) / improvementBase) * 100;
 
   return {
     initialMetrics: baseResult.metrics,
-    optimizedMetrics: optimizedResult.metrics,
+    optimizedMetrics: bestResult.metrics,
     suggestions: allSuggestions,
     improvement: Math.round(improvement * 10) / 10,
-    iterations,
+    iterations: maxTries,
+    initialScore: Math.round(baseScore * 1000) / 1000,
+    optimizedScore: Math.round(bestScore * 1000) / 1000,
+    bestIteration,
+    optimizationHistory: history,
   };
 }

@@ -33,6 +33,7 @@ interface SimulationEngineStore {
   // ── Run State ───────────────────────────────────────────
   activeRun: RunJob | null;
   runHistory: RunJob[];
+  isLoadingRunHistory: boolean;
   isPolling: boolean;
   pollIntervalId: ReturnType<typeof setInterval> | null;
 
@@ -65,6 +66,7 @@ interface SimulationEngineStore {
   deleteCase: (caseId: string) => Promise<void>;
 
   // ── Actions: Run ────────────────────────────────────────
+  loadRunHistory: (caseId?: string) => Promise<void>;
   startRun: (source?: RunSource) => Promise<void>;
   pollRunStatus: () => Promise<void>;
   startPolling: () => void;
@@ -94,6 +96,7 @@ const INITIAL_STATE = {
   isLoadingCases: false,
   activeRun: null as RunJob | null,
   runHistory: [] as RunJob[],
+  isLoadingRunHistory: false,
   isPolling: false,
   pollIntervalId: null as ReturnType<typeof setInterval> | null,
   result: null as CaseResult | null,
@@ -118,13 +121,20 @@ export const useSimulationEngineStore = create<SimulationEngineStore>((set, get)
     set({ isLoadingCases: true, projectId });
     try {
       const res = await authFetch(`/api/projects/${encodeURIComponent(projectId)}/simulations`);
-      if (!res.ok) throw new Error('Failed to load cases');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({} as { error?: unknown }));
+        const apiError = typeof errData.error === 'string' ? errData.error : '';
+        const message = apiError || `Failed to load cases (${res.status})`;
+        set({ isLoadingCases: false, cases: [], activeCase: null });
+        showToast('error', message);
+        return;
+      }
       const data = await res.json();
       set({ cases: data.cases || [], isLoadingCases: false });
     } catch (error) {
       console.error('loadCases error:', error);
-      set({ isLoadingCases: false });
-      showToast('error', 'Failed to load simulation cases');
+      set({ isLoadingCases: false, cases: [], activeCase: null });
+      showToast('error', error instanceof Error ? error.message : 'Failed to load simulation cases');
     }
   },
 
@@ -184,9 +194,20 @@ export const useSimulationEngineStore = create<SimulationEngineStore>((set, get)
     set({
       activeCase: simCase || null,
       activeRun: null,
+      runHistory: [],
       result: null,
       loadedFieldNames: [],
     });
+
+    if (simCase) {
+      await get().loadRunHistory(simCase.id);
+
+      if (simCase.status === 'running' || simCase.status === 'queued') {
+        get().startPolling();
+      } else {
+        get().stopPolling();
+      }
+    }
   },
 
   updateCase: async (caseId, updates) => {
@@ -243,6 +264,37 @@ export const useSimulationEngineStore = create<SimulationEngineStore>((set, get)
 
   // ── Run ─────────────────────────────────────────────────
 
+  loadRunHistory: async (caseIdOverride) => {
+    const { projectId, activeCase } = get();
+    const caseId = caseIdOverride || activeCase?.id;
+
+    if (!projectId || !caseId) return;
+
+    set({ isLoadingRunHistory: true });
+
+    try {
+      const res = await authFetch(
+        `/api/projects/${encodeURIComponent(projectId)}/simulations/${encodeURIComponent(caseId)}/runs?limit=30`,
+      );
+      if (!res.ok) {
+        throw new Error('Failed to load run history');
+      }
+
+      const data = await res.json();
+      const runs: RunJob[] = Array.isArray(data.runs) ? data.runs : [];
+      const activeRunId: string | null = typeof data.activeRunId === 'string' ? data.activeRunId : null;
+
+      set({
+        runHistory: runs,
+        activeRun: activeRunId ? (runs.find((run) => run.id === activeRunId) ?? null) : null,
+        isLoadingRunHistory: false,
+      });
+    } catch (error) {
+      console.error('loadRunHistory error:', error);
+      set({ isLoadingRunHistory: false });
+    }
+  },
+
   startRun: async (source) => {
     const { projectId, activeCase } = get();
     if (!projectId || !activeCase) {
@@ -269,6 +321,9 @@ export const useSimulationEngineStore = create<SimulationEngineStore>((set, get)
       set((state) => ({
         activeRun: data.run,
         activeCase: data.case || state.activeCase,
+        runHistory: data.run
+          ? [data.run, ...state.runHistory.filter((run) => run.id !== data.run.id)]
+          : state.runHistory,
       }));
 
       // Start polling if not already completed
@@ -277,6 +332,7 @@ export const useSimulationEngineStore = create<SimulationEngineStore>((set, get)
       }
 
       if (data.run?.status === 'completed') {
+        await get().loadRunHistory(activeCase.id);
         showToast('success', 'Simulation completed');
       }
     } catch (error) {
@@ -297,7 +353,14 @@ export const useSimulationEngineStore = create<SimulationEngineStore>((set, get)
 
       const data = await res.json();
 
-      set({ activeRun: data.run });
+      set((state) => ({
+        activeRun: data.run,
+        runHistory: data.run
+          ? state.runHistory.some((run) => run.id === data.run.id)
+            ? state.runHistory.map((run) => (run.id === data.run.id ? data.run : run))
+            : [data.run, ...state.runHistory]
+          : state.runHistory,
+      }));
 
       // Auto-stop polling when terminal state
       if (data.run?.status === 'completed' || data.run?.status === 'failed' || data.run?.status === 'cancelled') {
@@ -316,6 +379,8 @@ export const useSimulationEngineStore = create<SimulationEngineStore>((set, get)
             ),
           }));
         }
+
+        await get().loadRunHistory(activeCase.id);
 
         if (data.run?.status === 'completed') {
           showToast('success', 'Simulation run completed');

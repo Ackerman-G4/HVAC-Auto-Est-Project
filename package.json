@@ -26,6 +26,7 @@
     "validate:preflight:strict:local": "powershell -ExecutionPolicy Bypass -File ./scripts/validate-preflight-strict-local.ps1",
     "auth:set-role": "tsx ./scripts/set-user-role.mts",
     "seed:mock": "tsx ./scripts/seed-mock-project.mts",
+    "reports:backfill:legacy": "tsx ./scripts/backfill-simulation-report-history.mts",
     "validate:auth": "powershell -ExecutionPolicy Bypass -File ./scripts/smoke-auth.ps1",
     "validate:auth:positive": "powershell -ExecutionPolicy Bypass -File ./scripts/validate-auth-positive.ps1",
     "validate:rbac": "powershell -ExecutionPolicy Bypass -File ./scripts/smoke-rbac.ps1",

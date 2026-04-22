@@ -13,13 +13,25 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Download, FileDown, FileSpreadsheet, FileText, Upload } from 'lucide-react';
+import { Download, FileDown, FileSpreadsheet, FileText, Upload, Trash2, RotateCcw } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatCard } from '@/components/ui/stat-card';
 import { CollapsiblePanel } from '@/components/rebuild/CollapsiblePanel';
 import { showToast } from '@/components/ui/toast';
 import { buildWorkspaceSnapshot, parseWorkspaceSnapshot } from '@/lib/reports/workspace-snapshot';
+import { safeJsonParse } from '@/lib/utils/safe-json';
+import {
+  exportSimulationReportCsv,
+  exportSimulationReportJson,
+  exportSimulationReportPdf,
+} from '@/lib/reports/simulation-report';
+import {
+  backfillLegacySimulationReportHistory,
+  clearSimulationReportHistory,
+  listSimulationReportHistory,
+  type SimulationReportHistoryEntry,
+} from '@/lib/reports/simulation-report-history';
 import {
   calculateTotalProjectCost,
   type CostBreakdown,
@@ -59,15 +71,85 @@ function slugify(value: string): string {
   return slug || 'project';
 }
 
+const BACKFILL_STATUS_STORAGE_KEY = 'hvac-simulation-report-backfill-status:v1';
+
+interface BackfillRunStatus {
+  attemptedAt: string;
+  checkedCount: number;
+  updatedCount: number;
+  skippedCount: number;
+  ok: boolean;
+  message?: string;
+}
+
+function normalizeBackfillRunStatus(value: unknown): BackfillRunStatus | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  const attemptedAt = typeof candidate.attemptedAt === 'string' ? candidate.attemptedAt : '';
+  const checkedCount = typeof candidate.checkedCount === 'number' ? candidate.checkedCount : NaN;
+  const updatedCount = typeof candidate.updatedCount === 'number' ? candidate.updatedCount : NaN;
+  const skippedCount = typeof candidate.skippedCount === 'number' ? candidate.skippedCount : NaN;
+  const ok = candidate.ok === true || candidate.ok === false ? candidate.ok : null;
+
+  if (!attemptedAt || Number.isNaN(Date.parse(attemptedAt))) {
+    return null;
+  }
+
+  if (!Number.isFinite(checkedCount) || !Number.isFinite(updatedCount) || !Number.isFinite(skippedCount)) {
+    return null;
+  }
+
+  if (ok === null) {
+    return null;
+  }
+
+  return {
+    attemptedAt,
+    checkedCount: Math.max(0, Math.trunc(checkedCount)),
+    updatedCount: Math.max(0, Math.trunc(updatedCount)),
+    skippedCount: Math.max(0, Math.trunc(skippedCount)),
+    ok,
+    message: typeof candidate.message === 'string' ? candidate.message : undefined,
+  };
+}
+
 export default function ReportsPage() {
   const [chartsReady, setChartsReady] = React.useState(false);
   const [exporting, setExporting] = React.useState<null | 'pdf' | 'excel' | 'csv' | 'json'>(null);
   const [snapshotTransfer, setSnapshotTransfer] = React.useState<null | 'export' | 'import'>(null);
+  const [historyAction, setHistoryAction] = React.useState<null | 'refresh' | 'clear' | 'backfill'>(null);
+  const [historyExporting, setHistoryExporting] = React.useState<null | { id: string; format: 'pdf' | 'csv' | 'json' }>(null);
+  const [simulationReportHistory, setSimulationReportHistory] = React.useState<SimulationReportHistoryEntry[]>([]);
+  const [lastBackfillRun, setLastBackfillRun] = React.useState<BackfillRunStatus | null>(null);
+  const [backfillStatusHydrated, setBackfillStatusHydrated] = React.useState(false);
   const snapshotInputRef = React.useRef<HTMLInputElement | null>(null);
 
   React.useEffect(() => {
     setChartsReady(true);
   }, []);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const raw = window.localStorage.getItem(BACKFILL_STATUS_STORAGE_KEY);
+    const parsed = safeJsonParse<unknown>(raw);
+    setLastBackfillRun(normalizeBackfillRunStatus(parsed));
+    setBackfillStatusHydrated(true);
+  }, []);
+
+  React.useEffect(() => {
+    if (!backfillStatusHydrated || typeof window === 'undefined') return;
+
+    if (!lastBackfillRun) {
+      window.localStorage.removeItem(BACKFILL_STATUS_STORAGE_KEY);
+      return;
+    }
+
+    window.localStorage.setItem(BACKFILL_STATUS_STORAGE_KEY, JSON.stringify(lastBackfillRun));
+  }, [backfillStatusHydrated, lastBackfillRun]);
 
   const loadInputs = useLoadWorkspaceStore((state) => state.inputs);
   const loadResult = useLoadWorkspaceStore((state) => state.result);
@@ -215,6 +297,119 @@ export default function ReportsPage() {
       setSnapshotTransfer(null);
     }
   }, [getAirflowSnapshot, getEquipmentSnapshot, getLoadSnapshot, loadInputs.projectName]);
+
+  const refreshSimulationHistory = React.useCallback(async () => {
+    setHistoryAction('refresh');
+    try {
+      const history = await listSimulationReportHistory({ limit: 100 });
+      setSimulationReportHistory(history);
+    } catch (error) {
+      console.error(error);
+      showToast('error', 'Failed to load simulation export history');
+    } finally {
+      setHistoryAction(null);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void refreshSimulationHistory();
+  }, [refreshSimulationHistory]);
+
+  const legacyPayloadMissingCount = React.useMemo(
+    () => simulationReportHistory.filter((entry) => !entry.report).length,
+    [simulationReportHistory],
+  );
+
+  const clearHistory = React.useCallback(async () => {
+    setHistoryAction('clear');
+    try {
+      const deletedCount = await clearSimulationReportHistory();
+      const plural = deletedCount === 1 ? 'entry' : 'entries';
+      setSimulationReportHistory([]);
+      showToast('success', 'Simulation export history cleared', `${deletedCount} ${plural} removed.`);
+    } catch (error) {
+      console.error(error);
+      showToast('error', 'Failed to clear simulation export history');
+    } finally {
+      setHistoryAction(null);
+    }
+  }, []);
+
+  const backfillHistory = React.useCallback(async () => {
+    setHistoryAction('backfill');
+    try {
+      const result = await backfillLegacySimulationReportHistory();
+      const history = await listSimulationReportHistory({ limit: 100 });
+      setSimulationReportHistory(history);
+      setLastBackfillRun({
+        attemptedAt: new Date().toISOString(),
+        checkedCount: result.checkedCount,
+        updatedCount: result.updatedCount,
+        skippedCount: result.skippedCount,
+        ok: true,
+      });
+
+      if (result.updatedCount > 0) {
+        const plural = result.updatedCount === 1 ? 'entry' : 'entries';
+        showToast(
+          'success',
+          'Legacy payload backfill complete',
+          `${result.updatedCount} ${plural} updated, ${result.skippedCount} skipped (${result.checkedCount} records checked).`,
+        );
+      } else {
+        showToast(
+          'success',
+          'No legacy payloads found',
+          `${result.skippedCount} records skipped because payloads already exist.`,
+        );
+      }
+    } catch (error) {
+      setLastBackfillRun({
+        attemptedAt: new Date().toISOString(),
+        checkedCount: 0,
+        updatedCount: 0,
+        skippedCount: 0,
+        ok: false,
+        message: error instanceof Error ? error.message : 'Unknown backfill error',
+      });
+      console.error(error);
+      showToast('error', 'Failed to backfill legacy export history');
+    } finally {
+      setHistoryAction(null);
+    }
+  }, []);
+
+  const exportHistoryEntry = React.useCallback(async (
+    entry: SimulationReportHistoryEntry,
+    format: 'pdf' | 'csv' | 'json',
+  ) => {
+    if (!entry.report) {
+      showToast(
+        'warning',
+        'Report payload unavailable',
+        'This export record was created before server payload persistence was enabled.',
+      );
+      return;
+    }
+
+    setHistoryExporting({ id: entry.id, format });
+    try {
+      if (format === 'pdf') {
+        await exportSimulationReportPdf(entry.report);
+      } else if (format === 'csv') {
+        exportSimulationReportCsv(entry.report);
+      } else {
+        exportSimulationReportJson(entry.report);
+      }
+
+      showToast('success', `${format.toUpperCase()} exported`, `Re-exported ${entry.projectName}.`);
+    } catch (error) {
+      console.error(error);
+      showToast('error', 'Failed to export history report');
+    } finally {
+      setHistoryExporting(null);
+    }
+  }, []);
 
   const triggerSnapshotImport = React.useCallback(() => {
     snapshotInputRef.current?.click();
@@ -592,6 +787,123 @@ export default function ReportsPage() {
           </div>
         </div>
       </Card>
+
+      <CollapsiblePanel
+        title="Simulation Export History"
+        subtitle="Recent simulation report exports from Viewer and Workspace"
+        defaultOpen={false}
+      >
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => { void refreshSimulationHistory(); }}
+            isLoading={historyAction === 'refresh'}
+          >
+            <RotateCcw size={14} className="mr-1" />
+            Refresh
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => { void backfillHistory(); }}
+            isLoading={historyAction === 'backfill'}
+          >
+            <Download size={14} className="mr-1" />
+            Backfill Legacy
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => { void clearHistory(); }}
+            isLoading={historyAction === 'clear'}
+          >
+            <Trash2 size={14} className="mr-1" />
+            Clear
+          </Button>
+          <span className="ml-1 text-[11px] text-muted-foreground">
+            Missing payload (visible): {legacyPayloadMissingCount}
+          </span>
+        </div>
+
+        {lastBackfillRun && (
+          <div className="mb-3 rounded-lg border border-border bg-secondary/70 px-3 py-2 text-[11px] text-muted-foreground">
+            <span className="font-semibold text-foreground">Last backfill:</span>{' '}
+            {new Date(lastBackfillRun.attemptedAt).toLocaleString('en-PH')} · Checked {lastBackfillRun.checkedCount}
+            {' · '}Updated {lastBackfillRun.updatedCount}
+            {' · '}Skipped {lastBackfillRun.skippedCount}
+            {' · '}
+            <span className={lastBackfillRun.ok ? 'text-emerald-700' : 'text-destructive'}>
+              {lastBackfillRun.ok ? 'Success' : 'Failed'}
+            </span>
+            {lastBackfillRun.message ? ` (${lastBackfillRun.message})` : ''}
+          </div>
+        )}
+
+        {simulationReportHistory.length === 0 ? (
+          <div className="rounded-lg border border-border bg-secondary p-4 text-sm text-muted-foreground">
+            No simulation report exports recorded yet. Export from the simulation viewer or workspace to populate history.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {simulationReportHistory.slice(0, 12).map((entry) => (
+              <div key={entry.id} className="rounded-lg border border-border bg-secondary p-3 text-xs text-muted-foreground">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-semibold uppercase tracking-wider text-foreground">
+                    {entry.projectName} · {entry.format.toUpperCase()} · {entry.source}
+                  </span>
+                  <span>{new Date(entry.generatedAt).toLocaleString('en-PH')}</span>
+                </div>
+                <div className="mt-1 grid gap-1 sm:grid-cols-3">
+                  <span>Max Temp: {entry.maxTemperatureC.toFixed(2)}°C</span>
+                  <span>PUE: {entry.pue.toFixed(3)}</span>
+                  <span>Hotspots: {entry.hotspotCount}</span>
+                </div>
+                <div className="mt-1 grid gap-1 sm:grid-cols-3">
+                  <span>Project: {entry.projectId}</span>
+                  <span>Floor: {entry.floorId}</span>
+                  <span>Runtime: {entry.runtimeMode}</span>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="h-7 px-2 text-[11px]"
+                    onClick={() => { void exportHistoryEntry(entry, 'pdf'); }}
+                    disabled={!entry.report}
+                    isLoading={historyExporting?.id === entry.id && historyExporting?.format === 'pdf'}
+                  >
+                    <FileText size={12} className="mr-1" /> PDF
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="h-7 px-2 text-[11px]"
+                    onClick={() => { void exportHistoryEntry(entry, 'csv'); }}
+                    disabled={!entry.report}
+                    isLoading={historyExporting?.id === entry.id && historyExporting?.format === 'csv'}
+                  >
+                    <FileDown size={12} className="mr-1" /> CSV
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="h-7 px-2 text-[11px]"
+                    onClick={() => { void exportHistoryEntry(entry, 'json'); }}
+                    disabled={!entry.report}
+                    isLoading={historyExporting?.id === entry.id && historyExporting?.format === 'json'}
+                  >
+                    <Download size={12} className="mr-1" /> JSON
+                  </Button>
+                  {!entry.report && (
+                    <span className="text-[10px] text-muted-foreground">Payload unavailable for this entry.</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CollapsiblePanel>
 
       {/* KPI Row */}
       <div className="grid gap-(--space-component-gap) sm:grid-cols-2 lg:grid-cols-4">

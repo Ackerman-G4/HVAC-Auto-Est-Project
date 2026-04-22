@@ -39,7 +39,17 @@ export async function GET(request: NextRequest) {
       sortOrder,
     });
 
-    return NextResponse.json({ projects });
+    const visibleProjects = auth.user.role === 'admin'
+      ? projects
+      : projects.filter((project) => {
+        // Legacy records may not have createdBy populated; keep them visible for authenticated engineers.
+        if (!project.createdBy) {
+          return true;
+        }
+        return project.createdBy === auth.user.id;
+      });
+
+    return NextResponse.json({ projects: visibleProjects });
   } catch (error) {
     console.error('GET /api/projects error:', error);
     const d = getErrorDetails(error, 'Failed to fetch projects');

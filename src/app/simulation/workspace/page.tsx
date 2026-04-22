@@ -11,7 +11,8 @@ import React, { useMemo, useCallback, useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import {
   RotateCcw, Layers, Settings2,
-  Box, Wind, Droplets, BarChart3,
+  Box, Wind, Droplets, FileText,
+  FileSpreadsheet, FileDown,
   Scan, Server, Fan, Grid3x3,
 } from 'lucide-react';
 
@@ -21,8 +22,17 @@ import { ViewerPanel, type ViewerTab } from '@/components/layout/ViewerPanel';
 import { ResultsPanel, type ResultSection } from '@/components/layout/ResultsPanel';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import SimulationRunProgressCard from '@/components/building/SimulationRunProgressCard';
 import { useSimulationStore } from '@/stores/simulation-store';
 import { authFetch } from '@/lib/api-client';
+import { showToast } from '@/components/ui/toast';
+import {
+  buildSimulationEngineeringReport,
+  exportSimulationReportCsv,
+  exportSimulationReportJson,
+  exportSimulationReportPdf,
+} from '@/lib/reports/simulation-report';
+import { appendSimulationReportHistory } from '@/lib/reports/simulation-report-history';
 
 /* ── Lazy-loaded viewers ───────────────────────────────────────── */
 
@@ -99,6 +109,32 @@ function useInputSections(projects: ProjectOption[]): InputSection[] {
       ],
     },
     {
+      id: 'runtime',
+      title: 'Solver Runtime',
+      icon: <Wind size={14} />,
+      defaultOpen: true,
+      fields: [
+        {
+          key: 'runtimeMode',
+          label: 'Execution Runtime',
+          type: 'select' as const,
+          options: [
+            { value: 'worker', label: 'Web Worker (default)' },
+            { value: 'server', label: 'Server API fallback' },
+          ],
+        },
+        {
+          key: 'dimensionMode',
+          label: 'Solver Dimensionality',
+          type: 'select' as const,
+          options: [
+            { value: '3d', label: '3D engineering mode' },
+            { value: '2d-fast', label: '2D fast approximation' },
+          ],
+        },
+      ],
+    },
+    {
       id: 'grid',
       title: 'Grid & Domain',
       icon: <Layers size={14} />,
@@ -152,10 +188,10 @@ function useInputSections(projects: ProjectOption[]): InputSection[] {
 export default function SimulationWorkspacePage() {
   const store = useSimulationStore();
   const {
-    config, result, isRunning,
+    config, result, isRunning, runtimeMode, runProgress,
     racks, hvacUnits, tiles,
     activeView, showHotspots, showAirflow, selectedSliceZ,
-    setConfig, setMode,
+    setConfig, setMode, setRuntimeMode, cancelSimulation,
     autoDetectFromProject,
     runSimulation,
   } = store;
@@ -165,6 +201,7 @@ export default function SimulationWorkspacePage() {
   const [selectedProjectId, setSelectedProjectId] = useState('');
   const [detectSummary, setDetectSummary] = useState<string[]>([]);
   const [isDetecting, setIsDetecting] = useState(false);
+  const [reportExporting, setReportExporting] = useState<null | 'pdf' | 'csv' | 'json'>(null);
 
   // Fetch project list on mount
   useEffect(() => {
@@ -190,6 +227,8 @@ export default function SimulationWorkspacePage() {
   const inputValues = useMemo(() => ({
     projectId: selectedProjectId,
     mode: config.mode ?? 'balanced',
+    runtimeMode,
+    dimensionMode: config.dimensionMode ?? '3d',
     gridSizeX: config.gridSizeX,
     gridSizeY: config.gridSizeY,
     gridSizeZ: config.gridSizeZ,
@@ -202,7 +241,7 @@ export default function SimulationWorkspacePage() {
     selectedSliceZ,
     showHotspots,
     showAirflow,
-  }), [selectedProjectId, config, activeView, selectedSliceZ, showHotspots, showAirflow]);
+  }), [selectedProjectId, config, runtimeMode, activeView, selectedSliceZ, showHotspots, showAirflow]);
 
   const handleInputChange = useCallback((key: string, value: string | number | boolean) => {
     // Project selection
@@ -231,13 +270,81 @@ export default function SimulationWorkspacePage() {
       setMode(value as 'fast' | 'balanced' | 'engineering');
       return;
     }
+    if (key === 'runtimeMode') {
+      setRuntimeMode(value as 'worker' | 'server' | 'openfoam');
+      return;
+    }
     // Config values
     setConfig({ [key]: value });
-  }, [store, setConfig, setMode]);
+  }, [store, setConfig, setMode, setRuntimeMode]);
 
   const handleRun = useCallback(() => {
     void runSimulation(selectedProjectId || 'workspace', 'default');
   }, [runSimulation, selectedProjectId]);
+
+  const selectedProjectName = useMemo(
+    () => projects.find((project) => project.id === selectedProjectId)?.name ?? 'Simulation Workspace',
+    [projects, selectedProjectId],
+  );
+
+  const handleExportReport = useCallback(async (format: 'pdf' | 'csv' | 'json') => {
+    if (!result) {
+      showToast('error', 'Run simulation first');
+      return;
+    }
+
+    setReportExporting(format);
+    try {
+      const totalHeatKw = racks.reduce((sum, rack) => sum + rack.powerKW, 0);
+      const totalCoolingKw = hvacUnits
+        .filter((unit) => unit.status !== 'failed')
+        .reduce((sum, unit) => sum + unit.capacityKW, 0);
+
+      const report = buildSimulationEngineeringReport({
+        projectId: selectedProjectId || 'workspace',
+        projectName: selectedProjectName,
+        floorId: 'default',
+        runtimeMode,
+        config,
+        rackCount: racks.length,
+        hvacCount: hvacUnits.length,
+        tileCount: tiles.length,
+        totalHeatKw,
+        totalCoolingKw,
+        result,
+      });
+
+      if (format === 'pdf') {
+        await exportSimulationReportPdf(report);
+      } else if (format === 'csv') {
+        exportSimulationReportCsv(report);
+      } else {
+        exportSimulationReportJson(report);
+      }
+
+      try {
+        await appendSimulationReportHistory(report, format, 'workspace');
+      } catch (historyError) {
+        console.warn('Failed to persist simulation report history:', historyError);
+      }
+
+      showToast('success', `${format.toUpperCase()} report exported`);
+    } catch (error) {
+      console.error(error);
+      showToast('error', 'Failed to export report');
+    } finally {
+      setReportExporting(null);
+    }
+  }, [
+    config,
+    hvacUnits,
+    racks,
+    result,
+    runtimeMode,
+    selectedProjectId,
+    selectedProjectName,
+    tiles.length,
+  ]);
 
   /* ── Viewer tabs ─────────────────────────────────────────────── */
   const viewerTabs: ViewerTab[] = useMemo(() => {
@@ -423,6 +530,7 @@ export default function SimulationWorkspacePage() {
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="outline" className="text-[10px]">Mode {config.mode ?? 'balanced'}</Badge>
+        <Badge variant="outline" className="text-[10px]">Runtime {runtimeMode}</Badge>
         <Badge variant="outline" className="text-[10px]">
           Grid {config.gridSizeX}x{config.gridSizeY}x{config.gridSizeZ}
         </Badge>
@@ -439,7 +547,13 @@ export default function SimulationWorkspacePage() {
   /* ── Footer status ───────────────────────────────────────────── */
   const footer = (
     <div className="flex items-center justify-between gap-3">
-      <span>{isRunning ? 'Simulation running…' : result ? `Completed in ${result.iteration} iterations` : 'Idle'}</span>
+      <span>
+        {isRunning
+          ? `Simulation running${runProgress ? ` (${runProgress.percent.toFixed(0)}%)` : '…'}`
+          : result
+            ? `Completed in ${result.iteration} iterations`
+            : 'Idle'}
+      </span>
       <span className="text-muted-foreground">{new Date().toLocaleTimeString()}</span>
     </div>
   );
@@ -472,6 +586,37 @@ export default function SimulationWorkspacePage() {
                 <Scan size={12} className="mr-1.5" />
                 {isDetecting ? 'Detecting…' : 'Auto-Detect Racks & Tiles'}
               </Button>
+
+              {isRunning && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="w-full text-xs"
+                  onClick={cancelSimulation}
+                >
+                  Cancel Simulation
+                </Button>
+              )}
+
+              {runProgress && (
+                <SimulationRunProgressCard
+                  className="p-2"
+                  compact
+                  title="Progress"
+                  status={runProgress.status}
+                  iteration={runProgress.iteration}
+                  totalIterations={runProgress.totalIterations}
+                  elapsedSeconds={typeof runProgress.elapsedMs === 'number' ? runProgress.elapsedMs / 1000 : undefined}
+                  source={runtimeMode}
+                  residual={{
+                    continuity: runProgress.continuityResidual,
+                    momentum: runProgress.momentumResidual,
+                    energy: runProgress.energyResidual,
+                  }}
+                  errorMessage={runProgress.status === 'failed' ? runProgress.message : undefined}
+                  successMessage={runProgress.status === 'completed' ? (runProgress.message ?? 'Run completed') : undefined}
+                />
+              )}
 
               {/* Equipment summary */}
               <div className="space-y-1 text-[10px] text-muted-foreground">
@@ -508,9 +653,44 @@ export default function SimulationWorkspacePage() {
           alerts={alerts}
           footer={
             result && (
-              <Button size="sm" variant="secondary" className="w-full text-xs">
-                <BarChart3 size={12} className="mr-1.5" /> Export Report
-              </Button>
+              <div className="grid grid-cols-3 gap-1.5">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="text-xs"
+                  onClick={() => { void handleExportReport('pdf'); }}
+                  disabled={reportExporting !== null}
+                >
+                  {reportExporting === 'pdf'
+                    ? <RotateCcw size={12} className="mr-1.5 animate-spin" />
+                    : <FileText size={12} className="mr-1.5" />}
+                  PDF
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="text-xs"
+                  onClick={() => { void handleExportReport('csv'); }}
+                  disabled={reportExporting !== null}
+                >
+                  {reportExporting === 'csv'
+                    ? <RotateCcw size={12} className="mr-1.5 animate-spin" />
+                    : <FileSpreadsheet size={12} className="mr-1.5" />}
+                  CSV
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="text-xs"
+                  onClick={() => { void handleExportReport('json'); }}
+                  disabled={reportExporting !== null}
+                >
+                  {reportExporting === 'json'
+                    ? <RotateCcw size={12} className="mr-1.5 animate-spin" />
+                    : <FileDown size={12} className="mr-1.5" />}
+                  JSON
+                </Button>
+              </div>
             )
           }
         />

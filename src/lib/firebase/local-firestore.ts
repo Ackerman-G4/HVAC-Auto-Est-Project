@@ -41,10 +41,12 @@ function writeStore(store: Store): void {
 // ── Mock Document Snapshot ─────────────────────────────────
 
 class LocalDocSnapshot {
+  private _colName: string;
   readonly id: string;
   private _data: DocData | undefined;
 
-  constructor(id: string, data: DocData | undefined) {
+  constructor(colName: string, id: string, data: DocData | undefined) {
+    this._colName = colName;
     this.id = id;
     this._data = data;
   }
@@ -58,7 +60,7 @@ class LocalDocSnapshot {
   }
 
   get ref() {
-    return { id: this.id };
+    return new LocalDocRef(this._colName, this.id);
   }
 }
 
@@ -186,7 +188,7 @@ class LocalQuery {
     }
 
     return new LocalQuerySnapshot(
-      docs.map((d) => new LocalDocSnapshot(d.id, d.data)),
+      docs.map((d) => new LocalDocSnapshot(this.colName, d.id, d.data)),
     );
   }
 }
@@ -205,7 +207,11 @@ class LocalDocRef {
   async get(): Promise<LocalDocSnapshot> {
     const store = readStore();
     const data = store[this.colName]?.[this.id];
-    return new LocalDocSnapshot(this.id, data);
+    return new LocalDocSnapshot(this.colName, this.id, data);
+  }
+
+  collection(name: string): LocalCollectionRef {
+    return new LocalCollectionRef(`${this.colName}/${this.id}/${name}`);
   }
 
   async set(data: DocData, options?: { merge?: boolean }): Promise<void> {
@@ -296,6 +302,12 @@ class LocalCollectionRef extends LocalQuery {
 
   doc(id: string): LocalDocRef {
     return new LocalDocRef(this._colName, id);
+  }
+
+  async listDocuments(): Promise<LocalDocRef[]> {
+    const store = readStore();
+    const col = store[this._colName] || {};
+    return Object.keys(col).map((id) => new LocalDocRef(this._colName, id));
   }
 }
 

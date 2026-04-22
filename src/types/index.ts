@@ -93,6 +93,7 @@ export type {
   OptimizationTarget,
   OptimizationConfig,
   OptimizationSuggestion,
+  OptimizationIteration,
   OptimizationResult,
 } from './simulation';
 

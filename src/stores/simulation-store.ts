@@ -2,9 +2,13 @@ import { create } from 'zustand';
 import { showToast } from '@/components/ui/toast';
 import { authFetch } from '@/lib/api-client';
 import { autoDetectEquipment, type AutoDetectInput } from '@/lib/functions/auto-detect-equipment';
+import { CFD_CANCELLED_ERROR } from '@/lib/functions/cfd-simulation';
+import { cfdWorkerClient } from '@/lib/simulation/worker-client';
 import type {
   SimulationConfig,
   SimulationMode,
+  SimulationRuntime,
+  SimulationRunProgress,
   SimulationResult,
   ServerRack,
   HVACUnit,
@@ -36,6 +40,10 @@ interface SimulationStore {
 
   // Simulation state
   isRunning: boolean;
+  runtimeMode: SimulationRuntime;
+  runProgress: SimulationRunProgress | null;
+  activeSimulationId: string | null;
+  activeAbortController: AbortController | null;
   result: SimulationResult | null;
   complianceReport: ComplianceReport | null;
   failureResult: FailureResult | null;
@@ -84,6 +92,8 @@ interface SimulationStore {
   // Actions - Simulation
   setConfig: (config: Partial<SimulationConfig>) => void;
   setMode: (mode: SimulationMode) => void;
+  setRuntimeMode: (mode: SimulationRuntime) => void;
+  cancelSimulation: () => void;
   autoDetectFromProject: (projectId: string) => Promise<string[]>;
   runSimulation: (projectId: string, floorId: string) => Promise<void>;
   runCompliance: () => void;
@@ -134,6 +144,8 @@ const MODE_CONFIGS: Record<SimulationMode, Partial<SimulationConfig>> = {
 
 const DEFAULT_CONFIG: SimulationConfig = {
   mode: 'balanced',
+  runtimeMode: 'worker',
+  dimensionMode: '3d',
   gridResolution: 0.5,
   gridSizeX: 20,
   gridSizeY: 20,
@@ -141,6 +153,8 @@ const DEFAULT_CONFIG: SimulationConfig = {
   iterations: 200,
   convergence: 0.001,
   timeStep: 0.1,
+  progressEmitInterval: 5,
+  renderDownsampleStep: 2,
   ambientTempC: 24,
   ambientHumidityRatio: 0.0093,
   airDensity: 1.2,
@@ -157,6 +171,10 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
 
   // State
   isRunning: false,
+  runtimeMode: 'worker',
+  runProgress: null,
+  activeSimulationId: null,
+  activeAbortController: null,
   result: null,
   complianceReport: null,
   failureResult: null,
@@ -252,7 +270,48 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
 
   setMode: (mode) => {
     const modeOverrides = MODE_CONFIGS[mode];
-    set(state => ({ config: { ...state.config, ...modeOverrides, mode } }));
+    set(state => ({
+      config: {
+        ...state.config,
+        ...modeOverrides,
+        mode,
+        dimensionMode: mode === 'fast' ? '2d-fast' : '3d',
+      },
+    }));
+  },
+
+  setRuntimeMode: (mode) => {
+    set(state => ({
+      runtimeMode: mode,
+      config: { ...state.config, runtimeMode: mode },
+    }));
+  },
+
+  cancelSimulation: () => {
+    const { activeAbortController, activeSimulationId } = get();
+
+    if (activeAbortController) {
+      activeAbortController.abort();
+    }
+
+    if (activeSimulationId) {
+      cfdWorkerClient.cancel(activeSimulationId);
+      set({
+        isRunning: false,
+        activeAbortController: null,
+        runProgress: {
+          simulationId: activeSimulationId,
+          status: 'cancelled',
+          iteration: 0,
+          totalIterations: get().config.iterations,
+          percent: 0,
+          message: 'Simulation cancelled',
+        },
+      });
+      return;
+    }
+
+    set({ isRunning: false, activeAbortController: null });
   },
 
   // ─── Auto-detect from project ─────────────────────────────
@@ -291,31 +350,169 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
   // ─── Simulation Actions ─────────────────────────────────────
 
   runSimulation: async (projectId, floorId) => {
-    const { config, racks, hvacUnits, tiles, raisedFloorHeight } = get();
-    set({ isRunning: true, result: null });
+    const { config, racks, hvacUnits, tiles, raisedFloorHeight, runtimeMode, calibrationCoefficients } = get();
+    const simulationId = crypto.randomUUID();
+    const abortController = new AbortController();
 
-    try {
+    const input = {
+      projectId,
+      floorId,
+      config: {
+        ...config,
+        runtimeMode,
+      },
+      racks,
+      hvacUnits,
+      tiles,
+      raisedFloorHeight,
+      calibration: { coefficients: calibrationCoefficients },
+    };
+
+    set({
+      isRunning: true,
+      result: null,
+      activeSimulationId: simulationId,
+      activeAbortController: abortController,
+      runProgress: {
+        simulationId,
+        status: 'running',
+        iteration: 0,
+        totalIterations: config.iterations,
+        percent: 0,
+        message: runtimeMode === 'worker' ? 'Starting Web Worker simulation' : 'Starting server simulation',
+      },
+    });
+
+    const runViaApi = async (controller: AbortController) => {
+      set({
+        runProgress: {
+          simulationId,
+          status: 'running',
+          iteration: 1,
+          totalIterations: config.iterations,
+          percent: 10,
+          message: 'Running on server runtime',
+        },
+      });
+
       const res = await authFetch('/api/simulation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           action: 'cfd',
-          input: { projectId, floorId, config, racks, hvacUnits, tiles, raisedFloorHeight,
-            calibration: { coefficients: get().calibrationCoefficients } },
+          input: {
+            ...input,
+            config: {
+              ...input.config,
+              runtimeMode: 'server',
+            },
+          },
         }),
       });
 
       if (!res.ok) throw new Error('Simulation failed');
       const data = await res.json();
-      set({ result: data.result, isRunning: false });
+      return data.result as SimulationResult;
+    };
+
+    const finalizeSuccess = (result: SimulationResult) => {
+      set({
+        result,
+        isRunning: false,
+        activeSimulationId: null,
+        activeAbortController: null,
+        runProgress: {
+          simulationId,
+          status: 'completed',
+          iteration: result.iteration,
+          totalIterations: result.config.iterations,
+          percent: 100,
+          continuityResidual: result.metrics.continuityResidual,
+          momentumResidual: result.metrics.momentumResidual,
+          energyResidual: result.metrics.energyResidual,
+          message: result.metrics.converged ? 'Converged' : 'Completed configured iterations',
+        },
+      });
+
       // Auto-compute TileFlow analysis
       get().computeAlerts();
       get().computeTileAirflow();
       showToast('success', 'CFD simulation completed');
+    };
+
+    const finalizeFailure = (message: string) => {
+      set({
+        isRunning: false,
+        activeSimulationId: null,
+        activeAbortController: null,
+        runProgress: {
+          simulationId,
+          status: 'failed',
+          iteration: 0,
+          totalIterations: config.iterations,
+          percent: 0,
+          message,
+        },
+      });
+      showToast('error', message);
+    };
+
+    const isWorkerSupported = typeof window !== 'undefined' && typeof Worker !== 'undefined';
+
+    try {
+      if (runtimeMode === 'worker' && isWorkerSupported) {
+        const result = await cfdWorkerClient.run(input, {
+          simulationId,
+          abortSignal: abortController.signal,
+          onProgress: (progress) => {
+            set({ runProgress: progress });
+          },
+        });
+        finalizeSuccess(result);
+        return;
+      }
+
+      const result = await runViaApi(abortController);
+      finalizeSuccess(result);
     } catch (error) {
+      const cancelled =
+        error instanceof Error &&
+        (error.message === CFD_CANCELLED_ERROR || error.name === 'AbortError');
+
+      if (cancelled) {
+        set({
+          isRunning: false,
+          activeSimulationId: null,
+          activeAbortController: null,
+          runProgress: {
+            simulationId,
+            status: 'cancelled',
+            iteration: 0,
+            totalIterations: config.iterations,
+            percent: 0,
+            message: 'Simulation cancelled',
+          },
+        });
+        showToast('error', 'Simulation cancelled');
+        return;
+      }
+
+      if (runtimeMode === 'worker') {
+        try {
+          const serverAbortController = new AbortController();
+          set({ activeAbortController: serverAbortController });
+          showToast('error', 'Worker runtime failed, retrying on server');
+          const fallbackResult = await runViaApi(serverAbortController);
+          finalizeSuccess(fallbackResult);
+          return;
+        } catch (fallbackError) {
+          console.error(fallbackError);
+        }
+      }
+
       console.error(error);
-      set({ isRunning: false });
-      showToast('error', 'Simulation failed');
+      finalizeFailure('Simulation failed');
     }
   },
 
@@ -423,7 +620,14 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
   },
 
   clearResults: () => {
+    const { activeAbortController } = get();
+    activeAbortController?.abort();
+
     set({
+      isRunning: false,
+      runProgress: null,
+      activeSimulationId: null,
+      activeAbortController: null,
       result: null,
       complianceReport: null,
       failureResult: null,
@@ -433,10 +637,17 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
   },
 
   clearAll: () => {
+    const { activeAbortController } = get();
+    activeAbortController?.abort();
+
     set({
       racks: [],
       hvacUnits: [],
       tiles: [],
+      isRunning: false,
+      runProgress: null,
+      activeSimulationId: null,
+      activeAbortController: null,
       result: null,
       complianceReport: null,
       failureResult: null,

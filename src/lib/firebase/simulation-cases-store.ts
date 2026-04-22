@@ -151,10 +151,12 @@ export async function getRunJob(
 export async function listRunJobs(
   projectId: string,
   caseId: string,
+  limitCount?: number,
 ): Promise<RunJob[]> {
-  const snap = await jobsCol(projectId, caseId)
-    .orderBy('createdAt', 'desc')
-    .get();
+  const baseQuery = jobsCol(projectId, caseId).orderBy('createdAt', 'desc');
+  const snap = typeof limitCount === 'number'
+    ? await baseQuery.limit(limitCount).get()
+    : await baseQuery.get();
   return snap.docs.map((d) => d.data() as RunJob);
 }
 
