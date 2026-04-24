@@ -4,6 +4,7 @@ export type SimulationStatus = 'pending' | 'running' | 'completed' | 'failed';
 export type SimulationMode = 'fast' | 'balanced' | 'engineering';
 export type SimulationRuntime = 'worker' | 'server' | 'openfoam';
 export type SimulationDimensionMode = '3d' | '2d-fast';
+export type SimulationScope = 'room' | 'building';
 export type SimulationRunState = 'idle' | 'running' | 'completed' | 'failed' | 'cancelled';
 export type TileType = 'open' | 'perforated' | 'solid' | 'inlet' | 'outlet';
 export type BoundaryType = 'wall' | 'inlet' | 'outlet' | 'symmetry' | 'open';
@@ -153,6 +154,18 @@ export interface HotspotInfo {
   nearestRack: string;
 }
 
+export interface RoomSimulationMetric {
+  roomId: string;
+  floorId: string;
+  floorNumber: number;
+  avgTemperature: number;
+  meanVelocity: number;
+  stagnationRatio: number;
+  pressure: number;
+  inflowM3s: number;
+  outflowM3s: number;
+}
+
 export interface AirflowVector {
   position: Vec3;
   velocity: Vec3;
@@ -193,6 +206,10 @@ export interface SimulationMetrics {
   uniformityIndex?: number;
   pmvApprox?: number;
   ppdApprox?: number;
+  airflowBalanceM3s?: number;
+  pressureImbalancePa?: number;
+  ventilationEffectiveness?: number;
+  roomMetrics?: RoomSimulationMetric[];
 }
 
 export interface SimulationResult {
@@ -413,6 +430,114 @@ export interface RoomObstruction {
   heatOutputW: number;
 }
 
+export interface BuildingRoomDimensions {
+  width: number;
+  length: number;
+  height: number;
+}
+
+export interface BuildingVent {
+  id: string;
+  type: 'supply' | 'return' | 'transfer';
+  position: Vec3;
+  areaM2: number;
+  flowRateM3s: number;
+  temperatureC?: number;
+}
+
+export interface BuildingRoom {
+  id: string;
+  floorId: string;
+  floorNumber: number;
+  name: string;
+  origin: Vec3;
+  dimensions: BuildingRoomDimensions;
+  vents: BuildingVent[];
+  heatLoadW: number;
+}
+
+export interface AirConnection {
+  id: string;
+  fromRoom: string;
+  toRoom: string;
+  type: 'door' | 'duct' | 'shaft' | 'transfer';
+  openingAreaM2: number;
+  resistance: number;
+  flowRateM3s?: number;
+}
+
+export interface BuildingGeometryInput {
+  buildingId: string;
+  rooms: BuildingRoom[];
+  connections: AirConnection[];
+}
+
+export interface BuildingCell {
+  u: number;
+  v: number;
+  temp: number;
+  pressure: number;
+}
+
+export interface BuildingRoomState {
+  roomId: string;
+  grid: BuildingCell[][];
+  avgTemperature: number;
+  meanVelocity: number;
+  pressure: number;
+  inflowM3s: number;
+  outflowM3s: number;
+}
+
+export interface BuildingSimulationResult {
+  id: string;
+  projectId: string;
+  iteration: number;
+  converged: boolean;
+  metrics: SimulationMetrics;
+  roomStates: BuildingRoomState[];
+  connectionFlows: AirConnection[];
+  convergenceHistory: number[];
+}
+
+export interface BuildingFieldSample {
+  position: Vec3;
+  temperature: number;
+  velocityMagnitude: number;
+  velocity: { u: number; v: number };
+}
+
+export interface BuildingRoomFieldOverlay {
+  roomId: string;
+  floorId: string;
+  floorNumber: number;
+  roomName: string;
+  origin: Vec3;
+  dimensions: BuildingRoomDimensions;
+  avgTemperature: number;
+  meanVelocity: number;
+  samples: BuildingFieldSample[];
+}
+
+export interface BuildingConnectionOverlay {
+  id: string;
+  fromRoom: string;
+  toRoom: string;
+  type: AirConnection['type'];
+  flowRateM3s: number;
+  openingAreaM2: number;
+  fromPoint: Vec3;
+  toPoint: Vec3;
+}
+
+export interface BuildingVisualizationPayload {
+  iteration: number;
+  rooms: BuildingRoomFieldOverlay[];
+  connections: BuildingConnectionOverlay[];
+  temperatureRange: { min: number; max: number };
+  velocityRange: { min: number; max: number };
+}
+
 /** Complete geometry input for the simulation engine */
 export interface GeometryInput {
   /** Unique room identifier */
@@ -578,6 +703,10 @@ export interface SimulationCase {
   runSource: RunSource;
   /** Geometry snapshot at case creation */
   geometry: GeometryInput;
+  /** Scope of the simulation case. Defaults to room-level when omitted. */
+  simulationScope?: SimulationScope;
+  /** Building-level geometry snapshot (present when scope is 'building') */
+  buildingGeometry?: BuildingGeometryInput;
   /** Generated mesh descriptor (populated after meshing) */
   mesh?: StructuredGrid;
   /** Physics configuration */
@@ -628,6 +757,10 @@ export interface RunJob {
   errorMessage?: string;
   /** Log output (tail) */
   logTail: string[];
+  /** Optional metrics snapshot persisted at run completion for quick UI summaries */
+  metricsSnapshot?: SimulationMetrics;
+  /** Optional downsampled visualization payload for building-scope runs */
+  buildingVisualization?: BuildingVisualizationPayload;
   startedAt?: string;
   completedAt?: string;
   createdAt: string;
@@ -838,12 +971,23 @@ export interface LayoutTilePlacement {
   tileSize: number;
 }
 
+export interface LayoutConnectionOverride {
+  id: string;
+  fromRoomId: string;
+  toRoomId: string;
+  type: AirConnection['type'];
+  openingAreaM2: number;
+  resistance: number;
+  enabled: boolean;
+}
+
 /** Full simulation layout document for a project + floor */
 export interface SimulationLayoutDoc {
   projectId: string;
   floorId: string;
   hvacPlacements: LayoutHVACPlacement[];
   tilePlacements: LayoutTilePlacement[];
+  connectionOverrides?: LayoutConnectionOverride[];
   /** Metres-per-pixel scale used when placing entities */
   canvasScale: number;
   updatedAt: string;

@@ -12,11 +12,10 @@
  * - Pulsing hotspot indicators
  */
 import React, { Suspense, useMemo, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
+import { Canvas, useFrame, type ThreeEvent } from '@react-three/fiber';
 import { OrbitControls, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import type { SimulationResult, ServerRack, HVACUnit, InspectedCellInfo, TileFlowViewConfig, TileAirflowData, ThermalAlert } from '@/types/simulation';
-import { useSimulationStore } from '@/stores/simulation-store';
 import { HeatmapSlice, VelocityArrows, AirflowParticles, Streamlines, TemperatureFog, TileAirflowOverlay, AlertZoneMarkers } from './CFDOverlay3D';
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -189,7 +188,7 @@ function InspectPlane({ result, sliceZ, centerX, centerZ, onInspect }: {
       pressure: pres,
       humidity: hum,
     });
-  }, [result, sliceZ, centerX, centerZ, config, temperatureField, velocityField, pressureField, humidityField, onInspect]);
+  }, [sliceZ, centerX, centerZ, config, temperatureField, velocityField, pressureField, humidityField, onInspect]);
 
   return (
     <mesh position={[0, y + 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} onClick={handleClick}>

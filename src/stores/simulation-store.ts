@@ -688,7 +688,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
   computeAlerts: () => {
     const { result, racks, tileFlowView } = get();
     if (!result) { set({ alerts: [] }); return; }
-    const { maxTempC, minCFM } = tileFlowView.alertThresholds;
+    const { maxTempC } = tileFlowView.alertThresholds;
     const m = result.metrics;
     const newAlerts: ThermalAlert[] = [];
 

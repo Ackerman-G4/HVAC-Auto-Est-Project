@@ -14,7 +14,14 @@ import {
   deleteSimulationCase,
 } from '@/lib/firebase/simulation-cases-store';
 import { buildStructuredGrid } from '@/lib/engine/simulation/geometry-builder';
+import {
+  buildProjectBuildingGeometry,
+  MIN_BUILDING_CELL_SIZE_M,
+  toFallbackGeometry,
+} from '@/lib/simulation/building-case';
+import { isBuildingSimulationEnabled } from '@/lib/simulation/feature-flags';
 import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
+import type { SimulationScope } from '@/types/simulation';
 
 type RouteContext = { params: Promise<{ id: string; simId: string }> };
 
@@ -86,9 +93,85 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     if (body.description !== undefined) updates.description = body.description;
     if (body.physics !== undefined) updates.physics = body.physics;
     if (body.solver !== undefined) updates.solver = body.solver;
+    if (body.simulationScope !== undefined) {
+      const scope: SimulationScope = body.simulationScope === 'building' ? 'building' : 'room';
+      if (scope === 'building' && !isBuildingSimulationEnabled()) {
+        return errorResponse(
+          403,
+          'Building mode disabled',
+          'Enable ENABLE_BUILDING_SIMULATION to update building-scale cases.',
+          'BUILDING_MODE_DISABLED',
+        );
+      }
+      updates.simulationScope = scope;
+    }
 
-    // If geometry changed, regenerate mesh
-    if (body.geometry) {
+    const shouldRebuildBuildingGeometry = body.rebuildBuildingGeometryFromProject === true;
+    if (shouldRebuildBuildingGeometry) {
+      if (!isBuildingSimulationEnabled()) {
+        return errorResponse(
+          403,
+          'Building mode disabled',
+          'Enable ENABLE_BUILDING_SIMULATION to rebuild building geometry.',
+          'BUILDING_MODE_DISABLED',
+        );
+      }
+
+      const requestedScope: SimulationScope = (updates.simulationScope
+        ?? existing.simulationScope
+        ?? 'room');
+
+      if (requestedScope !== 'building') {
+        return errorResponse(
+          400,
+          'Invalid rebuild request',
+          'rebuildBuildingGeometryFromProject can only be used for building-scope cases.',
+          'INVALID_REBUILD_SCOPE',
+        );
+      }
+
+      const rebuiltGeometry = await buildProjectBuildingGeometry(projectId);
+      if (rebuiltGeometry.rooms.length === 0) {
+        return errorResponse(
+          400,
+          'No floors found',
+          'Create floors and rooms before rebuilding building geometry.',
+          'MISSING_FLOOR_DATA',
+        );
+      }
+
+      updates.buildingGeometry = rebuiltGeometry;
+      updates.simulationScope = 'building';
+    }
+
+    if (body.buildingGeometry !== undefined) updates.buildingGeometry = body.buildingGeometry;
+
+    const nextScope: SimulationScope = (updates.simulationScope
+      ?? existing.simulationScope
+      ?? 'room');
+
+    // Building-scope updates always regenerate fallback geometry and mesh.
+    if (nextScope === 'building') {
+      const nextBuildingGeometry = updates.buildingGeometry ?? existing.buildingGeometry;
+      if (!nextBuildingGeometry) {
+        return errorResponse(
+          400,
+          'Building geometry required',
+          'Provide buildingGeometry when simulationScope is building.',
+          'MISSING_BUILDING_GEOMETRY',
+        );
+      }
+
+      const fallbackGeometry = toFallbackGeometry(nextBuildingGeometry);
+      const requestedCellSize = typeof body.cellSize === 'number'
+        ? body.cellSize
+        : (existing.mesh?.cellSizeM ?? 0.1);
+      const cellSize = Math.max(MIN_BUILDING_CELL_SIZE_M, requestedCellSize);
+      updates.geometry = fallbackGeometry;
+      updates.mesh = buildStructuredGrid(fallbackGeometry, cellSize);
+      updates.status = 'meshed';
+    } else if (body.geometry) {
+      // Room-scope geometry update.
       updates.geometry = body.geometry;
       const cellSize = body.cellSize ?? existing.mesh?.cellSizeM ?? 0.1;
       updates.mesh = buildStructuredGrid(body.geometry, cellSize);

@@ -84,6 +84,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       await saveArtifactManifest(projectId, simId, result.manifest);
 
       await updateRunJobStatus(projectId, simId, job.id, 'completed', {
+        metricsSnapshot: result.manifest.metrics,
         completedAt: new Date().toISOString(),
       });
 

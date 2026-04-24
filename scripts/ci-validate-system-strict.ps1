@@ -6,6 +6,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$PSDefaultParameterValues['Invoke-WebRequest:DisableKeepAlive'] = $true
+$PSDefaultParameterValues['Invoke-RestMethod:DisableKeepAlive'] = $true
 
 function Test-NonEmpty {
   param([string]$Value)
@@ -222,10 +224,16 @@ try {
   $env:FIREBASE_PROJECT_ID = $ProjectId
   $env:GCLOUD_PROJECT = $ProjectId
   $env:CI = 'true'
+  $env:ENABLE_BUILDING_SIMULATION = 'true'
+  $env:NEXT_PUBLIC_ENABLE_BUILDING_SIMULATION = 'true'
+  $env:AUTH_RATE_LIMIT_DISABLED = 'true'
 
   Write-Host "Using FIRESTORE_EMULATOR_HOST=$($env:FIRESTORE_EMULATOR_HOST)"
   Write-Host "Using FIREBASE_PROJECT_ID=$($env:FIREBASE_PROJECT_ID)"
   Write-Host "Using GCLOUD_PROJECT=$($env:GCLOUD_PROJECT)"
+  Write-Host "Using ENABLE_BUILDING_SIMULATION=$($env:ENABLE_BUILDING_SIMULATION)"
+  Write-Host "Using NEXT_PUBLIC_ENABLE_BUILDING_SIMULATION=$($env:NEXT_PUBLIC_ENABLE_BUILDING_SIMULATION)"
+  Write-Host "Using AUTH_RATE_LIMIT_DISABLED=$($env:AUTH_RATE_LIMIT_DISABLED)"
 
   $emulatorCommand = "Set-Location '$workspaceRoot'; npm run emulator:firestore"
   $emulatorProcess = Start-Process -FilePath 'powershell.exe' -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', $emulatorCommand -PassThru -RedirectStandardOutput $emulatorOutLog -RedirectStandardError $emulatorErrLog

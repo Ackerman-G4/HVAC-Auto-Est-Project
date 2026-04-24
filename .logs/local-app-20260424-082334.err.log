@@ -1,0 +1,416 @@
+POST /api/projects error: Error: {"error":{"code":403,"message":"\nProperty ownerId is undefined on object. for 'create' @ L26, evaluation error at L27:32 for 'update' @ L27, Property ownerId is undefined on object. for 'create' @ L26","status":"PERMISSION_DENIED"}}
+    at ignore-listed frames {
+  config: {
+    headers: Headers {
+      authorization: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+      'content-type': 'application/json',
+      'google-cloud-resource-prefix': 'projects/demo-hvac-auto/databases/(default)',
+      'x-goog-api-client': 'gax/5.0.6-fallback gapic/8.5.0 gl-node/24.14.0 rest/5.0.6 gccl/8.5.0 fire/13.8.0 fire-admin/13.8.0 grpc-web/5.0.6-fallback',
+      'x-goog-request-params': 'database=projects%2Fdemo-hvac-auto%2Fdatabases%2F(default)',
+      'User-Agent': 'google-api-nodejs-client/10.6.2'
+    },
+    body: '{"writes":[{"update":{"fields":{"id":{"stringValue":"95b5d716-9892-4ded-92da-9820260d9cd4"},"name":{"stringValue":"Smoke DualControl 20260424082417"},"createdBy":{"stringValue":"Cj5V3hddRQhmCqftEXFcTkl4SgJ3"},"clientName":{"stringValue":"Smoke Client"},"location":{"stringValue":"Quezon City"},"city":{"stringValue":"Manila"},"buildingType":{"stringValue":"commercial"},"status":{"stringValue":"draft"},"outputClassification":{"stringValue":"preliminary"},"totalFloorArea":{"integerValue":"120"},"floorsAboveGrade":{"integerValue":"1"},"floorsBelowGrade":{"integerValue":"0"},"outdoorDB":{"integerValue":"35"},"outdoorWB":{"doubleValue":27.175206999426916},"outdoorRH":{"integerValue":"55"},"indoorDB":{"integerValue":"24"},"indoorRH":{"integerValue":"50"},"designConditions":{"stringValue":"{}"},"safetyFactor":{"doubleValue":1.1},"diversityFactor":{"doubleValue":0.85},"notes":{"stringValue":""},"suggestedLaborMultiplier":{"doubleValue":0.35},"laborMultiplierOverride":{"nullValue":null},"suggestedOverheadPercent":{"doubleValue":0.15},"overheadPercentOverride":{"nullValue":null},"suggestedContingencyPercent":{"doubleValue":0.05},"contingencyPercentOverride":{"nullValue":null},"suggestedVatRate":{"doubleValue":0.12},"vatRateOverride":{"nullValue":null},"isEquipmentStale":{"booleanValue":false},"isBoqStale":{"booleanValue":false},"lastCoolingLoadAt":{"nullValue":null},"lastEquipmentSyncAt":{"nullValue":null},"lastBoqGeneratedAt":{"nullValue":null},"createdAt":{"stringValue":"2026-04-24T00:24:17.630Z"},"updatedAt":{"stringValue":"2026-04-24T00:24:17.630Z"}},"name":"projects/demo-hvac-auto/databases/(default)/documents/projects/95b5d716-9892-4ded-92da-9820260d9cd4"}}]}',
+    method: 'POST',
+    signal: AbortSignal { aborted: false },
+    responseType: 'stream',
+    agent: [Function: agentOption],
+    url: URL {
+      href: 'http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int',
+      origin: 'http://127.0.0.1:9080',
+      protocol: 'http:',
+      username: '',
+      password: '',
+      host: '127.0.0.1:9080',
+      hostname: '127.0.0.1',
+      port: '9080',
+      pathname: '/v1/projects/demo-hvac-auto/databases/(default)/documents:commit',
+      search: '?$alt=json%3Benum-encoding=int',
+      searchParams: URLSearchParams { '$alt' => 'json;enum-encoding=int' },
+      hash: ''
+    },
+    validateStatus: [Function: validateStatus],
+    errorRedactor: [Function: defaultErrorRedactor],
+    duplex: 'half'
+  },
+  response: Response {
+    size: 0,
+    data: undefined,
+    config: {
+      headers: Headers {
+        authorization: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+        'content-type': 'application/json',
+        'google-cloud-resource-prefix': 'projects/demo-hvac-auto/databases/(default)',
+        'x-goog-api-client': 'gax/5.0.6-fallback gapic/8.5.0 gl-node/24.14.0 rest/5.0.6 gccl/8.5.0 fire/13.8.0 fire-admin/13.8.0 grpc-web/5.0.6-fallback',
+        'x-goog-request-params': 'database=projects%2Fdemo-hvac-auto%2Fdatabases%2F(default)',
+        'User-Agent': 'google-api-nodejs-client/10.6.2'
+      },
+      body: '{"writes":[{"update":{"fields":{"id":{"stringValue":"95b5d716-9892-4ded-92da-9820260d9cd4"},"name":{"stringValue":"Smoke DualControl 20260424082417"},"createdBy":{"stringValue":"Cj5V3hddRQhmCqftEXFcTkl4SgJ3"},"clientName":{"stringValue":"Smoke Client"},"location":{"stringValue":"Quezon City"},"city":{"stringValue":"Manila"},"buildingType":{"stringValue":"commercial"},"status":{"stringValue":"draft"},"outputClassification":{"stringValue":"preliminary"},"totalFloorArea":{"integerValue":"120"},"floorsAboveGrade":{"integerValue":"1"},"floorsBelowGrade":{"integerValue":"0"},"outdoorDB":{"integerValue":"35"},"outdoorWB":{"doubleValue":27.175206999426916},"outdoorRH":{"integerValue":"55"},"indoorDB":{"integerValue":"24"},"indoorRH":{"integerValue":"50"},"designConditions":{"stringValue":"{}"},"safetyFactor":{"doubleValue":1.1},"diversityFactor":{"doubleValue":0.85},"notes":{"stringValue":""},"suggestedLaborMultiplier":{"doubleValue":0.35},"laborMultiplierOverride":{"nullValue":null},"suggestedOverheadPercent":{"doubleValue":0.15},"overheadPercentOverride":{"nullValue":null},"suggestedContingencyPercent":{"doubleValue":0.05},"contingencyPercentOverride":{"nullValue":null},"suggestedVatRate":{"doubleValue":0.12},"vatRateOverride":{"nullValue":null},"isEquipmentStale":{"booleanValue":false},"isBoqStale":{"booleanValue":false},"lastCoolingLoadAt":{"nullValue":null},"lastEquipmentSyncAt":{"nullValue":null},"lastBoqGeneratedAt":{"nullValue":null},"createdAt":{"stringValue":"2026-04-24T00:24:17.630Z"},"updatedAt":{"stringValue":"2026-04-24T00:24:17.630Z"}},"name":"projects/demo-hvac-auto/databases/(default)/documents/projects/95b5d716-9892-4ded-92da-9820260d9cd4"}}]}',
+      method: 'POST',
+      signal: [AbortSignal],
+      responseType: 'stream',
+      agent: [Function: agentOption],
+      url: URL {},
+      validateStatus: [Function: validateStatus],
+      errorRedactor: [Function: defaultErrorRedactor],
+      duplex: 'half'
+    },
+    Symbol(Body internals): {
+      body: [PassThrough],
+      stream: [PassThrough],
+      boundary: null,
+      disturbed: false,
+      error: null
+    },
+    Symbol(Response internals): {
+      type: 'default',
+      url: 'http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int',
+      status: 403,
+      statusText: 'Forbidden',
+      headers: [Object],
+      counter: 0,
+      highWaterMark: 16384
+    }
+  },
+  code: 403,
+  status: 403,
+  error: undefined,
+  note: 'Exception occurred in retry method that was not classified as transient',
+  [cause]: {
+    message: `{"error":{"code":403,"message":"\\nProperty ownerId is undefined on object. for 'create' @ L26, evaluation error at L27:32 for 'update' @ L27, Property ownerId is undefined on object. for 'create' @ L26","status":"PERMISSION_DENIED"}}`,
+    code: 403,
+    status: 'Forbidden'
+  }
+}
+POST /api/projects error: Error: {"error":{"code":403,"message":"\nProperty ownerId is undefined on object. for 'create' @ L26, evaluation error at L27:32 for 'update' @ L27, Property ownerId is undefined on object. for 'create' @ L26","status":"PERMISSION_DENIED"}}
+    at ignore-listed frames {
+  config: {
+    headers: Headers {
+      authorization: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+      'content-type': 'application/json',
+      'google-cloud-resource-prefix': 'projects/demo-hvac-auto/databases/(default)',
+      'x-goog-api-client': 'gax/5.0.6-fallback gapic/8.5.0 gl-node/24.14.0 rest/5.0.6 gccl/8.5.0 fire/13.8.0 fire-admin/13.8.0 grpc-web/5.0.6-fallback',
+      'x-goog-request-params': 'database=projects%2Fdemo-hvac-auto%2Fdatabases%2F(default)',
+      'User-Agent': 'google-api-nodejs-client/10.6.2'
+    },
+    body: '{"writes":[{"update":{"fields":{"id":{"stringValue":"a77436f9-b50b-45ca-a895-b44d7881344d"},"name":{"stringValue":"Smoke DualControl 20260424082417"},"createdBy":{"stringValue":"Cj5V3hddRQhmCqftEXFcTkl4SgJ3"},"clientName":{"stringValue":"Smoke Client"},"location":{"stringValue":"Quezon City"},"city":{"stringValue":"Manila"},"buildingType":{"stringValue":"commercial"},"status":{"stringValue":"draft"},"outputClassification":{"stringValue":"preliminary"},"totalFloorArea":{"integerValue":"120"},"floorsAboveGrade":{"integerValue":"1"},"floorsBelowGrade":{"integerValue":"0"},"outdoorDB":{"integerValue":"35"},"outdoorWB":{"doubleValue":27.175206999426916},"outdoorRH":{"integerValue":"55"},"indoorDB":{"integerValue":"24"},"indoorRH":{"integerValue":"50"},"designConditions":{"stringValue":"{}"},"safetyFactor":{"doubleValue":1.1},"diversityFactor":{"doubleValue":0.85},"notes":{"stringValue":""},"suggestedLaborMultiplier":{"doubleValue":0.35},"laborMultiplierOverride":{"nullValue":null},"suggestedOverheadPercent":{"doubleValue":0.15},"overheadPercentOverride":{"nullValue":null},"suggestedContingencyPercent":{"doubleValue":0.05},"contingencyPercentOverride":{"nullValue":null},"suggestedVatRate":{"doubleValue":0.12},"vatRateOverride":{"nullValue":null},"isEquipmentStale":{"booleanValue":false},"isBoqStale":{"booleanValue":false},"lastCoolingLoadAt":{"nullValue":null},"lastEquipmentSyncAt":{"nullValue":null},"lastBoqGeneratedAt":{"nullValue":null},"createdAt":{"stringValue":"2026-04-24T00:24:19.419Z"},"updatedAt":{"stringValue":"2026-04-24T00:24:19.419Z"}},"name":"projects/demo-hvac-auto/databases/(default)/documents/projects/a77436f9-b50b-45ca-a895-b44d7881344d"}}]}',
+    method: 'POST',
+    signal: AbortSignal { aborted: false },
+    responseType: 'stream',
+    agent: [Function: agentOption],
+    url: URL {
+      href: 'http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int',
+      origin: 'http://127.0.0.1:9080',
+      protocol: 'http:',
+      username: '',
+      password: '',
+      host: '127.0.0.1:9080',
+      hostname: '127.0.0.1',
+      port: '9080',
+      pathname: '/v1/projects/demo-hvac-auto/databases/(default)/documents:commit',
+      search: '?$alt=json%3Benum-encoding=int',
+      searchParams: URLSearchParams { '$alt' => 'json;enum-encoding=int' },
+      hash: ''
+    },
+    validateStatus: [Function: validateStatus],
+    errorRedactor: [Function: defaultErrorRedactor],
+    duplex: 'half'
+  },
+  response: Response {
+    size: 0,
+    data: undefined,
+    config: {
+      headers: Headers {
+        authorization: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+        'content-type': 'application/json',
+        'google-cloud-resource-prefix': 'projects/demo-hvac-auto/databases/(default)',
+        'x-goog-api-client': 'gax/5.0.6-fallback gapic/8.5.0 gl-node/24.14.0 rest/5.0.6 gccl/8.5.0 fire/13.8.0 fire-admin/13.8.0 grpc-web/5.0.6-fallback',
+        'x-goog-request-params': 'database=projects%2Fdemo-hvac-auto%2Fdatabases%2F(default)',
+        'User-Agent': 'google-api-nodejs-client/10.6.2'
+      },
+      body: '{"writes":[{"update":{"fields":{"id":{"stringValue":"a77436f9-b50b-45ca-a895-b44d7881344d"},"name":{"stringValue":"Smoke DualControl 20260424082417"},"createdBy":{"stringValue":"Cj5V3hddRQhmCqftEXFcTkl4SgJ3"},"clientName":{"stringValue":"Smoke Client"},"location":{"stringValue":"Quezon City"},"city":{"stringValue":"Manila"},"buildingType":{"stringValue":"commercial"},"status":{"stringValue":"draft"},"outputClassification":{"stringValue":"preliminary"},"totalFloorArea":{"integerValue":"120"},"floorsAboveGrade":{"integerValue":"1"},"floorsBelowGrade":{"integerValue":"0"},"outdoorDB":{"integerValue":"35"},"outdoorWB":{"doubleValue":27.175206999426916},"outdoorRH":{"integerValue":"55"},"indoorDB":{"integerValue":"24"},"indoorRH":{"integerValue":"50"},"designConditions":{"stringValue":"{}"},"safetyFactor":{"doubleValue":1.1},"diversityFactor":{"doubleValue":0.85},"notes":{"stringValue":""},"suggestedLaborMultiplier":{"doubleValue":0.35},"laborMultiplierOverride":{"nullValue":null},"suggestedOverheadPercent":{"doubleValue":0.15},"overheadPercentOverride":{"nullValue":null},"suggestedContingencyPercent":{"doubleValue":0.05},"contingencyPercentOverride":{"nullValue":null},"suggestedVatRate":{"doubleValue":0.12},"vatRateOverride":{"nullValue":null},"isEquipmentStale":{"booleanValue":false},"isBoqStale":{"booleanValue":false},"lastCoolingLoadAt":{"nullValue":null},"lastEquipmentSyncAt":{"nullValue":null},"lastBoqGeneratedAt":{"nullValue":null},"createdAt":{"stringValue":"2026-04-24T00:24:19.419Z"},"updatedAt":{"stringValue":"2026-04-24T00:24:19.419Z"}},"name":"projects/demo-hvac-auto/databases/(default)/documents/projects/a77436f9-b50b-45ca-a895-b44d7881344d"}}]}',
+      method: 'POST',
+      signal: [AbortSignal],
+      responseType: 'stream',
+      agent: [Function: agentOption],
+      url: URL {},
+      validateStatus: [Function: validateStatus],
+      errorRedactor: [Function: defaultErrorRedactor],
+      duplex: 'half'
+    },
+    Symbol(Body internals): {
+      body: [PassThrough],
+      stream: [PassThrough],
+      boundary: null,
+      disturbed: false,
+      error: null
+    },
+    Symbol(Response internals): {
+      type: 'default',
+      url: 'http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int',
+      status: 403,
+      statusText: 'Forbidden',
+      headers: [Object],
+      counter: 0,
+      highWaterMark: 16384
+    }
+  },
+  code: 403,
+  status: 403,
+  error: undefined,
+  note: 'Exception occurred in retry method that was not classified as transient',
+  [cause]: {
+    message: `{"error":{"code":403,"message":"\\nProperty ownerId is undefined on object. for 'create' @ L26, evaluation error at L27:32 for 'update' @ L27, Property ownerId is undefined on object. for 'create' @ L26","status":"PERMISSION_DENIED"}}`,
+    code: 403,
+    status: 'Forbidden'
+  }
+}
+POST /api/projects error: Error: {"error":{"code":403,"message":"\nProperty ownerId is undefined on object. for 'create' @ L26, evaluation error at L27:32 for 'update' @ L27, Property ownerId is undefined on object. for 'create' @ L26","status":"PERMISSION_DENIED"}}
+    at ignore-listed frames {
+  config: {
+    headers: Headers {
+      authorization: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+      'content-type': 'application/json',
+      'google-cloud-resource-prefix': 'projects/demo-hvac-auto/databases/(default)',
+      'x-goog-api-client': 'gax/5.0.6-fallback gapic/8.5.0 gl-node/24.14.0 rest/5.0.6 gccl/8.5.0 fire/13.8.0 fire-admin/13.8.0 grpc-web/5.0.6-fallback',
+      'x-goog-request-params': 'database=projects%2Fdemo-hvac-auto%2Fdatabases%2F(default)',
+      'User-Agent': 'google-api-nodejs-client/10.6.2'
+    },
+    body: '{"writes":[{"update":{"fields":{"id":{"stringValue":"f3433a42-41aa-4779-a345-4a00e8ff7f63"},"name":{"stringValue":"Smoke DualControl 20260424082417"},"createdBy":{"stringValue":"Cj5V3hddRQhmCqftEXFcTkl4SgJ3"},"clientName":{"stringValue":"Smoke Client"},"location":{"stringValue":"Quezon City"},"city":{"stringValue":"Manila"},"buildingType":{"stringValue":"commercial"},"status":{"stringValue":"draft"},"outputClassification":{"stringValue":"preliminary"},"totalFloorArea":{"integerValue":"120"},"floorsAboveGrade":{"integerValue":"1"},"floorsBelowGrade":{"integerValue":"0"},"outdoorDB":{"integerValue":"35"},"outdoorWB":{"doubleValue":27.175206999426916},"outdoorRH":{"integerValue":"55"},"indoorDB":{"integerValue":"24"},"indoorRH":{"integerValue":"50"},"designConditions":{"stringValue":"{}"},"safetyFactor":{"doubleValue":1.1},"diversityFactor":{"doubleValue":0.85},"notes":{"stringValue":""},"suggestedLaborMultiplier":{"doubleValue":0.35},"laborMultiplierOverride":{"nullValue":null},"suggestedOverheadPercent":{"doubleValue":0.15},"overheadPercentOverride":{"nullValue":null},"suggestedContingencyPercent":{"doubleValue":0.05},"contingencyPercentOverride":{"nullValue":null},"suggestedVatRate":{"doubleValue":0.12},"vatRateOverride":{"nullValue":null},"isEquipmentStale":{"booleanValue":false},"isBoqStale":{"booleanValue":false},"lastCoolingLoadAt":{"nullValue":null},"lastEquipmentSyncAt":{"nullValue":null},"lastBoqGeneratedAt":{"nullValue":null},"createdAt":{"stringValue":"2026-04-24T00:24:21.271Z"},"updatedAt":{"stringValue":"2026-04-24T00:24:21.271Z"}},"name":"projects/demo-hvac-auto/databases/(default)/documents/projects/f3433a42-41aa-4779-a345-4a00e8ff7f63"}}]}',
+    method: 'POST',
+    signal: AbortSignal { aborted: false },
+    responseType: 'stream',
+    agent: [Function: agentOption],
+    url: URL {
+      href: 'http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int',
+      origin: 'http://127.0.0.1:9080',
+      protocol: 'http:',
+      username: '',
+      password: '',
+      host: '127.0.0.1:9080',
+      hostname: '127.0.0.1',
+      port: '9080',
+      pathname: '/v1/projects/demo-hvac-auto/databases/(default)/documents:commit',
+      search: '?$alt=json%3Benum-encoding=int',
+      searchParams: URLSearchParams { '$alt' => 'json;enum-encoding=int' },
+      hash: ''
+    },
+    validateStatus: [Function: validateStatus],
+    errorRedactor: [Function: defaultErrorRedactor],
+    duplex: 'half'
+  },
+  response: Response {
+    size: 0,
+    data: undefined,
+    config: {
+      headers: Headers {
+        authorization: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+        'content-type': 'application/json',
+        'google-cloud-resource-prefix': 'projects/demo-hvac-auto/databases/(default)',
+        'x-goog-api-client': 'gax/5.0.6-fallback gapic/8.5.0 gl-node/24.14.0 rest/5.0.6 gccl/8.5.0 fire/13.8.0 fire-admin/13.8.0 grpc-web/5.0.6-fallback',
+        'x-goog-request-params': 'database=projects%2Fdemo-hvac-auto%2Fdatabases%2F(default)',
+        'User-Agent': 'google-api-nodejs-client/10.6.2'
+      },
+      body: '{"writes":[{"update":{"fields":{"id":{"stringValue":"f3433a42-41aa-4779-a345-4a00e8ff7f63"},"name":{"stringValue":"Smoke DualControl 20260424082417"},"createdBy":{"stringValue":"Cj5V3hddRQhmCqftEXFcTkl4SgJ3"},"clientName":{"stringValue":"Smoke Client"},"location":{"stringValue":"Quezon City"},"city":{"stringValue":"Manila"},"buildingType":{"stringValue":"commercial"},"status":{"stringValue":"draft"},"outputClassification":{"stringValue":"preliminary"},"totalFloorArea":{"integerValue":"120"},"floorsAboveGrade":{"integerValue":"1"},"floorsBelowGrade":{"integerValue":"0"},"outdoorDB":{"integerValue":"35"},"outdoorWB":{"doubleValue":27.175206999426916},"outdoorRH":{"integerValue":"55"},"indoorDB":{"integerValue":"24"},"indoorRH":{"integerValue":"50"},"designConditions":{"stringValue":"{}"},"safetyFactor":{"doubleValue":1.1},"diversityFactor":{"doubleValue":0.85},"notes":{"stringValue":""},"suggestedLaborMultiplier":{"doubleValue":0.35},"laborMultiplierOverride":{"nullValue":null},"suggestedOverheadPercent":{"doubleValue":0.15},"overheadPercentOverride":{"nullValue":null},"suggestedContingencyPercent":{"doubleValue":0.05},"contingencyPercentOverride":{"nullValue":null},"suggestedVatRate":{"doubleValue":0.12},"vatRateOverride":{"nullValue":null},"isEquipmentStale":{"booleanValue":false},"isBoqStale":{"booleanValue":false},"lastCoolingLoadAt":{"nullValue":null},"lastEquipmentSyncAt":{"nullValue":null},"lastBoqGeneratedAt":{"nullValue":null},"createdAt":{"stringValue":"2026-04-24T00:24:21.271Z"},"updatedAt":{"stringValue":"2026-04-24T00:24:21.271Z"}},"name":"projects/demo-hvac-auto/databases/(default)/documents/projects/f3433a42-41aa-4779-a345-4a00e8ff7f63"}}]}',
+      method: 'POST',
+      signal: [AbortSignal],
+      responseType: 'stream',
+      agent: [Function: agentOption],
+      url: URL {},
+      validateStatus: [Function: validateStatus],
+      errorRedactor: [Function: defaultErrorRedactor],
+      duplex: 'half'
+    },
+    Symbol(Body internals): {
+      body: [PassThrough],
+      stream: [PassThrough],
+      boundary: null,
+      disturbed: false,
+      error: null
+    },
+    Symbol(Response internals): {
+      type: 'default',
+      url: 'http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int',
+      status: 403,
+      statusText: 'Forbidden',
+      headers: [Object],
+      counter: 0,
+      highWaterMark: 16384
+    }
+  },
+  code: 403,
+  status: 403,
+  error: undefined,
+  note: 'Exception occurred in retry method that was not classified as transient',
+  [cause]: {
+    message: `{"error":{"code":403,"message":"\\nProperty ownerId is undefined on object. for 'create' @ L26, evaluation error at L27:32 for 'update' @ L27, Property ownerId is undefined on object. for 'create' @ L26","status":"PERMISSION_DENIED"}}`,
+    code: 403,
+    status: 'Forbidden'
+  }
+}
+POST /api/projects error: Error: {"error":{"code":403,"message":"\nProperty ownerId is undefined on object. for 'create' @ L26, evaluation error at L27:32 for 'update' @ L27, Property ownerId is undefined on object. for 'create' @ L26","status":"PERMISSION_DENIED"}}
+    at ignore-listed frames {
+  config: {
+    headers: Headers {
+      authorization: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+      'content-type': 'application/json',
+      'google-cloud-resource-prefix': 'projects/demo-hvac-auto/databases/(default)',
+      'x-goog-api-client': 'gax/5.0.6-fallback gapic/8.5.0 gl-node/24.14.0 rest/5.0.6 gccl/8.5.0 fire/13.8.0 fire-admin/13.8.0 grpc-web/5.0.6-fallback',
+      'x-goog-request-params': 'database=projects%2Fdemo-hvac-auto%2Fdatabases%2F(default)',
+      'User-Agent': 'google-api-nodejs-client/10.6.2'
+    },
+    body: '{"writes":[{"update":{"fields":{"id":{"stringValue":"e65c1cbd-acc2-4cc7-9b51-cf9ac48be158"},"name":{"stringValue":"Smoke DualControl 20260424082417"},"createdBy":{"stringValue":"Cj5V3hddRQhmCqftEXFcTkl4SgJ3"},"clientName":{"stringValue":"Smoke Client"},"location":{"stringValue":"Quezon City"},"city":{"stringValue":"Manila"},"buildingType":{"stringValue":"commercial"},"status":{"stringValue":"draft"},"outputClassification":{"stringValue":"preliminary"},"totalFloorArea":{"integerValue":"120"},"floorsAboveGrade":{"integerValue":"1"},"floorsBelowGrade":{"integerValue":"0"},"outdoorDB":{"integerValue":"35"},"outdoorWB":{"doubleValue":27.175206999426916},"outdoorRH":{"integerValue":"55"},"indoorDB":{"integerValue":"24"},"indoorRH":{"integerValue":"50"},"designConditions":{"stringValue":"{}"},"safetyFactor":{"doubleValue":1.1},"diversityFactor":{"doubleValue":0.85},"notes":{"stringValue":""},"suggestedLaborMultiplier":{"doubleValue":0.35},"laborMultiplierOverride":{"nullValue":null},"suggestedOverheadPercent":{"doubleValue":0.15},"overheadPercentOverride":{"nullValue":null},"suggestedContingencyPercent":{"doubleValue":0.05},"contingencyPercentOverride":{"nullValue":null},"suggestedVatRate":{"doubleValue":0.12},"vatRateOverride":{"nullValue":null},"isEquipmentStale":{"booleanValue":false},"isBoqStale":{"booleanValue":false},"lastCoolingLoadAt":{"nullValue":null},"lastEquipmentSyncAt":{"nullValue":null},"lastBoqGeneratedAt":{"nullValue":null},"createdAt":{"stringValue":"2026-04-24T00:24:23.857Z"},"updatedAt":{"stringValue":"2026-04-24T00:24:23.857Z"}},"name":"projects/demo-hvac-auto/databases/(default)/documents/projects/e65c1cbd-acc2-4cc7-9b51-cf9ac48be158"}}]}',
+    method: 'POST',
+    signal: AbortSignal { aborted: false },
+    responseType: 'stream',
+    agent: [Function: agentOption],
+    url: URL {
+      href: 'http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int',
+      origin: 'http://127.0.0.1:9080',
+      protocol: 'http:',
+      username: '',
+      password: '',
+      host: '127.0.0.1:9080',
+      hostname: '127.0.0.1',
+      port: '9080',
+      pathname: '/v1/projects/demo-hvac-auto/databases/(default)/documents:commit',
+      search: '?$alt=json%3Benum-encoding=int',
+      searchParams: URLSearchParams { '$alt' => 'json;enum-encoding=int' },
+      hash: ''
+    },
+    validateStatus: [Function: validateStatus],
+    errorRedactor: [Function: defaultErrorRedactor],
+    duplex: 'half'
+  },
+  response: Response {
+    size: 0,
+    data: undefined,
+    config: {
+      headers: Headers {
+        authorization: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+        'content-type': 'application/json',
+        'google-cloud-resource-prefix': 'projects/demo-hvac-auto/databases/(default)',
+        'x-goog-api-client': 'gax/5.0.6-fallback gapic/8.5.0 gl-node/24.14.0 rest/5.0.6 gccl/8.5.0 fire/13.8.0 fire-admin/13.8.0 grpc-web/5.0.6-fallback',
+        'x-goog-request-params': 'database=projects%2Fdemo-hvac-auto%2Fdatabases%2F(default)',
+        'User-Agent': 'google-api-nodejs-client/10.6.2'
+      },
+      body: '{"writes":[{"update":{"fields":{"id":{"stringValue":"e65c1cbd-acc2-4cc7-9b51-cf9ac48be158"},"name":{"stringValue":"Smoke DualControl 20260424082417"},"createdBy":{"stringValue":"Cj5V3hddRQhmCqftEXFcTkl4SgJ3"},"clientName":{"stringValue":"Smoke Client"},"location":{"stringValue":"Quezon City"},"city":{"stringValue":"Manila"},"buildingType":{"stringValue":"commercial"},"status":{"stringValue":"draft"},"outputClassification":{"stringValue":"preliminary"},"totalFloorArea":{"integerValue":"120"},"floorsAboveGrade":{"integerValue":"1"},"floorsBelowGrade":{"integerValue":"0"},"outdoorDB":{"integerValue":"35"},"outdoorWB":{"doubleValue":27.175206999426916},"outdoorRH":{"integerValue":"55"},"indoorDB":{"integerValue":"24"},"indoorRH":{"integerValue":"50"},"designConditions":{"stringValue":"{}"},"safetyFactor":{"doubleValue":1.1},"diversityFactor":{"doubleValue":0.85},"notes":{"stringValue":""},"suggestedLaborMultiplier":{"doubleValue":0.35},"laborMultiplierOverride":{"nullValue":null},"suggestedOverheadPercent":{"doubleValue":0.15},"overheadPercentOverride":{"nullValue":null},"suggestedContingencyPercent":{"doubleValue":0.05},"contingencyPercentOverride":{"nullValue":null},"suggestedVatRate":{"doubleValue":0.12},"vatRateOverride":{"nullValue":null},"isEquipmentStale":{"booleanValue":false},"isBoqStale":{"booleanValue":false},"lastCoolingLoadAt":{"nullValue":null},"lastEquipmentSyncAt":{"nullValue":null},"lastBoqGeneratedAt":{"nullValue":null},"createdAt":{"stringValue":"2026-04-24T00:24:23.857Z"},"updatedAt":{"stringValue":"2026-04-24T00:24:23.857Z"}},"name":"projects/demo-hvac-auto/databases/(default)/documents/projects/e65c1cbd-acc2-4cc7-9b51-cf9ac48be158"}}]}',
+      method: 'POST',
+      signal: [AbortSignal],
+      responseType: 'stream',
+      agent: [Function: agentOption],
+      url: URL {},
+      validateStatus: [Function: validateStatus],
+      errorRedactor: [Function: defaultErrorRedactor],
+      duplex: 'half'
+    },
+    Symbol(Body internals): {
+      body: [PassThrough],
+      stream: [PassThrough],
+      boundary: null,
+      disturbed: false,
+      error: null
+    },
+    Symbol(Response internals): {
+      type: 'default',
+      url: 'http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int',
+      status: 403,
+      statusText: 'Forbidden',
+      headers: [Object],
+      counter: 0,
+      highWaterMark: 16384
+    }
+  },
+  code: 403,
+  status: 403,
+  error: undefined,
+  note: 'Exception occurred in retry method that was not classified as transient',
+  [cause]: {
+    message: `{"error":{"code":403,"message":"\\nProperty ownerId is undefined on object. for 'create' @ L26, evaluation error at L27:32 for 'update' @ L27, Property ownerId is undefined on object. for 'create' @ L26","status":"PERMISSION_DENIED"}}`,
+    code: 403,
+    status: 'Forbidden'
+  }
+}
+POST /api/projects error: Error: {"error":{"code":403,"message":"\nProperty ownerId is undefined on object. for 'create' @ L26, evaluation error at L27:32 for 'update' @ L27, Property ownerId is undefined on object. for 'create' @ L26","status":"PERMISSION_DENIED"}}
+    at ignore-listed frames {
+  config: {
+    headers: Headers {
+      authorization: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+      'content-type': 'application/json',
+      'google-cloud-resource-prefix': 'projects/demo-hvac-auto/databases/(default)',
+      'x-goog-api-client': 'gax/5.0.6-fallback gapic/8.5.0 gl-node/24.14.0 rest/5.0.6 gccl/8.5.0 fire/13.8.0 fire-admin/13.8.0 grpc-web/5.0.6-fallback',
+      'x-goog-request-params': 'database=projects%2Fdemo-hvac-auto%2Fdatabases%2F(default)',
+      'User-Agent': 'google-api-nodejs-client/10.6.2'
+    },
+    body: '{"writes":[{"update":{"fields":{"id":{"stringValue":"fc661a82-67ba-466d-baf6-6e6268453096"},"name":{"stringValue":"Smoke DualControl 20260424082417"},"createdBy":{"stringValue":"Cj5V3hddRQhmCqftEXFcTkl4SgJ3"},"clientName":{"stringValue":"Smoke Client"},"location":{"stringValue":"Quezon City"},"city":{"stringValue":"Manila"},"buildingType":{"stringValue":"commercial"},"status":{"stringValue":"draft"},"outputClassification":{"stringValue":"preliminary"},"totalFloorArea":{"integerValue":"120"},"floorsAboveGrade":{"integerValue":"1"},"floorsBelowGrade":{"integerValue":"0"},"outdoorDB":{"integerValue":"35"},"outdoorWB":{"doubleValue":27.175206999426916},"outdoorRH":{"integerValue":"55"},"indoorDB":{"integerValue":"24"},"indoorRH":{"integerValue":"50"},"designConditions":{"stringValue":"{}"},"safetyFactor":{"doubleValue":1.1},"diversityFactor":{"doubleValue":0.85},"notes":{"stringValue":""},"suggestedLaborMultiplier":{"doubleValue":0.35},"laborMultiplierOverride":{"nullValue":null},"suggestedOverheadPercent":{"doubleValue":0.15},"overheadPercentOverride":{"nullValue":null},"suggestedContingencyPercent":{"doubleValue":0.05},"contingencyPercentOverride":{"nullValue":null},"suggestedVatRate":{"doubleValue":0.12},"vatRateOverride":{"nullValue":null},"isEquipmentStale":{"booleanValue":false},"isBoqStale":{"booleanValue":false},"lastCoolingLoadAt":{"nullValue":null},"lastEquipmentSyncAt":{"nullValue":null},"lastBoqGeneratedAt":{"nullValue":null},"createdAt":{"stringValue":"2026-04-24T00:24:27.215Z"},"updatedAt":{"stringValue":"2026-04-24T00:24:27.215Z"}},"name":"projects/demo-hvac-auto/databases/(default)/documents/projects/fc661a82-67ba-466d-baf6-6e6268453096"}}]}',
+    method: 'POST',
+    signal: AbortSignal { aborted: false },
+    responseType: 'stream',
+    agent: [Function: agentOption],
+    url: URL {
+      href: 'http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int',
+      origin: 'http://127.0.0.1:9080',
+      protocol: 'http:',
+      username: '',
+      password: '',
+      host: '127.0.0.1:9080',
+      hostname: '127.0.0.1',
+      port: '9080',
+      pathname: '/v1/projects/demo-hvac-auto/databases/(default)/documents:commit',
+      search: '?$alt=json%3Benum-encoding=int',
+      searchParams: URLSearchParams { '$alt' => 'json;enum-encoding=int' },
+      hash: ''
+    },
+    validateStatus: [Function: validateStatus],
+    errorRedactor: [Function: defaultErrorRedactor],
+    duplex: 'half'
+  },
+  response: Response {
+    size: 0,
+    data: undefined,
+    config: {
+      headers: Headers {
+        authorization: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+        'content-type': 'application/json',
+        'google-cloud-resource-prefix': 'projects/demo-hvac-auto/databases/(default)',
+        'x-goog-api-client': 'gax/5.0.6-fallback gapic/8.5.0 gl-node/24.14.0 rest/5.0.6 gccl/8.5.0 fire/13.8.0 fire-admin/13.8.0 grpc-web/5.0.6-fallback',
+        'x-goog-request-params': 'database=projects%2Fdemo-hvac-auto%2Fdatabases%2F(default)',
+        'User-Agent': 'google-api-nodejs-client/10.6.2'
+      },
+      body: '{"writes":[{"update":{"fields":{"id":{"stringValue":"fc661a82-67ba-466d-baf6-6e6268453096"},"name":{"stringValue":"Smoke DualControl 20260424082417"},"createdBy":{"stringValue":"Cj5V3hddRQhmCqftEXFcTkl4SgJ3"},"clientName":{"stringValue":"Smoke Client"},"location":{"stringValue":"Quezon City"},"city":{"stringValue":"Manila"},"buildingType":{"stringValue":"commercial"},"status":{"stringValue":"draft"},"outputClassification":{"stringValue":"preliminary"},"totalFloorArea":{"integerValue":"120"},"floorsAboveGrade":{"integerValue":"1"},"floorsBelowGrade":{"integerValue":"0"},"outdoorDB":{"integerValue":"35"},"outdoorWB":{"doubleValue":27.175206999426916},"outdoorRH":{"integerValue":"55"},"indoorDB":{"integerValue":"24"},"indoorRH":{"integerValue":"50"},"designConditions":{"stringValue":"{}"},"safetyFactor":{"doubleValue":1.1},"diversityFactor":{"doubleValue":0.85},"notes":{"stringValue":""},"suggestedLaborMultiplier":{"doubleValue":0.35},"laborMultiplierOverride":{"nullValue":null},"suggestedOverheadPercent":{"doubleValue":0.15},"overheadPercentOverride":{"nullValue":null},"suggestedContingencyPercent":{"doubleValue":0.05},"contingencyPercentOverride":{"nullValue":null},"suggestedVatRate":{"doubleValue":0.12},"vatRateOverride":{"nullValue":null},"isEquipmentStale":{"booleanValue":false},"isBoqStale":{"booleanValue":false},"lastCoolingLoadAt":{"nullValue":null},"lastEquipmentSyncAt":{"nullValue":null},"lastBoqGeneratedAt":{"nullValue":null},"createdAt":{"stringValue":"2026-04-24T00:24:27.215Z"},"updatedAt":{"stringValue":"2026-04-24T00:24:27.215Z"}},"name":"projects/demo-hvac-auto/databases/(default)/documents/projects/fc661a82-67ba-466d-baf6-6e6268453096"}}]}',
+      method: 'POST',
+      signal: [AbortSignal],
+      responseType: 'stream',
+      agent: [Function: agentOption],
+      url: URL {},
+      validateStatus: [Function: validateStatus],
+      errorRedactor: [Function: defaultErrorRedactor],
+      duplex: 'half'
+    },
+    Symbol(Body internals): {
+      body: [PassThrough],
+      stream: [PassThrough],
+      boundary: null,
+      disturbed: false,
+      error: null
+    },
+    Symbol(Response internals): {
+      type: 'default',
+      url: 'http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int',
+      status: 403,
+      statusText: 'Forbidden',
+      headers: [Object],
+      counter: 0,
+      highWaterMark: 16384
+    }
+  },
+  code: 403,
+  status: 403,
+  error: undefined,
+  note: 'Exception occurred in retry method that was not classified as transient',
+  [cause]: {
+    message: `{"error":{"code":403,"message":"\\nProperty ownerId is undefined on object. for 'create' @ L26, evaluation error at L27:32 for 'update' @ L27, Property ownerId is undefined on object. for 'create' @ L26","status":"PERMISSION_DENIED"}}`,
+    code: 403,
+    status: 'Forbidden'
+  }
+}
+^C

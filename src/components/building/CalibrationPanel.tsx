@@ -11,7 +11,6 @@ import {
   Play,
   Plus,
   Trash2,
-  Upload,
 } from 'lucide-react';
 import { useSimulationStore } from '@/stores/simulation-store';
 import type {
@@ -20,7 +19,6 @@ import type {
   SensorReading,
   CalibrationPoint,
 } from '@/types/simulation';
-import { DEFAULT_CALIBRATION_COEFFICIENTS } from '@/types/simulation';
 import {
   BarChart,
   Bar,

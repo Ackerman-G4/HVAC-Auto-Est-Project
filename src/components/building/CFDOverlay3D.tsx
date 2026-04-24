@@ -790,7 +790,7 @@ export function TileAirflowOverlay({ tileData, gridResolution: res, gridSizeX, g
 
   return (
     <group ref={groupRef}>
-      {tiles.map((tile, i) => (
+      {tiles.map((tile) => (
         <group key={tile.tileId}>
           {/* Tile floor plane */}
           <mesh position={[tile.worldX, 0.02, tile.worldZ]} rotation={[-Math.PI / 2, 0, 0]}>

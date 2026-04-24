@@ -15,6 +15,24 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == ownerId;
     }
 
+    function isServerProcess() {
+      return isAuthenticated()
+        && !request.auth.token.keys().hasAny(['firebase']);
+    }
+
+    function isProjectOwner(projectData) {
+      return isAuthenticated() && (
+        (projectData.ownerId != null && projectData.ownerId == request.auth.uid)
+          ||
+        (projectData.ownerId == null && projectData.createdBy == request.auth.uid)
+      );
+    }
+
+    function canAccessProject(projectId) {
+      return projectId is string
+        && (isServerProcess() || isProjectOwner(get(/databases/$(database)/documents/projects/$(projectId)).data));
+    }
+
     // ── Users Collection ────────────────────────────────────
     match /users/{uid} {
       allow read, write: if isOwner(uid);
@@ -22,87 +40,108 @@ service cloud.firestore {
 
     // ── Projects (owner-scoped) ─────────────────────────────
     match /projects/{projectId} {
-      allow read: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
-      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
-      allow update, delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+      allow read: if isProjectOwner(resource.data) || isServerProcess();
+      allow create: if isProjectOwner(request.resource.data) || isServerProcess();
+      allow update, delete: if isProjectOwner(resource.data) || isServerProcess();
 
       // Sub-collections inherit project ownership
       match /floors/{floorId} {
-        allow read, write: if isAuthenticated()
-          && get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid;
+        allow read, write: if isServerProcess()
+          || isProjectOwner(get(/databases/$(database)/documents/projects/$(projectId)).data);
       }
       match /rooms/{roomId} {
-        allow read, write: if isAuthenticated()
-          && get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid;
+        allow read, write: if isServerProcess()
+          || isProjectOwner(get(/databases/$(database)/documents/projects/$(projectId)).data);
       }
       match /selectedEquipment/{selectionId} {
-        allow read, write: if isAuthenticated()
-          && get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid;
+        allow read, write: if isServerProcess()
+          || isProjectOwner(get(/databases/$(database)/documents/projects/$(projectId)).data);
       }
       match /boqItems/{itemId} {
-        allow read, write: if isAuthenticated()
-          && get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid;
+        allow read, write: if isServerProcess()
+          || isProjectOwner(get(/databases/$(database)/documents/projects/$(projectId)).data);
       }
 
       // Simulation cases (project-scoped)
       match /simulationCases/{caseId} {
-        allow read, write: if isAuthenticated()
-          && get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid;
+        allow read, write: if isServerProcess()
+          || isProjectOwner(get(/databases/$(database)/documents/projects/$(projectId)).data);
 
         // Run jobs per case
         match /runJobs/{jobId} {
-          allow read, write: if isAuthenticated()
-            && get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid;
+          allow read, write: if isServerProcess()
+            || isProjectOwner(get(/databases/$(database)/documents/projects/$(projectId)).data);
         }
 
         // Artifact manifests per case
         match /artifacts/{artifactId} {
-          allow read, write: if isAuthenticated()
-            && get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid;
+          allow read, write: if isServerProcess()
+            || isProjectOwner(get(/databases/$(database)/documents/projects/$(projectId)).data);
         }
       }
 
       // Simulation layout (floorplan HVAC/tile placements)
       match /simulationLayouts/{layoutId} {
-        allow read, write: if isAuthenticated()
-          && get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid;
+        allow read, write: if isServerProcess()
+          || isProjectOwner(get(/databases/$(database)/documents/projects/$(projectId)).data);
       }
+    }
+
+    // ── Project-scoped top-level collections ─────────────────
+    match /floors/{floorId} {
+      allow create: if canAccessProject(request.resource.data.projectId);
+      allow read, update, delete: if canAccessProject(resource.data.projectId);
+    }
+
+    match /rooms/{roomId} {
+      allow create: if canAccessProject(request.resource.data.projectId);
+      allow read, update, delete: if canAccessProject(resource.data.projectId);
+    }
+
+    match /selectedEquipment/{selectionId} {
+      allow create: if canAccessProject(request.resource.data.projectId);
+      allow read, update, delete: if canAccessProject(resource.data.projectId);
+    }
+
+    match /boqItems/{itemId} {
+      allow create: if canAccessProject(request.resource.data.projectId);
+      allow read, update, delete: if canAccessProject(resource.data.projectId);
     }
 
     // ── Simulations (owner-scoped) ──────────────────────────
     match /simulations/{simId} {
-      allow read: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
-      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
-      allow update, delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+      allow read: if isOwner(resource.data.ownerId) || isServerProcess();
+      allow create: if isOwner(request.resource.data.ownerId) || isServerProcess();
+      allow update, delete: if isOwner(resource.data.ownerId) || isServerProcess();
     }
 
     // ── Rules Engine (admin-write, authenticated-read) ──────
     match /rules/{ruleId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow write: if isAdmin() || isServerProcess();
     }
 
     // ── Materials & Suppliers (admin-write, authenticated-read)
     match /materials/{materialId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow write: if isAdmin() || isServerProcess();
     }
     match /suppliers/{supplierId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow write: if isAdmin() || isServerProcess();
     }
 
     // ── App Settings (admin-write, authenticated-read) ──────
     match /appSettings/{settingId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow write: if isAdmin() || isServerProcess();
     }
 
     // ── Diagnostics (owner-scoped) ──────────────────────────
     match /diagnosticHistory/{diagId} {
-      allow read: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
-      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
-      allow update, delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+      allow read: if isOwner(resource.data.ownerId) || isServerProcess();
+      allow create: if isOwner(request.resource.data.ownerId) || isServerProcess();
+      allow update, delete: if isOwner(resource.data.ownerId) || isServerProcess();
     }
 
     // ── Audit Logs (append-only for authenticated, read for admin)

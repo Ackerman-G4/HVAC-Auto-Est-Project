@@ -7,6 +7,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$PSDefaultParameterValues['Invoke-WebRequest:DisableKeepAlive'] = $true
+$PSDefaultParameterValues['Invoke-RestMethod:DisableKeepAlive'] = $true
 
 function Test-NonEmpty {
   param([string]$Value)
@@ -266,6 +268,88 @@ function Stop-BackgroundProcess {
   }
 }
 
+function Test-AppReady {
+  param(
+    [string]$BaseUrl,
+    [string]$FallbackBaseUrl,
+    [int]$TimeoutSeconds = 6
+  )
+
+  $ready = Wait-HttpReady -Url "$BaseUrl/auth/login" -TimeoutSeconds $TimeoutSeconds
+  if (-not $ready) {
+    $ready = Wait-HttpReady -Url "$FallbackBaseUrl/auth/login" -TimeoutSeconds 4
+  }
+
+  return $ready
+}
+
+function Start-LocalValidationApp {
+  param(
+    [string]$WorkspaceRoot,
+    [int]$AppPort,
+    [int]$FirestorePort,
+    [string]$ProjectId,
+    [string]$AppOutLog,
+    [string]$AppErrLog,
+    [string]$BaseUrl,
+    [string]$FallbackBaseUrl,
+    [int]$StartupTimeoutSeconds
+  )
+
+  $appCommand = "`$env:FIRESTORE_EMULATOR_HOST='127.0.0.1:$FirestorePort'; `$env:FIREBASE_PROJECT_ID='$ProjectId'; `$env:GCLOUD_PROJECT='$ProjectId'; `$env:FIRESTORE_PREFER_REST='true'; `$env:GOOGLE_APPLICATION_CREDENTIALS=''; Set-Location '$WorkspaceRoot'; npm run start -- --port $AppPort"
+  $process = Start-Process -FilePath 'powershell.exe' -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', $appCommand -PassThru -RedirectStandardOutput $AppOutLog -RedirectStandardError $AppErrLog
+
+  Write-Host "Started local validation app (PID $($process.Id)); waiting for $BaseUrl/auth/login (fallback $FallbackBaseUrl/auth/login) ..."
+  $ready = Test-AppReady -BaseUrl $BaseUrl -FallbackBaseUrl $FallbackBaseUrl -TimeoutSeconds $StartupTimeoutSeconds
+  if (-not $ready) {
+    Stop-BackgroundProcess -Process $process -Name 'Local validation app (startup failure)'
+    throw "Validation app did not become ready on port $AppPort within $StartupTimeoutSeconds seconds."
+  }
+
+  return $process
+}
+
+function Invoke-ValidationStepWithAppRecovery {
+  param(
+    [string]$Label,
+    [scriptblock]$Action,
+    [ref]$AppProcess,
+    [string]$WorkspaceRoot,
+    [int]$AppPort,
+    [int]$FirestorePort,
+    [string]$ProjectId,
+    [string]$AppOutLog,
+    [string]$AppErrLog,
+    [string]$BaseUrl,
+    [string]$FallbackBaseUrl,
+    [int]$StartupTimeoutSeconds
+  )
+
+  try {
+    Invoke-ValidationStep -Label $Label -Action $Action
+    return
+  }
+  catch {
+    $stepFailure = $_
+    $processExited = ($null -eq $AppProcess.Value) -or $AppProcess.Value.HasExited
+    $appHealthy = $false
+
+    if (-not $processExited) {
+      $appHealthy = Test-AppReady -BaseUrl $BaseUrl -FallbackBaseUrl $FallbackBaseUrl -TimeoutSeconds 6
+    }
+
+    if (-not $processExited -and $appHealthy) {
+      throw $stepFailure
+    }
+
+    Write-Warning "$Label failed while app was unavailable. Restarting app and retrying once."
+    Stop-BackgroundProcess -Process $AppProcess.Value -Name 'Local validation app'
+    $AppProcess.Value = Start-LocalValidationApp -WorkspaceRoot $WorkspaceRoot -AppPort $AppPort -FirestorePort $FirestorePort -ProjectId $ProjectId -AppOutLog $AppOutLog -AppErrLog $AppErrLog -BaseUrl $BaseUrl -FallbackBaseUrl $FallbackBaseUrl -StartupTimeoutSeconds $StartupTimeoutSeconds
+
+    Invoke-ValidationStep -Label "$Label (retry)" -Action $Action
+  }
+}
+
 function Get-AvailablePort {
   param(
     [int]$PreferredPort,
@@ -341,6 +425,15 @@ try {
   $env:FIRESTORE_EMULATOR_HOST = "127.0.0.1:$FirestorePort"
   $env:FIREBASE_PROJECT_ID = $ProjectId
   $env:GCLOUD_PROJECT = $ProjectId
+  $env:FIRESTORE_PREFER_REST = 'true'
+  $env:ENABLE_BUILDING_SIMULATION = 'true'
+  $env:NEXT_PUBLIC_ENABLE_BUILDING_SIMULATION = 'true'
+  $env:AUTH_RATE_LIMIT_DISABLED = 'true'
+
+  if (Test-NonEmpty $env:GOOGLE_APPLICATION_CREDENTIALS) {
+    Write-Host 'Clearing GOOGLE_APPLICATION_CREDENTIALS for local emulator validation context.'
+    $env:GOOGLE_APPLICATION_CREDENTIALS = ''
+  }
 
   if ($Strict) {
     $env:ALLOW_ADMIN_SELF_ASSIGNMENT = 'true'
@@ -351,6 +444,10 @@ try {
   Write-Host "Using FIRESTORE_EMULATOR_HOST=$($env:FIRESTORE_EMULATOR_HOST)"
   Write-Host "Using FIREBASE_PROJECT_ID=$($env:FIREBASE_PROJECT_ID)"
   Write-Host "Using GCLOUD_PROJECT=$($env:GCLOUD_PROJECT)"
+  Write-Host "Using FIRESTORE_PREFER_REST=$($env:FIRESTORE_PREFER_REST)"
+  Write-Host "Using ENABLE_BUILDING_SIMULATION=$($env:ENABLE_BUILDING_SIMULATION)"
+  Write-Host "Using NEXT_PUBLIC_ENABLE_BUILDING_SIMULATION=$($env:NEXT_PUBLIC_ENABLE_BUILDING_SIMULATION)"
+  Write-Host "Using AUTH_RATE_LIMIT_DISABLED=$($env:AUTH_RATE_LIMIT_DISABLED)"
 
   if (Test-PortListening -Port $FirestorePort) {
     Write-Host "Reusing running process on Firestore emulator port $FirestorePort."
@@ -372,6 +469,7 @@ try {
   }
 
   $baseUrl = "http://127.0.0.1:$effectiveAppPort"
+  $fallbackBaseUrl = "http://localhost:$effectiveAppPort"
 
   Write-Host 'Building app for local validation server...'
   & npm run build
@@ -379,14 +477,8 @@ try {
     throw "build failed with exit code $LASTEXITCODE"
   }
 
-  $appCommand = "Set-Location '$workspaceRoot'; npm run start -- --port $effectiveAppPort"
-  $appProcess = Start-Process -FilePath 'powershell.exe' -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', $appCommand -PassThru -RedirectStandardOutput $appOutLog -RedirectStandardError $appErrLog
+  $appProcess = Start-LocalValidationApp -WorkspaceRoot $workspaceRoot -AppPort $effectiveAppPort -FirestorePort $FirestorePort -ProjectId $ProjectId -AppOutLog $appOutLog -AppErrLog $appErrLog -BaseUrl $baseUrl -FallbackBaseUrl $fallbackBaseUrl -StartupTimeoutSeconds $StartupTimeoutSeconds
   $startedApp = $true
-
-  Write-Host "Started local validation app (PID $($appProcess.Id)); waiting for $baseUrl/auth/login ..."
-  if (-not (Wait-HttpReady -Url "$baseUrl/auth/login" -TimeoutSeconds $StartupTimeoutSeconds)) {
-    throw "Validation app did not become ready on port $effectiveAppPort within $StartupTimeoutSeconds seconds."
-  }
 
   if ($Strict -and $null -ne $strictAdmin) {
     Ensure-StrictAdminUser -Url $baseUrl -Email $strictAdmin.Email -Password $strictAdmin.Password
@@ -397,42 +489,50 @@ try {
       & powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'validate-preflight-strict-local.ps1') -FirestoreHost "127.0.0.1:$FirestorePort" -ProjectId $ProjectId
     }
 
-    Invoke-ValidationStep -Label 'validate:auth:positive' -Action {
+    Invoke-ValidationStepWithAppRecovery -Label 'validate:auth:positive' -Action {
       & powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'validate-auth-positive.ps1') -BaseUrl $baseUrl
-    }
+    } -AppProcess ([ref]$appProcess) -WorkspaceRoot $workspaceRoot -AppPort $effectiveAppPort -FirestorePort $FirestorePort -ProjectId $ProjectId -AppOutLog $appOutLog -AppErrLog $appErrLog -BaseUrl $baseUrl -FallbackBaseUrl $fallbackBaseUrl -StartupTimeoutSeconds $StartupTimeoutSeconds
 
-    Invoke-ValidationStep -Label 'validate:rbac:positive:strict' -Action {
+    Invoke-ValidationStepWithAppRecovery -Label 'validate:rbac:positive:strict' -Action {
       & powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'validate-rbac-positive.ps1') -BaseUrl $baseUrl -StrictAdminPositive
-    }
+    } -AppProcess ([ref]$appProcess) -WorkspaceRoot $workspaceRoot -AppPort $effectiveAppPort -FirestorePort $FirestorePort -ProjectId $ProjectId -AppOutLog $appOutLog -AppErrLog $appErrLog -BaseUrl $baseUrl -FallbackBaseUrl $fallbackBaseUrl -StartupTimeoutSeconds $StartupTimeoutSeconds
 
-    Invoke-ValidationStep -Label 'validate:dual-control' -Action {
+    Invoke-ValidationStepWithAppRecovery -Label 'validate:dual-control' -Action {
       & powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'smoke-dual-control.ps1') -BaseUrl $baseUrl
-    }
+    } -AppProcess ([ref]$appProcess) -WorkspaceRoot $workspaceRoot -AppPort $effectiveAppPort -FirestorePort $FirestorePort -ProjectId $ProjectId -AppOutLog $appOutLog -AppErrLog $appErrLog -BaseUrl $baseUrl -FallbackBaseUrl $fallbackBaseUrl -StartupTimeoutSeconds $StartupTimeoutSeconds
 
-    Invoke-ValidationStep -Label 'validate:catalog:admin:strict' -Action {
+    Invoke-ValidationStepWithAppRecovery -Label 'validate:building-simulation' -Action {
+      & powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'smoke-building-simulation.ps1') -BaseUrl $baseUrl
+    } -AppProcess ([ref]$appProcess) -WorkspaceRoot $workspaceRoot -AppPort $effectiveAppPort -FirestorePort $FirestorePort -ProjectId $ProjectId -AppOutLog $appOutLog -AppErrLog $appErrLog -BaseUrl $baseUrl -FallbackBaseUrl $fallbackBaseUrl -StartupTimeoutSeconds $StartupTimeoutSeconds
+
+    Invoke-ValidationStepWithAppRecovery -Label 'validate:catalog:admin:strict' -Action {
       & powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'smoke-catalog-admin.ps1') -BaseUrl $baseUrl -Strict
-    }
+    } -AppProcess ([ref]$appProcess) -WorkspaceRoot $workspaceRoot -AppPort $effectiveAppPort -FirestorePort $FirestorePort -ProjectId $ProjectId -AppOutLog $appOutLog -AppErrLog $appErrLog -BaseUrl $baseUrl -FallbackBaseUrl $fallbackBaseUrl -StartupTimeoutSeconds $StartupTimeoutSeconds
   }
   else {
     Invoke-ValidationStep -Label 'validate:preflight' -Action {
       & powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'validate-preflight.ps1')
     }
 
-    Invoke-ValidationStep -Label 'validate:auth' -Action {
+    Invoke-ValidationStepWithAppRecovery -Label 'validate:auth' -Action {
       & powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'smoke-auth.ps1') -BaseUrl $baseUrl
-    }
+    } -AppProcess ([ref]$appProcess) -WorkspaceRoot $workspaceRoot -AppPort $effectiveAppPort -FirestorePort $FirestorePort -ProjectId $ProjectId -AppOutLog $appOutLog -AppErrLog $appErrLog -BaseUrl $baseUrl -FallbackBaseUrl $fallbackBaseUrl -StartupTimeoutSeconds $StartupTimeoutSeconds
 
-    Invoke-ValidationStep -Label 'validate:rbac' -Action {
+    Invoke-ValidationStepWithAppRecovery -Label 'validate:rbac' -Action {
       & powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'smoke-rbac.ps1') -BaseUrl $baseUrl
-    }
+    } -AppProcess ([ref]$appProcess) -WorkspaceRoot $workspaceRoot -AppPort $effectiveAppPort -FirestorePort $FirestorePort -ProjectId $ProjectId -AppOutLog $appOutLog -AppErrLog $appErrLog -BaseUrl $baseUrl -FallbackBaseUrl $fallbackBaseUrl -StartupTimeoutSeconds $StartupTimeoutSeconds
 
-    Invoke-ValidationStep -Label 'validate:dual-control' -Action {
+    Invoke-ValidationStepWithAppRecovery -Label 'validate:dual-control' -Action {
       & powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'smoke-dual-control.ps1') -BaseUrl $baseUrl
-    }
+    } -AppProcess ([ref]$appProcess) -WorkspaceRoot $workspaceRoot -AppPort $effectiveAppPort -FirestorePort $FirestorePort -ProjectId $ProjectId -AppOutLog $appOutLog -AppErrLog $appErrLog -BaseUrl $baseUrl -FallbackBaseUrl $fallbackBaseUrl -StartupTimeoutSeconds $StartupTimeoutSeconds
 
-    Invoke-ValidationStep -Label 'validate:catalog:admin' -Action {
+    Invoke-ValidationStepWithAppRecovery -Label 'validate:building-simulation' -Action {
+      & powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'smoke-building-simulation.ps1') -BaseUrl $baseUrl
+    } -AppProcess ([ref]$appProcess) -WorkspaceRoot $workspaceRoot -AppPort $effectiveAppPort -FirestorePort $FirestorePort -ProjectId $ProjectId -AppOutLog $appOutLog -AppErrLog $appErrLog -BaseUrl $baseUrl -FallbackBaseUrl $fallbackBaseUrl -StartupTimeoutSeconds $StartupTimeoutSeconds
+
+    Invoke-ValidationStepWithAppRecovery -Label 'validate:catalog:admin' -Action {
       & powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'smoke-catalog-admin.ps1') -BaseUrl $baseUrl
-    }
+    } -AppProcess ([ref]$appProcess) -WorkspaceRoot $workspaceRoot -AppPort $effectiveAppPort -FirestorePort $FirestorePort -ProjectId $ProjectId -AppOutLog $appOutLog -AppErrLog $appErrLog -BaseUrl $baseUrl -FallbackBaseUrl $fallbackBaseUrl -StartupTimeoutSeconds $StartupTimeoutSeconds
   }
 
   if ($startedApp) {

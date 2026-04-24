@@ -118,7 +118,21 @@ Manual equivalent checklist:
 
 - docs/dual-control-smoke-checklist.md
 
-## Phase 5 - Quality And Security Gates
+## Phase 5 - Building Simulation Smoke Validation
+
+Run building simulation smoke directly:
+
+```bash
+npm run validate:building-simulation
+```
+
+Note:
+
+- This smoke check requires building simulation feature flags (`ENABLE_BUILDING_SIMULATION=true` and `NEXT_PUBLIC_ENABLE_BUILDING_SIMULATION=true`) in the app process.
+- `validate:system:local` and `validate:system:strict:local` set these flags automatically before starting the local validation app.
+- Local validation wrappers also set `AUTH_RATE_LIMIT_DISABLED=true` to prevent auth endpoint 429 throttling during automated smoke sequences.
+
+## Phase 6 - Quality And Security Gates
 
 Run quality gates:
 
@@ -134,11 +148,27 @@ Run all phases in sequence:
 npm run validate:system
 ```
 
+`validate:system` now runs: preflight -> auth -> RBAC -> dual-control -> building simulation -> catalog admin -> quality.
+
 For local Firestore emulator workflows:
 
 ```bash
 npm run validate:system:local
 ```
+
+For strict chain routing (raw when credentials exist, strict-local fallback otherwise):
+
+```bash
+npm run validate:system:strict
+```
+
+Strict local wrapper (always local app/emulator orchestration):
+
+```bash
+npm run validate:system:strict:local
+```
+
+All local wrappers that start an app process set building simulation feature flags automatically.
 
 ## Reporting Template
 

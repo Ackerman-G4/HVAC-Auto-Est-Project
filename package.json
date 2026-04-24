@@ -33,12 +33,13 @@
     "validate:rbac:positive": "powershell -ExecutionPolicy Bypass -File ./scripts/validate-rbac-positive.ps1",
     "validate:rbac:positive:strict": "powershell -ExecutionPolicy Bypass -File ./scripts/validate-rbac-positive.ps1 -StrictAdminPositive",
     "validate:rbac:positive:raw": "powershell -ExecutionPolicy Bypass -File ./scripts/smoke-rbac.ps1 -RequireAdminPositive",
+    "validate:building-simulation": "powershell -ExecutionPolicy Bypass -File ./scripts/smoke-building-simulation.ps1",
     "validate:dual-control": "powershell -ExecutionPolicy Bypass -File ./scripts/smoke-dual-control.ps1",
     "validate:catalog:admin": "powershell -ExecutionPolicy Bypass -File ./scripts/smoke-catalog-admin.ps1",
     "validate:catalog:admin:strict": "powershell -ExecutionPolicy Bypass -File ./scripts/smoke-catalog-admin.ps1 -Strict",
     "validate:quality": "npm run lint && npm run build && npm run audit:check",
-    "validate:system": "npm run validate:preflight && npm run validate:auth && npm run validate:rbac && npm run validate:dual-control && npm run validate:catalog:admin && npm run validate:quality",
-    "validate:system:strict:raw": "npm run validate:preflight:strict && npm run validate:auth:positive && npm run validate:rbac:positive:strict && npm run validate:dual-control && npm run validate:catalog:admin:strict && npm run validate:quality",
+    "validate:system": "npm run validate:preflight && npm run validate:auth && npm run validate:rbac && npm run validate:dual-control && npm run validate:building-simulation && npm run validate:catalog:admin && npm run validate:quality",
+    "validate:system:strict:raw": "npm run validate:preflight:strict && npm run validate:auth:positive && npm run validate:rbac:positive:strict && npm run validate:dual-control && npm run validate:building-simulation && npm run validate:catalog:admin:strict && npm run validate:quality",
     "validate:system:strict": "powershell -ExecutionPolicy Bypass -File ./scripts/validate-system-strict.ps1",
     "validate:system:local": "powershell -ExecutionPolicy Bypass -File ./scripts/validate-system-local.ps1",
     "validate:system:strict:local": "powershell -ExecutionPolicy Bypass -File ./scripts/validate-system-local.ps1 -Strict"
@@ -55,10 +56,10 @@
     "bcryptjs": "3.0.3",
     "clsx": "^2.1.1",
     "dotenv": "16.6.1",
-    "exceljs": "^4.4.0",
+    "exceljs": "4.4.0",
     "fabric": "^7.2.0",
-    "firebase": "12.12.0",
-    "firebase-admin": "13.7.0",
+    "firebase": "12.12.1",
+    "firebase-admin": "13.8.0",
     "framer-motion": "^12.34.3",
     "jsonwebtoken": "9.0.3",
     "lucide-react": "^0.575.0",
@@ -72,7 +73,7 @@
     "recharts": "^3.7.0",
     "tailwind-merge": "^3.5.0",
     "three": "0.179.1",
-    "uuid": "^13.0.0",
+    "uuid": "14.0.0",
     "zod": "^4.3.6",
     "zustand": "^5.0.11"
   },
@@ -97,6 +98,12 @@
     "@tootallnate/once": "^3.0.1",
     "lodash": "4.17.23",
     "hono": "^4.12.4",
-    "@hono/node-server": "^1.19.10"
+    "@hono/node-server": "^1.19.10",
+    "@google-cloud/firestore": "8.5.0",
+    "google-gax": "5.0.6",
+    "gaxios": "7.1.4",
+    "retry-request": "8.0.2",
+    "teeny-request": "10.1.2",
+    "uuid": "14.0.0"
   }
 }

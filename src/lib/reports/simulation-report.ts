@@ -10,6 +10,7 @@ import type {
   OptimizationResult,
   PUEAnalysis,
   SimulationConfig,
+  SimulationMetrics,
   SimulationResult,
 } from '@/types/simulation';
 
@@ -26,6 +27,8 @@ export interface SimulationReportBuilderInput {
   totalHeatKw: number;
   totalCoolingKw: number;
   result: SimulationResult | null;
+  resultMetrics?: SimulationMetrics | null;
+  resultIteration?: number;
   complianceReport?: ComplianceReport | null;
   failureResult?: FailureResult | null;
   pueAnalysis?: PUEAnalysis | null;
@@ -62,6 +65,25 @@ export interface SimulationEngineeringReport {
     continuityResidual: number;
     momentumResidual: number;
     energyResidual: number;
+  };
+  engineering: {
+    airflowBalanceM3s: number;
+    pressureImbalancePa: number;
+    ventilationEffectiveness: number;
+    deadZoneRatio: number;
+    airflowDistributionScore: number;
+    uniformityIndex: number;
+    roomMetrics: Array<{
+      roomId: string;
+      floorId: string;
+      floorNumber: number;
+      avgTemperature: number;
+      meanVelocity: number;
+      stagnationRatio: number;
+      pressure: number;
+      inflowM3s: number;
+      outflowM3s: number;
+    }>;
   };
   compliance: {
     available: boolean;
@@ -120,7 +142,7 @@ function downloadText(filename: string, content: string, mimeType: string): void
 export function buildSimulationEngineeringReport(
   input: SimulationReportBuilderInput,
 ): SimulationEngineeringReport {
-  const simulationMetrics = input.result?.metrics;
+  const simulationMetrics = input.result?.metrics ?? input.resultMetrics ?? null;
   const failedChecks = input.complianceReport?.checks
     .filter((check) => !check.passed)
     .map((check) => check.description) ?? [];
@@ -143,8 +165,8 @@ export function buildSimulationEngineeringReport(
       totalCoolingKw: input.totalCoolingKw,
     },
     simulation: {
-      hasResult: !!input.result,
-      iteration: toNumber(input.result?.iteration),
+      hasResult: !!(input.result || input.resultMetrics),
+      iteration: toNumber(input.result?.iteration ?? input.resultIteration),
       converged: simulationMetrics?.converged ?? false,
       maxTemperatureC: toNumber(simulationMetrics?.maxTemperature),
       avgTemperatureC: toNumber(simulationMetrics?.avgTemperature),
@@ -155,6 +177,25 @@ export function buildSimulationEngineeringReport(
       continuityResidual: toNumber(simulationMetrics?.continuityResidual),
       momentumResidual: toNumber(simulationMetrics?.momentumResidual),
       energyResidual: toNumber(simulationMetrics?.energyResidual),
+    },
+    engineering: {
+      airflowBalanceM3s: toNumber(simulationMetrics?.airflowBalanceM3s),
+      pressureImbalancePa: toNumber(simulationMetrics?.pressureImbalancePa),
+      ventilationEffectiveness: toNumber(simulationMetrics?.ventilationEffectiveness),
+      deadZoneRatio: toNumber(simulationMetrics?.deadZoneRatio),
+      airflowDistributionScore: toNumber(simulationMetrics?.airflowDistributionScore),
+      uniformityIndex: toNumber(simulationMetrics?.uniformityIndex),
+      roomMetrics: (simulationMetrics?.roomMetrics ?? []).map((room) => ({
+        roomId: room.roomId,
+        floorId: room.floorId,
+        floorNumber: room.floorNumber,
+        avgTemperature: toNumber(room.avgTemperature),
+        meanVelocity: toNumber(room.meanVelocity),
+        stagnationRatio: toNumber(room.stagnationRatio),
+        pressure: toNumber(room.pressure),
+        inflowM3s: toNumber(room.inflowM3s),
+        outflowM3s: toNumber(room.outflowM3s),
+      })),
     },
     compliance: {
       available: !!input.complianceReport,
@@ -198,6 +239,19 @@ export function exportSimulationReportJson(report: SimulationEngineeringReport, 
 
 export function exportSimulationReportCsv(report: SimulationEngineeringReport, fileStem?: string): void {
   const stem = fileStem ?? `simulation-report-${slugify(report.meta.projectName)}`;
+  const roomMetricRows: Array<[string, string | number | boolean]> = report.engineering.roomMetrics.flatMap(
+    (room): Array<[string, string | number | boolean]> => [
+      [`room.${room.roomId}.floorId`, room.floorId],
+      [`room.${room.roomId}.floorNumber`, room.floorNumber],
+      [`room.${room.roomId}.avgTemperature`, room.avgTemperature.toFixed(3)],
+      [`room.${room.roomId}.meanVelocity`, room.meanVelocity.toFixed(4)],
+      [`room.${room.roomId}.stagnationRatio`, room.stagnationRatio.toFixed(4)],
+      [`room.${room.roomId}.pressure`, room.pressure.toFixed(4)],
+      [`room.${room.roomId}.inflowM3s`, room.inflowM3s.toFixed(4)],
+      [`room.${room.roomId}.outflowM3s`, room.outflowM3s.toFixed(4)],
+    ],
+  );
+
   const rows: Array<[string, string | number | boolean]> = [
     ['generatedAt', report.meta.generatedAt],
     ['projectId', report.meta.projectId],
@@ -223,6 +277,13 @@ export function exportSimulationReportCsv(report: SimulationEngineeringReport, f
     ['continuityResidual', report.simulation.continuityResidual.toExponential(3)],
     ['momentumResidual', report.simulation.momentumResidual.toExponential(3)],
     ['energyResidual', report.simulation.energyResidual.toExponential(3)],
+    ['airflowBalanceM3s', report.engineering.airflowBalanceM3s.toFixed(4)],
+    ['pressureImbalancePa', report.engineering.pressureImbalancePa.toFixed(4)],
+    ['ventilationEffectiveness', report.engineering.ventilationEffectiveness.toFixed(4)],
+    ['deadZoneRatio', report.engineering.deadZoneRatio.toFixed(4)],
+    ['airflowDistributionScore', report.engineering.airflowDistributionScore.toFixed(4)],
+    ['uniformityIndex', report.engineering.uniformityIndex.toFixed(4)],
+    ['roomMetricsCount', report.engineering.roomMetrics.length],
     ['complianceAvailable', report.compliance.available],
     ['complianceOverallPass', report.compliance.overallPass],
     ['complianceScore', report.compliance.score],
@@ -240,6 +301,7 @@ export function exportSimulationReportCsv(report: SimulationEngineeringReport, f
     ['failureTimeToWarningSeconds', report.failure.timeToWarningSeconds],
     ['failureTimeToCriticalSeconds', report.failure.timeToCriticalSeconds],
     ['failureAffectedRacks', report.failure.affectedRacks],
+    ...roomMetricRows,
   ];
 
   const csv = [
@@ -279,6 +341,30 @@ export async function exportSimulationReportPdf(report: SimulationEngineeringRep
     ['Energy Residual', report.simulation.energyResidual.toExponential(3)],
   ];
 
+  const engineeringRows = [
+    ['Airflow Balance', `${report.engineering.airflowBalanceM3s.toFixed(4)} m3/s`],
+    ['Pressure Imbalance', `${report.engineering.pressureImbalancePa.toFixed(4)} Pa`],
+    ['Ventilation Effectiveness', `${(report.engineering.ventilationEffectiveness * 100).toFixed(1)} %`],
+    ['Dead Zone Ratio', `${(report.engineering.deadZoneRatio * 100).toFixed(1)} %`],
+    ['Airflow Distribution Score', report.engineering.airflowDistributionScore.toFixed(3)],
+    ['Uniformity Index', report.engineering.uniformityIndex.toFixed(3)],
+    ['Room Metrics', `${report.engineering.roomMetrics.length} rooms`],
+  ];
+
+  const roomMetricsRows = [
+    ['Room', 'Floor', 'Avg Temp (C)', 'Mean Vel (m/s)', 'Stagnation', 'Pressure (Pa)', 'Inflow (m3/s)', 'Outflow (m3/s)'],
+    ...report.engineering.roomMetrics.slice(0, 12).map((room) => [
+      room.roomId,
+      `${room.floorId} (#${room.floorNumber})`,
+      room.avgTemperature.toFixed(2),
+      room.meanVelocity.toFixed(3),
+      room.stagnationRatio.toFixed(3),
+      room.pressure.toFixed(3),
+      room.inflowM3s.toFixed(3),
+      room.outflowM3s.toFixed(3),
+    ]),
+  ];
+
   const docDefinition: TDocumentDefinitions = {
     content: [
       bold('CFD Simulation Engineering Report', { fontSize: 18, margin: [0, 0, 0, 8] }),
@@ -300,6 +386,30 @@ export async function exportSimulationReportPdf(report: SimulationEngineeringRep
         },
         layout: 'lightHorizontalLines',
       },
+      hrLine(),
+      bold('Engineering Metrics', { fontSize: 12, margin: [0, 4, 0, 4] }),
+      {
+        table: {
+          widths: [170, '*'],
+          body: engineeringRows,
+        },
+        layout: 'lightHorizontalLines',
+      },
+      report.engineering.roomMetrics.length > 0
+        ? {
+          stack: [
+            bold('Room Metrics (Top 12)', { fontSize: 11, margin: [0, 4, 0, 4] }),
+            {
+              table: {
+                headerRows: 1,
+                widths: [70, 90, 60, 62, 52, 62, 62, 62],
+                body: roomMetricsRows,
+              },
+              layout: 'lightHorizontalLines',
+            },
+          ],
+        }
+        : { text: '' },
       hrLine(),
       bold('Optimization', { fontSize: 12, margin: [0, 4, 0, 4] }),
       {

@@ -13,7 +13,7 @@ const DELETE_BATCH_SIZE = 400;
 const BACKFILL_BATCH_SIZE = 400;
 
 export type SimulationReportExportFormat = 'pdf' | 'csv' | 'json';
-export type SimulationReportExportSource = 'viewer' | 'workspace';
+export type SimulationReportExportSource = 'viewer' | 'workspace' | 'engine';
 
 export interface SimulationReportHistoryRecord {
   id: string;
@@ -93,6 +93,15 @@ function buildLegacyReport(record: SimulationReportHistoryRecord): SimulationEng
       continuityResidual: 0,
       momentumResidual: 0,
       energyResidual: 0,
+    },
+    engineering: {
+      airflowBalanceM3s: 0,
+      pressureImbalancePa: 0,
+      ventilationEffectiveness: 0,
+      deadZoneRatio: 0,
+      airflowDistributionScore: 0,
+      uniformityIndex: 0,
+      roomMetrics: [],
     },
     compliance: {
       available: false,

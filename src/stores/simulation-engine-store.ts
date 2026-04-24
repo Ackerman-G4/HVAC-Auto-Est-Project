@@ -14,6 +14,7 @@ import type {
   RunJob,
   CaseResult,
   FieldName,
+  BuildingGeometryInput,
   GeometryInput,
   PhysicsSetup,
   SolverProfile,
@@ -56,7 +57,9 @@ interface SimulationEngineStore {
   createCase: (input: {
     name: string;
     description?: string;
+    simulationScope?: 'room' | 'building';
     geometry: GeometryInput;
+    buildingGeometry?: BuildingGeometryInput;
     physics?: PhysicsSetup;
     solver?: SolverProfile;
     cellSize?: number;

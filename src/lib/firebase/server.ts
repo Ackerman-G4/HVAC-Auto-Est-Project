@@ -6,6 +6,7 @@ import {
   getApps,
   initializeApp,
 } from 'firebase-admin/app';
+import { generateKeyPairSync } from 'crypto';
 import { getAuth } from 'firebase-admin/auth';
 import { Firestore, getFirestore } from 'firebase-admin/firestore';
 import { isLocalFirestoreMode, getLocalFirestore } from '@/lib/firebase/local-firestore';
@@ -16,6 +17,7 @@ type GlobalFirebaseCache = typeof globalThis & {
 };
 
 const globalCache = globalThis as GlobalFirebaseCache;
+let emulatorPrivateKey: string | null = null;
 
 function readNonEmptyString(value: unknown): string | null {
   if (typeof value !== 'string') {
@@ -101,6 +103,51 @@ function getDatabaseURL(): string | undefined {
   return process.env.FIREBASE_DATABASE_URL;
 }
 
+function resolveProjectId(): string | undefined {
+  return process.env.FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT;
+}
+
+function getOrCreateEmulatorPrivateKey(): string {
+  if (emulatorPrivateKey) {
+    return emulatorPrivateKey;
+  }
+
+  const { privateKey } = generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    privateKeyEncoding: {
+      type: 'pkcs8',
+      format: 'pem',
+    },
+    publicKeyEncoding: {
+      type: 'spki',
+      format: 'pem',
+    },
+  });
+
+  emulatorPrivateKey = privateKey;
+  return emulatorPrivateKey;
+}
+
+function createEmulatorServiceAccount(projectId: string): ServiceAccount {
+  return {
+    projectId,
+    clientEmail: `local-emulator@${projectId}.iam.gserviceaccount.com`,
+    privateKey: getOrCreateEmulatorPrivateKey(),
+  };
+}
+
+function shouldBypassApplicationDefaultInEmulatorMode(): boolean {
+  const emulatorHost = readNonEmptyString(process.env.FIRESTORE_EMULATOR_HOST);
+  if (!emulatorHost) {
+    return false;
+  }
+
+  const hasServiceAccount = resolveServiceAccount() !== null;
+  const hasGoogleApplicationCredentials = readNonEmptyString(process.env.GOOGLE_APPLICATION_CREDENTIALS) !== null;
+
+  return !hasServiceAccount && !hasGoogleApplicationCredentials;
+}
+
 function initFirebaseAdminApp(): App {
   const existing = getApps()[0];
   if (existing) {
@@ -109,6 +156,7 @@ function initFirebaseAdminApp(): App {
 
   const serviceAccount = resolveServiceAccount();
   const databaseURL = getDatabaseURL();
+  const projectId = resolveProjectId();
 
   if (serviceAccount) {
     return initializeApp({
@@ -118,9 +166,20 @@ function initFirebaseAdminApp(): App {
     });
   }
 
+  if (shouldBypassApplicationDefaultInEmulatorMode()) {
+    const emulatorProjectId = projectId || 'demo-hvac-auto';
+    const emulatorServiceAccount = createEmulatorServiceAccount(emulatorProjectId);
+
+    return initializeApp({
+      credential: cert(emulatorServiceAccount),
+      projectId: emulatorProjectId,
+      databaseURL,
+    });
+  }
+
   return initializeApp({
     credential: applicationDefault(),
-    projectId: process.env.FIREBASE_PROJECT_ID,
+    projectId,
     databaseURL,
   });
 }

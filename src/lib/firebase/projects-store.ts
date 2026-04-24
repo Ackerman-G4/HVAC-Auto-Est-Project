@@ -641,10 +641,11 @@ export async function getProjectRecord(id: string): Promise<FirebaseProjectRecor
 }
 
 export async function createProjectRecord(
-  input: Partial<FirebaseProjectRecord>,
+  input: Partial<FirebaseProjectRecord> & { ownerId?: string },
 ): Promise<FirebaseProjectRecord> {
   const id = input.id || randomUUID();
   const createdAt = nowIso();
+  const ownerId = toStringValue(input.ownerId, toStringValue(input.createdBy, ''));
 
   const project: FirebaseProjectRecord = {
     id,
@@ -703,7 +704,10 @@ export async function createProjectRecord(
     updatedAt: createdAt,
   };
 
-  await getFirebaseDb().collection(COLLECTIONS.projects).doc(id).set(project);
+  await getFirebaseDb().collection(COLLECTIONS.projects).doc(id).set({
+    ...project,
+    ownerId,
+  });
   return project;
 }
 

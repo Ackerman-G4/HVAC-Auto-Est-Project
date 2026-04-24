@@ -1,0 +1,7 @@
+At line:1 char:7
++ 127.0.0.1:9080='127.0.0.1:9080'; demo-hvac-auto='demo-hvac-auto'; dem ...
++       ~
+Missing property name after reference operator.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : MissingPropertyName
+ 

@@ -18,9 +18,14 @@ function resolveRole(role: unknown): 'admin' | 'engineer' {
 }
 
 function isMissingAdminCredentialError(message: string): boolean {
+	const normalized = message.toLowerCase();
+
 	return (
-		message.includes('Could not load the default credentials') ||
-		message.includes('credential implementation provided to initializeApp()')
+		normalized.includes('could not load the default credentials') ||
+		normalized.includes('credential implementation provided to initializeapp()') ||
+		normalized.includes('access_token_type_unsupported') ||
+		normalized.includes('invalid authentication credentials') ||
+		normalized.includes('unauthenticated')
 	);
 }
 

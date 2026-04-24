@@ -1,0 +1,8 @@
+
+> hvac-app@0.1.0 start
+> next start --port 3000
+
+▲ Next.js 16.2.3
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.7:3000
+✓ Ready in 167ms

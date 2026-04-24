@@ -1,0 +1,410 @@
+POST rooms error: Error: {"error":{"code":403,"message":"No matching allow statements","status":"PERMISSION_DENIED"}}
+    at ignore-listed frames {
+  config: {
+    headers: Headers {
+      authorization: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+      'content-type': 'application/json',
+      'google-cloud-resource-prefix': 'projects/demo-hvac-auto/databases/(default)',
+      'x-goog-api-client': 'gax/5.0.6-fallback gapic/8.5.0 gl-node/24.14.0 rest/5.0.6 gccl/8.5.0 fire/13.8.0 fire-admin/13.8.0 grpc-web/5.0.6-fallback',
+      'x-goog-request-params': 'parent=projects%2Fdemo-hvac-auto%2Fdatabases%2F(default)%2Fdocuments',
+      'User-Agent': 'google-api-nodejs-client/10.6.2'
+    },
+    body: '{"structuredQuery":{"from":[{"collectionId":"floors"}],"where":{"fieldFilter":{"field":{"fieldPath":"projectId"},"op":5,"value":{"stringValue":"f65bd6cf-f415-48f2-b319-6d474b15ab17"}}}}}',
+    method: 'POST',
+    signal: AbortSignal { aborted: false },
+    responseType: 'stream',
+    agent: [Function: agentOption],
+    url: URL {
+      href: 'http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:runQuery?$alt=json%3Benum-encoding=int',
+      origin: 'http://127.0.0.1:9080',
+      protocol: 'http:',
+      username: '',
+      password: '',
+      host: '127.0.0.1:9080',
+      hostname: '127.0.0.1',
+      port: '9080',
+      pathname: '/v1/projects/demo-hvac-auto/databases/(default)/documents:runQuery',
+      search: '?$alt=json%3Benum-encoding=int',
+      searchParams: URLSearchParams { '$alt' => 'json;enum-encoding=int' },
+      hash: ''
+    },
+    validateStatus: [Function: validateStatus],
+    errorRedactor: [Function: defaultErrorRedactor],
+    duplex: 'half'
+  },
+  response: Response {
+    size: 0,
+    data: undefined,
+    config: {
+      headers: Headers {
+        authorization: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+        'content-type': 'application/json',
+        'google-cloud-resource-prefix': 'projects/demo-hvac-auto/databases/(default)',
+        'x-goog-api-client': 'gax/5.0.6-fallback gapic/8.5.0 gl-node/24.14.0 rest/5.0.6 gccl/8.5.0 fire/13.8.0 fire-admin/13.8.0 grpc-web/5.0.6-fallback',
+        'x-goog-request-params': 'parent=projects%2Fdemo-hvac-auto%2Fdatabases%2F(default)%2Fdocuments',
+        'User-Agent': 'google-api-nodejs-client/10.6.2'
+      },
+      body: '{"structuredQuery":{"from":[{"collectionId":"floors"}],"where":{"fieldFilter":{"field":{"fieldPath":"projectId"},"op":5,"value":{"stringValue":"f65bd6cf-f415-48f2-b319-6d474b15ab17"}}}}}',
+      method: 'POST',
+      signal: [AbortSignal],
+      responseType: 'stream',
+      agent: [Function: agentOption],
+      url: URL {},
+      validateStatus: [Function: validateStatus],
+      errorRedactor: [Function: defaultErrorRedactor],
+      duplex: 'half'
+    },
+    Symbol(Body internals): {
+      body: [PassThrough],
+      stream: [PassThrough],
+      boundary: null,
+      disturbed: false,
+      error: null
+    },
+    Symbol(Response internals): {
+      type: 'default',
+      url: 'http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:runQuery?$alt=json%3Benum-encoding=int',
+      status: 403,
+      statusText: 'Forbidden',
+      headers: [Object],
+      counter: 0,
+      highWaterMark: 16384
+    }
+  },
+  code: 403,
+  status: 403,
+  error: undefined,
+  [cause]: {
+    message: '{"error":{"code":403,"message":"No matching allow statements","status":"PERMISSION_DENIED"}}',
+    code: 403,
+    status: 'Forbidden'
+  }
+}
+POST rooms error: Error: {"error":{"code":403,"message":"No matching allow statements","status":"PERMISSION_DENIED"}}
+    at ignore-listed frames {
+  config: {
+    headers: Headers {
+      authorization: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+      'content-type': 'application/json',
+      'google-cloud-resource-prefix': 'projects/demo-hvac-auto/databases/(default)',
+      'x-goog-api-client': 'gax/5.0.6-fallback gapic/8.5.0 gl-node/24.14.0 rest/5.0.6 gccl/8.5.0 fire/13.8.0 fire-admin/13.8.0 grpc-web/5.0.6-fallback',
+      'x-goog-request-params': 'parent=projects%2Fdemo-hvac-auto%2Fdatabases%2F(default)%2Fdocuments',
+      'User-Agent': 'google-api-nodejs-client/10.6.2'
+    },
+    body: '{"structuredQuery":{"from":[{"collectionId":"floors"}],"where":{"fieldFilter":{"field":{"fieldPath":"projectId"},"op":5,"value":{"stringValue":"f65bd6cf-f415-48f2-b319-6d474b15ab17"}}}}}',
+    method: 'POST',
+    signal: AbortSignal { aborted: false },
+    responseType: 'stream',
+    agent: [Function: agentOption],
+    url: URL {
+      href: 'http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:runQuery?$alt=json%3Benum-encoding=int',
+      origin: 'http://127.0.0.1:9080',
+      protocol: 'http:',
+      username: '',
+      password: '',
+      host: '127.0.0.1:9080',
+      hostname: '127.0.0.1',
+      port: '9080',
+      pathname: '/v1/projects/demo-hvac-auto/databases/(default)/documents:runQuery',
+      search: '?$alt=json%3Benum-encoding=int',
+      searchParams: URLSearchParams { '$alt' => 'json;enum-encoding=int' },
+      hash: ''
+    },
+    validateStatus: [Function: validateStatus],
+    errorRedactor: [Function: defaultErrorRedactor],
+    duplex: 'half'
+  },
+  response: Response {
+    size: 0,
+    data: undefined,
+    config: {
+      headers: Headers {
+        authorization: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+        'content-type': 'application/json',
+        'google-cloud-resource-prefix': 'projects/demo-hvac-auto/databases/(default)',
+        'x-goog-api-client': 'gax/5.0.6-fallback gapic/8.5.0 gl-node/24.14.0 rest/5.0.6 gccl/8.5.0 fire/13.8.0 fire-admin/13.8.0 grpc-web/5.0.6-fallback',
+        'x-goog-request-params': 'parent=projects%2Fdemo-hvac-auto%2Fdatabases%2F(default)%2Fdocuments',
+        'User-Agent': 'google-api-nodejs-client/10.6.2'
+      },
+      body: '{"structuredQuery":{"from":[{"collectionId":"floors"}],"where":{"fieldFilter":{"field":{"fieldPath":"projectId"},"op":5,"value":{"stringValue":"f65bd6cf-f415-48f2-b319-6d474b15ab17"}}}}}',
+      method: 'POST',
+      signal: [AbortSignal],
+      responseType: 'stream',
+      agent: [Function: agentOption],
+      url: URL {},
+      validateStatus: [Function: validateStatus],
+      errorRedactor: [Function: defaultErrorRedactor],
+      duplex: 'half'
+    },
+    Symbol(Body internals): {
+      body: [PassThrough],
+      stream: [PassThrough],
+      boundary: null,
+      disturbed: false,
+      error: null
+    },
+    Symbol(Response internals): {
+      type: 'default',
+      url: 'http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:runQuery?$alt=json%3Benum-encoding=int',
+      status: 403,
+      statusText: 'Forbidden',
+      headers: [Object],
+      counter: 0,
+      highWaterMark: 16384
+    }
+  },
+  code: 403,
+  status: 403,
+  error: undefined,
+  [cause]: {
+    message: '{"error":{"code":403,"message":"No matching allow statements","status":"PERMISSION_DENIED"}}',
+    code: 403,
+    status: 'Forbidden'
+  }
+}
+POST rooms error: Error: {"error":{"code":403,"message":"No matching allow statements","status":"PERMISSION_DENIED"}}
+    at ignore-listed frames {
+  config: {
+    headers: Headers {
+      authorization: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+      'content-type': 'application/json',
+      'google-cloud-resource-prefix': 'projects/demo-hvac-auto/databases/(default)',
+      'x-goog-api-client': 'gax/5.0.6-fallback gapic/8.5.0 gl-node/24.14.0 rest/5.0.6 gccl/8.5.0 fire/13.8.0 fire-admin/13.8.0 grpc-web/5.0.6-fallback',
+      'x-goog-request-params': 'parent=projects%2Fdemo-hvac-auto%2Fdatabases%2F(default)%2Fdocuments',
+      'User-Agent': 'google-api-nodejs-client/10.6.2'
+    },
+    body: '{"structuredQuery":{"from":[{"collectionId":"floors"}],"where":{"fieldFilter":{"field":{"fieldPath":"projectId"},"op":5,"value":{"stringValue":"f65bd6cf-f415-48f2-b319-6d474b15ab17"}}}}}',
+    method: 'POST',
+    signal: AbortSignal { aborted: false },
+    responseType: 'stream',
+    agent: [Function: agentOption],
+    url: URL {
+      href: 'http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:runQuery?$alt=json%3Benum-encoding=int',
+      origin: 'http://127.0.0.1:9080',
+      protocol: 'http:',
+      username: '',
+      password: '',
+      host: '127.0.0.1:9080',
+      hostname: '127.0.0.1',
+      port: '9080',
+      pathname: '/v1/projects/demo-hvac-auto/databases/(default)/documents:runQuery',
+      search: '?$alt=json%3Benum-encoding=int',
+      searchParams: URLSearchParams { '$alt' => 'json;enum-encoding=int' },
+      hash: ''
+    },
+    validateStatus: [Function: validateStatus],
+    errorRedactor: [Function: defaultErrorRedactor],
+    duplex: 'half'
+  },
+  response: Response {
+    size: 0,
+    data: undefined,
+    config: {
+      headers: Headers {
+        authorization: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+        'content-type': 'application/json',
+        'google-cloud-resource-prefix': 'projects/demo-hvac-auto/databases/(default)',
+        'x-goog-api-client': 'gax/5.0.6-fallback gapic/8.5.0 gl-node/24.14.0 rest/5.0.6 gccl/8.5.0 fire/13.8.0 fire-admin/13.8.0 grpc-web/5.0.6-fallback',
+        'x-goog-request-params': 'parent=projects%2Fdemo-hvac-auto%2Fdatabases%2F(default)%2Fdocuments',
+        'User-Agent': 'google-api-nodejs-client/10.6.2'
+      },
+      body: '{"structuredQuery":{"from":[{"collectionId":"floors"}],"where":{"fieldFilter":{"field":{"fieldPath":"projectId"},"op":5,"value":{"stringValue":"f65bd6cf-f415-48f2-b319-6d474b15ab17"}}}}}',
+      method: 'POST',
+      signal: [AbortSignal],
+      responseType: 'stream',
+      agent: [Function: agentOption],
+      url: URL {},
+      validateStatus: [Function: validateStatus],
+      errorRedactor: [Function: defaultErrorRedactor],
+      duplex: 'half'
+    },
+    Symbol(Body internals): {
+      body: [PassThrough],
+      stream: [PassThrough],
+      boundary: null,
+      disturbed: false,
+      error: null
+    },
+    Symbol(Response internals): {
+      type: 'default',
+      url: 'http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:runQuery?$alt=json%3Benum-encoding=int',
+      status: 403,
+      statusText: 'Forbidden',
+      headers: [Object],
+      counter: 0,
+      highWaterMark: 16384
+    }
+  },
+  code: 403,
+  status: 403,
+  error: undefined,
+  [cause]: {
+    message: '{"error":{"code":403,"message":"No matching allow statements","status":"PERMISSION_DENIED"}}',
+    code: 403,
+    status: 'Forbidden'
+  }
+}
+POST rooms error: Error: {"error":{"code":403,"message":"No matching allow statements","status":"PERMISSION_DENIED"}}
+    at ignore-listed frames {
+  config: {
+    headers: Headers {
+      authorization: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+      'content-type': 'application/json',
+      'google-cloud-resource-prefix': 'projects/demo-hvac-auto/databases/(default)',
+      'x-goog-api-client': 'gax/5.0.6-fallback gapic/8.5.0 gl-node/24.14.0 rest/5.0.6 gccl/8.5.0 fire/13.8.0 fire-admin/13.8.0 grpc-web/5.0.6-fallback',
+      'x-goog-request-params': 'parent=projects%2Fdemo-hvac-auto%2Fdatabases%2F(default)%2Fdocuments',
+      'User-Agent': 'google-api-nodejs-client/10.6.2'
+    },
+    body: '{"structuredQuery":{"from":[{"collectionId":"floors"}],"where":{"fieldFilter":{"field":{"fieldPath":"projectId"},"op":5,"value":{"stringValue":"f65bd6cf-f415-48f2-b319-6d474b15ab17"}}}}}',
+    method: 'POST',
+    signal: AbortSignal { aborted: false },
+    responseType: 'stream',
+    agent: [Function: agentOption],
+    url: URL {
+      href: 'http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:runQuery?$alt=json%3Benum-encoding=int',
+      origin: 'http://127.0.0.1:9080',
+      protocol: 'http:',
+      username: '',
+      password: '',
+      host: '127.0.0.1:9080',
+      hostname: '127.0.0.1',
+      port: '9080',
+      pathname: '/v1/projects/demo-hvac-auto/databases/(default)/documents:runQuery',
+      search: '?$alt=json%3Benum-encoding=int',
+      searchParams: URLSearchParams { '$alt' => 'json;enum-encoding=int' },
+      hash: ''
+    },
+    validateStatus: [Function: validateStatus],
+    errorRedactor: [Function: defaultErrorRedactor],
+    duplex: 'half'
+  },
+  response: Response {
+    size: 0,
+    data: undefined,
+    config: {
+      headers: Headers {
+        authorization: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+        'content-type': 'application/json',
+        'google-cloud-resource-prefix': 'projects/demo-hvac-auto/databases/(default)',
+        'x-goog-api-client': 'gax/5.0.6-fallback gapic/8.5.0 gl-node/24.14.0 rest/5.0.6 gccl/8.5.0 fire/13.8.0 fire-admin/13.8.0 grpc-web/5.0.6-fallback',
+        'x-goog-request-params': 'parent=projects%2Fdemo-hvac-auto%2Fdatabases%2F(default)%2Fdocuments',
+        'User-Agent': 'google-api-nodejs-client/10.6.2'
+      },
+      body: '{"structuredQuery":{"from":[{"collectionId":"floors"}],"where":{"fieldFilter":{"field":{"fieldPath":"projectId"},"op":5,"value":{"stringValue":"f65bd6cf-f415-48f2-b319-6d474b15ab17"}}}}}',
+      method: 'POST',
+      signal: [AbortSignal],
+      responseType: 'stream',
+      agent: [Function: agentOption],
+      url: URL {},
+      validateStatus: [Function: validateStatus],
+      errorRedactor: [Function: defaultErrorRedactor],
+      duplex: 'half'
+    },
+    Symbol(Body internals): {
+      body: [PassThrough],
+      stream: [PassThrough],
+      boundary: null,
+      disturbed: false,
+      error: null
+    },
+    Symbol(Response internals): {
+      type: 'default',
+      url: 'http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:runQuery?$alt=json%3Benum-encoding=int',
+      status: 403,
+      statusText: 'Forbidden',
+      headers: [Object],
+      counter: 0,
+      highWaterMark: 16384
+    }
+  },
+  code: 403,
+  status: 403,
+  error: undefined,
+  [cause]: {
+    message: '{"error":{"code":403,"message":"No matching allow statements","status":"PERMISSION_DENIED"}}',
+    code: 403,
+    status: 'Forbidden'
+  }
+}
+POST rooms error: Error: {"error":{"code":403,"message":"No matching allow statements","status":"PERMISSION_DENIED"}}
+    at ignore-listed frames {
+  config: {
+    headers: Headers {
+      authorization: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+      'content-type': 'application/json',
+      'google-cloud-resource-prefix': 'projects/demo-hvac-auto/databases/(default)',
+      'x-goog-api-client': 'gax/5.0.6-fallback gapic/8.5.0 gl-node/24.14.0 rest/5.0.6 gccl/8.5.0 fire/13.8.0 fire-admin/13.8.0 grpc-web/5.0.6-fallback',
+      'x-goog-request-params': 'parent=projects%2Fdemo-hvac-auto%2Fdatabases%2F(default)%2Fdocuments',
+      'User-Agent': 'google-api-nodejs-client/10.6.2'
+    },
+    body: '{"structuredQuery":{"from":[{"collectionId":"floors"}],"where":{"fieldFilter":{"field":{"fieldPath":"projectId"},"op":5,"value":{"stringValue":"f65bd6cf-f415-48f2-b319-6d474b15ab17"}}}}}',
+    method: 'POST',
+    signal: AbortSignal { aborted: false },
+    responseType: 'stream',
+    agent: [Function: agentOption],
+    url: URL {
+      href: 'http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:runQuery?$alt=json%3Benum-encoding=int',
+      origin: 'http://127.0.0.1:9080',
+      protocol: 'http:',
+      username: '',
+      password: '',
+      host: '127.0.0.1:9080',
+      hostname: '127.0.0.1',
+      port: '9080',
+      pathname: '/v1/projects/demo-hvac-auto/databases/(default)/documents:runQuery',
+      search: '?$alt=json%3Benum-encoding=int',
+      searchParams: URLSearchParams { '$alt' => 'json;enum-encoding=int' },
+      hash: ''
+    },
+    validateStatus: [Function: validateStatus],
+    errorRedactor: [Function: defaultErrorRedactor],
+    duplex: 'half'
+  },
+  response: Response {
+    size: 0,
+    data: undefined,
+    config: {
+      headers: Headers {
+        authorization: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+        'content-type': 'application/json',
+        'google-cloud-resource-prefix': 'projects/demo-hvac-auto/databases/(default)',
+        'x-goog-api-client': 'gax/5.0.6-fallback gapic/8.5.0 gl-node/24.14.0 rest/5.0.6 gccl/8.5.0 fire/13.8.0 fire-admin/13.8.0 grpc-web/5.0.6-fallback',
+        'x-goog-request-params': 'parent=projects%2Fdemo-hvac-auto%2Fdatabases%2F(default)%2Fdocuments',
+        'User-Agent': 'google-api-nodejs-client/10.6.2'
+      },
+      body: '{"structuredQuery":{"from":[{"collectionId":"floors"}],"where":{"fieldFilter":{"field":{"fieldPath":"projectId"},"op":5,"value":{"stringValue":"f65bd6cf-f415-48f2-b319-6d474b15ab17"}}}}}',
+      method: 'POST',
+      signal: [AbortSignal],
+      responseType: 'stream',
+      agent: [Function: agentOption],
+      url: URL {},
+      validateStatus: [Function: validateStatus],
+      errorRedactor: [Function: defaultErrorRedactor],
+      duplex: 'half'
+    },
+    Symbol(Body internals): {
+      body: [PassThrough],
+      stream: [PassThrough],
+      boundary: null,
+      disturbed: false,
+      error: null
+    },
+    Symbol(Response internals): {
+      type: 'default',
+      url: 'http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:runQuery?$alt=json%3Benum-encoding=int',
+      status: 403,
+      statusText: 'Forbidden',
+      headers: [Object],
+      counter: 0,
+      highWaterMark: 16384
+    }
+  },
+  code: 403,
+  status: 403,
+  error: undefined,
+  [cause]: {
+    message: '{"error":{"code":403,"message":"No matching allow statements","status":"PERMISSION_DENIED"}}',
+    code: 403,
+    status: 'Forbidden'
+  }
+}

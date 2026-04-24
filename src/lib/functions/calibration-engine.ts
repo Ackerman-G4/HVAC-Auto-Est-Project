@@ -18,7 +18,6 @@ import type {
   Vec3,
   PerforatedTile,
   ServerRack,
-  HVACUnit,
   SimulationConfig,
 } from '@/types/simulation';
 import { DEFAULT_CALIBRATION_COEFFICIENTS } from '@/types/simulation';
@@ -278,7 +277,6 @@ export function autoCalibrate(
   cfdResult: SimulationResult,
   calibrationConfig: CalibrationConfig,
 ): CalibrationResult {
-  const config: SimulationConfig = { ...DEFAULT_CONFIG, ...input.config };
   const referencePoints = compareEstimatedVsCFD(input, cfdResult);
   const convergenceHistory: number[] = [];
   const n = 5; // number of coefficients

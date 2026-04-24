@@ -2,7 +2,7 @@ import type { SimulationEngineeringReport } from '@/lib/reports/simulation-repor
 import { authFetch } from '@/lib/api-client';
 
 export type SimulationReportExportFormat = 'pdf' | 'csv' | 'json';
-export type SimulationReportExportSource = 'viewer' | 'workspace';
+export type SimulationReportExportSource = 'viewer' | 'workspace' | 'engine';
 
 export interface SimulationReportHistoryEntry {
   id: string;
@@ -44,7 +44,7 @@ function normalizeEntry(value: unknown): SimulationReportHistoryEntry | null {
     return null;
   }
 
-  if (source !== 'viewer' && source !== 'workspace') {
+  if (source !== 'viewer' && source !== 'workspace' && source !== 'engine') {
     return null;
   }
 

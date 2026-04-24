@@ -35,7 +35,7 @@ function isValidFormat(value: unknown): value is SimulationReportExportFormat {
 }
 
 function isValidSource(value: unknown): value is SimulationReportExportSource {
-  return value === 'viewer' || value === 'workspace';
+  return value === 'viewer' || value === 'workspace' || value === 'engine';
 }
 
 function parseReportPayload(value: unknown): SimulationEngineeringReport | undefined {

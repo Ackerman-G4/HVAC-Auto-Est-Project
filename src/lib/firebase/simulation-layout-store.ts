@@ -4,6 +4,7 @@ import type {
   SimulationLayoutDoc,
   LayoutHVACPlacement,
   LayoutTilePlacement,
+  LayoutConnectionOverride,
 } from '@/types/simulation';
 
 const SUBCOLLECTION = 'simulationLayouts';
@@ -41,6 +42,18 @@ function mapTile(raw: Record<string, unknown>): LayoutTilePlacement {
   };
 }
 
+function mapConnection(raw: Record<string, unknown>): LayoutConnectionOverride {
+  return {
+    id: String(raw.id ?? ''),
+    fromRoomId: String(raw.fromRoomId ?? ''),
+    toRoomId: String(raw.toRoomId ?? ''),
+    type: (raw.type ?? 'door') as LayoutConnectionOverride['type'],
+    openingAreaM2: Number(raw.openingAreaM2 ?? 2.0),
+    resistance: Number(raw.resistance ?? 1),
+    enabled: raw.enabled !== false,
+  };
+}
+
 function serializeHVAC(h: LayoutHVACPlacement): Record<string, unknown> {
   return {
     id: h.id,
@@ -65,6 +78,18 @@ function serializeTile(t: LayoutTilePlacement): Record<string, unknown> {
   };
 }
 
+function serializeConnection(connection: LayoutConnectionOverride): Record<string, unknown> {
+  return {
+    id: connection.id,
+    fromRoomId: connection.fromRoomId,
+    toRoomId: connection.toRoomId,
+    type: connection.type,
+    openingAreaM2: connection.openingAreaM2,
+    resistance: connection.resistance,
+    enabled: connection.enabled,
+  };
+}
+
 // ── CRUD ────────────────────────────────────────────────────
 
 export async function getSimulationLayout(
@@ -78,12 +103,14 @@ export async function getSimulationLayout(
   const data = snap.data() as Record<string, unknown>;
   const hvacRaw = (data.hvacPlacements ?? []) as Record<string, unknown>[];
   const tilesRaw = (data.tilePlacements ?? []) as Record<string, unknown>[];
+  const connectionsRaw = (data.connectionOverrides ?? []) as Record<string, unknown>[];
 
   return {
     projectId,
     floorId,
     hvacPlacements: hvacRaw.map(mapHVAC),
     tilePlacements: tilesRaw.map(mapTile),
+    connectionOverrides: connectionsRaw.map(mapConnection),
     canvasScale: Number(data.canvasScale ?? 50),
     updatedAt: String(data.updatedAt ?? ''),
   };
@@ -92,18 +119,23 @@ export async function getSimulationLayout(
 export async function upsertSimulationLayout(
   projectId: string,
   floorId: string,
-  layout: Pick<SimulationLayoutDoc, 'hvacPlacements' | 'tilePlacements' | 'canvasScale'>,
+  layout: Pick<SimulationLayoutDoc, 'hvacPlacements' | 'tilePlacements' | 'canvasScale'> & {
+    connectionOverrides?: LayoutConnectionOverride[];
+  },
 ): Promise<void> {
   const db = getFirebaseDb();
-  await db.doc(docPath(projectId, floorId)).set(
-    {
-      projectId,
-      floorId,
-      hvacPlacements: layout.hvacPlacements.map(serializeHVAC),
-      tilePlacements: layout.tilePlacements.map(serializeTile),
-      canvasScale: layout.canvasScale,
-      updatedAt: nowIso(),
-    },
-    { merge: true },
-  );
+  const payload: Record<string, unknown> = {
+    projectId,
+    floorId,
+    hvacPlacements: layout.hvacPlacements.map(serializeHVAC),
+    tilePlacements: layout.tilePlacements.map(serializeTile),
+    canvasScale: layout.canvasScale,
+    updatedAt: nowIso(),
+  };
+
+  if (Array.isArray(layout.connectionOverrides)) {
+    payload.connectionOverrides = layout.connectionOverrides.map(serializeConnection);
+  }
+
+  await db.doc(docPath(projectId, floorId)).set(payload, { merge: true });
 }

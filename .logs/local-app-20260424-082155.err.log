@@ -1,0 +1,45 @@
+POST /api/projects error: Error: Failed to initialize Google Cloud Firestore client with the available credentials. Must initialize the SDK with a certificate credential or application default credentials to use Cloud Firestore API.
+    at <unknown> (C:\Users\emman\HVAC-Auto-Est-Project\.next\server\chunks\[root-of-the-server]__05-cc8_._.js:1:82359)
+    at w (C:\Users\emman\HVAC-Auto-Est-Project\.next\server\chunks\src_lib_0mi54id._.js:1:11220)
+    at d (C:\Users\emman\HVAC-Auto-Est-Project\.next\server\chunks\[root-of-the-server]__0498x94._.js:1:8209) {
+  errorInfo: {
+    code: 'firestore/invalid-credential',
+    message: 'Failed to initialize Google Cloud Firestore client with the available credentials. Must initialize the SDK with a certificate credential or application default credentials to use Cloud Firestore API.'
+  }
+}
+POST /api/projects error: Error: Failed to initialize Google Cloud Firestore client with the available credentials. Must initialize the SDK with a certificate credential or application default credentials to use Cloud Firestore API.
+    at <unknown> (C:\Users\emman\HVAC-Auto-Est-Project\.next\server\chunks\[root-of-the-server]__05-cc8_._.js:1:82359)
+    at w (C:\Users\emman\HVAC-Auto-Est-Project\.next\server\chunks\src_lib_0mi54id._.js:1:11220)
+    at d (C:\Users\emman\HVAC-Auto-Est-Project\.next\server\chunks\[root-of-the-server]__0498x94._.js:1:8209) {
+  errorInfo: {
+    code: 'firestore/invalid-credential',
+    message: 'Failed to initialize Google Cloud Firestore client with the available credentials. Must initialize the SDK with a certificate credential or application default credentials to use Cloud Firestore API.'
+  }
+}
+POST /api/projects error: Error: Failed to initialize Google Cloud Firestore client with the available credentials. Must initialize the SDK with a certificate credential or application default credentials to use Cloud Firestore API.
+    at <unknown> (C:\Users\emman\HVAC-Auto-Est-Project\.next\server\chunks\[root-of-the-server]__05-cc8_._.js:1:82359)
+    at w (C:\Users\emman\HVAC-Auto-Est-Project\.next\server\chunks\src_lib_0mi54id._.js:1:11220)
+    at d (C:\Users\emman\HVAC-Auto-Est-Project\.next\server\chunks\[root-of-the-server]__0498x94._.js:1:8209) {
+  errorInfo: {
+    code: 'firestore/invalid-credential',
+    message: 'Failed to initialize Google Cloud Firestore client with the available credentials. Must initialize the SDK with a certificate credential or application default credentials to use Cloud Firestore API.'
+  }
+}
+POST /api/projects error: Error: Failed to initialize Google Cloud Firestore client with the available credentials. Must initialize the SDK with a certificate credential or application default credentials to use Cloud Firestore API.
+    at <unknown> (C:\Users\emman\HVAC-Auto-Est-Project\.next\server\chunks\[root-of-the-server]__05-cc8_._.js:1:82359)
+    at w (C:\Users\emman\HVAC-Auto-Est-Project\.next\server\chunks\src_lib_0mi54id._.js:1:11220)
+    at d (C:\Users\emman\HVAC-Auto-Est-Project\.next\server\chunks\[root-of-the-server]__0498x94._.js:1:8209) {
+  errorInfo: {
+    code: 'firestore/invalid-credential',
+    message: 'Failed to initialize Google Cloud Firestore client with the available credentials. Must initialize the SDK with a certificate credential or application default credentials to use Cloud Firestore API.'
+  }
+}
+POST /api/projects error: Error: Failed to initialize Google Cloud Firestore client with the available credentials. Must initialize the SDK with a certificate credential or application default credentials to use Cloud Firestore API.
+    at <unknown> (C:\Users\emman\HVAC-Auto-Est-Project\.next\server\chunks\[root-of-the-server]__05-cc8_._.js:1:82359)
+    at w (C:\Users\emman\HVAC-Auto-Est-Project\.next\server\chunks\src_lib_0mi54id._.js:1:11220)
+    at d (C:\Users\emman\HVAC-Auto-Est-Project\.next\server\chunks\[root-of-the-server]__0498x94._.js:1:8209) {
+  errorInfo: {
+    code: 'firestore/invalid-credential',
+    message: 'Failed to initialize Google Cloud Firestore client with the available credentials. Must initialize the SDK with a certificate credential or application default credentials to use Cloud Firestore API.'
+  }
+}

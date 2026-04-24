@@ -1,0 +1,4 @@
+(node:13196) MetadataLookupWarning: received unexpected error = All promises were rejected code = UNKNOWN
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:13196) MetadataLookupWarning: received unexpected error = All promises were rejected code = UNKNOWN
+^C

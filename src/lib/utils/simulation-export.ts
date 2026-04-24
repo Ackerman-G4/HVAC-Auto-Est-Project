@@ -61,23 +61,49 @@ export function exportAlertsCSV(alerts: ThermalAlert[]) {
 // ─── Metrics CSV ────────────────────────────────────────────────────
 
 export function exportMetricsCSV(metrics: SimulationMetrics) {
-  const header = [
-    'Max Temp (°C)', 'Avg Temp (°C)', 'Min Temp (°C)',
-    'Max Velocity (m/s)', 'Hotspot Count', 'PUE',
-    'Converged', 'Energy Residual', 'Momentum Residual',
+  const metricsRows: string[][] = [
+    ['Metric', 'Value', 'Unit'],
+    ['Max Temperature', metrics.maxTemperature.toFixed(2), 'degC'],
+    ['Avg Temperature', metrics.avgTemperature.toFixed(2), 'degC'],
+    ['Min Temperature', metrics.minTemperature.toFixed(2), 'degC'],
+    ['Max Velocity', metrics.maxVelocity.toFixed(3), 'm/s'],
+    ['Avg Velocity', metrics.avgVelocity.toFixed(3), 'm/s'],
+    ['Hotspot Count', String(metrics.hotspots.length), 'count'],
+    ['PUE', metrics.pue.toFixed(3), 'ratio'],
+    ['Converged', String(metrics.converged), 'bool'],
+    ['Energy Residual', metrics.energyResidual.toExponential(3), 'residual'],
+    ['Momentum Residual', metrics.momentumResidual.toExponential(3), 'residual'],
+    ['Airflow Balance', (metrics.airflowBalanceM3s ?? 0).toFixed(4), 'm3/s'],
+    ['Pressure Imbalance', (metrics.pressureImbalancePa ?? 0).toFixed(4), 'Pa'],
+    ['Ventilation Effectiveness', ((metrics.ventilationEffectiveness ?? 0) * 100).toFixed(2), 'percent'],
+    ['Dead Zone Ratio', ((metrics.deadZoneRatio ?? 0) * 100).toFixed(2), 'percent'],
+    ['Airflow Distribution Score', (metrics.airflowDistributionScore ?? 0).toFixed(4), 'score'],
+    ['Uniformity Index', (metrics.uniformityIndex ?? 0).toFixed(4), 'index'],
   ];
-  const row = [
-    metrics.maxTemperature.toFixed(2),
-    metrics.avgTemperature.toFixed(2),
-    metrics.minTemperature.toFixed(2),
-    metrics.maxVelocity.toFixed(3),
-    String(metrics.hotspots.length),
-    metrics.pue.toFixed(3),
-    String(metrics.converged),
-    metrics.energyResidual.toExponential(3),
-    metrics.momentumResidual.toExponential(3),
-  ];
-  downloadCSV([header, row], `simulation-metrics-${new Date().toISOString().slice(0, 10)}.csv`);
+
+  const roomRows: string[][] = (metrics.roomMetrics ?? []).length > 0
+    ? [
+      [''],
+      ['Room Metrics'],
+      ['Room ID', 'Floor ID', 'Floor Number', 'Avg Temp (degC)', 'Mean Velocity (m/s)', 'Stagnation Ratio', 'Pressure (Pa)', 'Inflow (m3/s)', 'Outflow (m3/s)'],
+      ...(metrics.roomMetrics ?? []).map((room) => [
+        room.roomId,
+        room.floorId,
+        String(room.floorNumber),
+        room.avgTemperature.toFixed(3),
+        room.meanVelocity.toFixed(4),
+        room.stagnationRatio.toFixed(4),
+        room.pressure.toFixed(4),
+        room.inflowM3s.toFixed(4),
+        room.outflowM3s.toFixed(4),
+      ]),
+    ]
+    : [];
+
+  downloadCSV(
+    [...metricsRows, ...roomRows],
+    `simulation-metrics-${new Date().toISOString().slice(0, 10)}.csv`,
+  );
 }
 
 // ─── Snapshot Export ────────────────────────────────────────────────
