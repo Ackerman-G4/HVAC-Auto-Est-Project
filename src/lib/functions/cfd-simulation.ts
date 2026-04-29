@@ -30,7 +30,6 @@ import type {
   SimulationInput,
   SimulationMetrics,
   SimulationResult,
-  SimulationRunProgress,
   HotspotInfo,
   ServerRack,
   HVACUnit,
@@ -90,8 +89,6 @@ const SIMPLE = {
 
 const DEFAULT_CONFIG: SimulationConfig = {
   mode: 'balanced',
-  runtimeMode: 'server',
-  dimensionMode: '3d',
   gridResolution: 0.5,
   gridSizeX: 20,
   gridSizeY: 20,
@@ -99,8 +96,6 @@ const DEFAULT_CONFIG: SimulationConfig = {
   iterations: 200,
   convergence: 0.001,
   timeStep: 0.1,
-  progressEmitInterval: 5,
-  renderDownsampleStep: 2,
   ambientTempC: 24,
   ambientHumidityRatio: 0.0093,
   airDensity: getPhysicsConstant('air_density', 1.2),
@@ -108,29 +103,6 @@ const DEFAULT_CONFIG: SimulationConfig = {
   thermalDiffusivity: getPhysicsConstant('thermal_diffusivity', 2.2e-5),
   specificHeat: getPhysicsConstant('specific_heat', 1005),
 };
-
-export const CFD_CANCELLED_ERROR = 'CFD_SIMULATION_CANCELLED';
-
-export interface CFDSimulationRunOptions {
-  simulationId?: string;
-  force2DFast?: boolean;
-  abortSignal?: { aborted: boolean };
-  onProgress?: (progress: SimulationRunProgress) => void;
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
-}
-
-function toFast2DConfig(config: SimulationConfig): SimulationConfig {
-  return {
-    ...config,
-    dimensionMode: '2d-fast',
-    gridSizeZ: 3,
-    iterations: Math.max(40, Math.round(config.iterations * 0.5)),
-    timeStep: Math.max(config.timeStep, 0.12),
-  };
-}
 
 // --- Grid Initialization ---
 
@@ -1074,10 +1046,8 @@ function computeMetrics(grid: CFDGrid, racks: ServerRack[], hvacUnits: HVACUnit[
   let maxTemp = -Infinity, minTemp = Infinity, sumTemp = 0;
   let maxHumidity = -Infinity, minHumidity = Infinity, sumHumidity = 0;
   let maxVel = 0, sumVel = 0, count = 0;
-  let sumTempSq = 0, sumVelSq = 0;
   let totalHeatLoad = 0, totalCoolingCapacity = 0;
   let sumNuTurb = 0, maxTurbI = 0;
-  let deadZoneCount = 0;
   const hotspots: HotspotInfo[] = [];
 
   const TEMP_WARNING = getThermalThreshold('temp_warning', 27);
@@ -1093,7 +1063,6 @@ function computeMetrics(grid: CFDGrid, racks: ServerRack[], hvacUnits: HVACUnit[
         maxTemp = Math.max(maxTemp, cell.temperature);
         minTemp = Math.min(minTemp, cell.temperature);
         sumTemp += cell.temperature;
-        sumTempSq += cell.temperature * cell.temperature;
 
         maxHumidity = Math.max(maxHumidity, cell.humidity);
         minHumidity = Math.min(minHumidity, cell.humidity);
@@ -1102,12 +1071,7 @@ function computeMetrics(grid: CFDGrid, racks: ServerRack[], hvacUnits: HVACUnit[
         const vel = Math.sqrt(cell.velocity.x ** 2 + cell.velocity.y ** 2 + cell.velocity.z ** 2);
         maxVel = Math.max(maxVel, vel);
         sumVel += vel;
-        sumVelSq += vel * vel;
         count++;
-
-        if (vel < 0.1) {
-          deadZoneCount++;
-        }
 
         // Turbulence stats
         sumNuTurb += cell.nutTurb;
@@ -1178,31 +1142,16 @@ function computeMetrics(grid: CFDGrid, racks: ServerRack[], hvacUnits: HVACUnit[
     ? (avgInletTemp - avgSupplyTemp) / (avgReturnTemp - avgSupplyTemp)
     : 0;
   const returnHeatIndex = 1 - supplyHeatIndex;
-  const avgTemperature = count > 0 ? sumTemp / count : config.ambientTempC;
-  const avgVelocity = count > 0 ? sumVel / count : 0;
-
-  const tempVariance = count > 0 ? Math.max(0, (sumTempSq / count) - avgTemperature * avgTemperature) : 0;
-  const velVariance = count > 0 ? Math.max(0, (sumVelSq / count) - avgVelocity * avgVelocity) : 0;
-  const tempCv = avgTemperature > 1e-6 ? Math.sqrt(tempVariance) / avgTemperature : 0;
-  const velCv = avgVelocity > 1e-6 ? Math.sqrt(velVariance) / avgVelocity : 1;
-
-  const uniformityIndex = clamp(1 - ((tempCv + velCv) / 2), 0, 1);
-  const airflowDistributionScore = uniformityIndex * 100;
-  const deadZoneRatio = count > 0 ? deadZoneCount / count : 0;
-
-  // Practical PMV proxy with temperature and local air speed influence only.
-  const pmvApprox = clamp(((avgTemperature - 24) / 4) - ((avgVelocity - 0.15) * 0.8), -3, 3);
-  const ppdApprox = 100 - 95 * Math.exp(-0.03353 * pmvApprox ** 4 - 0.2179 * pmvApprox ** 2);
 
   return {
     maxTemperature: maxTemp === -Infinity ? config.ambientTempC : maxTemp,
     minTemperature: minTemp === Infinity ? config.ambientTempC : minTemp,
-    avgTemperature,
+    avgTemperature: count > 0 ? sumTemp / count : config.ambientTempC,
     maxHumidityRatio: maxHumidity === -Infinity ? config.ambientHumidityRatio : maxHumidity,
     minHumidityRatio: minHumidity === Infinity ? config.ambientHumidityRatio : minHumidity,
     avgHumidityRatio: count > 0 ? sumHumidity / count : config.ambientHumidityRatio,
     maxVelocity: maxVel,
-    avgVelocity,
+    avgVelocity: count > 0 ? sumVel / count : 0,
     totalHeatLoad,
     totalCoolingCapacity,
     coolingDeficit: Math.max(0, totalHeatLoad - totalCoolingCapacity),
@@ -1219,12 +1168,6 @@ function computeMetrics(grid: CFDGrid, racks: ServerRack[], hvacUnits: HVACUnit[
     converged: false,
     avgTurbulentViscosity: count > 0 ? sumNuTurb / count : 0,
     maxTurbulentIntensity: maxTurbI,
-    deadZoneCount,
-    deadZoneRatio,
-    airflowDistributionScore,
-    uniformityIndex,
-    pmvApprox,
-    ppdApprox,
   };
 }
 
@@ -1314,24 +1257,10 @@ function extractHumidityField(grid: CFDGrid): number[][][] {
 
 // --- Main Simulation Runner ---
 
-export function runCFDSimulation(input: SimulationInput, options?: CFDSimulationRunOptions): SimulationResult {
-  const requestedConfig: SimulationConfig = { ...DEFAULT_CONFIG, ...input.config };
-  const isFast2D = options?.force2DFast || requestedConfig.dimensionMode === '2d-fast';
-  const config: SimulationConfig = isFast2D ? toFast2DConfig(requestedConfig) : requestedConfig;
-  const startedAtMs = Date.now();
-  const simulationId = options?.simulationId ?? crypto.randomUUID();
+export function runCFDSimulation(input: SimulationInput): SimulationResult {
+  const config: SimulationConfig = { ...DEFAULT_CONFIG, ...input.config };
   const coeffs: CalibrationCoefficients = input.calibration?.coefficients ?? DEFAULT_CALIBRATION_COEFFICIENTS;
   const grid = createGrid(config);
-
-  options?.onProgress?.({
-    simulationId,
-    status: 'running',
-    iteration: 0,
-    totalIterations: config.iterations,
-    percent: 0,
-    elapsedMs: 0,
-    message: 'Initializing CFD domain',
-  });
 
   // Place equipment on grid
   placeRacks(grid, input.racks, config, coeffs);
@@ -1344,26 +1273,9 @@ export function runCFDSimulation(input: SimulationInput, options?: CFDSimulation
   let lastDt = config.timeStep;
   let converged = false;
   let lastResiduals = { continuityResidual: 1, momentumResidual: 1, energyResidual: 1, maxDivergence: 1 };
-  const emitEvery = Math.max(1, config.progressEmitInterval ?? 5);
 
   // SIMPLE iterative solver
   for (let iter = 0; iter < config.iterations; iter++) {
-    if (options?.abortSignal?.aborted) {
-      options?.onProgress?.({
-        simulationId,
-        status: 'cancelled',
-        iteration: iter,
-        totalIterations: config.iterations,
-        percent: (iter / Math.max(1, config.iterations)) * 100,
-        continuityResidual: lastResiduals.continuityResidual,
-        momentumResidual: lastResiduals.momentumResidual,
-        energyResidual: lastResiduals.energyResidual,
-        elapsedMs: Date.now() - startedAtMs,
-        message: 'Simulation cancelled',
-      });
-      throw new Error(CFD_CANCELLED_ERROR);
-    }
-
     const result = stepCFDSimulation(grid, config, coeffs);
     lastDt = result.dt;
     cflHistory.push(result.cflNumber);
@@ -1371,26 +1283,6 @@ export function runCFDSimulation(input: SimulationInput, options?: CFDSimulation
     const maxResidual = Math.max(result.continuityResidual, result.momentumResidual, result.energyResidual);
     convergenceHistory.push(maxResidual);
     lastResiduals = result;
-
-    if ((iter + 1) % emitEvery === 0 || iter === config.iterations - 1) {
-      const elapsedMs = Date.now() - startedAtMs;
-      const completed = iter + 1;
-      const avgIterMs = completed > 0 ? elapsedMs / completed : 0;
-      const etaMs = avgIterMs * Math.max(0, config.iterations - completed);
-
-      options?.onProgress?.({
-        simulationId,
-        status: 'running',
-        iteration: completed,
-        totalIterations: config.iterations,
-        percent: (completed / Math.max(1, config.iterations)) * 100,
-        continuityResidual: result.continuityResidual,
-        momentumResidual: result.momentumResidual,
-        energyResidual: result.energyResidual,
-        elapsedMs,
-        etaMs,
-      });
-    }
 
     // Convergence check on all equations
     if (iter > 20 &&
@@ -1409,26 +1301,11 @@ export function runCFDSimulation(input: SimulationInput, options?: CFDSimulation
   finalMetrics.maxDivergence = lastResiduals.maxDivergence;
   finalMetrics.converged = converged;
 
-  options?.onProgress?.({
-    simulationId,
-    status: 'completed',
-    iteration: convergenceHistory.length,
-    totalIterations: config.iterations,
-    percent: 100,
-    continuityResidual: lastResiduals.continuityResidual,
-    momentumResidual: lastResiduals.momentumResidual,
-    energyResidual: lastResiduals.energyResidual,
-    elapsedMs: Date.now() - startedAtMs,
-    message: converged ? 'Converged' : 'Completed maximum iterations',
-  });
-
   return {
-    id: simulationId,
+    id: crypto.randomUUID(),
     projectId: input.projectId,
     status: 'completed',
     config,
-    runtimeMode: config.runtimeMode ?? 'server',
-    dimensionMode: config.dimensionMode ?? '3d',
     metrics: finalMetrics,
     temperatureField: extractTemperatureField(grid),
     humidityField: extractHumidityField(grid),
@@ -1438,7 +1315,6 @@ export function runCFDSimulation(input: SimulationInput, options?: CFDSimulation
     convergenceHistory,
     cflHistory,
     effectiveTimeStep: lastDt,
-    startedAt: new Date(startedAtMs).toISOString(),
     completedAt: new Date().toISOString(),
   };
 }

@@ -20,16 +20,6 @@ type BucketStore = Map<string, Bucket>;
 
 const RATE_LIMIT_STORE_KEY = '__hvacAuthRateLimitStore';
 
-function isAuthRateLimitDisabled(): boolean {
-  const raw = process.env.AUTH_RATE_LIMIT_DISABLED;
-  if (!raw) {
-    return false;
-  }
-
-  const normalized = raw.trim().toLowerCase();
-  return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
-}
-
 function getBucketStore(): BucketStore {
   const globalScope = globalThis as typeof globalThis & {
     [RATE_LIMIT_STORE_KEY]?: BucketStore;
@@ -69,14 +59,6 @@ export function evaluateRateLimit(
   key: string,
   options: RateLimitOptions,
 ): RateLimitResult {
-  if (isAuthRateLimitDisabled()) {
-    return {
-      allowed: true,
-      retryAfterSec: 0,
-      remaining: options.maxRequests,
-    };
-  }
-
   const now = Date.now();
   const store = getBucketStore();
 

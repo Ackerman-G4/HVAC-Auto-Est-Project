@@ -8,8 +8,6 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$PSDefaultParameterValues['Invoke-WebRequest:DisableKeepAlive'] = $true
-$PSDefaultParameterValues['Invoke-RestMethod:DisableKeepAlive'] = $true
 
 function Test-NonEmpty {
   param([string]$Value)

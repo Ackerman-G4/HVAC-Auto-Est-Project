@@ -2,29 +2,11 @@
 
 export type SimulationStatus = 'pending' | 'running' | 'completed' | 'failed';
 export type SimulationMode = 'fast' | 'balanced' | 'engineering';
-export type SimulationRuntime = 'worker' | 'server' | 'openfoam';
-export type SimulationDimensionMode = '3d' | '2d-fast';
-export type SimulationScope = 'room' | 'building';
-export type SimulationRunState = 'idle' | 'running' | 'completed' | 'failed' | 'cancelled';
 export type TileType = 'open' | 'perforated' | 'solid' | 'inlet' | 'outlet';
 export type BoundaryType = 'wall' | 'inlet' | 'outlet' | 'symmetry' | 'open';
 export type RackDensity = 'low' | 'medium' | 'high' | 'ultra';
 export type HVACUnitType = 'crac' | 'crah' | 'ahu' | 'in_row' | 'rear_door' | 'vent_duct';
 export type FailureScenario = 'crac_failure' | 'power_loss' | 'cooling_restart' | 'partial_cooling';
-
-export interface SimulationRunProgress {
-  simulationId: string;
-  status: SimulationRunState;
-  iteration: number;
-  totalIterations: number;
-  percent: number;
-  continuityResidual?: number;
-  momentumResidual?: number;
-  energyResidual?: number;
-  elapsedMs?: number;
-  etaMs?: number;
-  message?: string;
-}
 
 /** Power density ranges in kW per rack */
 export const RACK_POWER_DENSITY: Record<RackDensity, { min: number; max: number; typical: number }> = {
@@ -113,8 +95,6 @@ export interface PerforatedTile {
 
 export interface SimulationConfig {
   mode: SimulationMode;
-  runtimeMode?: SimulationRuntime;
-  dimensionMode?: SimulationDimensionMode;
   gridResolution: number;  // m per cell
   gridSizeX: number;
   gridSizeY: number;
@@ -122,8 +102,6 @@ export interface SimulationConfig {
   iterations: number;
   convergence: number;
   timeStep: number;
-  progressEmitInterval?: number;
-  renderDownsampleStep?: number;
   ambientTempC: number;
   ambientHumidityRatio: number; // kg/kg (default ~0.0093 for 50% RH at 24°C)
   // Physics parameters
@@ -152,18 +130,6 @@ export interface HotspotInfo {
   temperature: number;
   severity: 'warning' | 'critical' | 'emergency';
   nearestRack: string;
-}
-
-export interface RoomSimulationMetric {
-  roomId: string;
-  floorId: string;
-  floorNumber: number;
-  avgTemperature: number;
-  meanVelocity: number;
-  stagnationRatio: number;
-  pressure: number;
-  inflowM3s: number;
-  outflowM3s: number;
 }
 
 export interface AirflowVector {
@@ -199,17 +165,6 @@ export interface SimulationMetrics {
   // Turbulence statistics
   avgTurbulentViscosity: number; // average ν_t
   maxTurbulentIntensity: number;
-  // Engineering metrics (Phase 4)
-  deadZoneCount?: number;
-  deadZoneRatio?: number;
-  airflowDistributionScore?: number;
-  uniformityIndex?: number;
-  pmvApprox?: number;
-  ppdApprox?: number;
-  airflowBalanceM3s?: number;
-  pressureImbalancePa?: number;
-  ventilationEffectiveness?: number;
-  roomMetrics?: RoomSimulationMetric[];
 }
 
 export interface SimulationResult {
@@ -217,8 +172,6 @@ export interface SimulationResult {
   projectId: string;
   status: SimulationStatus;
   config: SimulationConfig;
-  runtimeMode?: SimulationRuntime;
-  dimensionMode?: SimulationDimensionMode;
   metrics: SimulationMetrics;
   temperatureField: number[][][]; // [x][y][z] temperatures
   humidityField: number[][][];    // [x][y][z] humidity ratios
@@ -228,57 +181,8 @@ export interface SimulationResult {
   convergenceHistory: number[];
   cflHistory: number[];           // CFL number per iteration
   effectiveTimeStep: number;      // actual dt used (may be reduced by CFL)
-  startedAt?: string;
   completedAt?: string;
 }
-
-// ─── Worker Runtime Protocol ───────────────────────────────────────
-
-export interface CFDWorkerStartPayload {
-  simulationId: string;
-  input: SimulationInput;
-}
-
-export interface CFDWorkerStartMessage {
-  type: 'start';
-  payload: CFDWorkerStartPayload;
-}
-
-export interface CFDWorkerCancelMessage {
-  type: 'cancel';
-  simulationId: string;
-}
-
-export type CFDWorkerIncomingMessage = CFDWorkerStartMessage | CFDWorkerCancelMessage;
-
-export interface CFDWorkerProgressMessage {
-  type: 'progress';
-  simulationId: string;
-  progress: SimulationRunProgress;
-}
-
-export interface CFDWorkerCompleteMessage {
-  type: 'completed';
-  simulationId: string;
-  result: SimulationResult;
-}
-
-export interface CFDWorkerErrorMessage {
-  type: 'error';
-  simulationId: string;
-  error: string;
-}
-
-export interface CFDWorkerCancelledMessage {
-  type: 'cancelled';
-  simulationId: string;
-}
-
-export type CFDWorkerOutgoingMessage =
-  | CFDWorkerProgressMessage
-  | CFDWorkerCompleteMessage
-  | CFDWorkerErrorMessage
-  | CFDWorkerCancelledMessage;
 
 // ─── ASHRAE Compliance ──────────────────────────────────────────────
 
@@ -377,27 +281,12 @@ export interface OptimizationSuggestion {
   parameters?: Record<string, number>;
 }
 
-export interface OptimizationIteration {
-  iteration: number;
-  score: number;
-  maxTemperature: number;
-  hotspotCount: number;
-  pue: number;
-  accepted: boolean;
-  suggestionType?: OptimizationSuggestion['type'];
-  suggestionDescription?: string;
-}
-
 export interface OptimizationResult {
   initialMetrics: SimulationMetrics;
   optimizedMetrics: SimulationMetrics;
   suggestions: OptimizationSuggestion[];
   improvement: number;   // percentage
   iterations: number;
-  initialScore?: number;
-  optimizedScore?: number;
-  bestIteration?: number;
-  optimizationHistory?: OptimizationIteration[];
 }
 
 // ─── Simulation Engine: Geometry & Mesh ─────────────────────────────
@@ -428,114 +317,6 @@ export interface RoomObstruction {
   height: number;
   /** Heat output in watts (0 for passive obstructions) */
   heatOutputW: number;
-}
-
-export interface BuildingRoomDimensions {
-  width: number;
-  length: number;
-  height: number;
-}
-
-export interface BuildingVent {
-  id: string;
-  type: 'supply' | 'return' | 'transfer';
-  position: Vec3;
-  areaM2: number;
-  flowRateM3s: number;
-  temperatureC?: number;
-}
-
-export interface BuildingRoom {
-  id: string;
-  floorId: string;
-  floorNumber: number;
-  name: string;
-  origin: Vec3;
-  dimensions: BuildingRoomDimensions;
-  vents: BuildingVent[];
-  heatLoadW: number;
-}
-
-export interface AirConnection {
-  id: string;
-  fromRoom: string;
-  toRoom: string;
-  type: 'door' | 'duct' | 'shaft' | 'transfer';
-  openingAreaM2: number;
-  resistance: number;
-  flowRateM3s?: number;
-}
-
-export interface BuildingGeometryInput {
-  buildingId: string;
-  rooms: BuildingRoom[];
-  connections: AirConnection[];
-}
-
-export interface BuildingCell {
-  u: number;
-  v: number;
-  temp: number;
-  pressure: number;
-}
-
-export interface BuildingRoomState {
-  roomId: string;
-  grid: BuildingCell[][];
-  avgTemperature: number;
-  meanVelocity: number;
-  pressure: number;
-  inflowM3s: number;
-  outflowM3s: number;
-}
-
-export interface BuildingSimulationResult {
-  id: string;
-  projectId: string;
-  iteration: number;
-  converged: boolean;
-  metrics: SimulationMetrics;
-  roomStates: BuildingRoomState[];
-  connectionFlows: AirConnection[];
-  convergenceHistory: number[];
-}
-
-export interface BuildingFieldSample {
-  position: Vec3;
-  temperature: number;
-  velocityMagnitude: number;
-  velocity: { u: number; v: number };
-}
-
-export interface BuildingRoomFieldOverlay {
-  roomId: string;
-  floorId: string;
-  floorNumber: number;
-  roomName: string;
-  origin: Vec3;
-  dimensions: BuildingRoomDimensions;
-  avgTemperature: number;
-  meanVelocity: number;
-  samples: BuildingFieldSample[];
-}
-
-export interface BuildingConnectionOverlay {
-  id: string;
-  fromRoom: string;
-  toRoom: string;
-  type: AirConnection['type'];
-  flowRateM3s: number;
-  openingAreaM2: number;
-  fromPoint: Vec3;
-  toPoint: Vec3;
-}
-
-export interface BuildingVisualizationPayload {
-  iteration: number;
-  rooms: BuildingRoomFieldOverlay[];
-  connections: BuildingConnectionOverlay[];
-  temperatureRange: { min: number; max: number };
-  velocityRange: { min: number; max: number };
 }
 
 /** Complete geometry input for the simulation engine */
@@ -703,10 +484,6 @@ export interface SimulationCase {
   runSource: RunSource;
   /** Geometry snapshot at case creation */
   geometry: GeometryInput;
-  /** Scope of the simulation case. Defaults to room-level when omitted. */
-  simulationScope?: SimulationScope;
-  /** Building-level geometry snapshot (present when scope is 'building') */
-  buildingGeometry?: BuildingGeometryInput;
   /** Generated mesh descriptor (populated after meshing) */
   mesh?: StructuredGrid;
   /** Physics configuration */
@@ -757,10 +534,6 @@ export interface RunJob {
   errorMessage?: string;
   /** Log output (tail) */
   logTail: string[];
-  /** Optional metrics snapshot persisted at run completion for quick UI summaries */
-  metricsSnapshot?: SimulationMetrics;
-  /** Optional downsampled visualization payload for building-scope runs */
-  buildingVisualization?: BuildingVisualizationPayload;
   startedAt?: string;
   completedAt?: string;
   createdAt: string;
@@ -971,23 +744,12 @@ export interface LayoutTilePlacement {
   tileSize: number;
 }
 
-export interface LayoutConnectionOverride {
-  id: string;
-  fromRoomId: string;
-  toRoomId: string;
-  type: AirConnection['type'];
-  openingAreaM2: number;
-  resistance: number;
-  enabled: boolean;
-}
-
 /** Full simulation layout document for a project + floor */
 export interface SimulationLayoutDoc {
   projectId: string;
   floorId: string;
   hvacPlacements: LayoutHVACPlacement[];
   tilePlacements: LayoutTilePlacement[];
-  connectionOverrides?: LayoutConnectionOverride[];
   /** Metres-per-pixel scale used when placing entities */
   canvasScale: number;
   updatedAt: string;

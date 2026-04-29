@@ -15,8 +15,6 @@ import type {
   JobStatus,
   ResidualSnapshot,
   ArtifactManifest,
-  StructuredGrid,
-  CellZoneType,
 } from '@/types/simulation';
 
 // ── Collection helpers ──────────────────────────────────────
@@ -36,82 +34,6 @@ function artifactsCol(projectId: string, caseId: string) {
   return casesCol(projectId).doc(caseId).collection('artifacts');
 }
 
-type FirestoreStructuredGrid = Omit<StructuredGrid, 'zones'> & {
-  zonesFlat?: CellZoneType[];
-  zones?: CellZoneType[][][];
-};
-
-type FirestoreSimulationCase = Omit<SimulationCase, 'mesh'> & {
-  mesh?: FirestoreStructuredGrid;
-};
-
-function flattenZones(zones: CellZoneType[][][]): CellZoneType[] {
-  const flat: CellZoneType[] = [];
-  for (let i = 0; i < zones.length; i++) {
-    for (let j = 0; j < zones[i].length; j++) {
-      for (let k = 0; k < zones[i][j].length; k++) {
-        flat.push(zones[i][j][k]);
-      }
-    }
-  }
-  return flat;
-}
-
-function inflateZones(flat: CellZoneType[], nx: number, ny: number, nz: number): CellZoneType[][][] {
-  const zones: CellZoneType[][][] = new Array(nx);
-  let index = 0;
-
-  for (let i = 0; i < nx; i++) {
-    zones[i] = new Array(ny);
-    for (let j = 0; j < ny; j++) {
-      zones[i][j] = new Array(nz);
-      for (let k = 0; k < nz; k++) {
-        zones[i][j][k] = flat[index] ?? 'fluid';
-        index += 1;
-      }
-    }
-  }
-
-  return zones;
-}
-
-function serializeMesh(mesh?: StructuredGrid): FirestoreStructuredGrid | undefined {
-  if (!mesh) return undefined;
-  const { zones, ...rest } = mesh;
-  return {
-    ...rest,
-    zonesFlat: flattenZones(zones),
-  };
-}
-
-function deserializeMesh(mesh?: FirestoreStructuredGrid): StructuredGrid | undefined {
-  if (!mesh) return undefined;
-
-  if (Array.isArray(mesh.zones)) {
-    return mesh as StructuredGrid;
-  }
-
-  const flat = Array.isArray(mesh.zonesFlat) ? mesh.zonesFlat : [];
-  return {
-    ...mesh,
-    zones: inflateZones(flat, mesh.nx, mesh.ny, mesh.nz),
-  };
-}
-
-function serializeSimulationCase(doc: SimulationCase): FirestoreSimulationCase {
-  return {
-    ...doc,
-    mesh: serializeMesh(doc.mesh),
-  };
-}
-
-function deserializeSimulationCase(doc: FirestoreSimulationCase): SimulationCase {
-  return {
-    ...doc,
-    mesh: deserializeMesh(doc.mesh),
-  };
-}
-
 // ── SimulationCase CRUD ─────────────────────────────────────
 
 export async function createSimulationCase(
@@ -125,7 +47,7 @@ export async function createSimulationCase(
     createdAt: now,
     updatedAt: now,
   };
-  await casesCol(input.projectId).doc(id).set(serializeSimulationCase(doc));
+  await casesCol(input.projectId).doc(id).set(doc);
   return doc;
 }
 
@@ -135,7 +57,7 @@ export async function getSimulationCase(
 ): Promise<SimulationCase | null> {
   const snap = await casesCol(projectId).doc(caseId).get();
   if (!snap.exists) return null;
-  return deserializeSimulationCase(snap.data() as FirestoreSimulationCase);
+  return snap.data() as SimulationCase;
 }
 
 export async function listSimulationCases(
@@ -144,24 +66,16 @@ export async function listSimulationCases(
   const snap = await casesCol(projectId)
     .orderBy('createdAt', 'desc')
     .get();
-  return snap.docs.map((d) => deserializeSimulationCase(d.data() as FirestoreSimulationCase));
+  return snap.docs.map((d) => d.data() as SimulationCase);
 }
 
 export async function updateSimulationCase(
   projectId: string,
   caseId: string,
-  updates: Partial<Pick<SimulationCase, 'name' | 'description' | 'status' | 'mesh' | 'physics' | 'solver' | 'geometry' | 'simulationScope' | 'buildingGeometry' | 'activeRunId' | 'resultId' | 'runSource'>>,
+  updates: Partial<Pick<SimulationCase, 'name' | 'description' | 'status' | 'mesh' | 'physics' | 'solver' | 'geometry' | 'activeRunId' | 'resultId' | 'runSource'>>,
 ): Promise<void> {
-  const payload: Record<string, unknown> = {
-    ...updates,
-  };
-
-  if (updates.mesh) {
-    payload.mesh = serializeMesh(updates.mesh);
-  }
-
   await casesCol(projectId).doc(caseId).update({
-    ...payload,
+    ...updates,
     updatedAt: nowIso(),
   });
 }
@@ -237,12 +151,10 @@ export async function getRunJob(
 export async function listRunJobs(
   projectId: string,
   caseId: string,
-  limitCount?: number,
 ): Promise<RunJob[]> {
-  const baseQuery = jobsCol(projectId, caseId).orderBy('createdAt', 'desc');
-  const snap = typeof limitCount === 'number'
-    ? await baseQuery.limit(limitCount).get()
-    : await baseQuery.get();
+  const snap = await jobsCol(projectId, caseId)
+    .orderBy('createdAt', 'desc')
+    .get();
   return snap.docs.map((d) => d.data() as RunJob);
 }
 
@@ -251,7 +163,7 @@ export async function updateRunJobStatus(
   caseId: string,
   jobId: string,
   status: JobStatus,
-  extra?: Partial<Pick<RunJob, 'currentIteration' | 'elapsedSeconds' | 'errorMessage' | 'startedAt' | 'completedAt' | 'logTail' | 'metricsSnapshot' | 'buildingVisualization'>>,
+  extra?: Partial<Pick<RunJob, 'currentIteration' | 'elapsedSeconds' | 'errorMessage' | 'startedAt' | 'completedAt' | 'logTail'>>,
 ): Promise<void> {
   await jobsCol(projectId, caseId).doc(jobId).update({
     status,

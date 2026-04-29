@@ -206,8 +206,6 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
       .catch(() => { /* no layout yet — that's fine */ });
   }, [id, floors, activeFloor]);
 
-  const snapToGrid = useCallback((val: number) => Math.round(val / (scale / 4)) * (scale / 4), [scale]);
-
   // Canvas rendering
   const render = useCallback(() => {
     const canvas = canvasRef.current;
@@ -394,7 +392,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
     }
 
     ctx.restore();
-  }, [rooms, selectedRoom, bgImage, showBgOnCanvas, showGrid, scale, zoom, Pan, isDrawing, drawStart, drawCurrent, walls, layoutHVAC, layoutTiles, dragGhost, draggingId, tool, snapToGrid]);
+  }, [rooms, selectedRoom, bgImage, showBgOnCanvas, showGrid, scale, zoom, Pan, isDrawing, drawStart, drawCurrent, walls, layoutHVAC, layoutTiles, dragGhost, draggingId, tool]);
 
   useEffect(() => {
     render();
@@ -428,6 +426,8 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
       y: (e.clientY - rect.top - Pan.y) / zoom,
     };
   };
+
+  const snapToGrid = (val: number) => Math.round(val / (scale / 4)) * (scale / 4);
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const pos = getCanvasPos(e);

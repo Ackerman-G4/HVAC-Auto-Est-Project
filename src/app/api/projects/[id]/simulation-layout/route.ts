@@ -60,7 +60,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
     const { id: projectId } = await context.params;
     const body = await request.json();
-    const { floorId, hvacPlacements, tilePlacements, connectionOverrides, canvasScale } = body;
+    const { floorId, hvacPlacements, tilePlacements, canvasScale } = body;
 
     if (!floorId || typeof floorId !== 'string') {
       return errorResponse(400, 'Bad Request', 'floorId is required in the request body.', 'MISSING_FLOOR_ID');
@@ -78,14 +78,9 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       return errorResponse(400, 'Bad Request', 'hvacPlacements and tilePlacements must be arrays.', 'INVALID_PAYLOAD');
     }
 
-    if (connectionOverrides !== undefined && !Array.isArray(connectionOverrides)) {
-      return errorResponse(400, 'Bad Request', 'connectionOverrides must be an array when provided.', 'INVALID_PAYLOAD');
-    }
-
     await upsertSimulationLayout(projectId, floorId, {
       hvacPlacements,
       tilePlacements,
-      connectionOverrides,
       canvasScale: typeof canvasScale === 'number' ? canvasScale : 50,
     });
 

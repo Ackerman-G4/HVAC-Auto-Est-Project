@@ -85,12 +85,12 @@ if ($envCount -gt 0) {
 }
 
 if ($ForceRaw) {
-  Write-Host 'Forced raw strict validation path (includes building simulation smoke).'
+  Write-Host 'Forced raw strict validation path.'
   Invoke-NpmScript -ScriptName 'validate:system:strict:raw'
 }
 
 if ($ForceLocal) {
-  Write-Host 'Forced strict local orchestration path (includes building simulation smoke).'
+  Write-Host 'Forced strict local orchestration path.'
   Invoke-NpmScript -ScriptName 'validate:system:strict:local'
 }
 
@@ -121,10 +121,10 @@ $hasRawStrictCredentialStrategy =
 
 if ($isCi -or $hasRawStrictCredentialStrategy) {
   if ($isCi) {
-    Write-Host 'CI environment detected; running raw strict validation chain (includes building simulation smoke).'
+    Write-Host 'CI environment detected; running raw strict validation chain.'
   }
   else {
-    Write-Host 'Strict credential strategy detected; running raw strict validation chain (includes building simulation smoke).'
+    Write-Host 'Strict credential strategy detected; running raw strict validation chain.'
   }
 
   Invoke-NpmScript -ScriptName 'validate:system:strict:raw'

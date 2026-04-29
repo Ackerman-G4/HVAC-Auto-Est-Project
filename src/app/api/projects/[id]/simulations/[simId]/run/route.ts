@@ -17,18 +17,13 @@ import {
   appendResiduals,
   saveArtifactManifest,
 } from '@/lib/firebase/simulation-cases-store';
-import { runBuildingCFDSimulation } from '@/lib/functions/building-cfd-simulation';
 import { runCFDSimulation } from '@/lib/functions/cfd-simulation';
 import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
 import type {
   SimulationInput,
   ArtifactManifest,
-  BuildingGeometryInput,
-  BuildingSimulationResult,
-  BuildingVisualizationPayload,
   ResidualSnapshot,
   FieldDescriptor,
-  Vec3,
 } from '@/types/simulation';
 
 type RouteContext = { params: Promise<{ id: string; simId: string }> };
@@ -39,98 +34,6 @@ function isProjectOwnerOrAdmin(
 ): boolean {
   if (user.role === 'admin') return true;
   return !!project.createdBy && project.createdBy === user.id;
-}
-
-function roomCenter(room: BuildingGeometryInput['rooms'][number]): Vec3 {
-  return {
-    x: room.origin.x + room.dimensions.width / 2,
-    y: room.origin.y + room.dimensions.height / 2,
-    z: room.origin.z + room.dimensions.length / 2,
-  };
-}
-
-function buildBuildingVisualizationPayload(
-  buildingGeometry: BuildingGeometryInput,
-  buildingResult: BuildingSimulationResult,
-): BuildingVisualizationPayload {
-  const roomLookup = new Map(buildingGeometry.rooms.map((room) => [room.id, room]));
-
-  let minTemp = Number.POSITIVE_INFINITY;
-  let maxTemp = Number.NEGATIVE_INFINITY;
-  let maxVelocity = 0;
-
-  const rooms = buildingResult.roomStates.flatMap((state) => {
-    const room = roomLookup.get(state.roomId);
-    if (!room) return [];
-
-    const nx = state.grid.length;
-    const ny = state.grid[0]?.length ?? 0;
-    if (nx === 0 || ny === 0) return [];
-
-    const step = Math.max(1, Math.floor(Math.max(nx, ny) / 10));
-    const samples: BuildingVisualizationPayload['rooms'][number]['samples'] = [];
-
-    for (let x = 0; x < nx; x += step) {
-      for (let y = 0; y < ny; y += step) {
-        const cell = state.grid[x]?.[y];
-        if (!cell) continue;
-
-        const velocityMagnitude = Math.hypot(cell.u, cell.v);
-        maxVelocity = Math.max(maxVelocity, velocityMagnitude);
-        minTemp = Math.min(minTemp, cell.temp);
-        maxTemp = Math.max(maxTemp, cell.temp);
-
-        samples.push({
-          position: {
-            x: room.origin.x + ((x + 0.5) / nx) * room.dimensions.width,
-            y: room.origin.y + room.dimensions.height * 0.5,
-            z: room.origin.z + ((y + 0.5) / ny) * room.dimensions.length,
-          },
-          temperature: cell.temp,
-          velocityMagnitude,
-          velocity: { u: cell.u, v: cell.v },
-        });
-      }
-    }
-
-    return [{
-      roomId: room.id,
-      floorId: room.floorId,
-      floorNumber: room.floorNumber,
-      roomName: room.name,
-      origin: room.origin,
-      dimensions: room.dimensions,
-      avgTemperature: state.avgTemperature,
-      meanVelocity: state.meanVelocity,
-      samples,
-    }];
-  });
-
-  if (!Number.isFinite(minTemp)) minTemp = buildingResult.metrics.minTemperature;
-  if (!Number.isFinite(maxTemp)) maxTemp = buildingResult.metrics.maxTemperature;
-
-  const connections = buildingResult.connectionFlows.map((connection) => {
-    const fromRoom = roomLookup.get(connection.fromRoom);
-    const toRoom = roomLookup.get(connection.toRoom);
-    return {
-      id: connection.id,
-      fromRoom: connection.fromRoom,
-      toRoom: connection.toRoom,
-      type: connection.type,
-      flowRateM3s: connection.flowRateM3s ?? 0,
-      openingAreaM2: connection.openingAreaM2,
-      fromPoint: fromRoom ? roomCenter(fromRoom) : { x: 0, y: 0, z: 0 },
-      toPoint: toRoom ? roomCenter(toRoom) : { x: 0, y: 0, z: 0 },
-    };
-  });
-
-  return {
-    iteration: buildingResult.iteration,
-    rooms,
-    connections,
-    temperatureRange: { min: minTemp, max: maxTemp },
-    velocityRange: { min: 0, max: maxVelocity },
-  };
 }
 
 export async function GET(request: NextRequest, context: RouteContext) {
@@ -249,77 +152,33 @@ async function executeInternalRun(
     });
     await updateCaseStatus(projectId, caseId, 'running');
 
-    const mesh = simCase.mesh;
-    if (!mesh) {
-      throw new Error('Simulation case mesh is required before running');
-    }
-
-    const solverConfig = {
-      mode: 'engineering' as const,
-      gridResolution: mesh.cellSizeM,
-      gridSizeX: mesh.nx,
-      gridSizeY: mesh.ny,
-      gridSizeZ: mesh.nz,
-      iterations: simCase.solver.maxIterations,
-      convergence: simCase.solver.convergenceTarget,
-      timeStep: simCase.solver.timeStepS || 0.1,
-      ambientTempC: simCase.physics.referenceTemperatureC,
-      ambientHumidityRatio: 0.0093,
-      airDensity: simCase.physics.fluid.density,
-      airViscosity: simCase.physics.fluid.viscosity,
-      thermalDiffusivity:
-        simCase.physics.fluid.thermalConductivity
-        / (simCase.physics.fluid.density * simCase.physics.fluid.specificHeat),
-      specificHeat: simCase.physics.fluid.specificHeat,
+    // Build SimulationInput from case data (bridge to existing solver)
+    const input: SimulationInput = {
+      projectId,
+      floorId: simCase.geometry.roomId,
+      config: {
+        mode: 'engineering',
+        gridResolution: simCase.mesh!.cellSizeM,
+        gridSizeX: simCase.mesh!.nx,
+        gridSizeY: simCase.mesh!.ny,
+        gridSizeZ: simCase.mesh!.nz,
+        iterations: simCase.solver.maxIterations,
+        convergence: simCase.solver.convergenceTarget,
+        timeStep: simCase.solver.timeStepS || 0.1,
+        ambientTempC: simCase.physics.referenceTemperatureC,
+        ambientHumidityRatio: 0.0093,
+        airDensity: simCase.physics.fluid.density,
+        airViscosity: simCase.physics.fluid.viscosity,
+        thermalDiffusivity: simCase.physics.fluid.thermalConductivity / (simCase.physics.fluid.density * simCase.physics.fluid.specificHeat),
+        specificHeat: simCase.physics.fluid.specificHeat,
+      },
+      racks: simCase.geometry.racks,
+      hvacUnits: simCase.geometry.hvacUnits,
+      tiles: simCase.geometry.tiles,
+      raisedFloorHeight: simCase.geometry.raisedFloorHeightM,
     };
 
-    let result: {
-      iteration: number;
-      metrics: ArtifactManifest['metrics'];
-      convergenceHistory: number[];
-    };
-    let buildingVisualization: BuildingVisualizationPayload | undefined = undefined;
-
-    if (simCase.simulationScope === 'building') {
-      if (!simCase.buildingGeometry) {
-        throw new Error('Building simulation case is missing buildingGeometry');
-      }
-
-      const buildingResult = runBuildingCFDSimulation(
-        {
-          projectId,
-          config: solverConfig,
-          building: simCase.buildingGeometry,
-        },
-        {
-          simulationId: jobId,
-        },
-      );
-
-      result = {
-        iteration: buildingResult.iteration,
-        metrics: buildingResult.metrics,
-        convergenceHistory: buildingResult.convergenceHistory,
-      };
-      buildingVisualization = buildBuildingVisualizationPayload(simCase.buildingGeometry, buildingResult);
-    } else {
-      const input: SimulationInput = {
-        projectId,
-        floorId: simCase.geometry.roomId,
-        config: solverConfig,
-        racks: simCase.geometry.racks,
-        hvacUnits: simCase.geometry.hvacUnits,
-        tiles: simCase.geometry.tiles,
-        raisedFloorHeight: simCase.geometry.raisedFloorHeightM,
-      };
-
-      const roomResult = runCFDSimulation(input);
-      result = {
-        iteration: roomResult.iteration,
-        metrics: roomResult.metrics,
-        convergenceHistory: roomResult.convergenceHistory,
-      };
-    }
+    const result = runCFDSimulation(input);
 
     const elapsed = (Date.now() - startTime) / 1000;
 
@@ -338,9 +197,9 @@ async function executeInternalRun(
     await appendResiduals(projectId, caseId, jobId, residual, result.iteration, elapsed);
 
     // Build artifact manifest
-    const nx = mesh.nx;
-    const ny = mesh.ny;
-    const nz = mesh.nz;
+    const nx = simCase.mesh!.nx;
+    const ny = simCase.mesh!.ny;
+    const nz = simCase.mesh!.nz;
     const scalarSize = nx * ny * nz * 4; // float32
     const vectorSize = nx * ny * nz * 12; // 3x float32
 
@@ -391,8 +250,6 @@ async function executeInternalRun(
     await updateRunJobStatus(projectId, caseId, jobId, 'completed', {
       currentIteration: result.iteration,
       elapsedSeconds: elapsed,
-      metricsSnapshot: result.metrics,
-      ...(buildingVisualization ? { buildingVisualization } : {}),
       completedAt: new Date().toISOString(),
     });
 

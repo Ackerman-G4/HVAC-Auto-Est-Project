@@ -1,5 +1,5 @@
 param(
-  [string]$BaseUrl = 'http://localhost:3000',
+  [string]$BaseUrl = 'http://127.0.0.1:3000',
   [string]$EngineerEmail = '',
   [SecureString]$EngineerPassword,
   [string]$AdminEmail = '',
@@ -8,8 +8,6 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$PSDefaultParameterValues['Invoke-WebRequest:DisableKeepAlive'] = $true
-$PSDefaultParameterValues['Invoke-RestMethod:DisableKeepAlive'] = $true
 
 function Test-NonEmpty {
   param([string]$Value)
@@ -126,39 +124,19 @@ function Invoke-JsonEndpoint {
 
   $statusCode = $null
   $rawBody = ''
-  $maxAttempts = 5
-  $initialDelayMs = 750
 
-  for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
-    try {
-      $response = Invoke-WebRequest @invokeArgs
-      $statusCode = [int]$response.StatusCode
-      $rawBody = $response.Content
-      break
+  try {
+    $response = Invoke-WebRequest @invokeArgs
+    $statusCode = [int]$response.StatusCode
+    $rawBody = $response.Content
+  }
+  catch {
+    $detail = Get-HttpErrorDetail -ErrorRecord $_
+    if ($null -eq $detail.StatusCode) {
+      throw
     }
-    catch {
-      $detail = Get-HttpErrorDetail -ErrorRecord $_
-      $message = $_.Exception.Message
-
-      $isTransient = (
-        $message -match 'underlying connection was closed|unexpected error occurred on a receive|timed out|Unable to connect'
-      ) -or ($null -eq $detail.StatusCode) -or ($detail.StatusCode -ge 500)
-
-      if ($isTransient -and $attempt -lt $maxAttempts) {
-        $delayMs = [Math]::Min(5000, $initialDelayMs * $attempt)
-        Write-Warning "HTTP transient failure (attempt $attempt/$maxAttempts): $message"
-        [System.Threading.Thread]::Sleep($delayMs)
-        continue
-      }
-
-      if ($null -eq $detail.StatusCode) {
-        throw
-      }
-
-      $statusCode = [int]$detail.StatusCode
-      $rawBody = if ($null -ne $detail.Body) { [string]$detail.Body } else { '' }
-      break
-    }
+    $statusCode = [int]$detail.StatusCode
+    $rawBody = if ($null -ne $detail.Body) { [string]$detail.Body } else { '' }
   }
 
   $json = $null
