@@ -1,4 +1,4 @@
-import 'dotenv/config';
+﻿import 'dotenv/config';
 import process from 'node:process';
 import type { Auth } from 'firebase-admin/auth';
 
@@ -93,7 +93,7 @@ async function run() {
     return;
   }
 
-  const firebaseServerModule = (await import('../src/lib/firebase/server')) as {
+  const firebaseServerModule = (await import('../../src/lib/firebase/server')) as {
     getFirebaseAuth?: () => Auth;
     default?: { getFirebaseAuth?: () => Auth };
   };
@@ -145,3 +145,4 @@ run().catch((error) => {
   printUsage();
   process.exit(1);
 });
+

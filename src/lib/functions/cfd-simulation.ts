@@ -35,10 +35,13 @@ import type {
   HVACUnit,
   PerforatedTile,
   CalibrationCoefficients,
+  SimulationRunProgress,
 } from '@/types/simulation';
 import { DEFAULT_CALIBRATION_COEFFICIENTS } from '@/types/simulation';
 import { getRuleSetSync, type RuleSet } from '@/lib/engine/rules';
 import { constantFromRuleSet } from '@/lib/engine/rules/rule-evaluator';
+
+export const CFD_CANCELLED_ERROR = 'CFD_SIMULATION_CANCELLED';
 
 // --- Rules-Driven Constants ---
 
@@ -1257,8 +1260,26 @@ function extractHumidityField(grid: CFDGrid): number[][][] {
 
 // --- Main Simulation Runner ---
 
-export function runCFDSimulation(input: SimulationInput): SimulationResult {
+interface CFDSimulationRunOptions {
+  simulationId?: string;
+  force2DFast?: boolean;
+  abortSignal?: { aborted: boolean };
+  onProgress?: (progress: SimulationRunProgress) => void;
+}
+
+export function runCFDSimulation(
+  input: SimulationInput,
+  options: CFDSimulationRunOptions = {},
+): SimulationResult {
+  const simulationId = options.simulationId ?? crypto.randomUUID();
+  const startedAt = Date.now();
   const config: SimulationConfig = { ...DEFAULT_CONFIG, ...input.config };
+
+  if (options.force2DFast) {
+    config.dimensionMode = '2d-fast';
+    config.gridSizeZ = Math.max(2, Math.min(config.gridSizeZ, 3));
+  }
+
   const coeffs: CalibrationCoefficients = input.calibration?.coefficients ?? DEFAULT_CALIBRATION_COEFFICIENTS;
   const grid = createGrid(config);
 
@@ -1276,6 +1297,10 @@ export function runCFDSimulation(input: SimulationInput): SimulationResult {
 
   // SIMPLE iterative solver
   for (let iter = 0; iter < config.iterations; iter++) {
+    if (options.abortSignal?.aborted) {
+      throw new Error(CFD_CANCELLED_ERROR);
+    }
+
     const result = stepCFDSimulation(grid, config, coeffs);
     lastDt = result.dt;
     cflHistory.push(result.cflNumber);
@@ -1283,6 +1308,23 @@ export function runCFDSimulation(input: SimulationInput): SimulationResult {
     const maxResidual = Math.max(result.continuityResidual, result.momentumResidual, result.energyResidual);
     convergenceHistory.push(maxResidual);
     lastResiduals = result;
+
+    const iteration = iter + 1;
+    const emitEvery = Math.max(1, config.progressEmitInterval ?? 10);
+    if (options.onProgress && (iteration % emitEvery === 0 || iteration === config.iterations)) {
+      options.onProgress({
+        simulationId,
+        status: 'running',
+        iteration,
+        totalIterations: config.iterations,
+        percent: Math.round((iteration / config.iterations) * 100),
+        continuityResidual: result.continuityResidual,
+        momentumResidual: result.momentumResidual,
+        energyResidual: result.energyResidual,
+        elapsedMs: Date.now() - startedAt,
+        message: `CFD iteration ${iteration}/${config.iterations}`,
+      });
+    }
 
     // Convergence check on all equations
     if (iter > 20 &&
@@ -1301,8 +1343,22 @@ export function runCFDSimulation(input: SimulationInput): SimulationResult {
   finalMetrics.maxDivergence = lastResiduals.maxDivergence;
   finalMetrics.converged = converged;
 
+  options.onProgress?.({
+    simulationId,
+    status: 'completed',
+    iteration: convergenceHistory.length,
+    totalIterations: config.iterations,
+    percent: 100,
+    continuityResidual: lastResiduals.continuityResidual,
+    momentumResidual: lastResiduals.momentumResidual,
+    energyResidual: lastResiduals.energyResidual,
+    turbulenceResidual: finalMetrics.turbulenceResidual,
+    elapsedMs: Date.now() - startedAt,
+    message: converged ? 'CFD converged' : 'CFD run completed',
+  });
+
   return {
-    id: crypto.randomUUID(),
+    id: simulationId,
     projectId: input.projectId,
     status: 'completed',
     config,

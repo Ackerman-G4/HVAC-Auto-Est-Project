@@ -140,6 +140,34 @@ Run quality gates:
 npm run validate:quality
 ```
 
+## Phase 7 - Plan Document Parity Validation
+
+Run DOCX to markdown parity validation:
+
+```bash
+npm run validate:docx:parity
+```
+
+Run strict parity profile:
+
+```bash
+npm run validate:docx:parity:strict
+```
+
+Expected result:
+
+- PASS for section heading sequence parity
+- PASS for equation token parity
+- PASS for normalized body similarity at or above threshold
+
+Artifacts:
+
+- Each run writes extracted XML, normalized text outputs, and `summary.json` under `.logs/docx-parity-<timestamp>/`
+
+Note:
+
+- This phase is manual/optional and is intentionally not included in `validate:system` by default.
+
 ## One-Command Pipeline
 
 Run all phases in sequence:
@@ -149,6 +177,12 @@ npm run validate:system
 ```
 
 `validate:system` now runs: preflight -> auth -> RBAC -> dual-control -> building simulation -> catalog admin -> quality.
+
+Optional manual gate:
+
+```bash
+npm run validate:docx:parity
+```
 
 For local Firestore emulator workflows:
 

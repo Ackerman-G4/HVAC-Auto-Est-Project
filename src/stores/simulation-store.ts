@@ -25,6 +25,8 @@ import type {
   CalibrationResult,
   CalibrationMode,
   SensorReading,
+  SimulationRuntimeMode,
+  SimulationRunProgress,
 } from '@/types/simulation';
 import { DEFAULT_CALIBRATION_COEFFICIENTS } from '@/types/simulation';
 
@@ -36,6 +38,9 @@ interface SimulationStore {
 
   // Simulation state
   isRunning: boolean;
+  runtimeMode: SimulationRuntimeMode;
+  runProgress: SimulationRunProgress | null;
+  activeAbortController: AbortController | null;
   result: SimulationResult | null;
   complianceReport: ComplianceReport | null;
   failureResult: FailureResult | null;
@@ -84,6 +89,8 @@ interface SimulationStore {
   // Actions - Simulation
   setConfig: (config: Partial<SimulationConfig>) => void;
   setMode: (mode: SimulationMode) => void;
+  setRuntimeMode: (mode: SimulationRuntimeMode) => void;
+  cancelSimulation: () => void;
   autoDetectFromProject: (projectId: string) => Promise<string[]>;
   runSimulation: (projectId: string, floorId: string) => Promise<void>;
   runCompliance: () => void;
@@ -157,6 +164,9 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
 
   // State
   isRunning: false,
+  runtimeMode: 'worker',
+  runProgress: null,
+  activeAbortController: null,
   result: null,
   complianceReport: null,
   failureResult: null,
@@ -255,6 +265,40 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     set(state => ({ config: { ...state.config, ...modeOverrides, mode } }));
   },
 
+  setRuntimeMode: (runtimeMode) => {
+    set((state) => ({
+      runtimeMode,
+      config: {
+        ...state.config,
+        runtimeMode,
+      },
+    }));
+  },
+
+  cancelSimulation: () => {
+    const { activeAbortController, runProgress } = get();
+    activeAbortController?.abort();
+
+    set({
+      isRunning: false,
+      activeAbortController: null,
+      runProgress: {
+        simulationId: runProgress?.simulationId ?? crypto.randomUUID(),
+        status: 'cancelled',
+        iteration: runProgress?.iteration ?? 0,
+        totalIterations: runProgress?.totalIterations ?? 0,
+        percent: runProgress?.percent ?? 0,
+        continuityResidual: runProgress?.continuityResidual,
+        momentumResidual: runProgress?.momentumResidual,
+        energyResidual: runProgress?.energyResidual,
+        elapsedMs: runProgress?.elapsedMs,
+        message: 'Simulation cancelled by user',
+      },
+    });
+
+    showToast('info', 'Simulation cancelled');
+  },
+
   // ─── Auto-detect from project ─────────────────────────────
 
   autoDetectFromProject: async (projectId: string) => {
@@ -291,31 +335,99 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
   // ─── Simulation Actions ─────────────────────────────────────
 
   runSimulation: async (projectId, floorId) => {
-    const { config, racks, hvacUnits, tiles, raisedFloorHeight } = get();
-    set({ isRunning: true, result: null });
+    const { config, racks, hvacUnits, tiles, raisedFloorHeight, runtimeMode } = get();
+    const simulationId = crypto.randomUUID();
+    const startedAt = Date.now();
+    const abortController = new AbortController();
+
+    set({
+      isRunning: true,
+      result: null,
+      activeAbortController: abortController,
+      runProgress: {
+        simulationId,
+        status: 'running',
+        iteration: 0,
+        totalIterations: config.iterations,
+        percent: 5,
+        message: 'Submitting simulation request',
+      },
+    });
 
     try {
       const res = await authFetch('/api/simulation', {
         method: 'POST',
+        signal: abortController.signal,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'cfd',
-          input: { projectId, floorId, config, racks, hvacUnits, tiles, raisedFloorHeight,
+          input: {
+            projectId,
+            floorId,
+            config: {
+              ...config,
+              runtimeMode,
+            },
+            racks,
+            hvacUnits,
+            tiles,
+            raisedFloorHeight,
             calibration: { coefficients: get().calibrationCoefficients } },
         }),
       });
 
       if (!res.ok) throw new Error('Simulation failed');
       const data = await res.json();
-      set({ result: data.result, isRunning: false });
+      const elapsedMs = Date.now() - startedAt;
+      set({
+        result: data.result,
+        isRunning: false,
+        activeAbortController: null,
+        runProgress: {
+          simulationId,
+          status: 'completed',
+          iteration: data.result?.iteration ?? config.iterations,
+          totalIterations: config.iterations,
+          percent: 100,
+          continuityResidual: data.result?.metrics?.continuityResidual,
+          momentumResidual: data.result?.metrics?.momentumResidual,
+          energyResidual: data.result?.metrics?.energyResidual,
+          elapsedMs,
+          message: 'Simulation completed',
+        },
+      });
       // Auto-compute TileFlow analysis
       get().computeAlerts();
       get().computeTileAirflow();
       showToast('success', 'CFD simulation completed');
     } catch (error) {
+      const wasCancelled =
+        error instanceof Error &&
+        (error.name === 'AbortError' || /abort/i.test(error.message));
+
       console.error(error);
-      set({ isRunning: false });
-      showToast('error', 'Simulation failed');
+      set((state) => ({
+        isRunning: false,
+        activeAbortController: null,
+        runProgress: {
+          simulationId,
+          status: wasCancelled ? 'cancelled' : 'failed',
+          iteration: state.runProgress?.iteration ?? 0,
+          totalIterations: config.iterations,
+          percent: state.runProgress?.percent ?? 0,
+          continuityResidual: state.runProgress?.continuityResidual,
+          momentumResidual: state.runProgress?.momentumResidual,
+          energyResidual: state.runProgress?.energyResidual,
+          elapsedMs: Date.now() - startedAt,
+          message: wasCancelled ? 'Simulation cancelled' : 'Simulation failed',
+        },
+      }));
+
+      if (wasCancelled) {
+        showToast('info', 'Simulation cancelled');
+      } else {
+        showToast('error', 'Simulation failed');
+      }
     }
   },
 
@@ -425,6 +537,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
   clearResults: () => {
     set({
       result: null,
+      runProgress: null,
       complianceReport: null,
       failureResult: null,
       pueAnalysis: null,
@@ -433,10 +546,15 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
   },
 
   clearAll: () => {
+    get().activeAbortController?.abort();
+
     set({
       racks: [],
       hvacUnits: [],
       tiles: [],
+      isRunning: false,
+      runProgress: null,
+      activeAbortController: null,
       result: null,
       complianceReport: null,
       failureResult: null,
@@ -477,7 +595,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
   computeAlerts: () => {
     const { result, racks, tileFlowView } = get();
     if (!result) { set({ alerts: [] }); return; }
-    const { maxTempC, minCFM } = tileFlowView.alertThresholds;
+    const { maxTempC } = tileFlowView.alertThresholds;
     const m = result.metrics;
     const newAlerts: ThermalAlert[] = [];
 

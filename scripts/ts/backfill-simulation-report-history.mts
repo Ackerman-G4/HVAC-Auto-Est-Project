@@ -1,4 +1,4 @@
-import 'dotenv/config';
+﻿import 'dotenv/config';
 import process from 'node:process';
 
 type GetFirebaseDb = () => {
@@ -83,12 +83,12 @@ async function resolveDependencies(): Promise<{
   getFirebaseDb: GetFirebaseDb;
   backfillLegacySimulationReportHistoryForOwner: BackfillForOwner;
 }> {
-  const firebaseServerModule = (await import('../src/lib/firebase/server')) as {
+  const firebaseServerModule = (await import('../../src/lib/firebase/server')) as {
     getFirebaseDb?: GetFirebaseDb;
     default?: { getFirebaseDb?: GetFirebaseDb };
   };
 
-  const historyStoreModule = (await import('../src/lib/firebase/simulation-report-history-store')) as {
+  const historyStoreModule = (await import('../../src/lib/firebase/simulation-report-history-store')) as {
     backfillLegacySimulationReportHistoryForOwner?: BackfillForOwner;
     default?: { backfillLegacySimulationReportHistoryForOwner?: BackfillForOwner };
   };
@@ -163,3 +163,4 @@ run().catch((error) => {
   printUsage();
   process.exit(1);
 });
+

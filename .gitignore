@@ -60,3 +60,7 @@ next-env.d.ts
 # local pglite database
 .pglite-hvac/
 
+# generated docx parity artifacts
+/.logs/docx-parity-*/
+/HVAC_Accuracy_Improvement_Plan.docx
+
