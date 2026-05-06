@@ -1,0 +1,10 @@
+[36m[1mi  emulators:[22m[39m Starting emulators: firestore
+[36m[1mi  emulators:[22m[39m Detected demo project ID "demo-hvac-auto", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+[36m[1mi  firestore:[22m[39m Firestore Emulator logging to [1mfirestore-debug.log[22m
+ 
+[36m[1mi  emulators:[22m[39m Received SIGHUP for the first time. Starting a clean shutdown.
+[36m[1mi  emulators:[22m[39m Please wait for a clean shutdown or send the SIGHUP signal again to stop right now.
+[36m[1mi  emulators:[22m[39m Shutting down emulators.
+[36m[1mi  firestore:[22m[39m Stopping Firestore Emulator
+[33m[1m! [22m[39m Firestore Emulator has exited upon receiving signal: SIGINT
+[36m[1mi  hub:[22m[39m Stopping emulator hub

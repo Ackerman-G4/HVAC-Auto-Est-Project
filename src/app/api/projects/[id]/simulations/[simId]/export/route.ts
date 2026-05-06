@@ -8,6 +8,8 @@ import { requireAuth } from '@/lib/auth/guard';
 import { getProjectRecord } from '@/lib/firebase/projects-store';
 import { getSimulationCase } from '@/lib/firebase/simulation-cases-store';
 import { buildOpenFOAMConfig, generateCaseFiles } from '@/lib/engine/simulation/openfoam-exporter';
+import { buildStructuredGrid, recommendCellSize } from '@/lib/engine/simulation/geometry-builder';
+import { toFallbackGeometry } from '@/lib/simulation/building-case';
 import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
 
 type RouteContext = { params: Promise<{ id: string; simId: string }> };
@@ -39,11 +41,20 @@ export async function GET(request: NextRequest, context: RouteContext) {
     if (!simCase) {
       return errorResponse(404, 'Case not found', 'No case.', 'CASE_NOT_FOUND');
     }
-    if (!simCase.mesh) {
+    if (!simCase.mesh && simCase.simulationScope !== 'building') {
       return errorResponse(400, 'Not meshed', 'Case must have a mesh before export.', 'NOT_MESHED');
     }
 
-    const config = buildOpenFOAMConfig(simCase);
+    // For building-scope cases without a stored mesh, derive a synthetic mesh for export
+    let caseForExport = simCase;
+    if (simCase.simulationScope === 'building' && !simCase.mesh && simCase.buildingGeometry) {
+      const geometry = toFallbackGeometry(simCase.buildingGeometry);
+      const cellSize = recommendCellSize(geometry);
+      const mesh = buildStructuredGrid(geometry, cellSize);
+      caseForExport = { ...simCase, mesh, geometry };
+    }
+
+    const config = buildOpenFOAMConfig(caseForExport);
     const files = generateCaseFiles(config);
 
     // Return as JSON map of file paths to content

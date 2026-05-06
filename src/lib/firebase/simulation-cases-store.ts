@@ -15,9 +15,65 @@ import type {
   JobStatus,
   ResidualSnapshot,
   ArtifactManifest,
+  StructuredGrid,
+  CellZoneType,
 } from '@/types/simulation';
 
 // ── Collection helpers ──────────────────────────────────────
+
+// ── Mesh serialization helpers ──────────────────────────────
+// Firestore cannot store nested arrays (INVALID_ARGUMENT: invalid nested entity).
+// Flatten 3D zones to a 1D array before writing and re-inflate on read.
+
+interface StoredMesh extends Omit<StructuredGrid, 'zones'> {
+  zonesFlat: CellZoneType[];
+}
+
+function serializeMesh(mesh: StructuredGrid): StoredMesh {
+  const flat: CellZoneType[] = [];
+  for (let i = 0; i < mesh.nx; i++) {
+    for (let j = 0; j < mesh.ny; j++) {
+      for (let k = 0; k < mesh.nz; k++) {
+        flat.push(mesh.zones[i][j][k]);
+      }
+    }
+  }
+  const { zones: _zones, ...rest } = mesh;
+  return { ...rest, zonesFlat: flat };
+}
+
+function deserializeMesh(stored: StoredMesh | undefined): StructuredGrid | undefined {
+  if (!stored) return undefined;
+  const { zonesFlat, ...rest } = stored as StoredMesh & { zonesFlat?: CellZoneType[] };
+  if (!zonesFlat) return stored as unknown as StructuredGrid;
+
+  const zones: CellZoneType[][][] = [];
+  let idx = 0;
+  for (let i = 0; i < stored.nx; i++) {
+    zones[i] = [];
+    for (let j = 0; j < stored.ny; j++) {
+      zones[i][j] = [];
+      for (let k = 0; k < stored.nz; k++) {
+        zones[i][j][k] = zonesFlat[idx++] ?? 'fluid';
+      }
+    }
+  }
+  return { ...rest, zones };
+}
+
+function serializeCase(doc: SimulationCase): Record<string, unknown> {
+  const { mesh, ...rest } = doc;
+  const result: Record<string, unknown> = { ...rest };
+  if (mesh) result.mesh = serializeMesh(mesh);
+  return result;
+}
+
+function deserializeCase(data: Record<string, unknown>): SimulationCase {
+  const { mesh, ...rest } = data as Record<string, unknown> & { mesh?: StoredMesh };
+  return { ...rest, mesh: deserializeMesh(mesh) } as SimulationCase;
+}
+
+// ─────────────────────────────────────────────────────────────
 
 function casesCol(projectId: string) {
   return getFirebaseDb()
@@ -47,7 +103,7 @@ export async function createSimulationCase(
     createdAt: now,
     updatedAt: now,
   };
-  await casesCol(input.projectId).doc(id).set(doc);
+  await casesCol(input.projectId).doc(id).set(serializeCase(doc));
   return doc;
 }
 
@@ -57,7 +113,7 @@ export async function getSimulationCase(
 ): Promise<SimulationCase | null> {
   const snap = await casesCol(projectId).doc(caseId).get();
   if (!snap.exists) return null;
-  return snap.data() as SimulationCase;
+  return deserializeCase(snap.data() as Record<string, unknown>);
 }
 
 export async function listSimulationCases(
@@ -66,18 +122,18 @@ export async function listSimulationCases(
   const snap = await casesCol(projectId)
     .orderBy('createdAt', 'desc')
     .get();
-  return snap.docs.map((d) => d.data() as SimulationCase);
+  return snap.docs.map((d) => deserializeCase(d.data() as Record<string, unknown>));
 }
 
 export async function updateSimulationCase(
   projectId: string,
   caseId: string,
-  updates: Partial<Pick<SimulationCase, 'name' | 'description' | 'status' | 'mesh' | 'physics' | 'solver' | 'geometry' | 'activeRunId' | 'resultId' | 'runSource'>>,
+  updates: Partial<Pick<SimulationCase, 'name' | 'description' | 'status' | 'mesh' | 'physics' | 'solver' | 'geometry' | 'activeRunId' | 'resultId' | 'runSource' | 'simulationScope' | 'buildingGeometry'>>,
 ): Promise<void> {
-  await casesCol(projectId).doc(caseId).update({
-    ...updates,
-    updatedAt: nowIso(),
-  });
+  const { mesh, ...rest } = updates;
+  const firestoreUpdates: Record<string, unknown> = { ...rest, updatedAt: nowIso() };
+  if (mesh) firestoreUpdates.mesh = serializeMesh(mesh);
+  await casesCol(projectId).doc(caseId).update(firestoreUpdates);
 }
 
 export async function updateCaseStatus(
@@ -168,7 +224,7 @@ export async function updateRunJobStatus(
   caseId: string,
   jobId: string,
   status: JobStatus,
-  extra?: Partial<Pick<RunJob, 'currentIteration' | 'elapsedSeconds' | 'errorMessage' | 'startedAt' | 'completedAt' | 'logTail'>>,
+  extra?: Partial<Pick<RunJob, 'currentIteration' | 'elapsedSeconds' | 'errorMessage' | 'startedAt' | 'completedAt' | 'logTail' | 'buildingVisualization' | 'metricsSnapshot'>>,
 ): Promise<void> {
   await jobsCol(projectId, caseId).doc(jobId).update({
     status,

@@ -1,4 +1,7 @@
-import { parseRoomPolygonRect } from '@/lib/utils/room-polygon';
+import { extrudeRoomFromPolygon } from '@/lib/geometry/room-extruder';
+import { detectAdjacentRooms } from '@/lib/geometry/spatial-index';
+import { createRectPolygonPoints, getPolygonBounds, parseRoomPolygon } from '@/lib/utils/room-polygon';
+import type { Point2D, RoomGeometry } from '@/types/geometry';
 import type {
   AirConnection,
   BuildingGeometryInput,
@@ -52,6 +55,11 @@ interface BuildOptions {
   adjacencyToleranceM?: number;
   minSharedEdgeM?: number;
   includeVerticalConnections?: boolean;
+}
+
+interface BuildingRoomAssembly {
+  rooms: BuildingRoom[];
+  roomGeometry: RoomGeometry[];
 }
 
 const DEFAULT_FLOOR_GAP_M = 0.35;
@@ -111,10 +119,7 @@ function buildRoomSources(floors: FloorSource[]): FloorRoomSource[] {
   return roomSources;
 }
 
-function toBuildingRooms(
-  roomSources: FloorRoomSource[],
-  floorGapM: number,
-): BuildingRoom[] {
+function resolveFloorBaseHeights(roomSources: FloorRoomSource[], floorGapM: number): Map<string, number> {
   const floorBaseHeights = new Map<string, number>();
   const sortedFloorIds = [...new Set(roomSources.map((room) => room.floorId))]
     .sort((a, b) => {
@@ -133,65 +138,124 @@ function toBuildingRooms(
     currentBase += floorHeight + floorGapM;
   }
 
-  const perFloorFallbackCursor = new Map<string, { x: number; z: number; rowDepth: number }>();
+  return floorBaseHeights;
+}
 
-  return roomSources.map((source) => {
-    const baseY = floorBaseHeights.get(source.floorId) ?? 0;
-    const polyRect = parseRoomPolygonRect(source.polygon ?? '');
-    const scale = polyRect?.scale && polyRect.scale > 0
-      ? polyRect.scale
-      : source.floorScale > 0
-        ? source.floorScale
-        : 50;
+function toPolygonMeters(source: FloorRoomSource): Point2D[] | null {
+  const polygon = parseRoomPolygon(source.polygon ?? '');
+  if (!polygon) {
+    return null;
+  }
 
-    let originX = 0;
-    let originZ = 0;
-    let width = 0;
-    let length = 0;
+  const scale = polygon.scale && polygon.scale > 0
+    ? polygon.scale
+    : 1;
+  const points = polygon.points.map((point) => ({
+    x: point.x / scale,
+    y: point.y / scale,
+  }));
 
-    if (polyRect) {
-      originX = polyRect.x / scale;
-      originZ = polyRect.y / scale;
-      width = Math.max(0.6, polyRect.width / scale);
-      length = Math.max(0.6, polyRect.height / scale);
-    } else {
-      const fallbackDims = deriveRectFromArea(source.area, source.perimeter);
-      width = fallbackDims.width;
-      length = fallbackDims.length;
+  const bounds = getPolygonBounds(points);
+  if (!bounds || bounds.width <= 0 || bounds.height <= 0) {
+    return null;
+  }
 
-      const cursor = perFloorFallbackCursor.get(source.floorId) ?? { x: 0, z: 0, rowDepth: 0 };
-      originX = cursor.x;
-      originZ = cursor.z;
+  return points;
+}
 
-      const nextX = cursor.x + width + 1;
-      if (nextX > 30) {
-        perFloorFallbackCursor.set(source.floorId, {
-          x: 0,
-          z: cursor.z + cursor.rowDepth + 1,
-          rowDepth: length,
-        });
-      } else {
-        perFloorFallbackCursor.set(source.floorId, {
-          x: nextX,
-          z: cursor.z,
-          rowDepth: Math.max(cursor.rowDepth, length),
-        });
-      }
-    }
+function toFallbackPolygonMeters(
+  source: FloorRoomSource,
+  perFloorFallbackCursor: Map<string, { x: number; y: number; rowDepth: number }>,
+): Point2D[] {
+  const fallbackDims = deriveRectFromArea(source.area, source.perimeter);
+  const width = fallbackDims.width;
+  const length = fallbackDims.length;
 
-    const height = Math.max(2.2, source.ceilingHeight || source.floorCeilingHeight || 3.0);
+  const cursor = perFloorFallbackCursor.get(source.floorId) ?? { x: 0, y: 0, rowDepth: 0 };
+  const originX = cursor.x;
+  const originY = cursor.y;
 
-    return {
-      id: source.id,
-      floorId: source.floorId,
-      floorNumber: source.floorNumber,
-      name: source.roomName,
-      origin: { x: originX, y: baseY, z: originZ },
-      dimensions: { width, length, height },
-      vents: [],
-      heatLoadW: Math.max(0, source.equipmentLoad || 0),
-    };
+  const nextX = cursor.x + width + 1;
+  if (nextX > 30) {
+    perFloorFallbackCursor.set(source.floorId, {
+      x: 0,
+      y: cursor.y + cursor.rowDepth + 1,
+      rowDepth: length,
+    });
+  } else {
+    perFloorFallbackCursor.set(source.floorId, {
+      x: nextX,
+      y: cursor.y,
+      rowDepth: Math.max(cursor.rowDepth, length),
+    });
+  }
+
+  return createRectPolygonPoints({
+    x: originX,
+    y: originY,
+    width,
+    height: length,
   });
+}
+
+function toBuildingRoom(source: FloorRoomSource, geometry: RoomGeometry): BuildingRoom {
+  const width = Math.max(0.6, geometry.boundingBox.max.x - geometry.boundingBox.min.x);
+  const length = Math.max(0.6, geometry.boundingBox.max.y - geometry.boundingBox.min.y);
+  const height = Math.max(2.2, geometry.boundingBox.max.z - geometry.boundingBox.min.z);
+
+  return {
+    id: source.id,
+    floorId: source.floorId,
+    floorNumber: source.floorNumber,
+    name: source.roomName,
+    origin: {
+      x: geometry.boundingBox.min.x,
+      y: geometry.boundingBox.min.z,
+      z: geometry.boundingBox.min.y,
+    },
+    dimensions: { width, length, height },
+    vents: [],
+    heatLoadW: Math.max(0, source.equipmentLoad || 0),
+  };
+}
+
+function toBuildingRooms(
+  roomSources: FloorRoomSource[],
+  floorGapM: number,
+): BuildingRoomAssembly {
+  const floorBaseHeights = resolveFloorBaseHeights(roomSources, floorGapM);
+  const perFloorFallbackCursor = new Map<string, { x: number; y: number; rowDepth: number }>();
+
+  const buildingRooms: BuildingRoom[] = [];
+  const roomGeometry: RoomGeometry[] = [];
+
+  for (const source of roomSources) {
+    const baseY = floorBaseHeights.get(source.floorId) ?? 0;
+    const height = Math.max(2.2, source.ceilingHeight || source.floorCeilingHeight || 3.0);
+    const polygonMeters = toPolygonMeters(source)
+      ?? toFallbackPolygonMeters(source, perFloorFallbackCursor);
+
+    const geometry = extrudeRoomFromPolygon(
+      {
+        id: source.id,
+        floorId: source.floorId,
+        name: source.roomName,
+        polygon: polygonMeters,
+        ceilingHeightM: height,
+      },
+      {
+        floorElevationM: baseY,
+      },
+    );
+
+    roomGeometry.push(geometry);
+    buildingRooms.push(toBuildingRoom(source, geometry));
+  }
+
+  return {
+    rooms: buildingRooms,
+    roomGeometry,
+  };
 }
 
 function toBounds(room: BuildingRoom): RoomBounds {
@@ -206,71 +270,94 @@ function toBounds(room: BuildingRoom): RoomBounds {
   };
 }
 
-function inferConnections(
-  rooms: BuildingRoom[],
+function inferHorizontalConnections(
+  roomGeometry: RoomGeometry[],
   options: {
     adjacencyToleranceM: number;
     minSharedEdgeM: number;
-    includeVerticalConnections: boolean;
   },
 ): AirConnection[] {
   const connections: AirConnection[] = [];
   const seen = new Set<string>();
+
+  const byFloor = new Map<string, RoomGeometry[]>();
+  for (const geometry of roomGeometry) {
+    if (!byFloor.has(geometry.floorId)) {
+      byFloor.set(geometry.floorId, []);
+    }
+    byFloor.get(geometry.floorId)?.push(geometry);
+  }
+
+  for (const floorRooms of byFloor.values()) {
+    const adjacency = detectAdjacentRooms(floorRooms, {
+      endpointToleranceM: options.adjacencyToleranceM,
+      minSharedLengthM: options.minSharedEdgeM,
+    });
+
+    for (const [roomId, adjacent] of adjacency.entries()) {
+      for (const adjacentRoomId of adjacent) {
+        const key = pairKey(roomId, adjacentRoomId);
+        if (seen.has(key)) {
+          continue;
+        }
+        seen.add(key);
+
+        connections.push({
+          id: `conn-${roomId}-${adjacentRoomId}`,
+          fromRoom: roomId,
+          toRoom: adjacentRoomId,
+          type: 'door',
+          openingAreaM2: 2.0,
+          resistance: 1.0,
+        });
+      }
+    }
+  }
+
+  return connections;
+}
+
+function inferVerticalConnections(
+  rooms: BuildingRoom[],
+  options: {
+    includeVerticalConnections: boolean;
+  },
+): AirConnection[] {
+  if (!options.includeVerticalConnections) {
+    return [];
+  }
+
   const bounds = rooms.map(toBounds);
+  const connections: AirConnection[] = [];
+  const seen = new Set<string>();
 
   for (let i = 0; i < bounds.length; i++) {
     for (let j = i + 1; j < bounds.length; j++) {
       const a = bounds[i];
       const b = bounds[j];
-      const key = pairKey(a.room.id, b.room.id);
-      if (seen.has(key)) continue;
-
-      const sameFloor = a.room.floorId === b.room.floorId;
-      const overlapX = overlap1D(a.minX, a.maxX, b.minX, b.maxX);
-      const overlapZ = overlap1D(a.minZ, a.maxZ, b.minZ, b.maxZ);
-
-      let inferred: AirConnection | null = null;
-
-      if (sameFloor) {
-        const touchX = Math.min(Math.abs(a.maxX - b.minX), Math.abs(b.maxX - a.minX)) <= options.adjacencyToleranceM;
-        const touchZ = Math.min(Math.abs(a.maxZ - b.minZ), Math.abs(b.maxZ - a.minZ)) <= options.adjacencyToleranceM;
-
-        if (touchX && overlapZ >= options.minSharedEdgeM) {
-          inferred = {
-            id: `conn-${a.room.id}-${b.room.id}`,
-            fromRoom: a.room.id,
-            toRoom: b.room.id,
-            type: 'door',
-            openingAreaM2: 2.0,
-            resistance: 1.0,
-          };
-        } else if (touchZ && overlapX >= options.minSharedEdgeM) {
-          inferred = {
-            id: `conn-${a.room.id}-${b.room.id}`,
-            fromRoom: a.room.id,
-            toRoom: b.room.id,
-            type: 'door',
-            openingAreaM2: 2.0,
-            resistance: 1.0,
-          };
-        }
-      } else if (options.includeVerticalConnections) {
-        const floorDiff = Math.abs(a.room.floorNumber - b.room.floorNumber);
-        const verticalGap = Math.min(Math.abs(a.maxY - b.minY), Math.abs(b.maxY - a.minY));
-        if (floorDiff === 1 && overlapX * overlapZ >= 1.0 && verticalGap <= 1.0) {
-          inferred = {
-            id: `conn-${a.room.id}-${b.room.id}`,
-            fromRoom: a.room.id,
-            toRoom: b.room.id,
-            type: 'shaft',
-            openingAreaM2: 1.2,
-            resistance: 1.3,
-          };
-        }
+      if (a.room.floorId === b.room.floorId) {
+        continue;
       }
 
-      if (inferred) {
-        connections.push(inferred);
+      const key = pairKey(a.room.id, b.room.id);
+      if (seen.has(key)) {
+        continue;
+      }
+
+      const overlapX = overlap1D(a.minX, a.maxX, b.minX, b.maxX);
+      const overlapZ = overlap1D(a.minZ, a.maxZ, b.minZ, b.maxZ);
+      const floorDiff = Math.abs(a.room.floorNumber - b.room.floorNumber);
+      const verticalGap = Math.min(Math.abs(a.maxY - b.minY), Math.abs(b.maxY - a.minY));
+
+      if (floorDiff === 1 && overlapX * overlapZ >= 1.0 && verticalGap <= 1.0) {
+        connections.push({
+          id: `conn-${a.room.id}-${b.room.id}`,
+          fromRoom: a.room.id,
+          toRoom: b.room.id,
+          type: 'shaft',
+          openingAreaM2: 1.2,
+          resistance: 1.3,
+        });
         seen.add(key);
       }
     }
@@ -318,19 +405,23 @@ export function buildBuildingGeometryFromFloors(
   options: BuildOptions = {},
 ): BuildingGeometryInput {
   const roomSources = buildRoomSources(floors);
-  const buildingRooms = toBuildingRooms(roomSources, options.floorGapM ?? DEFAULT_FLOOR_GAP_M);
+  const assembly = toBuildingRooms(roomSources, options.floorGapM ?? DEFAULT_FLOOR_GAP_M);
 
-  const inferredConnections = inferConnections(buildingRooms, {
-    adjacencyToleranceM: options.adjacencyToleranceM ?? DEFAULT_ADJ_TOLERANCE_M,
-    minSharedEdgeM: options.minSharedEdgeM ?? DEFAULT_MIN_SHARED_EDGE_M,
-    includeVerticalConnections: options.includeVerticalConnections !== false,
-  });
+  const inferredConnections = [
+    ...inferHorizontalConnections(assembly.roomGeometry, {
+      adjacencyToleranceM: options.adjacencyToleranceM ?? DEFAULT_ADJ_TOLERANCE_M,
+      minSharedEdgeM: options.minSharedEdgeM ?? DEFAULT_MIN_SHARED_EDGE_M,
+    }),
+    ...inferVerticalConnections(assembly.rooms, {
+      includeVerticalConnections: options.includeVerticalConnections !== false,
+    }),
+  ];
 
   const connections = applyConnectionOverrides(inferredConnections, connectionOverrides);
 
   return {
     buildingId: options.buildingId ?? 'building',
-    rooms: buildingRooms,
+    rooms: assembly.rooms,
     connections,
   };
 }

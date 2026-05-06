@@ -4,6 +4,11 @@ import { useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Eye, Layers, Box } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  calculatePolygonArea,
+  createRectPolygonPoints,
+  type RoomPolygonPoint,
+} from '@/lib/utils/room-polygon';
 
 interface Room {
   id: string;
@@ -14,6 +19,7 @@ interface Room {
   width: number;
   height: number;
   color: string;
+  polygonPoints?: RoomPolygonPoint[];
 }
 
 interface FloorPlanMultiViewProps {
@@ -26,6 +32,27 @@ interface FloorPlanMultiViewProps {
 
 const DEFAULT_CEILING = 3.0;
 const FONT = 'Inter, system-ui, -apple-system, sans-serif';
+
+function getRoomPolygonPoints(room: Room): RoomPolygonPoint[] {
+  if (room.polygonPoints && room.polygonPoints.length >= 3) {
+    return room.polygonPoints;
+  }
+
+  return createRectPolygonPoints({
+    x: room.x,
+    y: room.y,
+    width: room.width,
+    height: room.height,
+  });
+}
+
+function getRoomAreaM2(room: Room, scalePxPerM: number): number {
+  const points = getRoomPolygonPoints(room).map((point) => ({
+    x: point.x / scalePxPerM,
+    y: point.y / scalePxPerM,
+  }));
+  return calculatePolygonArea(points);
+}
 
 // ─── Elevation rendering helpers ────────────────────────────────────────────
 
@@ -561,6 +588,8 @@ export default function FloorPlanMultiView({
     );
   }, [rooms, scale, ceilingHeight]);
 
+  const totalAreaM2 = rooms.reduce((sum, room) => sum + getRoomAreaM2(room, scale), 0);
+
   useEffect(() => {
     if (!visible) return;
     // Slight delay so DOM has painted the canvases
@@ -658,7 +687,7 @@ export default function FloorPlanMultiView({
                     {rooms.map((room) => {
                       const wM = (room.width / scale).toFixed(1);
                       const dM = (room.height / scale).toFixed(1);
-                      const aM = ((room.width / scale) * (room.height / scale)).toFixed(1);
+                      const aM = getRoomAreaM2(room, scale).toFixed(1);
                       return (
                         <div
                           key={room.id}
@@ -687,12 +716,12 @@ export default function FloorPlanMultiView({
                       ['Rooms', rooms.length.toString()],
                       [
                         'Floor area',
-                        `${rooms.reduce((s, r) => s + (r.width / scale) * (r.height / scale), 0).toFixed(1)} m\u00B2`,
+                        `${totalAreaM2.toFixed(1)} m\u00B2`,
                       ],
                       ['Ceiling', `${ceilingHeight.toFixed(1)} m`],
                       [
                         'Volume',
-                        `${(rooms.reduce((s, r) => s + (r.width / scale) * (r.height / scale), 0) * ceilingHeight).toFixed(1)} m\u00B3`,
+                        `${(totalAreaM2 * ceilingHeight).toFixed(1)} m\u00B3`,
                       ],
                     ].map(([label, val]) => (
                       <div key={label} className="flex justify-between">

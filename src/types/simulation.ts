@@ -572,8 +572,19 @@ export interface SimulationCase {
   status: CaseStatus;
   /** Which solver produced the result */
   runSource: RunSource;
+  /**
+   * Scope of the simulation.
+   * - 'room'     — single-room CFD (default)
+   * - 'building' — multi-room building-level simulation derived from project floors
+   */
+  simulationScope?: 'room' | 'building';
   /** Geometry snapshot at case creation */
   geometry: GeometryInput;
+  /**
+   * Building geometry snapshot (present when simulationScope === 'building').
+   * Derived from project floors/rooms at creation and re-derived on rebuild.
+   */
+  buildingGeometry?: BuildingGeometryInput;
   /** Generated mesh descriptor (populated after meshing) */
   mesh?: StructuredGrid;
   /** Physics configuration */

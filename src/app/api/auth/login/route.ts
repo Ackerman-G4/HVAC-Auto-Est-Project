@@ -27,15 +27,19 @@ function resolveStatusFromError(message: string): number {
 
 export async function POST(req: NextRequest) {
 	try {
-		const rateLimit = evaluateRateLimit(req, 'auth-login', LOGIN_RATE_LIMIT);
-		if (!rateLimit.allowed) {
-			return NextResponse.json(
-				{ error: 'Too many attempts. Please try again later' },
-				{
-					status: 429,
-					headers: { 'Retry-After': String(rateLimit.retryAfterSec) },
-				},
-			);
+		// Skip rate limiting in local auth mode (no Firebase key) — smoke/test
+		// scripts run many logins in sequence and would exhaust the window.
+		if (!isLocalAuthMode()) {
+			const rateLimit = evaluateRateLimit(req, 'auth-login', LOGIN_RATE_LIMIT);
+			if (!rateLimit.allowed) {
+				return NextResponse.json(
+					{ error: 'Too many attempts. Please try again later' },
+					{
+						status: 429,
+						headers: { 'Retry-After': String(rateLimit.retryAfterSec) },
+					},
+				);
+			}
 		}
 
 		const payload = await req.json();

@@ -18,6 +18,8 @@ import {
   DEFAULT_SOLVER_PROFILE,
 } from '@/types/simulation';
 import type { GeometryInput } from '@/types/simulation';
+import { isBuildingSimulationEnabled } from '@/lib/simulation/feature-flags';
+import { buildProjectBuildingGeometry, toFallbackGeometry } from '@/lib/simulation/building-case';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -73,6 +75,37 @@ export async function POST(request: NextRequest, context: RouteContext) {
     if (!body.name) {
       return errorResponse(400, 'Case name required', 'Provide a name for the simulation case.', 'MISSING_NAME');
     }
+
+    const isBuilding = body.simulationScope === 'building';
+
+    if (isBuilding) {
+      if (!isBuildingSimulationEnabled()) {
+        return errorResponse(403, 'Building simulation disabled', 'Enable ENABLE_BUILDING_SIMULATION to create building-scope cases.', 'BUILDING_MODE_DISABLED');
+      }
+
+      const buildingGeometry = await buildProjectBuildingGeometry(projectId);
+      const geometry: GeometryInput = toFallbackGeometry(buildingGeometry);
+      // Skip full mesh generation for building-scope cases — the building
+      // simulation engine uses buildingGeometry.rooms, not the voxel mesh.
+      // Storing the mesh would exceed Firestore's 1 MB document limit.
+
+      const simCase = await createSimulationCase({
+        projectId,
+        ownerId: auth.user.id,
+        name: body.name,
+        description: body.description || '',
+        status: 'meshed',
+        runSource: body.runSource || 'internal',
+        simulationScope: 'building',
+        buildingGeometry,
+        geometry,
+        physics: body.physics || DEFAULT_PHYSICS_SETUP,
+        solver: body.solver || DEFAULT_SOLVER_PROFILE,
+      });
+
+      return NextResponse.json({ case: simCase }, { status: 201 });
+    }
+
     if (!body.geometry) {
       return errorResponse(400, 'Geometry required', 'Provide geometry input for the simulation case.', 'MISSING_GEOMETRY');
     }
@@ -90,6 +123,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       description: body.description || '',
       status: 'meshed',
       runSource: body.runSource || 'internal',
+      simulationScope: 'room',
       geometry,
       mesh,
       physics: body.physics || DEFAULT_PHYSICS_SETUP,

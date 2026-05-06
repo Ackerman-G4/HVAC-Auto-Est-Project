@@ -79,11 +79,22 @@ export async function getSimulationLayout(
   const hvacRaw = (data.hvacPlacements ?? []) as Record<string, unknown>[];
   const tilesRaw = (data.tilePlacements ?? []) as Record<string, unknown>[];
 
+  const overridesRaw = (data.connectionOverrides ?? []) as Record<string, unknown>[];
+
   return {
     projectId,
     floorId,
     hvacPlacements: hvacRaw.map(mapHVAC),
     tilePlacements: tilesRaw.map(mapTile),
+    connectionOverrides: overridesRaw.map((o) => ({
+      id: o.id !== undefined ? String(o.id) : undefined,
+      fromRoomId: String(o.fromRoomId ?? ''),
+      toRoomId: String(o.toRoomId ?? ''),
+      type: String(o.type ?? 'door'),
+      openingAreaM2: Number(o.openingAreaM2 ?? 0.1),
+      resistance: Number(o.resistance ?? 0.01),
+      enabled: o.enabled !== false,
+    })),
     canvasScale: Number(data.canvasScale ?? 50),
     updatedAt: String(data.updatedAt ?? ''),
   };
@@ -92,7 +103,7 @@ export async function getSimulationLayout(
 export async function upsertSimulationLayout(
   projectId: string,
   floorId: string,
-  layout: Pick<SimulationLayoutDoc, 'hvacPlacements' | 'tilePlacements' | 'canvasScale'>,
+  layout: Pick<SimulationLayoutDoc, 'hvacPlacements' | 'tilePlacements' | 'canvasScale' | 'connectionOverrides'>,
 ): Promise<void> {
   const db = getFirebaseDb();
   await db.doc(docPath(projectId, floorId)).set(
@@ -102,6 +113,7 @@ export async function upsertSimulationLayout(
       hvacPlacements: layout.hvacPlacements.map(serializeHVAC),
       tilePlacements: layout.tilePlacements.map(serializeTile),
       canvasScale: layout.canvasScale,
+      connectionOverrides: layout.connectionOverrides ?? [],
       updatedAt: nowIso(),
     },
     { merge: true },

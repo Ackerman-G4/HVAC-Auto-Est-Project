@@ -63,6 +63,18 @@ export type {
   DiagnosticHistoryItem,
 } from './api';
 
+export type {
+  BuildingGeometry,
+  DoorOpening,
+  FloorGeometry,
+  Point2D,
+  Point3D,
+  RoomGeometry,
+  Vector3D,
+  WallSegment as BuildingWallSegment,
+  WindowOpening,
+} from './geometry';
+
 // Re-export simulation types
 export type {
   SimulationStatus,

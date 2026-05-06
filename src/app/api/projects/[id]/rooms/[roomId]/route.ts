@@ -23,8 +23,43 @@ import {
   resourceNotFound,
 } from '@/lib/utils/api-helpers';
 import { finalizeDualValue } from '@/lib/utils/dual-control';
+import {
+  calculatePolygonArea,
+  calculatePolygonPerimeter,
+  parseRoomPolygon,
+} from '@/lib/utils/room-polygon';
 
 type RouteContext = { params: Promise<{ id: string; roomId: string }> };
+
+function derivePolygonMetrics(
+  rawPolygon: unknown,
+  fallbackArea: number,
+  fallbackPerimeter: number,
+): { area: number; perimeter: number } {
+  const polygon = parseRoomPolygon(rawPolygon);
+  if (!polygon) {
+    return {
+      area: Math.max(0, fallbackArea),
+      perimeter: Math.max(0, fallbackPerimeter),
+    };
+  }
+
+  const scale = polygon.scale && polygon.scale > 0
+    ? polygon.scale
+    : 1;
+  const pointsInMeters = polygon.points.map((point) => ({
+    x: point.x / scale,
+    y: point.y / scale,
+  }));
+
+  const area = calculatePolygonArea(pointsInMeters);
+  const perimeter = calculatePolygonPerimeter(pointsInMeters);
+
+  return {
+    area: area > 0 ? area : Math.max(0, fallbackArea),
+    perimeter: perimeter > 0 ? perimeter : Math.max(0, fallbackPerimeter),
+  };
+}
 
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
@@ -41,11 +76,20 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       return resourceNotFound('Room', 'The room does not exist in this project.', 'ROOM_NOT_FOUND');
     }
 
+    const fallbackArea = typeof body.area === 'number' ? body.area : existing.area;
+    const fallbackPerimeter = typeof body.perimeter === 'number' ? body.perimeter : existing.perimeter;
+    const metrics = body.polygon !== undefined
+      ? derivePolygonMetrics(body.polygon, fallbackArea, fallbackPerimeter)
+      : {
+          area: Math.max(0, fallbackArea),
+          perimeter: Math.max(0, fallbackPerimeter),
+        };
+
     await updateRoomRecord(roomId, {
       name: body.name ?? existing.name,
       spaceType: body.spaceType ?? existing.spaceType,
-      area: body.area ?? existing.area,
-      perimeter: body.perimeter ?? existing.perimeter,
+      area: body.polygon !== undefined ? metrics.area : (body.area ?? existing.area),
+      perimeter: body.polygon !== undefined ? metrics.perimeter : (body.perimeter ?? existing.perimeter),
       polygon: body.polygon ? JSON.stringify(body.polygon) : existing.polygon,
       ceilingHeight: body.ceilingHeight ?? existing.ceilingHeight,
       wallConstruction: body.wallConstruction ?? existing.wallConstruction,

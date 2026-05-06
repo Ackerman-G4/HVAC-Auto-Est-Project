@@ -36,7 +36,15 @@ import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { showToast } from '@/components/ui/toast';
 import FloorPlanMultiView from '@/components/floorplan/FloorPlanMultiView';
-import { parseRoomPolygonRect } from '@/lib/utils/room-polygon';
+import {
+  calculatePolygonArea,
+  calculatePolygonPerimeter,
+  createRectPolygonPoints,
+  getPolygonBounds,
+  parseRoomPolygon,
+  parseRoomPolygonRect,
+  type RoomPolygonPoint,
+} from '@/lib/utils/room-polygon';
 import Link from 'next/link';
 import Image from 'next/image';
 import { authFetch } from '@/lib/api-client';
@@ -65,6 +73,7 @@ interface CanvasRoom {
   width: number;
   height: number;
   color: string;
+  polygonPoints?: RoomPolygonPoint[];
 }
 
 interface FloorData {
@@ -75,7 +84,7 @@ interface FloorData {
   scale: number;
 }
 
-type Tool = 'select' | 'draw' | 'measure' | 'wall' | 'hvac' | 'tile';
+type Tool = 'select' | 'draw' | 'polygon' | 'measure' | 'wall' | 'hvac' | 'tile';
 
 interface WallSegment {
   id: string;
@@ -97,6 +106,93 @@ const ROOM_COLORS = [
   'rgba(236, 72, 153, 0.15)',
 ];
 
+function drawPolygonPath(ctx: CanvasRenderingContext2D, points: RoomPolygonPoint[]): void {
+  if (points.length === 0) return;
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length; i++) {
+    ctx.lineTo(points[i].x, points[i].y);
+  }
+  ctx.closePath();
+}
+
+function pointInPolygon(point: RoomPolygonPoint, polygon: RoomPolygonPoint[]): boolean {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].x;
+    const yi = polygon[i].y;
+    const xj = polygon[j].x;
+    const yj = polygon[j].y;
+    const intersects = ((yi > point.y) !== (yj > point.y))
+      && (point.x < ((xj - xi) * (point.y - yi)) / (yj - yi) + xi);
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
+function getRoomPolygonPoints(room: CanvasRoom): RoomPolygonPoint[] {
+  if (room.polygonPoints && room.polygonPoints.length >= 3) {
+    return room.polygonPoints;
+  }
+
+  return createRectPolygonPoints({
+    x: room.x,
+    y: room.y,
+    width: room.width,
+    height: room.height,
+  });
+}
+
+function getRoomAreaM2(room: CanvasRoom, scalePxPerM: number): number {
+  const points = getRoomPolygonPoints(room).map((point) => ({
+    x: point.x / scalePxPerM,
+    y: point.y / scalePxPerM,
+  }));
+  return calculatePolygonArea(points);
+}
+
+function getRoomPerimeterM(room: CanvasRoom, scalePxPerM: number): number {
+  const points = getRoomPolygonPoints(room).map((point) => ({
+    x: point.x / scalePxPerM,
+    y: point.y / scalePxPerM,
+  }));
+  return calculatePolygonPerimeter(points);
+}
+
+function getRoomLabelCenter(room: CanvasRoom): { x: number; y: number } {
+  const polygon = room.polygonPoints;
+  if (!polygon || polygon.length < 3) {
+    return {
+      x: room.x + room.width / 2,
+      y: room.y + room.height / 2,
+    };
+  }
+
+  let areaFactor = 0;
+  let centerX = 0;
+  let centerY = 0;
+
+  for (let i = 0; i < polygon.length; i++) {
+    const next = polygon[(i + 1) % polygon.length];
+    const cross = polygon[i].x * next.y - next.x * polygon[i].y;
+    areaFactor += cross;
+    centerX += (polygon[i].x + next.x) * cross;
+    centerY += (polygon[i].y + next.y) * cross;
+  }
+
+  if (Math.abs(areaFactor) <= 1e-9) {
+    return {
+      x: room.x + room.width / 2,
+      y: room.y + room.height / 2,
+    };
+  }
+
+  return {
+    x: centerX / (3 * areaFactor),
+    y: centerY / (3 * areaFactor),
+  };
+}
+
 export default function FloorPlanPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -116,6 +212,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
   const [drawCurrent, setDrawCurrent] = useState<{ x: number; y: number } | null>(null);
+  const [polygonDraft, setPolygonDraft] = useState<RoomPolygonPoint[]>([]);
   const [Pan, setPan] = useState({ x: 0, y: 0 });
   const [showImagePreview, setShowImagePreview] = useState(false);
   const [bgImageSrc, setBgImageSrc] = useState<string | null>(null);
@@ -135,7 +232,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
     setLayoutTiles: syncTiles,
   } = useSimulationStore();
 
-  // Fetch project floors AND restore persisted rooms as canvas rectangles
+  // Fetch project floors and restore persisted rooms as canvas geometry.
   useEffect(() => {
     authFetch(`/api/projects/${id}/rooms`)
       .then((r) => r.json())
@@ -169,17 +266,57 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
         if (activeFloorData && activeFloorData.rooms) {
           const restored: CanvasRoom[] = [];
           activeFloorData.rooms.forEach((r: DbRoom, idx: number) => {
-            const poly = parseRoomPolygonRect(r.polygon);
-            if (poly) {
+            const parsedPolygon = parseRoomPolygon(r.polygon);
+            if (parsedPolygon) {
+              const rawBounds = getPolygonBounds(parsedPolygon.points);
+              if (!rawBounds) {
+                return;
+              }
+
+              const inferredScale = parsedPolygon.scale && parsedPolygon.scale > 0
+                ? parsedPolygon.scale
+                : ((rawBounds.width <= 60 && rawBounds.height <= 60) ? floorScale : 1);
+              const pointsPx = parsedPolygon.points.map((point) => ({
+                x: point.x * inferredScale,
+                y: point.y * inferredScale,
+              }));
+              const boundsPx = getPolygonBounds(pointsPx);
+              if (!boundsPx) {
+                return;
+              }
+
               restored.push({
                 id: r.id,
                 name: r.name,
                 spaceType: r.spaceType,
-                x: poly.x,
-                y: poly.y,
-                width: poly.width,
-                height: poly.height,
+                x: boundsPx.minX,
+                y: boundsPx.minY,
+                width: boundsPx.width,
+                height: boundsPx.height,
                 color: ROOM_COLORS[idx % ROOM_COLORS.length],
+                polygonPoints: pointsPx,
+              });
+              return;
+            }
+
+            const polyRect = parseRoomPolygonRect(r.polygon);
+            if (polyRect) {
+              const pointsPx = createRectPolygonPoints(polyRect);
+              const boundsPx = getPolygonBounds(pointsPx);
+              if (!boundsPx) {
+                return;
+              }
+
+              restored.push({
+                id: r.id,
+                name: r.name,
+                spaceType: r.spaceType,
+                x: boundsPx.minX,
+                y: boundsPx.minY,
+                width: boundsPx.width,
+                height: boundsPx.height,
+                color: ROOM_COLORS[idx % ROOM_COLORS.length],
+                polygonPoints: pointsPx,
               });
             }
           });
@@ -260,46 +397,64 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
       ctx.fillText(`1m = ${scale}px`, 10, h / zoom - 10);
     }
 
+    // Walls
+    walls.forEach((wall) => {
+      ctx.save();
+      ctx.strokeStyle = '#222';
+      ctx.lineWidth = wall.thickness;
+      ctx.beginPath();
+      ctx.moveTo(wall.x1, wall.y1);
+      ctx.lineTo(wall.x2, wall.y2);
+      ctx.stroke();
+      ctx.restore();
+    });
+
     // Rooms
     rooms.forEach((room) => {
-          // Walls
-          walls.forEach((wall) => {
-            ctx.save();
-            ctx.strokeStyle = '#222';
-            ctx.lineWidth = wall.thickness;
-            ctx.beginPath();
-            ctx.moveTo(wall.x1, wall.y1);
-            ctx.lineTo(wall.x2, wall.y2);
-            ctx.stroke();
-            ctx.restore();
-          });
       const isSelected = selectedRoom?.id === room.id;
+      const roomPolygon = room.polygonPoints && room.polygonPoints.length >= 3
+        ? room.polygonPoints
+        : null;
+      const roomBounds = roomPolygon ? getPolygonBounds(roomPolygon) : null;
+      const labelCenter = getRoomLabelCenter(room);
+      const widthPx = roomBounds?.width ?? room.width;
+      const heightPx = roomBounds?.height ?? room.height;
 
       // Fill
       ctx.fillStyle = room.color;
-      ctx.fillRect(room.x, room.y, room.width, room.height);
+      if (roomPolygon) {
+        drawPolygonPath(ctx, roomPolygon);
+        ctx.fill();
+      } else {
+        ctx.fillRect(room.x, room.y, room.width, room.height);
+      }
 
       // Border
       ctx.strokeStyle = isSelected ? '#2563EB' : '#343A40';
       ctx.lineWidth = isSelected ? 2 : 1;
-      ctx.strokeRect(room.x, room.y, room.width, room.height);
+      if (roomPolygon) {
+        drawPolygonPath(ctx, roomPolygon);
+        ctx.stroke();
+      } else {
+        ctx.strokeRect(room.x, room.y, room.width, room.height);
+      }
 
       // Label
       ctx.fillStyle = '#212529';
-      ctx.font = `${Math.max(10, Math.min(14, room.width / 8))}px sans-serif`;
+      ctx.font = `${Math.max(10, Math.min(14, widthPx / 8))}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       const label = room.name;
-      ctx.fillText(label, room.x + room.width / 2, room.y + room.height / 2 - 8);
+      ctx.fillText(label, labelCenter.x, labelCenter.y - 8);
 
       // Dimensions
-      const widthM = (room.width / scale).toFixed(1);
-      const heightM = (room.height / scale).toFixed(1);
-      const areaM2 = ((room.width / scale) * (room.height / scale)).toFixed(1);
+      const widthM = (widthPx / scale).toFixed(1);
+      const heightM = (heightPx / scale).toFixed(1);
+      const areaM2 = getRoomAreaM2(room, scale).toFixed(1);
       ctx.font = '10px sans-serif';
       ctx.fillStyle = '#495057';
-      ctx.fillText(`${widthM}m × ${heightM}m`, room.x + room.width / 2, room.y + room.height / 2 + 6);
-      ctx.fillText(`${areaM2} m²`, room.x + room.width / 2, room.y + room.height / 2 + 18);
+      ctx.fillText(`${widthM}m × ${heightM}m`, labelCenter.x, labelCenter.y + 6);
+      ctx.fillText(`${areaM2} m²`, labelCenter.x, labelCenter.y + 18);
     });
 
     // HVAC placements
@@ -393,8 +548,56 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
       );
     }
 
+    // Polygon drawing preview
+    if (tool === 'polygon' && polygonDraft.length > 0) {
+      ctx.save();
+      ctx.strokeStyle = '#2563EB';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.moveTo(polygonDraft[0].x, polygonDraft[0].y);
+      for (let i = 1; i < polygonDraft.length; i++) {
+        ctx.lineTo(polygonDraft[i].x, polygonDraft[i].y);
+      }
+      if (drawCurrent) {
+        ctx.lineTo(drawCurrent.x, drawCurrent.y);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      polygonDraft.forEach((point, index) => {
+        ctx.beginPath();
+        ctx.fillStyle = index === 0 ? '#1D4ED8' : '#2563EB';
+        ctx.arc(point.x, point.y, index === 0 ? 5 : 4, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      ctx.fillStyle = '#1D4ED8';
+      ctx.font = '11px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'bottom';
+
+      if (polygonDraft.length >= 3) {
+        ctx.fillText(
+          'Click first point, double-click, or press Enter to close',
+          polygonDraft[0].x + 8,
+          polygonDraft[0].y - 8,
+        );
+      } else {
+        const lastPoint = polygonDraft[polygonDraft.length - 1];
+        ctx.fillText(
+          `Add at least ${3 - polygonDraft.length} more point${polygonDraft.length === 2 ? '' : 's'}`,
+          lastPoint.x + 8,
+          lastPoint.y - 8,
+        );
+      }
+
+      ctx.fillText('Press Esc to cancel draft', 12, 20);
+      ctx.restore();
+    }
+
     ctx.restore();
-  }, [rooms, selectedRoom, bgImage, showBgOnCanvas, showGrid, scale, zoom, Pan, isDrawing, drawStart, drawCurrent, walls, layoutHVAC, layoutTiles, dragGhost, draggingId, tool, snapToGrid]);
+  }, [rooms, selectedRoom, bgImage, showBgOnCanvas, showGrid, scale, zoom, Pan, isDrawing, drawStart, drawCurrent, polygonDraft, walls, layoutHVAC, layoutTiles, dragGhost, draggingId, tool, snapToGrid]);
 
   useEffect(() => {
     render();
@@ -417,6 +620,75 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
     window.addEventListener('resize', resize);
     return () => window.removeEventListener('resize', resize);
   }, [render]);
+
+  useEffect(() => {
+    if (tool !== 'polygon' && polygonDraft.length > 0) {
+      setPolygonDraft([]);
+      setDrawCurrent(null);
+    }
+  }, [tool, polygonDraft.length]);
+
+  const finalizePolygonDraft = useCallback(() => {
+    if (polygonDraft.length < 3) {
+      showToast('warning', 'Polygon needs at least 3 points');
+      return;
+    }
+
+    const bounds = getPolygonBounds(polygonDraft);
+    if (!bounds || bounds.width < scale * 0.4 || bounds.height < scale * 0.4) {
+      showToast('warning', 'Polygon is too small');
+      return;
+    }
+
+    const areaM2 = calculatePolygonArea(
+      polygonDraft.map((point) => ({ x: point.x / scale, y: point.y / scale })),
+    );
+
+    if (areaM2 < 0.25) {
+      showToast('warning', 'Room area must be at least 0.25 m²');
+      return;
+    }
+
+    const newRoom: CanvasRoom = {
+      id: `room_${Date.now()}`,
+      name: `Room ${rooms.length + 1}`,
+      spaceType: 'office',
+      x: bounds.minX,
+      y: bounds.minY,
+      width: bounds.width,
+      height: bounds.height,
+      color: ROOM_COLORS[rooms.length % ROOM_COLORS.length],
+      polygonPoints: polygonDraft,
+    };
+
+    setRooms([...rooms, newRoom]);
+    setSelectedRoom(newRoom);
+    setPolygonDraft([]);
+    setDrawCurrent(null);
+    showToast('success', `Polygon room added: ${areaM2.toFixed(1)} m²`);
+  }, [polygonDraft, scale, rooms]);
+
+  useEffect(() => {
+    if (tool !== 'polygon') return;
+
+    const handlePolygonKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && polygonDraft.length > 0) {
+        event.preventDefault();
+        setPolygonDraft([]);
+        setDrawCurrent(null);
+        showToast('info', 'Polygon draft canceled');
+        return;
+      }
+
+      if ((event.key === 'Enter' || event.key === 'NumpadEnter') && polygonDraft.length >= 3) {
+        event.preventDefault();
+        finalizePolygonDraft();
+      }
+    };
+
+    window.addEventListener('keydown', handlePolygonKeyDown);
+    return () => window.removeEventListener('keydown', handlePolygonKeyDown);
+  }, [tool, polygonDraft.length, finalizePolygonDraft]);
 
   // Mouse handlers
   const getCanvasPos = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -481,6 +753,23 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
       setDrawCurrent({ x: snapToGrid(pos.x), y: snapToGrid(pos.y) });
       return;
     }
+
+    if (tool === 'polygon') {
+      const snappedPoint = { x: snapToGrid(pos.x), y: snapToGrid(pos.y) };
+      if (polygonDraft.length >= 3) {
+        const first = polygonDraft[0];
+        const closeDistance = Math.hypot(snappedPoint.x - first.x, snappedPoint.y - first.y);
+        if (closeDistance <= Math.max(8, scale * 0.2)) {
+          finalizePolygonDraft();
+          return;
+        }
+      }
+
+      setPolygonDraft([...polygonDraft, snappedPoint]);
+      setDrawCurrent(snappedPoint);
+      return;
+    }
+
     if (tool === 'wall') {
       if (!wallDrawing) {
         setWallDrawing({ x1: snapToGrid(pos.x), y1: snapToGrid(pos.y) });
@@ -499,7 +788,12 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
     if (tool === 'select') {
       // Check if clicking on a room
       const room = [...rooms].reverse().find(
-        (r) => pos.x >= r.x && pos.x <= r.x + r.width && pos.y >= r.y && pos.y <= r.y + r.height
+        (r) => {
+          if (r.polygonPoints && r.polygonPoints.length >= 3) {
+            return pointInPolygon({ x: pos.x, y: pos.y }, r.polygonPoints);
+          }
+          return pos.x >= r.x && pos.x <= r.x + r.width && pos.y >= r.y && pos.y <= r.y + r.height;
+        },
       );
       setSelectedRoom(room || null);
     }
@@ -526,6 +820,11 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
     if (tool === 'draw') {
       if (!isDrawing || !drawStart) return;
       const pos = getCanvasPos(e);
+      setDrawCurrent({ x: snapToGrid(pos.x), y: snapToGrid(pos.y) });
+      return;
+    }
+
+    if (tool === 'polygon') {
       setDrawCurrent({ x: snapToGrid(pos.x), y: snapToGrid(pos.y) });
     }
   };
@@ -567,6 +866,12 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
       setIsDrawing(false);
       setDrawStart(null);
       setDrawCurrent(null);
+    }
+  };
+
+  const handleDoubleClick = () => {
+    if (tool === 'polygon') {
+      finalizePolygonDraft();
     }
   };
 
@@ -633,7 +938,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
               ...rooms.map((room) => {
                 const wM = (room.width / scale).toFixed(2);
                 const hM = (room.height / scale).toFixed(2);
-                const aM = ((room.width / scale) * (room.height / scale)).toFixed(2);
+                const aM = getRoomAreaM2(room, scale).toFixed(2);
                 return [room.name, room.spaceType, wM, hM, aM];
               }),
             ],
@@ -698,32 +1003,28 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
     push('0', 'SECTION', '2', 'ENTITIES');
 
     rooms.forEach((room) => {
-      // Convert px to meters
-      const x1 = room.x / scale;
-      const y1 = -(room.y + room.height) / scale; // flip Y for CAD (Y-up)
-      const x2 = (room.x + room.width) / scale;
-      const y2 = -room.y / scale;
+      const polygon = getRoomPolygonPoints(room);
+      const polygonMeters = polygon.map((point) => ({
+        x: point.x / scale,
+        y: -point.y / scale,
+      }));
+
+      for (let i = 0; i < polygonMeters.length; i++) {
+        const start = polygonMeters[i];
+        const end = polygonMeters[(i + 1) % polygonMeters.length];
+        push('0', 'LINE', '8', 'ROOMS');
+        push('10', start.x.toFixed(4), '20', start.y.toFixed(4), '30', '0');
+        push('11', end.x.toFixed(4), '21', end.y.toFixed(4), '31', '0');
+      }
+
       const wM = room.width / scale;
       const hM = room.height / scale;
-      const aM = wM * hM;
-
-      // Room outline as LWPOLYLINE (closed rectangle)
-      push('0', 'LINE', '8', 'ROOMS');
-      push('10', x1.toFixed(4), '20', y1.toFixed(4), '30', '0');
-      push('11', x2.toFixed(4), '21', y1.toFixed(4), '31', '0');
-      push('0', 'LINE', '8', 'ROOMS');
-      push('10', x2.toFixed(4), '20', y1.toFixed(4), '30', '0');
-      push('11', x2.toFixed(4), '21', y2.toFixed(4), '31', '0');
-      push('0', 'LINE', '8', 'ROOMS');
-      push('10', x2.toFixed(4), '20', y2.toFixed(4), '30', '0');
-      push('11', x1.toFixed(4), '21', y2.toFixed(4), '31', '0');
-      push('0', 'LINE', '8', 'ROOMS');
-      push('10', x1.toFixed(4), '20', y2.toFixed(4), '30', '0');
-      push('11', x1.toFixed(4), '21', y1.toFixed(4), '31', '0');
+      const aM = getRoomAreaM2(room, scale);
 
       // Room label (TEXT entity)
-      const cx = ((x1 + x2) / 2).toFixed(4);
-      const cy = ((y1 + y2) / 2).toFixed(4);
+      const center = getRoomLabelCenter(room);
+      const cx = (center.x / scale).toFixed(4);
+      const cy = (-(center.y / scale)).toFixed(4);
       const textH = Math.max(0.15, Math.min(0.4, wM / 12));
       push('0', 'TEXT', '8', 'LABELS');
       push('10', cx, '20', cy, '30', '0');
@@ -767,12 +1068,13 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
     try {
       let saved = 0;
       for (const room of rooms) {
-        const widthM = room.width / scale;
-        const heightM = room.height / scale;
-        const areaSqM = widthM * heightM;
-        const perimeterM = 2 * (widthM + heightM);
-        // Store pixel-coordinate rectangle as polygon for later reload
-        const polygon = { x: room.x, y: room.y, width: room.width, height: room.height, scale };
+        const areaSqM = getRoomAreaM2(room, scale);
+        const perimeterM = getRoomPerimeterM(room, scale);
+        const polygonPoints = getRoomPolygonPoints(room);
+        const polygon = {
+          points: polygonPoints,
+          scale,
+        };
 
         // If room already has a DB id (loaded from DB), update it
         const isExisting = !room.id.startsWith('room_');
@@ -896,6 +1198,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
           {([
             { t: 'select' as Tool, icon: MousePointer, label: 'Select' },
             { t: 'draw' as Tool, icon: Square, label: 'Draw Room' },
+            { t: 'polygon' as Tool, icon: Pencil, label: 'Draw Polygon Room' },
             { t: 'measure' as Tool, icon: Ruler, label: 'Measure' },
             { t: 'hvac' as Tool, icon: AirVent, label: 'Place HVAC Unit' },
             { t: 'tile' as Tool, icon: TileIcon, label: 'Place Airflow Tile' },
@@ -970,12 +1273,13 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
           <canvas
             ref={canvasRef}
             className={`w-full h-full ${
-              tool === 'draw' || tool === 'measure' || tool === 'hvac' || tool === 'tile' ? 'cursor-crosshair' : 'cursor-default'
+              tool === 'draw' || tool === 'polygon' || tool === 'measure' || tool === 'hvac' || tool === 'tile' ? 'cursor-crosshair' : 'cursor-default'
             }`}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
+            onDoubleClick={handleDoubleClick}
           />
 
           {/* Status bar */}
@@ -987,8 +1291,27 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
             </div>
             <div className="flex items-center gap-2">
               <Badge size="sm" variant={tool === 'select' ? 'accent' : 'outline'}>
-                {tool === 'select' ? 'Select' : tool === 'draw' ? 'Draw Room' : tool === 'hvac' ? 'Place HVAC' : tool === 'tile' ? 'Place Tile' : 'Measure'}
+                {tool === 'select'
+                  ? 'Select'
+                  : tool === 'draw'
+                    ? 'Draw Room'
+                    : tool === 'polygon'
+                      ? 'Draw Polygon'
+                      : tool === 'hvac'
+                        ? 'Place HVAC'
+                        : tool === 'tile'
+                          ? 'Place Tile'
+                          : 'Measure'}
               </Badge>
+                {tool === 'polygon' && (
+                  <span className="hidden text-[11px] text-muted-foreground md:inline">
+                    {polygonDraft.length === 0
+                      ? 'Click to add vertices'
+                      : polygonDraft.length < 3
+                        ? `${polygonDraft.length}/3 points`
+                        : `${polygonDraft.length} points · Enter/Double-click to close · Esc to cancel`}
+                  </span>
+                )}
             </div>
           </div>
 
@@ -1090,7 +1413,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
               ) : (
                 <div className="flex flex-col gap-1">
                   {rooms.map((room) => {
-                    const areaM2 = ((room.width / scale) * (room.height / scale)).toFixed(1);
+                    const areaM2 = getRoomAreaM2(room, scale).toFixed(1);
                     return (
                       <button
                         key={room.id}
@@ -1131,6 +1454,11 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-3 pt-0 space-y-2">
+                  {selectedRoom.polygonPoints && selectedRoom.polygonPoints.length >= 3 && (
+                    <p className="rounded-md border border-accent/40 bg-accent/8 px-2 py-1 text-[11px] text-accent">
+                      Polygon room: geometry is vertex-based. Width/depth fields are read-only bounding values.
+                    </p>
+                  )}
                   <Input
                     label="Name"
                     value={selectedRoom.name}
@@ -1148,6 +1476,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
                       type="number"
                       step={0.1}
                       value={((selectedRoom.width / scale)).toFixed(1)}
+                      disabled={Boolean(selectedRoom.polygonPoints && selectedRoom.polygonPoints.length >= 3)}
                       onChange={(e) => updateRoom('width', parseFloat(e.target.value) * scale)}
                     />
                     <Input
@@ -1155,11 +1484,12 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
                       type="number"
                       step={0.1}
                       value={((selectedRoom.height / scale)).toFixed(1)}
+                      disabled={Boolean(selectedRoom.polygonPoints && selectedRoom.polygonPoints.length >= 3)}
                       onChange={(e) => updateRoom('height', parseFloat(e.target.value) * scale)}
                     />
                   </div>
                   <p className="text-xs text-muted-foreground text-center">
-                    Area: {((selectedRoom.width / scale) * (selectedRoom.height / scale)).toFixed(1)} m²
+                    Area: {getRoomAreaM2(selectedRoom, scale).toFixed(1)} m²
                   </p>
                 </CardContent>
               </Card>
@@ -1294,7 +1624,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
                   <span>Scale: 1m = {scale}px</span>
                   {rooms.length > 0 && (
                     <span>
-                      Total area: {rooms.reduce((s, r) => s + (r.width / scale) * (r.height / scale), 0).toFixed(1)} m²
+                      Total area: {rooms.reduce((s, r) => s + getRoomAreaM2(r, scale), 0).toFixed(1)} m²
                     </span>
                   )}
                 </div>

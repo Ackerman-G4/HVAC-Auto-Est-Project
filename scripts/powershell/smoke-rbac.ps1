@@ -169,9 +169,6 @@ function Get-EngineerCredentials {
   elseif (Test-NonEmpty $env:RBAC_ENGINEER_EMAIL) {
     $env:RBAC_ENGINEER_EMAIL
   }
-  elseif (Test-NonEmpty $env:AUTH_SMOKE_EMAIL) {
-    $env:AUTH_SMOKE_EMAIL
-  }
   else {
     ''
   }
@@ -182,9 +179,6 @@ function Get-EngineerCredentials {
   }
   elseif (Test-NonEmpty $env:RBAC_ENGINEER_PASSWORD) {
     $env:RBAC_ENGINEER_PASSWORD
-  }
-  elseif (Test-NonEmpty $env:AUTH_SMOKE_PASSWORD) {
-    $env:AUTH_SMOKE_PASSWORD
   }
   else {
     ''

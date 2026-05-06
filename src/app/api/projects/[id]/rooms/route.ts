@@ -25,8 +25,43 @@ import {
   resourceNotFound,
 } from '@/lib/utils/api-helpers';
 import { finalizeDualValue } from '@/lib/utils/dual-control';
+import {
+  calculatePolygonArea,
+  calculatePolygonPerimeter,
+  parseRoomPolygon,
+} from '@/lib/utils/room-polygon';
 
 type RouteContext = { params: Promise<{ id: string }> };
+
+function derivePolygonMetrics(
+  rawPolygon: unknown,
+  fallbackArea: number,
+  fallbackPerimeter: number,
+): { area: number; perimeter: number } {
+  const polygon = parseRoomPolygon(rawPolygon);
+  if (!polygon) {
+    return {
+      area: Math.max(0, fallbackArea),
+      perimeter: Math.max(0, fallbackPerimeter),
+    };
+  }
+
+  const scale = polygon.scale && polygon.scale > 0
+    ? polygon.scale
+    : 1;
+  const pointsInMeters = polygon.points.map((point) => ({
+    x: point.x / scale,
+    y: point.y / scale,
+  }));
+
+  const area = calculatePolygonArea(pointsInMeters);
+  const perimeter = calculatePolygonPerimeter(pointsInMeters);
+
+  return {
+    area: area > 0 ? area : Math.max(0, fallbackArea),
+    perimeter: perimeter > 0 ? perimeter : Math.max(0, fallbackPerimeter),
+  };
+}
 
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
@@ -75,12 +110,18 @@ export async function POST(request: NextRequest, context: RouteContext) {
       });
     }
 
+    const fallbackArea = typeof body.area === 'number' ? body.area : 0;
+    const fallbackPerimeter = typeof body.perimeter === 'number'
+      ? body.perimeter
+      : (fallbackArea > 0 ? Math.sqrt(fallbackArea) * 4 : 0);
+    const metrics = derivePolygonMetrics(body.polygon, fallbackArea, fallbackPerimeter);
+
     // Create room
     const room = await createRoomRecord(projectId, floor.id, {
       name: body.name || 'New Room',
       spaceType: body.spaceType || 'office',
-      area: body.area || 0,
-      perimeter: body.perimeter || (body.area > 0 ? Math.sqrt(body.area) * 4 : 0),
+      area: metrics.area,
+      perimeter: metrics.perimeter,
       polygon: body.polygon ? JSON.stringify(body.polygon) : '[]',
       ceilingHeight: body.ceilingHeight || floor.ceilingHeight,
       wallConstruction: body.wallConstruction || 'concrete_block_200mm',

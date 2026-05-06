@@ -55,6 +55,14 @@ function signTokens(user: LocalUser) {
 }
 
 export function isLocalAuthMode(): boolean {
+  const authMode = process.env.AUTH_MODE?.trim().toLowerCase();
+  if (authMode === 'local') {
+    return true;
+  }
+  if (authMode === 'firebase') {
+    return false;
+  }
+
   const key = process.env.FIREBASE_WEB_API_KEY;
   return !key || !key.trim();
 }

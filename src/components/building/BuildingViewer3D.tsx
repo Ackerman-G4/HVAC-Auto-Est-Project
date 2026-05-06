@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
-import { parseRoomPolygonRect } from '@/lib/utils/room-polygon';
+import { getPolygonBounds, parseRoomPolygon } from '@/lib/utils/room-polygon';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -134,36 +134,40 @@ function layoutFloor(rooms: RoomData[], floorY: number, floorNum: number): RoomB
   if (!rooms.length) return [];
 
   // Check if any rooms have polygon data — if so, use real positions
-  const hasPolygon = rooms.some((r) => !!parseRoomPolygonRect(r.polygon));
+  const hasPolygon = rooms.some((r) => !!parseRoomPolygon(r.polygon));
 
   if (hasPolygon) {
     // Use persisted pixel positions, converting to meters via stored scale
     const boxes: RoomBox[] = [];
     for (const r of rooms) {
-      const poly = parseRoomPolygonRect(r.polygon);
+      const polygon = parseRoomPolygon(r.polygon);
 
       const dims = roomDims(r);
-      if (poly) {
-        const pxScale = poly.scale || 50;
-        const lM = poly.width / pxScale;
-        const wM = poly.height / pxScale;
-        const xM = poly.x / pxScale;
-        const zM = poly.y / pxScale;
-        boxes.push({
-          room: r, floorNum,
-          x: xM, y: floorY, z: zM,
-          w: lM, h: dims.h, d: wM,
-          lengthM: lM, widthM: wM, heightM: dims.h,
-        });
-      } else {
-        // Fallback for rooms without polygon on this floor
-        boxes.push({
-          room: r, floorNum,
-          x: 0, y: floorY, z: 0,
-          w: dims.l, h: dims.h, d: dims.w,
-          lengthM: dims.l, widthM: dims.w, heightM: dims.h,
-        });
+      if (polygon) {
+        const bounds = getPolygonBounds(polygon.points);
+        if (bounds) {
+          const unitsScale = polygon.scale && polygon.scale > 0 ? polygon.scale : 1;
+          const lM = bounds.width / unitsScale;
+          const wM = bounds.height / unitsScale;
+          const xM = bounds.minX / unitsScale;
+          const zM = bounds.minY / unitsScale;
+          boxes.push({
+            room: r, floorNum,
+            x: xM, y: floorY, z: zM,
+            w: lM, h: dims.h, d: wM,
+            lengthM: lM, widthM: wM, heightM: dims.h,
+          });
+          continue;
+        }
       }
+
+      // Fallback for rooms without valid polygon bounds on this floor
+      boxes.push({
+        room: r, floorNum,
+        x: 0, y: floorY, z: 0,
+        w: dims.l, h: dims.h, d: dims.w,
+        lengthM: dims.l, widthM: dims.w, heightM: dims.h,
+      });
     }
     return boxes;
   }

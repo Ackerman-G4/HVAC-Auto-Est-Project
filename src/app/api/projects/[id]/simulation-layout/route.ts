@@ -60,7 +60,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
     const { id: projectId } = await context.params;
     const body = await request.json();
-    const { floorId, hvacPlacements, tilePlacements, canvasScale } = body;
+    const { floorId, hvacPlacements, tilePlacements, canvasScale, connectionOverrides } = body;
 
     if (!floorId || typeof floorId !== 'string') {
       return errorResponse(400, 'Bad Request', 'floorId is required in the request body.', 'MISSING_FLOOR_ID');
@@ -82,6 +82,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       hvacPlacements,
       tilePlacements,
       canvasScale: typeof canvasScale === 'number' ? canvasScale : 50,
+      ...(Array.isArray(connectionOverrides) ? { connectionOverrides } : {}),
     });
 
     return NextResponse.json({ success: true });

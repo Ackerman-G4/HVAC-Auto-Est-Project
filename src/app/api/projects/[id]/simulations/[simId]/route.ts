@@ -15,6 +15,7 @@ import {
 } from '@/lib/firebase/simulation-cases-store';
 import { buildStructuredGrid } from '@/lib/engine/simulation/geometry-builder';
 import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
+import { buildProjectBuildingGeometry, toFallbackGeometry } from '@/lib/simulation/building-case';
 
 type RouteContext = { params: Promise<{ id: string; simId: string }> };
 
@@ -87,8 +88,19 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     if (body.physics !== undefined) updates.physics = body.physics;
     if (body.solver !== undefined) updates.solver = body.solver;
 
-    // If geometry changed, regenerate mesh
-    if (body.geometry) {
+    const isBuilding = (existing.simulationScope ?? 'room') === 'building';
+
+    // For building-scope cases: re-derive geometry from current project state
+    if (isBuilding && (body.rebuildBuildingGeometryFromProject || body.rebuildGeometry || body.geometry === undefined)) {
+      const buildingGeometry = await buildProjectBuildingGeometry(projectId);
+      updates.buildingGeometry = buildingGeometry;
+      updates.simulationScope = 'building';
+      const geometry = toFallbackGeometry(buildingGeometry);
+      updates.geometry = geometry;
+      // Skip mesh for building-scope (too large for Firestore; runner uses buildingGeometry)
+      updates.status = 'meshed';
+    } else if (body.geometry) {
+      // If geometry changed explicitly, regenerate mesh
       updates.geometry = body.geometry;
       const cellSize = body.cellSize ?? existing.mesh?.cellSizeM ?? 0.1;
       updates.mesh = buildStructuredGrid(body.geometry, cellSize);
