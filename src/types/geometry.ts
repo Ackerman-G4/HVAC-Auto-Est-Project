@@ -20,6 +20,10 @@ export interface WindowOpening {
   width: number;
   height: number;
   sillHeight: number;
+  centerOffsetM?: number;
+  frameThicknessM?: number;
+  mullionCount?: number;
+  frameStyle?: 'minimal' | 'standard' | 'thermally_broken';
   glassType: string;
   shadingCoefficient: number;
   orientation: number;
@@ -30,6 +34,9 @@ export interface DoorOpening {
   width: number;
   height: number;
   sillHeight: number;
+  centerOffsetM?: number;
+  frameThicknessM?: number;
+  leafStyle?: 'flush' | 'glazed' | 'double_leaf' | 'sliding_panel';
   swingDirection: 'left' | 'right' | 'double' | 'sliding';
 }
 
@@ -44,6 +51,7 @@ export interface WallSegment {
   orientation: number;
   windows: WindowOpening[];
   doors: DoorOpening[];
+  placementWarnings?: string[];
 }
 
 export interface RoomGeometry {

@@ -16,11 +16,16 @@ interface FloorRoomSource {
   floorScale: number;
   floorCeilingHeight: number;
   roomName: string;
+  spaceType: string;
   polygon?: string;
   area: number;
   perimeter: number;
   ceilingHeight: number;
   equipmentLoad: number;
+  wallConstruction?: string;
+  windowArea: number;
+  windowOrientation?: string;
+  windowType?: string;
 }
 
 interface FloorSource {
@@ -31,11 +36,16 @@ interface FloorSource {
   rooms: Array<{
     id: string;
     name: string;
+    spaceType?: string;
     polygon?: string;
     area: number;
     perimeter: number;
     ceilingHeight: number;
     equipmentLoad: number;
+    wallConstruction?: string;
+    windowArea?: number;
+    windowOrientation?: string;
+    windowType?: string;
   }>;
 }
 
@@ -55,6 +65,11 @@ interface BuildOptions {
   adjacencyToleranceM?: number;
   minSharedEdgeM?: number;
   includeVerticalConnections?: boolean;
+}
+
+export interface BuildingGeometryAssemblyResult {
+  geometry: BuildingGeometryInput;
+  roomGeometry: RoomGeometry[];
 }
 
 interface BuildingRoomAssembly {
@@ -107,11 +122,16 @@ function buildRoomSources(floors: FloorSource[]): FloorRoomSource[] {
         floorScale: floor.scale,
         floorCeilingHeight: floor.ceilingHeight,
         roomName: room.name,
+        spaceType: room.spaceType ?? 'office',
         polygon: room.polygon,
         area: room.area,
         perimeter: room.perimeter,
         ceilingHeight: room.ceilingHeight,
         equipmentLoad: room.equipmentLoad,
+        wallConstruction: room.wallConstruction,
+        windowArea: room.windowArea ?? 0,
+        windowOrientation: room.windowOrientation,
+        windowType: room.windowType,
       });
     }
   }
@@ -245,6 +265,11 @@ function toBuildingRooms(
       },
       {
         floorElevationM: baseY,
+        wallConstruction: source.wallConstruction,
+        windowAreaM2: source.windowArea,
+        windowOrientation: source.windowOrientation,
+        windowType: source.windowType,
+        spaceType: source.spaceType,
       },
     );
 
@@ -399,11 +424,11 @@ function applyConnectionOverrides(
   return [...byPair.values()];
 }
 
-export function buildBuildingGeometryFromFloors(
+export function buildBuildingGeometryAssemblyFromFloors(
   floors: FloorSource[],
   connectionOverrides: LayoutConnectionOverride[] = [],
   options: BuildOptions = {},
-): BuildingGeometryInput {
+): BuildingGeometryAssemblyResult {
   const roomSources = buildRoomSources(floors);
   const assembly = toBuildingRooms(roomSources, options.floorGapM ?? DEFAULT_FLOOR_GAP_M);
 
@@ -420,8 +445,19 @@ export function buildBuildingGeometryFromFloors(
   const connections = applyConnectionOverrides(inferredConnections, connectionOverrides);
 
   return {
-    buildingId: options.buildingId ?? 'building',
-    rooms: assembly.rooms,
-    connections,
+    geometry: {
+      buildingId: options.buildingId ?? 'building',
+      rooms: assembly.rooms,
+      connections,
+    },
+    roomGeometry: assembly.roomGeometry,
   };
+}
+
+export function buildBuildingGeometryFromFloors(
+  floors: FloorSource[],
+  connectionOverrides: LayoutConnectionOverride[] = [],
+  options: BuildOptions = {},
+): BuildingGeometryInput {
+  return buildBuildingGeometryAssemblyFromFloors(floors, connectionOverrides, options).geometry;
 }

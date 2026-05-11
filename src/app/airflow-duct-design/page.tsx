@@ -21,7 +21,11 @@ import { StatCard } from '@/components/ui/stat-card';
 import { CollapsiblePanel } from '@/components/rebuild/CollapsiblePanel';
 import { DenseColumn, DenseDataTable } from '@/components/rebuild/DenseDataTable';
 import { InputField } from '@/components/rebuild/InputField';
-import { BranchSizingRow } from '@/lib/engine/hvac/airflow-duct-engine';
+import {
+  BranchSizingRow,
+  type AirflowValidationField,
+} from '@/lib/engine/hvac/airflow-duct-engine';
+import { showToast } from '@/components/ui/toast';
 import { useAirflowWorkspaceStore } from '@/stores/airflow-workspace-store';
 import { useLoadWorkspaceStore } from '@/stores/load-workspace-store';
 
@@ -35,12 +39,6 @@ const branchColumns: DenseColumn<BranchSizingRow>[] = [
 ];
 
 export default function AirflowDuctDesignPage() {
-  const [chartsReady, setChartsReady] = React.useState(false);
-
-  React.useEffect(() => {
-    setChartsReady(true);
-  }, []);
-
   const loadCfm = useLoadWorkspaceStore((state) => state.result.breakdown.cfmRequired);
   const inputs = useAirflowWorkspaceStore((state) => state.inputs);
   const overrides = useAirflowWorkspaceStore((state) => state.overrides);
@@ -52,9 +50,35 @@ export default function AirflowDuctDesignPage() {
   const reset = useAirflowWorkspaceStore((state) => state.reset);
   const simulateRun = useAirflowWorkspaceStore((state) => state.simulateRun);
 
+  const validationIssues = result.validationIssues;
+  const blockingIssues = validationIssues.filter((issue) => issue.severity === 'error');
+  const warningIssues = validationIssues.filter((issue) => issue.severity === 'warning');
+  const hasBlockingIssues = blockingIssues.length > 0;
+
+  const loadLinkedCfm = Number.isFinite(loadCfm)
+    ? Math.max(200, Math.round(loadCfm))
+    : null;
+
+  const getFieldHelper = React.useCallback((field: AirflowValidationField): string | undefined => {
+    const issue = validationIssues.find((item) => item.field === field);
+    return issue?.message;
+  }, [validationIssues]);
+
+  const handleRecalculate = React.useCallback(() => {
+    if (hasBlockingIssues) {
+      showToast('error', 'Resolve validation errors before recalculating');
+      return;
+    }
+
+    void simulateRun();
+  }, [hasBlockingIssues, simulateRun]);
+
   React.useEffect(() => {
-    setSupplyCfm(Math.max(200, Math.round(loadCfm)));
-  }, [loadCfm, setSupplyCfm]);
+    if (loadLinkedCfm === null) {
+      return;
+    }
+    setSupplyCfm(loadLinkedCfm);
+  }, [loadLinkedCfm, setSupplyCfm]);
 
   return (
     <div className="space-y-(--space-section-gap)">
@@ -67,26 +91,50 @@ export default function AirflowDuctDesignPage() {
             <p className="mt-1 text-sm text-muted-foreground">Adjust distribution constraints, then recompute branch velocity, pressure loss, and fan duty.</p>
           </div>
           <div className="rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground tabular-nums">
-            Load-linked supply: {Math.max(200, Math.round(loadCfm)).toLocaleString()} CFM
+            Load-linked supply: {loadLinkedCfm !== null ? `${loadLinkedCfm.toLocaleString()} CFM` : 'Unavailable'}
           </div>
         </div>
+        {(hasBlockingIssues || warningIssues.length > 0) && (
+          <div className="mb-4 space-y-2">
+            {hasBlockingIssues && (
+              <div className="rounded-lg border border-destructive/45 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                <p className="font-semibold uppercase tracking-wide">Validation Errors</p>
+                <ul className="mt-1 list-disc space-y-1 pl-4">
+                  {blockingIssues.map((issue, index) => (
+                    <li key={`airflow-error-${issue.field}-${index}`}>{issue.message}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {warningIssues.length > 0 && (
+              <div className="rounded-lg border border-yellow-500/45 bg-yellow-500/10 px-3 py-2 text-xs text-foreground">
+                <p className="font-semibold uppercase tracking-wide">Warnings</p>
+                <ul className="mt-1 list-disc space-y-1 pl-4">
+                  {warningIssues.map((issue, index) => (
+                    <li key={`airflow-warning-${issue.field}-${index}`}>{issue.message}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
         <div className="flex flex-wrap items-end gap-4">
           <div className="grid flex-1 grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-8">
-            <InputField label="Supply CFM" value={inputs.supplyCfm} onValueChange={(next) => setInput('supplyCfm', Number(next))} unit="CFM" min={200} max={60000} step={50} />
-            <InputField label="Branches" value={inputs.branches} onValueChange={(next) => setInput('branches', Math.max(1, Math.round(Number(next))))} min={1} max={12} step={1} />
-            <InputField label="Trunk Length" value={inputs.trunkLengthFt} onValueChange={(next) => setInput('trunkLengthFt', Number(next))} unit="ft" min={10} max={800} step={1} />
-            <InputField label="Longest Branch" value={inputs.longestBranchLengthFt} onValueChange={(next) => setInput('longestBranchLengthFt', Number(next))} unit="ft" min={5} max={600} step={1} />
-            <InputField label="Friction Rate" value={inputs.frictionRateInWgPer100Ft} onValueChange={(next) => setInput('frictionRateInWgPer100Ft', Number(next))} unit="in.wg/100ft" min={0.03} max={0.3} step={0.01} />
-            <InputField label="Target Velocity" value={inputs.targetVelocityFpm} onValueChange={(next) => setInput('targetVelocityFpm', Number(next))} unit="FPM" min={500} max={1800} step={10} />
-            <InputField label="Fan Efficiency" value={inputs.fanEfficiency} onValueChange={(next) => setInput('fanEfficiency', Number(next))} min={0.4} max={0.85} step={0.01} />
-            <InputField label="Fitting Loss" value={inputs.fittingLossFactor} onValueChange={(next) => setInput('fittingLossFactor', Number(next))} unit="in.wg" min={0} max={4} step={0.05} />
+            <InputField label="Supply CFM" value={inputs.supplyCfm} onValueChange={(next) => setInput('supplyCfm', Number(next))} unit="CFM" min={200} max={60000} step={50} helperText={getFieldHelper('supplyCfm')} />
+            <InputField label="Branches" value={inputs.branches} onValueChange={(next) => setInput('branches', Math.max(1, Math.round(Number(next))))} min={1} max={12} step={1} helperText={getFieldHelper('branches')} />
+            <InputField label="Trunk Length" value={inputs.trunkLengthFt} onValueChange={(next) => setInput('trunkLengthFt', Number(next))} unit="ft" min={10} max={800} step={1} helperText={getFieldHelper('trunkLengthFt')} />
+            <InputField label="Longest Branch" value={inputs.longestBranchLengthFt} onValueChange={(next) => setInput('longestBranchLengthFt', Number(next))} unit="ft" min={5} max={600} step={1} helperText={getFieldHelper('longestBranchLengthFt')} />
+            <InputField label="Friction Rate" value={inputs.frictionRateInWgPer100Ft} onValueChange={(next) => setInput('frictionRateInWgPer100Ft', Number(next))} unit="in.wg/100ft" min={0.03} max={0.3} step={0.01} helperText={getFieldHelper('frictionRateInWgPer100Ft')} />
+            <InputField label="Target Velocity" value={inputs.targetVelocityFpm} onValueChange={(next) => setInput('targetVelocityFpm', Number(next))} unit="FPM" min={500} max={1800} step={10} helperText={getFieldHelper('targetVelocityFpm')} />
+            <InputField label="Fan Efficiency" value={inputs.fanEfficiency} onValueChange={(next) => setInput('fanEfficiency', Number(next))} min={0.4} max={0.85} step={0.01} helperText={getFieldHelper('fanEfficiency')} />
+            <InputField label="Fitting Loss" value={inputs.fittingLossFactor} onValueChange={(next) => setInput('fittingLossFactor', Number(next))} unit="in.wg" min={0} max={4} step={0.05} helperText={getFieldHelper('fittingLossFactor')} />
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={reset}>
               <RefreshCcw size={14} className="mr-1" />
               Reset
             </Button>
-            <Button size="sm" isLoading={loading} onClick={() => void simulateRun()}>
+            <Button size="sm" isLoading={loading} disabled={hasBlockingIssues} onClick={handleRecalculate}>
               <WandSparkles size={14} className="mr-1" />
               Recalculate
             </Button>
@@ -116,7 +164,7 @@ export default function AirflowDuctDesignPage() {
             Velocity & Pressure Profile
           </h3>
           <div className="h-75 w-full">
-            {chartsReady ? (
+            {result.branchRows.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={result.branchRows} margin={{ top: 6, right: 14, bottom: 6, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="color-mix(in oklab,var(--border) 78%,transparent)" />
@@ -131,7 +179,7 @@ export default function AirflowDuctDesignPage() {
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex h-full items-center justify-center text-xs text-muted-foreground">Preparing chart...</div>
+              <div className="flex h-full items-center justify-center text-xs text-muted-foreground">No branch data available.</div>
             )}
           </div>
         </Card>
@@ -141,7 +189,7 @@ export default function AirflowDuctDesignPage() {
             CFM Distribution
           </h3>
           <div className="h-75 w-full">
-            {chartsReady ? (
+            {result.branchRows.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={result.branchRows} margin={{ top: 6, right: 14, bottom: 6, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="color-mix(in oklab,var(--border) 78%,transparent)" />
@@ -152,7 +200,7 @@ export default function AirflowDuctDesignPage() {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex h-full items-center justify-center text-xs text-muted-foreground">Preparing chart...</div>
+              <div className="flex h-full items-center justify-center text-xs text-muted-foreground">No branch data available.</div>
             )}
           </div>
         </Card>
@@ -184,6 +232,7 @@ export default function AirflowDuctDesignPage() {
                 min={0.1}
                 max={8}
                 step={0.05}
+                helperText={getFieldHelper('manualStaticPressureInWg')}
               />
             )}
           </div>

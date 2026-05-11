@@ -38,11 +38,11 @@ import { showToast } from '@/components/ui/toast';
 import FloorPlanMultiView from '@/components/floorplan/FloorPlanMultiView';
 import {
   calculatePolygonArea,
-  calculatePolygonPerimeter,
   createRectPolygonPoints,
   getPolygonBounds,
   parseRoomPolygon,
   parseRoomPolygonRect,
+  validateRoomPolygon,
   type RoomPolygonPoint,
 } from '@/lib/utils/room-polygon';
 import Link from 'next/link';
@@ -130,6 +130,55 @@ function pointInPolygon(point: RoomPolygonPoint, polygon: RoomPolygonPoint[]): b
   return inside;
 }
 
+function distancePointToSegment(
+  point: RoomPolygonPoint,
+  segmentStart: RoomPolygonPoint,
+  segmentEnd: RoomPolygonPoint,
+): number {
+  const dx = segmentEnd.x - segmentStart.x;
+  const dy = segmentEnd.y - segmentStart.y;
+
+  if (dx === 0 && dy === 0) {
+    return Math.hypot(point.x - segmentStart.x, point.y - segmentStart.y);
+  }
+
+  const t = ((point.x - segmentStart.x) * dx + (point.y - segmentStart.y) * dy) / (dx * dx + dy * dy);
+  const clampedT = Math.max(0, Math.min(1, t));
+  const closestX = segmentStart.x + clampedT * dx;
+  const closestY = segmentStart.y + clampedT * dy;
+
+  return Math.hypot(point.x - closestX, point.y - closestY);
+}
+
+function findNearestEdgeIndex(
+  polygon: RoomPolygonPoint[],
+  point: RoomPolygonPoint,
+  maxDistance: number,
+): number | null {
+  if (polygon.length < 3) {
+    return null;
+  }
+
+  let nearestIndex: number | null = null;
+  let nearestDistance = Number.POSITIVE_INFINITY;
+
+  for (let i = 0; i < polygon.length; i++) {
+    const start = polygon[i];
+    const end = polygon[(i + 1) % polygon.length];
+    const distance = distancePointToSegment(point, start, end);
+    if (distance < nearestDistance) {
+      nearestDistance = distance;
+      nearestIndex = i;
+    }
+  }
+
+  if (nearestDistance > maxDistance) {
+    return null;
+  }
+
+  return nearestIndex;
+}
+
 function getRoomPolygonPoints(room: CanvasRoom): RoomPolygonPoint[] {
   if (room.polygonPoints && room.polygonPoints.length >= 3) {
     return room.polygonPoints;
@@ -149,14 +198,6 @@ function getRoomAreaM2(room: CanvasRoom, scalePxPerM: number): number {
     y: point.y / scalePxPerM,
   }));
   return calculatePolygonArea(points);
-}
-
-function getRoomPerimeterM(room: CanvasRoom, scalePxPerM: number): number {
-  const points = getRoomPolygonPoints(room).map((point) => ({
-    x: point.x / scalePxPerM,
-    y: point.y / scalePxPerM,
-  }));
-  return calculatePolygonPerimeter(points);
 }
 
 function getRoomLabelCenter(room: CanvasRoom): { x: number; y: number } {
@@ -197,6 +238,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
   const { id } = use(params);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dragInvalidMessageRef = useRef<string | null>(null);
 
   const [floors, setFloors] = useState<FloorData[]>([]);
   const [activeFloor, setActiveFloor] = useState<number>(0);
@@ -213,6 +255,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
   const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
   const [drawCurrent, setDrawCurrent] = useState<{ x: number; y: number } | null>(null);
   const [polygonDraft, setPolygonDraft] = useState<RoomPolygonPoint[]>([]);
+  const [draggingVertex, setDraggingVertex] = useState<{ roomId: string; vertexIndex: number } | null>(null);
   const [Pan, setPan] = useState({ x: 0, y: 0 });
   const [showImagePreview, setShowImagePreview] = useState(false);
   const [bgImageSrc, setBgImageSrc] = useState<string | null>(null);
@@ -345,6 +388,13 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
 
   const snapToGrid = useCallback((val: number) => Math.round(val / (scale / 4)) * (scale / 4), [scale]);
 
+  const validateCanvasPolygon = useCallback((points: RoomPolygonPoint[]) => {
+    return validateRoomPolygon(
+      points.map((point) => ({ x: point.x / scale, y: point.y / scale })),
+      { minArea: 0.25, epsilon: 1e-6 },
+    );
+  }, [scale]);
+
   // Canvas rendering
   const render = useCallback(() => {
     const canvas = canvasRef.current;
@@ -437,6 +487,20 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
         ctx.stroke();
       } else {
         ctx.strokeRect(room.x, room.y, room.width, room.height);
+      }
+
+      // Vertex handles (select mode only)
+      if (isSelected && tool === 'select' && roomPolygon) {
+        roomPolygon.forEach((point, vertexIndex) => {
+          const isActiveVertex = draggingVertex?.roomId === room.id && draggingVertex.vertexIndex === vertexIndex;
+          ctx.beginPath();
+          ctx.fillStyle = isActiveVertex ? '#F97316' : '#2563EB';
+          ctx.strokeStyle = '#FFFFFF';
+          ctx.lineWidth = 1.5;
+          ctx.arc(point.x, point.y, isActiveVertex ? 6 : 5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        });
       }
 
       // Label
@@ -597,7 +661,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
     }
 
     ctx.restore();
-  }, [rooms, selectedRoom, bgImage, showBgOnCanvas, showGrid, scale, zoom, Pan, isDrawing, drawStart, drawCurrent, polygonDraft, walls, layoutHVAC, layoutTiles, dragGhost, draggingId, tool, snapToGrid]);
+  }, [rooms, selectedRoom, bgImage, showBgOnCanvas, showGrid, scale, zoom, Pan, isDrawing, drawStart, drawCurrent, polygonDraft, walls, layoutHVAC, layoutTiles, dragGhost, draggingId, draggingVertex, tool, snapToGrid]);
 
   useEffect(() => {
     render();
@@ -634,20 +698,19 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
       return;
     }
 
+    const validation = validateCanvasPolygon(polygonDraft);
+    if (!validation.isValid) {
+      showToast('warning', validation.issues[0] ?? 'Polygon geometry is invalid');
+      return;
+    }
+
     const bounds = getPolygonBounds(polygonDraft);
-    if (!bounds || bounds.width < scale * 0.4 || bounds.height < scale * 0.4) {
-      showToast('warning', 'Polygon is too small');
+    if (!bounds) {
+      showToast('warning', 'Polygon bounds are invalid');
       return;
     }
 
-    const areaM2 = calculatePolygonArea(
-      polygonDraft.map((point) => ({ x: point.x / scale, y: point.y / scale })),
-    );
-
-    if (areaM2 < 0.25) {
-      showToast('warning', 'Room area must be at least 0.25 m²');
-      return;
-    }
+    const areaM2 = validation.area;
 
     const newRoom: CanvasRoom = {
       id: `room_${Date.now()}`,
@@ -666,7 +729,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
     setPolygonDraft([]);
     setDrawCurrent(null);
     showToast('success', `Polygon room added: ${areaM2.toFixed(1)} m²`);
-  }, [polygonDraft, scale, rooms]);
+  }, [polygonDraft, rooms, validateCanvasPolygon]);
 
   useEffect(() => {
     if (tool !== 'polygon') return;
@@ -786,6 +849,114 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
     }
 
     if (tool === 'select') {
+      const vertexHitRadius = Math.max(8 / zoom, 3);
+      const edgeHitRadius = Math.max(10 / zoom, 4);
+
+      for (const room of [...rooms].reverse()) {
+        if (!room.polygonPoints || room.polygonPoints.length < 3) {
+          continue;
+        }
+
+        for (let vertexIndex = 0; vertexIndex < room.polygonPoints.length; vertexIndex++) {
+          const vertex = room.polygonPoints[vertexIndex];
+          const distance = Math.hypot(pos.x - vertex.x, pos.y - vertex.y);
+          if (distance <= vertexHitRadius) {
+            setSelectedRoom(room);
+
+            if (e.shiftKey) {
+              if (room.polygonPoints.length <= 3) {
+                showToast('warning', 'Polygon must keep at least 3 vertices');
+                return;
+              }
+
+              const updatedPoints = room.polygonPoints.filter((_, idx) => idx !== vertexIndex);
+              const validation = validateCanvasPolygon(updatedPoints);
+              if (!validation.isValid) {
+                showToast('warning', validation.issues[0] ?? 'Cannot remove vertex: polygon would be invalid');
+                return;
+              }
+
+              const bounds = getPolygonBounds(updatedPoints);
+              if (!bounds) {
+                showToast('warning', 'Cannot remove vertex: polygon bounds are invalid');
+                return;
+              }
+
+              const updatedRoom: CanvasRoom = {
+                ...room,
+                polygonPoints: updatedPoints,
+                x: bounds.minX,
+                y: bounds.minY,
+                width: bounds.width,
+                height: bounds.height,
+              };
+
+              setRooms((previousRooms) => previousRooms.map((candidate) => (
+                candidate.id === room.id ? updatedRoom : candidate
+              )));
+              setSelectedRoom(updatedRoom);
+              showToast('success', 'Vertex removed');
+              return;
+            }
+
+            dragInvalidMessageRef.current = null;
+            setDraggingVertex({ roomId: room.id, vertexIndex });
+            return;
+          }
+        }
+      }
+
+      if (e.altKey) {
+        for (const room of [...rooms].reverse()) {
+          if (!room.polygonPoints || room.polygonPoints.length < 3) {
+            continue;
+          }
+
+          const edgeIndex = findNearestEdgeIndex(room.polygonPoints, pos, edgeHitRadius);
+          if (edgeIndex === null) {
+            continue;
+          }
+
+          const insertedPoint = {
+            x: snapToGrid(pos.x),
+            y: snapToGrid(pos.y),
+          };
+          const updatedPoints = [
+            ...room.polygonPoints.slice(0, edgeIndex + 1),
+            insertedPoint,
+            ...room.polygonPoints.slice(edgeIndex + 1),
+          ];
+          const validation = validateCanvasPolygon(updatedPoints);
+
+          if (!validation.isValid) {
+            showToast('warning', validation.issues[0] ?? 'Cannot insert vertex: polygon would be invalid');
+            return;
+          }
+
+          const bounds = getPolygonBounds(updatedPoints);
+          if (!bounds) {
+            showToast('warning', 'Cannot insert vertex: polygon bounds are invalid');
+            return;
+          }
+
+          const updatedRoom: CanvasRoom = {
+            ...room,
+            polygonPoints: updatedPoints,
+            x: bounds.minX,
+            y: bounds.minY,
+            width: bounds.width,
+            height: bounds.height,
+          };
+
+          setRooms((previousRooms) => previousRooms.map((candidate) => (
+            candidate.id === room.id ? updatedRoom : candidate
+          )));
+          setSelectedRoom(updatedRoom);
+          showToast('success', 'Vertex inserted');
+          return;
+        }
+      }
+
       // Check if clicking on a room
       const room = [...rooms].reverse().find(
         (r) => {
@@ -801,6 +972,57 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const pos = getCanvasPos(e);
+
+    if (draggingVertex) {
+      const nextPoint = {
+        x: snapToGrid(pos.x),
+        y: snapToGrid(pos.y),
+      };
+
+      setRooms((previousRooms) => {
+        let updatedSelectedRoom: CanvasRoom | null = null;
+
+        const updatedRooms = previousRooms.map((room) => {
+          if (room.id !== draggingVertex.roomId || !room.polygonPoints || room.polygonPoints.length < 3) {
+            return room;
+          }
+
+          const updatedPoints = room.polygonPoints.map((point, index) => (
+            index === draggingVertex.vertexIndex ? nextPoint : point
+          ));
+          const validation = validateCanvasPolygon(updatedPoints);
+          if (!validation.isValid) {
+            dragInvalidMessageRef.current = validation.issues[0] ?? 'Polygon geometry is invalid.';
+            return room;
+          }
+
+          dragInvalidMessageRef.current = null;
+          const bounds = getPolygonBounds(updatedPoints);
+          if (!bounds) {
+            dragInvalidMessageRef.current = 'Polygon bounds are invalid.';
+            return room;
+          }
+
+          const updatedRoom: CanvasRoom = {
+            ...room,
+            polygonPoints: updatedPoints,
+            x: bounds.minX,
+            y: bounds.minY,
+            width: bounds.width,
+            height: bounds.height,
+          };
+          updatedSelectedRoom = updatedRoom;
+          return updatedRoom;
+        });
+
+        if (updatedSelectedRoom) {
+          setSelectedRoom(updatedSelectedRoom);
+        }
+
+        return updatedRooms;
+      });
+      return;
+    }
 
     // Drag ghost for hvac/tile placement preview
     if (tool === 'hvac' || tool === 'tile') {
@@ -830,6 +1052,16 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
   };
 
   const handleMouseUp = () => {
+    if (draggingVertex) {
+      const invalidMessage = dragInvalidMessageRef.current;
+      dragInvalidMessageRef.current = null;
+      setDraggingVertex(null);
+      if (invalidMessage) {
+        showToast('warning', invalidMessage);
+      }
+      return;
+    }
+
     if (draggingId) {
       setDraggingId(null);
       return;
@@ -1065,12 +1297,28 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
       return;
     }
 
+    for (const room of rooms) {
+      const polygonPoints = getRoomPolygonPoints(room);
+      const validation = validateCanvasPolygon(polygonPoints);
+      if (!validation.isValid) {
+        setSelectedRoom(room);
+        showToast('error', `Cannot save ${room.name}: ${validation.issues[0] ?? 'Invalid polygon geometry'}`);
+        return;
+      }
+    }
+
     try {
       let saved = 0;
       for (const room of rooms) {
-        const areaSqM = getRoomAreaM2(room, scale);
-        const perimeterM = getRoomPerimeterM(room, scale);
         const polygonPoints = getRoomPolygonPoints(room);
+        const validation = validateCanvasPolygon(polygonPoints);
+        if (!validation.isValid) {
+          showToast('error', `Cannot save ${room.name}: ${validation.issues[0] ?? 'Invalid polygon geometry'}`);
+          return;
+        }
+
+        const areaSqM = validation.area;
+        const perimeterM = validation.perimeter;
         const polygon = {
           points: polygonPoints,
           scale,
@@ -1148,6 +1396,13 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
     setRooms(rooms.filter((r) => r.id !== selectedRoom.id));
     setSelectedRoom(null);
   };
+
+  const selectedPolygonValidationIssue = selectedRoom?.polygonPoints && selectedRoom.polygonPoints.length >= 3
+    ? (() => {
+        const validation = validateCanvasPolygon(selectedRoom.polygonPoints ?? []);
+        return validation.isValid ? null : (validation.issues[0] ?? 'Polygon geometry is invalid');
+      })()
+    : null;
 
   return (
     <PageWrapper>
@@ -1303,6 +1558,15 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
                           ? 'Place Tile'
                           : 'Measure'}
               </Badge>
+              {tool === 'select' && selectedRoom?.polygonPoints && selectedRoom.polygonPoints.length >= 3 && (
+                <span className="hidden text-[11px] text-muted-foreground md:inline">
+                  {selectedPolygonValidationIssue
+                    ? `Polygon issue: ${selectedPolygonValidationIssue}`
+                    : draggingVertex
+                      ? 'Dragging vertex…'
+                      : 'Tip: drag points, Alt+click edge to insert, Shift+click point to delete'}
+                </span>
+              )}
                 {tool === 'polygon' && (
                   <span className="hidden text-[11px] text-muted-foreground md:inline">
                     {polygonDraft.length === 0
@@ -1456,7 +1720,12 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
                 <CardContent className="p-3 pt-0 space-y-2">
                   {selectedRoom.polygonPoints && selectedRoom.polygonPoints.length >= 3 && (
                     <p className="rounded-md border border-accent/40 bg-accent/8 px-2 py-1 text-[11px] text-accent">
-                      Polygon room: geometry is vertex-based. Width/depth fields are read-only bounding values.
+                      Polygon room: drag points to reshape, Alt+click edge to insert a vertex, Shift+click point to remove.
+                    </p>
+                  )}
+                  {selectedPolygonValidationIssue && (
+                    <p className="rounded-md border border-destructive/45 bg-destructive/10 px-2 py-1 text-[11px] text-destructive">
+                      {selectedPolygonValidationIssue}
                     </p>
                   )}
                   <Input

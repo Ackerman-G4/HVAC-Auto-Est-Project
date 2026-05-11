@@ -1,7 +1,35 @@
 'use client';
 
 import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
-import { getPolygonBounds, parseRoomPolygon } from '@/lib/utils/room-polygon';
+import { adaptFloorsForBuildingViewer } from '@/lib/simulation/building-viewer-adapter';
+
+interface ViewerWallSegment {
+  id: string;
+  start: { x: number; y: number; z: number };
+  end: { x: number; y: number; z: number };
+  heightM: number;
+  thicknessM: number;
+  placementWarnings: string[];
+  windows: Array<{
+    id: string;
+    width: number;
+    height: number;
+    sillHeight: number;
+    centerOffsetM?: number;
+    frameThicknessM?: number;
+    mullionCount?: number;
+    frameStyle?: 'minimal' | 'standard' | 'thermally_broken';
+  }>;
+  doors: Array<{
+    id: string;
+    width: number;
+    height: number;
+    sillHeight: number;
+    centerOffsetM?: number;
+    frameThicknessM?: number;
+    leafStyle?: 'flush' | 'glazed' | 'double_leaf' | 'sliding_panel';
+  }>;
+}
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -14,9 +42,21 @@ interface RoomData {
   perimeter?: number;
   ceilingHeight: number;
   polygon?: string;
+  wallConstruction?: string;
+  windowArea?: number;
+  windowOrientation?: string;
+  windowType?: string;
   coolingLoad?: { trValue: number; btuPerHour: number; totalLoad: number } | null;
+  equipmentLoad?: number;
 }
-interface FloorData { id: string; floorNumber: number; name: string; rooms: RoomData[] }
+interface FloorData {
+  id: string;
+  floorNumber: number;
+  name: string;
+  scale?: number;
+  ceilingHeight?: number;
+  rooms: RoomData[];
+}
 interface Props { floors: FloorData[]; buildingType: string; projectName: string }
 
 type V3 = [number, number, number];
@@ -121,77 +161,14 @@ function pointInPoly(x: number, y: number, pts: V2[]): boolean {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Layout: pack rooms per floor                                       */
+/*  Viewer room prism type                                             */
 /* ------------------------------------------------------------------ */
 interface RoomBox {
   room: RoomData; floorNum: number;
   x: number; y: number; z: number;
   w: number; h: number; d: number;
   lengthM: number; widthM: number; heightM: number;
-}
-
-function layoutFloor(rooms: RoomData[], floorY: number, floorNum: number): RoomBox[] {
-  if (!rooms.length) return [];
-
-  // Check if any rooms have polygon data — if so, use real positions
-  const hasPolygon = rooms.some((r) => !!parseRoomPolygon(r.polygon));
-
-  if (hasPolygon) {
-    // Use persisted pixel positions, converting to meters via stored scale
-    const boxes: RoomBox[] = [];
-    for (const r of rooms) {
-      const polygon = parseRoomPolygon(r.polygon);
-
-      const dims = roomDims(r);
-      if (polygon) {
-        const bounds = getPolygonBounds(polygon.points);
-        if (bounds) {
-          const unitsScale = polygon.scale && polygon.scale > 0 ? polygon.scale : 1;
-          const lM = bounds.width / unitsScale;
-          const wM = bounds.height / unitsScale;
-          const xM = bounds.minX / unitsScale;
-          const zM = bounds.minY / unitsScale;
-          boxes.push({
-            room: r, floorNum,
-            x: xM, y: floorY, z: zM,
-            w: lM, h: dims.h, d: wM,
-            lengthM: lM, widthM: wM, heightM: dims.h,
-          });
-          continue;
-        }
-      }
-
-      // Fallback for rooms without valid polygon bounds on this floor
-      boxes.push({
-        room: r, floorNum,
-        x: 0, y: floorY, z: 0,
-        w: dims.l, h: dims.h, d: dims.w,
-        lengthM: dims.l, widthM: dims.w, heightM: dims.h,
-      });
-    }
-    return boxes;
-  }
-
-  // Fallback: bin-packing layout (no polygon data)
-  const items = rooms.map(r => ({ room: r, ...roomDims(r) }))
-    .sort((a, b) => b.l * b.w - a.l * a.w);
-  const totalArea = rooms.reduce((s, r) => s + Math.max(1, r.area || 1), 0);
-  const rowW = Math.max(8, Math.sqrt(totalArea) * 1.4);
-  const gap = 0.25;
-  const boxes: RoomBox[] = [];
-  let cx = 0, cz = 0, rd = 0;
-  for (const it of items) {
-    if (cx > 0 && cx + it.l > rowW) { cx = 0; cz += rd + gap; rd = 0; }
-    boxes.push({
-      room: it.room, floorNum,
-      x: cx, y: floorY, z: cz,
-      w: it.l, h: it.h, d: it.w,
-      lengthM: it.l, widthM: it.w, heightM: it.h,
-    });
-    cx += it.l + gap;
-    rd = Math.max(rd, it.w);
-  }
-  return boxes;
+  walls: ViewerWallSegment[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -206,6 +183,39 @@ interface Face {
   dimLabel?: string;
   isSlab: boolean;
   isWall: boolean;
+}
+
+interface WallPrismFace {
+  pts: V2[];
+  depth: number;
+  fill: string;
+  stroke: string;
+}
+
+type OpeningRenderKind = 'window' | 'door';
+
+interface OpeningQuad {
+  pts: V2[];
+  depth: number;
+  kind: OpeningRenderKind;
+  fill: string;
+  stroke: string;
+  frameWidth: number;
+}
+
+interface OpeningRevealFace {
+  pts: V2[];
+  depth: number;
+  fill: string;
+  stroke: string;
+}
+
+interface OpeningDetailLine {
+  from: V2;
+  to: V2;
+  depth: number;
+  stroke: string;
+  lineWidth: number;
 }
 
 /* ------------------------------------------------------------------ */
@@ -256,34 +266,62 @@ export default function BuildingViewer3D({ floors, buildingType, projectName }: 
   const allFloorGeos = useMemo(() => {
     const slabH = 0.25;
     const geos: FloorGeo[] = [];
-    let curY = 0;
     const dummyRoom: RoomData = { id: '', name: '', spaceType: '', area: 0, ceilingHeight: 0 };
+    const adapted = adaptFloorsForBuildingViewer(sorted);
 
-    for (const fl of sorted) {
-      const fb = layoutFloor(fl.rooms, curY, fl.floorNumber);
-      if (fb.length) {
-        const mnX = Math.min(...fb.map(b => b.x)) - 0.6;
-        const mnZ = Math.min(...fb.map(b => b.z)) - 0.6;
-        const mxX = Math.max(...fb.map(b => b.x + b.w)) + 0.6;
-        const mxZ = Math.max(...fb.map(b => b.z + b.d)) + 0.6;
-        geos.push({
-          floorNumber: fl.floorNumber,
-          floorName: fl.name,
-          boxes: fb,
-          slab: {
-            room: { ...dummyRoom, id: `slab-${fl.id}` },
-            floorNum: fl.floorNumber,
-            x: mnX, y: curY - slabH, z: mnZ,
-            w: mxX - mnX, h: slabH, d: mxZ - mnZ,
-            lengthM: mxX - mnX, widthM: mxZ - mnZ, heightM: slabH,
-          },
-          label: { text: fl.name, pos: [(mnX + mxX) / 2, curY + (fb[0]?.h || 3) / 2, mnZ - 1.8] },
-        });
+    for (const floor of adapted.floors) {
+      const fb: RoomBox[] = floor.rooms.map((room) => ({
+        room: room.room,
+        floorNum: room.floorNumber,
+        x: room.x,
+        y: room.y,
+        z: room.z,
+        w: room.w,
+        h: room.h,
+        d: room.d,
+        lengthM: room.lengthM,
+        widthM: room.widthM,
+        heightM: room.heightM,
+        walls: room.walls,
+      }));
+
+      if (!fb.length) {
+        continue;
       }
-      const maxH = fb.reduce((m, b) => Math.max(m, b.h), 3);
-      curY += maxH + slabH;
+
+      const minX = Math.min(...fb.map((box) => box.x)) - 0.6;
+      const minZ = Math.min(...fb.map((box) => box.z)) - 0.6;
+      const maxX = Math.max(...fb.map((box) => box.x + box.w)) + 0.6;
+      const maxZ = Math.max(...fb.map((box) => box.z + box.d)) + 0.6;
+      const minY = Math.min(...fb.map((box) => box.y));
+      const maxH = fb.reduce((max, box) => Math.max(max, box.h), 3);
+
+      geos.push({
+        floorNumber: floor.floorNumber,
+        floorName: floor.floorName,
+        boxes: fb,
+        slab: {
+          room: { ...dummyRoom, id: `slab-${floor.floorId}` },
+          floorNum: floor.floorNumber,
+          x: minX,
+          y: minY - slabH,
+          z: minZ,
+          w: maxX - minX,
+          h: slabH,
+          d: maxZ - minZ,
+          lengthM: maxX - minX,
+          widthM: maxZ - minZ,
+          heightM: slabH,
+          walls: [],
+        },
+        label: {
+          text: floor.floorName,
+          pos: [(minX + maxX) / 2, minY + maxH / 2, minZ - 1.8],
+        },
+      });
     }
-    return geos;
+
+    return geos.sort((a, b) => a.floorNumber - b.floorNumber);
   }, [sorted]);
 
   /* ---------- filtered geometry based on viewFloor ---------- */
@@ -395,6 +433,378 @@ export default function BuildingViewer3D({ floors, buildingType, projectName }: 
     }
 
     const faces: Face[] = [];
+    const wallPrismFaces: WallPrismFace[] = [];
+    const openingRevealFaces: OpeningRevealFace[] = [];
+    const openingQuads: OpeningQuad[] = [];
+    const openingDetailLines: OpeningDetailLine[] = [];
+
+    const toProjectedFace = (vertices: V3[]) => {
+      const transformed = vertices.map(xf);
+      const projected = transformed.map((point) => pj(point));
+      return {
+        pts: projected,
+        signed: signedArea(projected),
+        depth: Math.max(...transformed.map((point) => point[2])),
+      };
+    };
+
+    const toWallPrismFace = (vertices: V3[], fill: string, stroke: string): WallPrismFace => {
+      const projected = toProjectedFace(vertices);
+      return {
+        pts: projected.pts,
+        depth: projected.depth,
+        fill,
+        stroke,
+      };
+    };
+
+    const pointOnQuad = (quad: V2[], u: number, v: number): V2 => {
+      const p0 = quad[0];
+      const p1 = quad[1];
+      const p2 = quad[2];
+      const p3 = quad[3];
+      const w0 = (1 - u) * (1 - v);
+      const w1 = u * (1 - v);
+      const w2 = u * v;
+      const w3 = (1 - u) * v;
+
+      return [
+        p0[0] * w0 + p1[0] * w1 + p2[0] * w2 + p3[0] * w3,
+        p0[1] * w0 + p1[1] * w1 + p2[1] * w2 + p3[1] * w3,
+      ];
+    };
+
+    const pushQuadOutlineLines = (
+      quad: V2[],
+      depth: number,
+      stroke: string,
+      lineWidth: number,
+    ): void => {
+      for (let i = 0; i < quad.length; i++) {
+        const next = (i + 1) % quad.length;
+        openingDetailLines.push({
+          from: quad[i],
+          to: quad[next],
+          depth,
+          stroke,
+          lineWidth,
+        });
+      }
+    };
+
+    const addWallPrism = (wall: ViewerWallSegment) => {
+      const dx = wall.end.x - wall.start.x;
+      const dz = wall.end.z - wall.start.z;
+      const span = Math.hypot(dx, dz);
+      if (span <= 1e-6 || wall.heightM <= 0) {
+        return;
+      }
+
+      const thickness = Math.max(0.03, Math.min(0.35, wall.thicknessM));
+      const unitX = dx / span;
+      const unitZ = dz / span;
+      const unitNX = -unitZ;
+      const unitNZ = unitX;
+      const nx = unitNX * thickness;
+      const nz = unitNZ * thickness;
+
+      const bottomY = Math.min(wall.start.y, wall.end.y);
+      const topY = bottomY + wall.heightM;
+      const a: V3 = [wall.start.x, bottomY, wall.start.z];
+      const b: V3 = [wall.end.x, bottomY, wall.end.z];
+      const c: V3 = [wall.end.x, topY, wall.end.z];
+      const d: V3 = [wall.start.x, topY, wall.start.z];
+      const a2: V3 = [a[0] + nx, a[1], a[2] + nz];
+      const b2: V3 = [b[0] + nx, b[1], b[2] + nz];
+      const c2: V3 = [c[0] + nx, c[1], c[2] + nz];
+      const d2: V3 = [d[0] + nx, d[1], d[2] + nz];
+
+      const innerFace = toProjectedFace([a, b, c, d]);
+      const outerFace = toProjectedFace([a2, b2, c2, d2]);
+
+      wallPrismFaces.push({
+        pts: innerFace.pts,
+        depth: innerFace.depth,
+        fill: 'rgba(148, 163, 184, 0.14)',
+        stroke: 'rgba(100, 116, 139, 0.35)',
+      });
+      wallPrismFaces.push({
+        pts: outerFace.pts,
+        depth: outerFace.depth,
+        fill: 'rgba(71, 85, 105, 0.14)',
+        stroke: 'rgba(71, 85, 105, 0.32)',
+      });
+      wallPrismFaces.push(toWallPrismFace([d, c, c2, d2], 'rgba(226, 232, 240, 0.2)', 'rgba(148, 163, 184, 0.35)'));
+      wallPrismFaces.push(toWallPrismFace([a, d, d2, a2], 'rgba(148, 163, 184, 0.16)', 'rgba(100, 116, 139, 0.3)'));
+      wallPrismFaces.push(toWallPrismFace([b, c, c2, b2], 'rgba(148, 163, 184, 0.16)', 'rgba(100, 116, 139, 0.3)'));
+
+      const openingSpecs = [
+        ...wall.doors.map((door) => ({
+          kind: 'door' as const,
+          width: Math.max(0.4, door.width),
+          height: Math.max(0.5, door.height),
+          sillHeight: Math.max(0, door.sillHeight),
+          centerOffsetM: Number.isFinite(door.centerOffsetM) ? door.centerOffsetM : undefined,
+          frameThicknessM: Math.max(0.02, door.frameThicknessM ?? 0.04),
+          leafStyle: door.leafStyle ?? 'flush',
+          mullionCount: 0,
+          frameStyle: undefined as 'minimal' | 'standard' | 'thermally_broken' | undefined,
+        })),
+        ...wall.windows.map((window) => ({
+          kind: 'window' as const,
+          width: Math.max(0.35, window.width),
+          height: Math.max(0.35, window.height),
+          sillHeight: Math.max(0, window.sillHeight),
+          centerOffsetM: Number.isFinite(window.centerOffsetM) ? window.centerOffsetM : undefined,
+          frameThicknessM: Math.max(0.015, window.frameThicknessM ?? 0.035),
+          mullionCount: Math.max(0, Math.min(4, Math.round(window.mullionCount ?? 0))),
+          frameStyle: window.frameStyle ?? 'standard',
+          leafStyle: undefined as 'flush' | 'glazed' | 'double_leaf' | 'sliding_panel' | undefined,
+        })),
+      ];
+
+      if (openingSpecs.length === 0) {
+        return;
+      }
+
+      const sideMargin = Math.max(0.12, Math.min(0.35, span * 0.08));
+      const usableSpan = Math.max(0, span - sideMargin * 2);
+      if (usableSpan <= 0.3) {
+        return;
+      }
+
+      const hasDeterministicOffsets = openingSpecs.every((opening) => Number.isFinite(opening.centerOffsetM));
+      const desiredWidth = openingSpecs.reduce((sum, opening) => sum + opening.width, 0);
+      const maxWidth = usableSpan * 0.94;
+      const widthScale = desiredWidth > maxWidth && desiredWidth > 0
+        ? maxWidth / desiredWidth
+        : 1;
+      const scaledOpenings = openingSpecs.map((opening) => ({
+        ...opening,
+        width: opening.width * widthScale,
+      }));
+      const totalScaledWidth = scaledOpenings.reduce((sum, opening) => sum + opening.width, 0);
+      const fallbackGap = Math.max(0.03, (usableSpan - totalScaledWidth) / (scaledOpenings.length + 1));
+
+      const preferOuterFace = (
+        (outerFace.signed < 0 && innerFace.signed >= 0)
+        || (
+          outerFace.signed < 0
+          && innerFace.signed < 0
+          && outerFace.depth <= innerFace.depth
+        )
+        || (
+          outerFace.signed >= 0
+          && innerFace.signed >= 0
+          && Math.abs(outerFace.signed) > Math.abs(innerFace.signed)
+        )
+      );
+
+      const visibleFaceOffset = preferOuterFace ? thickness : 0;
+      const cavityFaceOffset = preferOuterFace ? 0 : thickness;
+      const faceBias = Math.min(0.01, thickness * 0.28);
+      const frontFaceOffset = visibleFaceOffset + (preferOuterFace ? faceBias : -faceBias);
+      const backFaceOffset = cavityFaceOffset + (preferOuterFace ? faceBias : -faceBias);
+
+      const openingQuadAtOffset = (offset: number, left: number, right: number, bottom: number, top: number): V3[] => [
+        [wall.start.x + unitX * left + unitNX * offset, bottomY + bottom, wall.start.z + unitZ * left + unitNZ * offset],
+        [wall.start.x + unitX * right + unitNX * offset, bottomY + bottom, wall.start.z + unitZ * right + unitNZ * offset],
+        [wall.start.x + unitX * right + unitNX * offset, bottomY + top, wall.start.z + unitZ * right + unitNZ * offset],
+        [wall.start.x + unitX * left + unitNX * offset, bottomY + top, wall.start.z + unitZ * left + unitNZ * offset],
+      ];
+
+      let cursor = sideMargin + fallbackGap;
+      for (const opening of scaledOpenings) {
+        let left = cursor;
+        let right = cursor + opening.width;
+
+        if (hasDeterministicOffsets && Number.isFinite(opening.centerOffsetM)) {
+          const center = Math.min(Math.max(opening.centerOffsetM ?? span / 2, sideMargin), span - sideMargin);
+          left = center - opening.width / 2;
+          right = center + opening.width / 2;
+
+          if (left < sideMargin) {
+            right += sideMargin - left;
+            left = sideMargin;
+          }
+          if (right > span - sideMargin) {
+            left -= right - (span - sideMargin);
+            right = span - sideMargin;
+          }
+
+          left = Math.max(sideMargin, left);
+          right = Math.min(span - sideMargin, right);
+        } else {
+          cursor = right + fallbackGap;
+        }
+
+        const bottom = Math.min(Math.max(opening.sillHeight, 0), wall.heightM - 0.25);
+        const top = Math.min(Math.max(bottom + opening.height, bottom + 0.25), wall.heightM - 0.08);
+        if (top - bottom < 0.2) {
+          continue;
+        }
+
+        const frontQuad = openingQuadAtOffset(frontFaceOffset, left, right, bottom, top);
+        const backQuad = openingQuadAtOffset(backFaceOffset, left, right, bottom, top);
+
+        const frontBottomLeft = frontQuad[0];
+        const frontBottomRight = frontQuad[1];
+        const frontTopRight = frontQuad[2];
+        const frontTopLeft = frontQuad[3];
+        const backBottomLeft = backQuad[0];
+        const backBottomRight = backQuad[1];
+        const backTopRight = backQuad[2];
+        const backTopLeft = backQuad[3];
+
+        const backProjected = toProjectedFace(backQuad);
+        const cavityFill = opening.kind === 'window'
+          ? 'rgba(15, 23, 42, 0.62)'
+          : 'rgba(2, 6, 23, 0.78)';
+        openingRevealFaces.push({
+          pts: backProjected.pts,
+          depth: backProjected.depth,
+          fill: cavityFill,
+          stroke: 'rgba(30, 41, 59, 0.42)',
+        });
+
+        openingRevealFaces.push(
+          toWallPrismFace(
+            [frontBottomLeft, backBottomLeft, backTopLeft, frontTopLeft],
+            'rgba(51, 65, 85, 0.56)',
+            'rgba(100, 116, 139, 0.35)',
+          ),
+        );
+        openingRevealFaces.push(
+          toWallPrismFace(
+            [frontBottomRight, backBottomRight, backTopRight, frontTopRight],
+            'rgba(51, 65, 85, 0.56)',
+            'rgba(100, 116, 139, 0.35)',
+          ),
+        );
+        openingRevealFaces.push(
+          toWallPrismFace(
+            [frontTopLeft, frontTopRight, backTopRight, backTopLeft],
+            'rgba(71, 85, 105, 0.52)',
+            'rgba(100, 116, 139, 0.34)',
+          ),
+        );
+
+        if (opening.kind === 'window' || opening.sillHeight > 0.02) {
+          openingRevealFaces.push(
+            toWallPrismFace(
+              [frontBottomLeft, frontBottomRight, backBottomRight, backBottomLeft],
+              'rgba(71, 85, 105, 0.5)',
+              'rgba(100, 116, 139, 0.32)',
+            ),
+          );
+        }
+
+        const projectedQuad = toProjectedFace(frontQuad);
+        const openingHeight = top - bottom;
+        const frameRatioU = Math.min(0.22, Math.max(0.035, opening.frameThicknessM / Math.max(opening.width, 0.1)));
+        const frameRatioV = Math.min(0.22, Math.max(0.035, opening.frameThicknessM / Math.max(openingHeight, 0.1)));
+        const frameWidth = Math.max(1, Math.min(3.2, opening.frameThicknessM * 28));
+
+        const frameStroke = opening.kind === 'window'
+          ? (opening.frameStyle === 'thermally_broken'
+              ? 'rgba(56, 189, 248, 0.98)'
+              : opening.frameStyle === 'minimal'
+                ? 'rgba(186, 230, 253, 0.95)'
+                : 'rgba(125, 211, 252, 0.96)')
+          : (opening.leafStyle === 'glazed'
+              ? 'rgba(252, 211, 77, 0.96)'
+              : opening.leafStyle === 'double_leaf'
+                ? 'rgba(251, 191, 36, 0.96)'
+                : opening.leafStyle === 'sliding_panel'
+                  ? 'rgba(245, 158, 11, 0.96)'
+                  : 'rgba(234, 179, 8, 0.94)');
+
+        const openingFill = opening.kind === 'window'
+          ? (opening.frameStyle === 'thermally_broken'
+              ? 'rgba(125, 211, 252, 0.52)'
+              : opening.frameStyle === 'minimal'
+                ? 'rgba(186, 230, 253, 0.46)'
+                : 'rgba(125, 211, 252, 0.48)')
+          : (opening.leafStyle === 'glazed'
+              ? 'rgba(251, 191, 36, 0.24)'
+              : opening.leafStyle === 'double_leaf'
+                ? 'rgba(245, 158, 11, 0.34)'
+                : 'rgba(251, 191, 36, 0.3)');
+
+        openingQuads.push({
+          pts: projectedQuad.pts,
+          depth: projectedQuad.depth,
+          kind: opening.kind,
+          fill: openingFill,
+          stroke: frameStroke,
+          frameWidth,
+        });
+
+        const innerQuad: V2[] = [
+          pointOnQuad(projectedQuad.pts, frameRatioU, frameRatioV),
+          pointOnQuad(projectedQuad.pts, 1 - frameRatioU, frameRatioV),
+          pointOnQuad(projectedQuad.pts, 1 - frameRatioU, 1 - frameRatioV),
+          pointOnQuad(projectedQuad.pts, frameRatioU, 1 - frameRatioV),
+        ];
+        pushQuadOutlineLines(innerQuad, projectedQuad.depth, frameStroke, Math.max(0.75, frameWidth * 0.45));
+
+        if (opening.kind === 'window') {
+          const mullionCount = opening.mullionCount ?? 0;
+          for (let mullionIndex = 1; mullionIndex <= mullionCount; mullionIndex++) {
+            const u = frameRatioU + ((1 - frameRatioU * 2) * mullionIndex) / (mullionCount + 1);
+            openingDetailLines.push({
+              from: pointOnQuad(projectedQuad.pts, u, frameRatioV),
+              to: pointOnQuad(projectedQuad.pts, u, 1 - frameRatioV),
+              depth: projectedQuad.depth,
+              stroke: 'rgba(186, 230, 253, 0.9)',
+              lineWidth: Math.max(0.75, frameWidth * 0.4),
+            });
+          }
+
+          if (opening.frameStyle === 'thermally_broken') {
+            openingDetailLines.push({
+              from: pointOnQuad(projectedQuad.pts, frameRatioU, 0.5),
+              to: pointOnQuad(projectedQuad.pts, 1 - frameRatioU, 0.5),
+              depth: projectedQuad.depth,
+              stroke: 'rgba(224, 242, 254, 0.76)',
+              lineWidth: Math.max(0.7, frameWidth * 0.32),
+            });
+          }
+        } else if (opening.leafStyle === 'double_leaf') {
+          openingDetailLines.push({
+            from: pointOnQuad(projectedQuad.pts, 0.5, frameRatioV),
+            to: pointOnQuad(projectedQuad.pts, 0.5, 1 - frameRatioV),
+            depth: projectedQuad.depth,
+            stroke: 'rgba(254, 240, 138, 0.88)',
+            lineWidth: Math.max(0.75, frameWidth * 0.38),
+          });
+        } else if (opening.leafStyle === 'sliding_panel') {
+          openingDetailLines.push({
+            from: pointOnQuad(projectedQuad.pts, frameRatioU + 0.06, 0.35),
+            to: pointOnQuad(projectedQuad.pts, 0.5, 0.35),
+            depth: projectedQuad.depth,
+            stroke: 'rgba(254, 243, 199, 0.86)',
+            lineWidth: Math.max(0.7, frameWidth * 0.35),
+          });
+          openingDetailLines.push({
+            from: pointOnQuad(projectedQuad.pts, 0.5, 0.65),
+            to: pointOnQuad(projectedQuad.pts, 1 - frameRatioU - 0.06, 0.65),
+            depth: projectedQuad.depth,
+            stroke: 'rgba(254, 243, 199, 0.86)',
+            lineWidth: Math.max(0.7, frameWidth * 0.35),
+          });
+        } else if (opening.leafStyle === 'glazed') {
+          const glazedInset = Math.min(0.28, frameRatioU + 0.06);
+          const glazedPanel: V2[] = [
+            pointOnQuad(projectedQuad.pts, glazedInset, glazedInset),
+            pointOnQuad(projectedQuad.pts, 1 - glazedInset, glazedInset),
+            pointOnQuad(projectedQuad.pts, 1 - glazedInset, 1 - glazedInset),
+            pointOnQuad(projectedQuad.pts, glazedInset, 1 - glazedInset),
+          ];
+          pushQuadOutlineLines(glazedPanel, projectedQuad.depth, 'rgba(254, 240, 138, 0.8)', Math.max(0.7, frameWidth * 0.32));
+        }
+      }
+    };
 
     const addBox = (bx: RoomBox, pal: { top: string; front: string; side: string }, label?: string, dimLabel?: string) => {
       const { x, y, z, w, h, d, room } = bx;
@@ -445,6 +855,10 @@ export default function BuildingViewer3D({ floors, buildingType, projectName }: 
         : spacePal(bx.room.spaceType);
       const dim = `${bx.lengthM.toFixed(1)} × ${bx.widthM.toFixed(1)} × ${bx.heightM.toFixed(1)} m`;
       addBox(bx, pal, bx.room.name, dim);
+
+      for (const wall of bx.walls) {
+        addWallPrism(wall);
+      }
     }
 
     // painter's sort — farthest faces first (highest depth = farthest from camera)
@@ -461,39 +875,6 @@ export default function BuildingViewer3D({ floors, buildingType, projectName }: 
       ctx.strokeStyle = f.isSlab ? 'rgba(30,41,59,0.6)' : 'rgba(15,23,42,0.95)';
       ctx.lineWidth = f.isSlab ? 0.8 : 1.35;
       ctx.stroke();
-
-      // windows on walls
-      if (f.isWall) {
-        const dx1 = f.pts[1][0] - f.pts[0][0], dy1 = f.pts[1][1] - f.pts[0][1];
-        const dx2 = f.pts[3][0] - f.pts[0][0], dy2 = f.pts[3][1] - f.pts[0][1];
-        const faceW = Math.sqrt(dx1 * dx1 + dy1 * dy1);
-        const faceH = Math.sqrt(dx2 * dx2 + dy2 * dy2);
-        if (faceW > 30 && faceH > 22) {
-          const numWin = Math.min(4, Math.max(1, Math.floor(faceW / 28)));
-          const winW = 0.16, winH = 0.35;
-          const spacing = 1 / (numWin + 1);
-          for (let wi = 0; wi < numWin; wi++) {
-            const u = spacing * (wi + 1);
-            const v1 = 0.25, v2 = v1 + winH;
-            const u1 = u - winW / 2, u2 = u + winW / 2;
-            const wc: V2[] = [
-              [f.pts[0][0] + dx1 * u1 + dx2 * v1, f.pts[0][1] + dy1 * u1 + dy2 * v1],
-              [f.pts[0][0] + dx1 * u2 + dx2 * v1, f.pts[0][1] + dy1 * u2 + dy2 * v1],
-              [f.pts[0][0] + dx1 * u2 + dx2 * v2, f.pts[0][1] + dy1 * u2 + dy2 * v2],
-              [f.pts[0][0] + dx1 * u1 + dx2 * v2, f.pts[0][1] + dy1 * u1 + dy2 * v2],
-            ];
-            ctx.beginPath();
-            ctx.moveTo(wc[0][0], wc[0][1]);
-            for (let ci = 1; ci < 4; ci++) ctx.lineTo(wc[ci][0], wc[ci][1]);
-            ctx.closePath();
-            ctx.fillStyle = 'rgba(170,215,255,0.22)';
-            ctx.fill();
-            ctx.strokeStyle = 'rgba(130,185,235,0.35)';
-            ctx.lineWidth = 0.6;
-            ctx.stroke();
-          }
-        }
-      }
 
       // label on top face
       if (f.label) {
@@ -529,6 +910,55 @@ export default function BuildingViewer3D({ floors, buildingType, projectName }: 
       }
     }
 
+    wallPrismFaces.sort((a, b) => b.depth - a.depth);
+    for (const wallFace of wallPrismFaces) {
+      ctx.beginPath();
+      ctx.moveTo(wallFace.pts[0][0], wallFace.pts[0][1]);
+      for (let i = 1; i < wallFace.pts.length; i++) ctx.lineTo(wallFace.pts[i][0], wallFace.pts[i][1]);
+      ctx.closePath();
+      ctx.fillStyle = wallFace.fill;
+      ctx.fill();
+      ctx.strokeStyle = wallFace.stroke;
+      ctx.lineWidth = 0.9;
+      ctx.stroke();
+    }
+
+    openingRevealFaces.sort((a, b) => b.depth - a.depth);
+    for (const reveal of openingRevealFaces) {
+      ctx.beginPath();
+      ctx.moveTo(reveal.pts[0][0], reveal.pts[0][1]);
+      for (let i = 1; i < reveal.pts.length; i++) ctx.lineTo(reveal.pts[i][0], reveal.pts[i][1]);
+      ctx.closePath();
+      ctx.fillStyle = reveal.fill;
+      ctx.fill();
+      ctx.strokeStyle = reveal.stroke;
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+    }
+
+    openingQuads.sort((a, b) => b.depth - a.depth);
+    for (const opening of openingQuads) {
+      ctx.beginPath();
+      ctx.moveTo(opening.pts[0][0], opening.pts[0][1]);
+      for (let i = 1; i < opening.pts.length; i++) ctx.lineTo(opening.pts[i][0], opening.pts[i][1]);
+      ctx.closePath();
+      ctx.fillStyle = opening.fill;
+      ctx.fill();
+      ctx.strokeStyle = opening.stroke;
+      ctx.lineWidth = opening.frameWidth;
+      ctx.stroke();
+    }
+
+    openingDetailLines.sort((a, b) => b.depth - a.depth);
+    for (const detail of openingDetailLines) {
+      ctx.beginPath();
+      ctx.moveTo(detail.from[0], detail.from[1]);
+      ctx.lineTo(detail.to[0], detail.to[1]);
+      ctx.strokeStyle = detail.stroke;
+      ctx.lineWidth = detail.lineWidth;
+      ctx.stroke();
+    }
+
     // floor labels
     for (const fl of visibleLabels) {
       const tp = pj(xf(fl.pos));
@@ -537,6 +967,39 @@ export default function BuildingViewer3D({ floors, buildingType, projectName }: 
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(fl.text, tp[0], tp[1]);
+    }
+
+    // accurate wall-edge overlay from shared room geometry
+    for (const box of visibleBoxes) {
+      for (const wall of box.walls) {
+        const wallBottomStart = pj(xf([wall.start.x, wall.start.y, wall.start.z]));
+        const wallBottomEnd = pj(xf([wall.end.x, wall.end.y, wall.end.z]));
+        const wallTopStart = pj(xf([wall.start.x, wall.start.y + wall.heightM, wall.start.z]));
+        const wallTopEnd = pj(xf([wall.end.x, wall.end.y + wall.heightM, wall.end.z]));
+
+        ctx.strokeStyle = 'rgba(226, 232, 240, 0.72)';
+        ctx.lineWidth = Math.max(1.1, Math.min(2.5, wall.thicknessM * 7));
+
+        ctx.beginPath();
+        ctx.moveTo(wallBottomStart[0], wallBottomStart[1]);
+        ctx.lineTo(wallBottomEnd[0], wallBottomEnd[1]);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(wallTopStart[0], wallTopStart[1]);
+        ctx.lineTo(wallTopEnd[0], wallTopEnd[1]);
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(148, 163, 184, 0.6)';
+        ctx.lineWidth = 0.9;
+        ctx.beginPath();
+        ctx.moveTo(wallBottomStart[0], wallBottomStart[1]);
+        ctx.lineTo(wallTopStart[0], wallTopStart[1]);
+        ctx.moveTo(wallBottomEnd[0], wallBottomEnd[1]);
+        ctx.lineTo(wallTopEnd[0], wallTopEnd[1]);
+        ctx.stroke();
+
+      }
     }
 
     // current view label (top-center)
@@ -703,7 +1166,15 @@ export default function BuildingViewer3D({ floors, buildingType, projectName }: 
     );
   }
 
-  const selDims = selectedRoom ? roomDims(selectedRoom) : null;
+  const selectedBox = selectedRoom
+    ? visibleBoxes.find((box) => box.room.id === selectedRoom.id) ?? null
+    : null;
+  const selDims = selectedBox
+    ? { l: selectedBox.lengthM, w: selectedBox.widthM, h: selectedBox.heightM }
+    : (selectedRoom ? roomDims(selectedRoom) : null);
+  const selectedPlacementWarnings = selectedBox
+    ? Array.from(new Set(selectedBox.walls.flatMap((wall) => wall.placementWarnings ?? [])))
+    : [];
 
   const resetView = () => {
     applyCameraPreset('iso');
@@ -817,6 +1288,7 @@ export default function BuildingViewer3D({ floors, buildingType, projectName }: 
           <canvas ref={canvasRef} className="absolute inset-0" />
           <div className="absolute bottom-3 left-3 pointer-events-none text-[11px] text-slate-500 leading-relaxed">
             <p>Drag to rotate · Scroll or +/- to zoom</p>
+            <p>Wall overlays: blue quads = windows, amber quads = doors</p>
             <p>Click a room for details</p>
           </div>
         </div>
@@ -834,6 +1306,17 @@ export default function BuildingViewer3D({ floors, buildingType, projectName }: 
               <p><span className="text-muted-foreground">Width:</span> {selDims.w.toFixed(2)} m <span className="text-muted-foreground">({(selDims.w * 3.28084).toFixed(2)} ft)</span></p>
               <p><span className="text-muted-foreground">Height:</span> {selDims.h.toFixed(2)} m <span className="text-muted-foreground">({(selDims.h * 3.28084).toFixed(2)} ft)</span></p>
               <p><span className="text-muted-foreground">Floor Area:</span> {selectedRoom.area.toFixed(2)} m²</p>
+              {selectedPlacementWarnings.length > 0 && (
+                <>
+                  <div className="border-t border-border pt-2 mt-2" />
+                  <p className="text-xs font-semibold uppercase tracking-wide text-warning">Geometry Warnings</p>
+                  <ul className="space-y-1 text-xs text-foreground">
+                    {selectedPlacementWarnings.map((warning) => (
+                      <li key={warning} className="rounded border border-warning/40 bg-warning/10 px-2 py-1">{warning}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
               {selectedRoom.coolingLoad && (
                 <>
                   <div className="border-t border-border pt-2 mt-2" />

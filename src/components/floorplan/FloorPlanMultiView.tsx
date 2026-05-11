@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import {
   calculatePolygonArea,
   createRectPolygonPoints,
+  getPolygonBounds,
+  type RoomPolygonBounds,
   type RoomPolygonPoint,
 } from '@/lib/utils/room-polygon';
 
@@ -54,6 +56,60 @@ function getRoomAreaM2(room: Room, scalePxPerM: number): number {
   return calculatePolygonArea(points);
 }
 
+function getRoomPolygonMeters(room: Room, scalePxPerM: number): RoomPolygonPoint[] {
+  return getRoomPolygonPoints(room).map((point) => ({
+    x: point.x / scalePxPerM,
+    y: point.y / scalePxPerM,
+  }));
+}
+
+function getRoomBoundsMeters(room: Room, scalePxPerM: number): RoomPolygonBounds | null {
+  return getPolygonBounds(getRoomPolygonMeters(room, scalePxPerM));
+}
+
+function getPolygonCentroid(points: RoomPolygonPoint[]): RoomPolygonPoint {
+  if (points.length < 3) {
+    return { x: 0, y: 0 };
+  }
+
+  let signedArea = 0;
+  let cx = 0;
+  let cy = 0;
+
+  for (let i = 0; i < points.length; i++) {
+    const next = points[(i + 1) % points.length];
+    const cross = points[i].x * next.y - next.x * points[i].y;
+    signedArea += cross;
+    cx += (points[i].x + next.x) * cross;
+    cy += (points[i].y + next.y) * cross;
+  }
+
+  signedArea /= 2;
+  if (Math.abs(signedArea) < 1e-9) {
+    const avgX = points.reduce((sum, point) => sum + point.x, 0) / points.length;
+    const avgY = points.reduce((sum, point) => sum + point.y, 0) / points.length;
+    return { x: avgX, y: avgY };
+  }
+
+  return {
+    x: cx / (6 * signedArea),
+    y: cy / (6 * signedArea),
+  };
+}
+
+function tracePolygonPath(ctx: CanvasRenderingContext2D, points: RoomPolygonPoint[]): void {
+  if (points.length === 0) {
+    return;
+  }
+
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length; i++) {
+    ctx.lineTo(points[i].x, points[i].y);
+  }
+  ctx.closePath();
+}
+
 // ─── Elevation rendering helpers ────────────────────────────────────────────
 
 /**
@@ -63,15 +119,20 @@ function getBounds(rooms: Room[], scale: number) {
   if (rooms.length === 0) return { minX: 0, maxX: 10, minY: 0, maxY: 10 };
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   rooms.forEach((r) => {
-    const rx = r.x / scale;
-    const ry = r.y / scale;
-    const rw = r.width / scale;
-    const rh = r.height / scale;
-    minX = Math.min(minX, rx);
-    maxX = Math.max(maxX, rx + rw);
-    minY = Math.min(minY, ry);
-    maxY = Math.max(maxY, ry + rh);
+    const bounds = getRoomBoundsMeters(r, scale);
+    if (!bounds) {
+      return;
+    }
+    minX = Math.min(minX, bounds.minX);
+    maxX = Math.max(maxX, bounds.maxX);
+    minY = Math.min(minY, bounds.minY);
+    maxY = Math.max(maxY, bounds.maxY);
   });
+
+  if (!Number.isFinite(minX) || !Number.isFinite(maxX) || !Number.isFinite(minY) || !Number.isFinite(maxY)) {
+    return { minX: 0, maxX: 10, minY: 0, maxY: 10 };
+  }
+
   return { minX, maxX, minY, maxY };
 }
 
@@ -130,46 +191,63 @@ function renderTopView(
 
   // Rooms
   rooms.forEach((room) => {
-    const rx = (room.x / scale - bounds.minX) * pxScale + offsetX;
-    const ry = (room.y / scale - bounds.minY) * pxScale + offsetY;
-    const rw = (room.width / scale) * pxScale;
-    const rh = (room.height / scale) * pxScale;
+    const polygonM = getRoomPolygonMeters(room, scale);
+    const polygonBoundsM = getPolygonBounds(polygonM);
+    if (!polygonBoundsM) {
+      return;
+    }
+
+    const pointsPx = polygonM.map((point) => ({
+      x: (point.x - bounds.minX) * pxScale + offsetX,
+      y: (point.y - bounds.minY) * pxScale + offsetY,
+    }));
+    const polygonBoundsPx = getPolygonBounds(pointsPx);
+    if (!polygonBoundsPx) {
+      return;
+    }
+
+    const centroidM = getPolygonCentroid(polygonM);
+    const labelX = (centroidM.x - bounds.minX) * pxScale + offsetX;
+    const labelY = (centroidM.y - bounds.minY) * pxScale + offsetY;
+    const minDimPx = Math.max(12, Math.min(polygonBoundsPx.width, polygonBoundsPx.height));
 
     ctx.fillStyle = room.color;
-    ctx.fillRect(rx, ry, rw, rh);
+    tracePolygonPath(ctx, pointsPx);
+    ctx.fill();
     ctx.strokeStyle = '#1F2937';
     ctx.lineWidth = 1.5;
-    ctx.strokeRect(rx, ry, rw, rh);
+    tracePolygonPath(ctx, pointsPx);
+    ctx.stroke();
 
     // Wall hatch lines (diagonal) for architectural look
     ctx.save();
-    ctx.beginPath();
-    ctx.rect(rx, ry, rw, rh);
+    tracePolygonPath(ctx, pointsPx);
     ctx.clip();
     ctx.strokeStyle = 'rgba(31, 41, 55, 0.06)';
     ctx.lineWidth = 0.5;
-    for (let d = -Math.max(rw, rh); d < Math.max(rw, rh) * 2; d += 8) {
+    const hatchExtent = Math.max(polygonBoundsPx.width, polygonBoundsPx.height);
+    for (let d = -hatchExtent; d < hatchExtent * 2; d += 8) {
       ctx.beginPath();
-      ctx.moveTo(rx + d, ry);
-      ctx.lineTo(rx + d + rh, ry + rh);
+      ctx.moveTo(polygonBoundsPx.minX + d, polygonBoundsPx.minY);
+      ctx.lineTo(polygonBoundsPx.minX + d + polygonBoundsPx.height, polygonBoundsPx.maxY);
       ctx.stroke();
     }
     ctx.restore();
 
     // Label
-    const fontSize = Math.max(9, Math.min(13, rw / 6));
+    const fontSize = Math.max(9, Math.min(13, minDimPx / 6));
     ctx.fillStyle = '#111827';
     ctx.font = `600 ${fontSize}px ${FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(room.name, rx + rw / 2, ry + rh / 2 - fontSize * 0.6);
+    ctx.fillText(room.name, labelX, labelY - fontSize * 0.6);
 
     // Dimensions
     ctx.font = `400 ${Math.max(8, fontSize - 2)}px ${FONT}`;
     ctx.fillStyle = '#6B7280';
-    const wM = (room.width / scale).toFixed(1);
-    const hM = (room.height / scale).toFixed(1);
-    ctx.fillText(`${wM} × ${hM} m`, rx + rw / 2, ry + rh / 2 + fontSize * 0.5);
+    const wM = polygonBoundsM.width.toFixed(1);
+    const hM = polygonBoundsM.height.toFixed(1);
+    ctx.fillText(`${wM} × ${hM} m`, labelX, labelY + fontSize * 0.5);
   });
 
   // Dimension lines along top & left
@@ -287,21 +365,24 @@ function renderFrontElevation(
   ctx.restore();
 
   // Sort rooms by X for front/rear view
-  const sorted = [...rooms].sort((a, b) => {
-    const ax = facing === 'south' ? a.x : -(a.x + a.width);
-    const bx = facing === 'south' ? b.x : -(b.x + b.width);
-    return ax - bx;
-  });
+  const sorted = rooms
+    .map((room) => ({ room, roomBoundsM: getRoomBoundsMeters(room, scale) }))
+    .filter((entry): entry is { room: Room; roomBoundsM: RoomPolygonBounds } => Boolean(entry.roomBoundsM))
+    .sort((a, b) => {
+      const aKey = facing === 'south' ? a.roomBoundsM.minX : -a.roomBoundsM.maxX;
+      const bKey = facing === 'south' ? b.roomBoundsM.minX : -b.roomBoundsM.maxX;
+      return aKey - bKey;
+    });
 
-  sorted.forEach((room) => {
+  sorted.forEach(({ room, roomBoundsM }) => {
     let rx: number;
     if (facing === 'south') {
-      rx = (room.x / scale - bounds.minX) * pxScale + offsetX;
+      rx = (roomBoundsM.minX - bounds.minX) * pxScale + offsetX;
     } else {
       // North view: mirrored
-      rx = ((bounds.maxX - (room.x / scale + room.width / scale)) ) * pxScale + offsetX;
+      rx = (bounds.maxX - roomBoundsM.maxX) * pxScale + offsetX;
     }
-    const rw = (room.width / scale) * pxScale;
+    const rw = roomBoundsM.width * pxScale;
     const rh = ceilingH * pxScale;
     const ry = groundY - rh;
 
@@ -355,7 +436,7 @@ function renderFrontElevation(
     // Width dimension below floor line
     ctx.fillStyle = '#374151';
     ctx.font = `400 ${Math.max(8, fontSize - 2)}px ${FONT}`;
-    ctx.fillText(`${(room.width / scale).toFixed(1)} m`, rx + rw / 2, groundY + 14);
+    ctx.fillText(`${roomBoundsM.width.toFixed(1)} m`, rx + rw / 2, groundY + 14);
   });
 
   // Overall dimension line below
@@ -450,21 +531,24 @@ function renderSideElevation(
   ctx.fillText(`${ceilingH.toFixed(1)} m`, 0, 0);
   ctx.restore();
 
-  const sorted = [...rooms].sort((a, b) => {
-    const ay = facing === 'east' ? a.y : -(a.y + a.height);
-    const by = facing === 'east' ? b.y : -(b.y + b.height);
-    return ay - by;
-  });
+  const sorted = rooms
+    .map((room) => ({ room, roomBoundsM: getRoomBoundsMeters(room, scale) }))
+    .filter((entry): entry is { room: Room; roomBoundsM: RoomPolygonBounds } => Boolean(entry.roomBoundsM))
+    .sort((a, b) => {
+      const aKey = facing === 'east' ? a.roomBoundsM.minY : -a.roomBoundsM.maxY;
+      const bKey = facing === 'east' ? b.roomBoundsM.minY : -b.roomBoundsM.maxY;
+      return aKey - bKey;
+    });
 
-  sorted.forEach((room) => {
+  sorted.forEach(({ room, roomBoundsM }) => {
     let rx: number;
     if (facing === 'east') {
-      rx = (room.y / scale - bounds.minY) * pxScale + offsetX;
+      rx = (roomBoundsM.minY - bounds.minY) * pxScale + offsetX;
     } else {
       // West view: mirrored depth
-      rx = ((bounds.maxY - (room.y / scale + room.height / scale))) * pxScale + offsetX;
+      rx = (bounds.maxY - roomBoundsM.maxY) * pxScale + offsetX;
     }
-    const rw = (room.height / scale) * pxScale; // depth becomes width in side view
+    const rw = roomBoundsM.height * pxScale; // depth becomes width in side view
     const rh = ceilingH * pxScale;
     const ry = groundY - rh;
 
@@ -503,7 +587,7 @@ function renderSideElevation(
     // Depth dimension below floor line
     ctx.fillStyle = '#374151';
     ctx.font = `400 ${Math.max(8, fontSize - 2)}px ${FONT}`;
-    ctx.fillText(`${(room.height / scale).toFixed(1)} m`, rx + rw / 2, groundY + 14);
+    ctx.fillText(`${roomBoundsM.height.toFixed(1)} m`, rx + rw / 2, groundY + 14);
   });
 
   // Overall dimension line
@@ -685,8 +769,9 @@ export default function FloorPlanMultiView({
                   {/* Room list */}
                   <div className="space-y-px">
                     {rooms.map((room) => {
-                      const wM = (room.width / scale).toFixed(1);
-                      const dM = (room.height / scale).toFixed(1);
+                      const boundsM = getRoomBoundsMeters(room, scale);
+                      const wM = (boundsM?.width ?? (room.width / scale)).toFixed(1);
+                      const dM = (boundsM?.height ?? (room.height / scale)).toFixed(1);
                       const aM = getRoomAreaM2(room, scale).toFixed(1);
                       return (
                         <div

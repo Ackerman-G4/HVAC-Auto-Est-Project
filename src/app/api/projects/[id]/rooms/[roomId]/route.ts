@@ -24,9 +24,8 @@ import {
 } from '@/lib/utils/api-helpers';
 import { finalizeDualValue } from '@/lib/utils/dual-control';
 import {
-  calculatePolygonArea,
-  calculatePolygonPerimeter,
   parseRoomPolygon,
+  validateRoomPolygon,
 } from '@/lib/utils/room-polygon';
 
 type RouteContext = { params: Promise<{ id: string; roomId: string }> };
@@ -35,12 +34,20 @@ function derivePolygonMetrics(
   rawPolygon: unknown,
   fallbackArea: number,
   fallbackPerimeter: number,
-): { area: number; perimeter: number } {
+): { area: number; perimeter: number; validationError?: string } {
+  if (rawPolygon === undefined) {
+    return {
+      area: Math.max(0, fallbackArea),
+      perimeter: Math.max(0, fallbackPerimeter),
+    };
+  }
+
   const polygon = parseRoomPolygon(rawPolygon);
   if (!polygon) {
     return {
       area: Math.max(0, fallbackArea),
       perimeter: Math.max(0, fallbackPerimeter),
+      validationError: 'Polygon payload is malformed or missing required points.',
     };
   }
 
@@ -52,12 +59,18 @@ function derivePolygonMetrics(
     y: point.y / scale,
   }));
 
-  const area = calculatePolygonArea(pointsInMeters);
-  const perimeter = calculatePolygonPerimeter(pointsInMeters);
+  const validation = validateRoomPolygon(pointsInMeters, { minArea: 0.25 });
+  if (!validation.isValid) {
+    return {
+      area: Math.max(0, fallbackArea),
+      perimeter: Math.max(0, fallbackPerimeter),
+      validationError: validation.issues[0] ?? 'Polygon geometry is invalid.',
+    };
+  }
 
   return {
-    area: area > 0 ? area : Math.max(0, fallbackArea),
-    perimeter: perimeter > 0 ? perimeter : Math.max(0, fallbackPerimeter),
+    area: validation.area > 0 ? validation.area : Math.max(0, fallbackArea),
+    perimeter: validation.perimeter > 0 ? validation.perimeter : Math.max(0, fallbackPerimeter),
   };
 }
 
@@ -84,13 +97,16 @@ export async function PUT(request: NextRequest, context: RouteContext) {
           area: Math.max(0, fallbackArea),
           perimeter: Math.max(0, fallbackPerimeter),
         };
+    if (metrics.validationError) {
+      return errorResponse(400, 'Invalid room polygon', metrics.validationError, 'INVALID_ROOM_POLYGON');
+    }
 
     await updateRoomRecord(roomId, {
       name: body.name ?? existing.name,
       spaceType: body.spaceType ?? existing.spaceType,
       area: body.polygon !== undefined ? metrics.area : (body.area ?? existing.area),
       perimeter: body.polygon !== undefined ? metrics.perimeter : (body.perimeter ?? existing.perimeter),
-      polygon: body.polygon ? JSON.stringify(body.polygon) : existing.polygon,
+      polygon: body.polygon !== undefined ? JSON.stringify(body.polygon) : existing.polygon,
       ceilingHeight: body.ceilingHeight ?? existing.ceilingHeight,
       wallConstruction: body.wallConstruction ?? existing.wallConstruction,
       windowType: body.windowType ?? existing.windowType,
