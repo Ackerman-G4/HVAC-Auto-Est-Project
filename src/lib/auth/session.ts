@@ -24,7 +24,7 @@ function applyAuthCookie(response: NextResponse, token: string) {
     value: token,
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: 'strict',
     path: '/',
     maxAge: AUTH_COOKIE_MAX_AGE_SECONDS,
   });
@@ -43,7 +43,7 @@ export function createLogoutResponse() {
     value: '',
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: 'strict',
     path: '/',
     maxAge: 0,
   });

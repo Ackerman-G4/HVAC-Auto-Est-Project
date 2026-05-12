@@ -37,6 +37,20 @@ function Assert-EnvAny {
   throw "Missing required environment variable. Provide one of: $($Names -join ', ')"
 }
 
+function Ensure-ValidationJwtSecret {
+  $existingSecret = [Environment]::GetEnvironmentVariable('JWT_SECRET', 'Process')
+  if (Test-NonEmpty $existingSecret) {
+    return $existingSecret
+  }
+
+  $generatedSecret = ((1..3 | ForEach-Object { [guid]::NewGuid().ToString('N') }) -join '')
+  [Environment]::SetEnvironmentVariable('JWT_SECRET', $generatedSecret, 'Process')
+  $env:JWT_SECRET = $generatedSecret
+
+  Write-Host 'Prepared process-scoped JWT_SECRET for local validation run.'
+  return $generatedSecret
+}
+
 function ConvertTo-JsonBody {
   param([object]$Object)
   return ($Object | ConvertTo-Json -Depth 8)
@@ -84,10 +98,12 @@ function Get-HttpErrorDetail {
 }
 
 function Ensure-StrictAdminCredentials {
+  param([switch]$ForceGenerate)
+
   $resolvedEmail = [Environment]::GetEnvironmentVariable('RBAC_ADMIN_EMAIL', 'Process')
   $resolvedSecret = [Environment]::GetEnvironmentVariable('RBAC_ADMIN_PASSWORD', 'Process')
 
-  if ((Test-NonEmpty $resolvedEmail) -and (Test-NonEmpty $resolvedSecret)) {
+  if (-not $ForceGenerate -and (Test-NonEmpty $resolvedEmail) -and (Test-NonEmpty $resolvedSecret)) {
     Write-Host "Using existing strict local admin credentials: $resolvedEmail"
     return [pscustomobject]@{
       Email = $resolvedEmail
@@ -97,12 +113,18 @@ function Ensure-StrictAdminCredentials {
 
   $stamp = "$(Get-Date -Format 'yyyyMMddHHmmss')$(Get-Random -Minimum 100 -Maximum 999)"
 
-  if (-not (Test-NonEmpty $resolvedEmail)) {
+  if ($ForceGenerate) {
     $resolvedEmail = "strict.local.admin.$stamp@example.com"
-  }
-
-  if (-not (Test-NonEmpty $resolvedSecret)) {
     $resolvedSecret = "StrongPass$stamp!"
+  }
+  else {
+    if (-not (Test-NonEmpty $resolvedEmail)) {
+      $resolvedEmail = "strict.local.admin.$stamp@example.com"
+    }
+
+    if (-not (Test-NonEmpty $resolvedSecret)) {
+      $resolvedSecret = "StrongPass$stamp!"
+    }
   }
 
   [Environment]::SetEnvironmentVariable('RBAC_ADMIN_EMAIL', $resolvedEmail, 'Process')
@@ -147,6 +169,31 @@ function Ensure-StrictAdminUser {
     }
 
     throw "Failed to bootstrap strict local admin user: $($_.Exception.Message)"
+  }
+}
+
+function Test-AdminLogin {
+  param(
+    [string]$Url,
+    [string]$Email,
+    [string]$Password
+  )
+
+  if (-not (Test-NonEmpty $Email) -or -not (Test-NonEmpty $Password)) {
+    return $false
+  }
+
+  $payload = ConvertTo-JsonBody @{
+    email = $Email
+    password = $Password
+  }
+
+  try {
+    $response = Invoke-WebRequest -UseBasicParsing -Uri "$Url/api/auth/login" -Method Post -ContentType 'application/json' -Body $payload
+    return ([int]$response.StatusCode -eq 200)
+  }
+  catch {
+    return $false
   }
 }
 
@@ -333,6 +380,7 @@ try {
   Assert-Command -Name 'java'
 
   Assert-EnvAny -Names @('FIREBASE_WEB_API_KEY')
+  Ensure-ValidationJwtSecret | Out-Null
 
   if (-not (Test-NonEmpty $env:NEXT_PUBLIC_FIREBASE_API_KEY) -and (Test-NonEmpty $env:FIREBASE_WEB_API_KEY)) {
     $env:NEXT_PUBLIC_FIREBASE_API_KEY = $env:FIREBASE_WEB_API_KEY
@@ -390,6 +438,16 @@ try {
 
   if ($Strict -and $null -ne $strictAdmin) {
     Ensure-StrictAdminUser -Url $baseUrl -Email $strictAdmin.Email -Password $strictAdmin.Password
+
+    if (-not (Test-AdminLogin -Url $baseUrl -Email $strictAdmin.Email -Password $strictAdmin.Password)) {
+      Write-Warning 'Existing strict local admin credentials failed login; rotating to fresh credentials.'
+      $strictAdmin = Ensure-StrictAdminCredentials -ForceGenerate
+      Ensure-StrictAdminUser -Url $baseUrl -Email $strictAdmin.Email -Password $strictAdmin.Password
+
+      if (-not (Test-AdminLogin -Url $baseUrl -Email $strictAdmin.Email -Password $strictAdmin.Password)) {
+        throw 'Strict local admin bootstrap succeeded, but admin login validation still failed.'
+      }
+    }
   }
 
   if ($Strict) {

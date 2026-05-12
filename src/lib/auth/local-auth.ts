@@ -6,11 +6,34 @@
  */
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
+import { randomBytes } from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
 const USERS_FILE = join(process.cwd(), '.local-users.json');
-const JWT_SECRET = process.env.JWT_SECRET || 'hvac-local-dev-secret-change-in-production';
+const LOCAL_DEV_JWT_SECRET_KEY = '__hvacLocalDevJwtSecret';
+
+function resolveJwtSecret(): string {
+  const configured = process.env.JWT_SECRET?.trim();
+  if (configured) {
+    return configured;
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET environment variable must be set in production.');
+  }
+
+  const globalScope = globalThis as typeof globalThis & {
+    [LOCAL_DEV_JWT_SECRET_KEY]?: string;
+  };
+
+  if (!globalScope[LOCAL_DEV_JWT_SECRET_KEY]) {
+    globalScope[LOCAL_DEV_JWT_SECRET_KEY] = randomBytes(48).toString('hex');
+    console.warn('JWT_SECRET not configured; using an ephemeral local development secret.');
+  }
+
+  return globalScope[LOCAL_DEV_JWT_SECRET_KEY]!;
+}
 const TOKEN_EXPIRY = '1h';
 const REFRESH_EXPIRY = '7d';
 
@@ -48,9 +71,10 @@ function generateId(): string {
 }
 
 function signTokens(user: LocalUser) {
+  const jwtSecret = resolveJwtSecret();
   const payload = { uid: user.id, email: user.email, name: user.name, role: user.role };
-  const token = jwt.sign(payload, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
-  const refreshToken = jwt.sign({ uid: user.id, type: 'refresh' }, JWT_SECRET, { expiresIn: REFRESH_EXPIRY });
+  const token = jwt.sign(payload, jwtSecret, { expiresIn: TOKEN_EXPIRY });
+  const refreshToken = jwt.sign({ uid: user.id, type: 'refresh' }, jwtSecret, { expiresIn: REFRESH_EXPIRY });
   return { token, refreshToken };
 }
 
@@ -122,7 +146,7 @@ export async function localSignIn(email: string, password: string) {
 
 export function localVerifyToken(token: string) {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as {
+    const decoded = jwt.verify(token, resolveJwtSecret()) as {
       uid: string;
       email: string;
       name: string;
@@ -141,7 +165,7 @@ export function localVerifyToken(token: string) {
 
 export function localRefreshToken(refreshTokenStr: string) {
   try {
-    const decoded = jwt.verify(refreshTokenStr, JWT_SECRET) as {
+    const decoded = jwt.verify(refreshTokenStr, resolveJwtSecret()) as {
       uid: string;
       type: string;
     };

@@ -5,6 +5,7 @@ import { signUpWithEmailPassword } from '@/lib/firebase/auth-rest';
 import { getFirebaseAuth } from '@/lib/firebase/server';
 import { getFirstZodErrorMessage, registerRequestSchema } from '@/lib/validation/auth';
 import { isLocalAuthMode, localSignUp } from '@/lib/auth/local-auth';
+import { requireJsonRequest } from '@/lib/utils/api-helpers';
 
 const REGISTER_RATE_LIMIT = {
 	windowMs: 60_000,
@@ -38,6 +39,11 @@ function resolveStatusFromError(message: string): number {
 
 export async function POST(req: NextRequest) {
 	try {
+		const jsonGuard = requireJsonRequest(req);
+		if (jsonGuard) {
+			return jsonGuard;
+		}
+
 		// Skip rate limiting in local auth mode — smoke scripts register many
 		// temporary users per run and would exhaust the 6-req/min window.
 		if (!isLocalAuthMode()) {

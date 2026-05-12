@@ -6,6 +6,7 @@ import { getFirebaseAuth } from '@/lib/firebase/server';
 import { resolveLocalFallbackRole } from '@/lib/auth/fallback-role';
 import { getFirstZodErrorMessage, loginRequestSchema } from '@/lib/validation/auth';
 import { isLocalAuthMode, localSignIn } from '@/lib/auth/local-auth';
+import { requireJsonRequest } from '@/lib/utils/api-helpers';
 
 const LOGIN_RATE_LIMIT = {
 	windowMs: 60_000,
@@ -27,6 +28,11 @@ function resolveStatusFromError(message: string): number {
 
 export async function POST(req: NextRequest) {
 	try {
+		const jsonGuard = requireJsonRequest(req);
+		if (jsonGuard) {
+			return jsonGuard;
+		}
+
 		// Skip rate limiting in local auth mode (no Firebase key) — smoke/test
 		// scripts run many logins in sequence and would exhaust the window.
 		if (!isLocalAuthMode()) {

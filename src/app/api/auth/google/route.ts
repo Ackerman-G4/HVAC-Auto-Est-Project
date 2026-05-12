@@ -11,6 +11,7 @@ import {
   getFirstZodErrorMessage,
   googleLoginRequestSchema,
 } from '@/lib/validation/auth';
+import { requireJsonRequest } from '@/lib/utils/api-helpers';
 
 const GOOGLE_LOGIN_RATE_LIMIT = {
   windowMs: 60_000,
@@ -32,6 +33,11 @@ function resolveStatusFromError(message: string): number {
 
 export async function POST(req: NextRequest) {
   try {
+    const jsonGuard = requireJsonRequest(req);
+    if (jsonGuard) {
+      return jsonGuard;
+    }
+
     const rateLimit = evaluateRateLimit(req, 'auth-google-login', GOOGLE_LOGIN_RATE_LIMIT);
     if (!rateLimit.allowed) {
       return NextResponse.json(

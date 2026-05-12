@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import { getProjectRecord } from '@/lib/firebase/projects-store';
 import {
   getSimulationCase,
@@ -14,10 +15,20 @@ import {
   deleteSimulationCase,
 } from '@/lib/firebase/simulation-cases-store';
 import { buildStructuredGrid } from '@/lib/engine/simulation/geometry-builder';
-import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
+import { errorResponse, getErrorDetails, requireJsonRequest } from '@/lib/utils/api-helpers';
 import { buildProjectBuildingGeometry, toFallbackGeometry } from '@/lib/simulation/building-case';
 
 type RouteContext = { params: Promise<{ id: string; simId: string }> };
+
+const SIMULATION_CASE_MUTATION_RATE_LIMIT = {
+  windowMs: 60_000,
+  maxRequests: 12,
+} as const;
+
+const SIMULATION_CASE_GET_RATE_LIMIT = {
+  windowMs: 60_000,
+  maxRequests: 30,
+} as const;
 
 function isProjectOwnerOrAdmin(
   user: { id: string; role: string },
@@ -29,6 +40,14 @@ function isProjectOwnerOrAdmin(
 
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
+    const rateLimit = evaluateRateLimit(request, 'projects-id-simulations-simid-get', SIMULATION_CASE_GET_RATE_LIMIT);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
+      );
+    }
+
     const auth = await requireAuth(request);
     if (!auth.authorized) return auth.response;
 
@@ -57,10 +76,23 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
+    const rateLimit = evaluateRateLimit(request, 'projects-id-simulations-simid-put', SIMULATION_CASE_MUTATION_RATE_LIMIT);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
+      );
+    }
+
     const auth = await requireAuth(request);
     if (!auth.authorized) return auth.response;
 
     const { id: projectId, simId } = await context.params;
+
+    const jsonGuard = requireJsonRequest(request);
+    if (jsonGuard) {
+      return jsonGuard;
+    }
 
     const project = await getProjectRecord(projectId);
     if (!project) {
@@ -120,6 +152,14 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
+    const rateLimit = evaluateRateLimit(request, 'projects-id-simulations-simid-delete', SIMULATION_CASE_MUTATION_RATE_LIMIT);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
+      );
+    }
+
     const auth = await requireAuth(request);
     if (!auth.authorized) return auth.response;
 

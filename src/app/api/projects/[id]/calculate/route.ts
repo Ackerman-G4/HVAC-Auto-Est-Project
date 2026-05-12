@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import {
   getFloorsWithRooms,
   getProjectRecord,
@@ -24,8 +25,21 @@ import { finalizeDualValue } from '@/lib/utils/dual-control';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
+const PROJECT_CALCULATE_RATE_LIMIT = {
+  windowMs: 60_000,
+  maxRequests: 8,
+} as const;
+
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
+    const rateLimit = evaluateRateLimit(request, 'projects-id-calculate-post', PROJECT_CALCULATE_RATE_LIMIT);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
+      );
+    }
+
     const auth = await requireAuth(request);
     if (!auth.authorized) {
       return auth.response;

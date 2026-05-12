@@ -45,6 +45,8 @@ export interface MaterialRecord {
 
 interface DiagnosticHistoryRecord {
   id: string;
+  userId: string;
+  userEmail: string;
   systemType: string;
   input: string;
   result: string;
@@ -90,6 +92,8 @@ function mapMaterialRecord(id: string, data: Record<string, unknown>): MaterialR
 function mapDiagnosticHistoryRecord(id: string, data: Record<string, unknown>): DiagnosticHistoryRecord {
   return {
     id,
+    userId: toStringValue(data.userId, ''),
+    userEmail: toStringValue(data.userEmail, ''),
     systemType: toStringValue(data.systemType, ''),
     input: toStringValue(data.input, '{}'),
     result: toStringValue(data.result, '{}'),
@@ -358,6 +362,8 @@ export async function deleteMaterialRecord(id: string): Promise<void> {
 }
 
 export async function createDiagnosticHistory(input: {
+  userId: string;
+  userEmail?: string;
   systemType: string;
   payload: string;
   result: string;
@@ -367,6 +373,8 @@ export async function createDiagnosticHistory(input: {
   const id = randomUUID();
   const record: DiagnosticHistoryRecord = {
     id,
+    userId: toStringValue(input.userId, ''),
+    userEmail: toStringValue(input.userEmail, ''),
     systemType: input.systemType,
     input: input.payload,
     result: input.result,
@@ -379,22 +387,50 @@ export async function createDiagnosticHistory(input: {
   return record;
 }
 
-export async function listDiagnosticHistory(limit: number) {
+export async function listDiagnosticHistory(
+  limit: number,
+  options: {
+    userId?: string;
+    isAdmin?: boolean;
+  } = {},
+) {
   const safeLimit = Math.min(Math.max(limit, 1), 200);
-  const snapshot = await getFirebaseDb()
-    .collection(COLLECTIONS.diagnosticHistory)
-    .orderBy('createdAt', 'desc')
-    .limit(safeLimit)
-    .get();
+  const includeAll = options.isAdmin === true;
 
-  return snapshot.docs.map((doc) => {
+  if (!includeAll && !options.userId) {
+    return [];
+  }
+
+  const collectionRef = getFirebaseDb().collection(COLLECTIONS.diagnosticHistory);
+  const snapshot = includeAll
+    ? await collectionRef
+      .orderBy('createdAt', 'desc')
+      .limit(safeLimit)
+      .get()
+    : await collectionRef
+      .where('userId', '==', options.userId)
+      .limit(safeLimit * 4)
+      .get();
+
+  const mapped = snapshot.docs.map((doc) => {
     const record = mapDiagnosticHistoryRecord(doc.id, doc.data() as Record<string, unknown>);
+
+    if (!includeAll && record.userId !== options.userId) {
+      return null;
+    }
+
     return {
       id: record.id,
       systemType: record.systemType,
       faultCount: record.faultCount,
       maxSeverity: record.maxSeverity,
       createdAt: record.createdAt,
+      ...(includeAll ? { userId: record.userId, userEmail: record.userEmail } : {}),
     };
   });
+
+  return mapped
+    .filter((record): record is NonNullable<typeof record> => Boolean(record))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, safeLimit);
 }

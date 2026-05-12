@@ -5,6 +5,7 @@
  * and normalizes into internal FieldPayload and ArtifactManifest format.
  */
 
+import { DEFAULT_FIELD_ENVELOPE } from '@/types/simulation';
 import type {
   FieldPayload,
   FieldDescriptor,
@@ -100,6 +101,11 @@ export function importFieldData(
     caseId,
     runJobId,
     source,
+    fieldEnvelope: {
+      ...DEFAULT_FIELD_ENVELOPE,
+      units: { ...DEFAULT_FIELD_ENVELOPE.units },
+      renderAxisMap: { ...DEFAULT_FIELD_ENVELOPE.renderAxisMap },
+    },
     fields: descriptors,
     metrics,
     convergenceHistory: [],

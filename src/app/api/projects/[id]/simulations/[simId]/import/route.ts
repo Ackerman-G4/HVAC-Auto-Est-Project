@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import { getProjectRecord } from '@/lib/firebase/projects-store';
 import {
   getSimulationCase,
@@ -16,10 +17,15 @@ import {
   saveArtifactManifest,
 } from '@/lib/firebase/simulation-cases-store';
 import { importFieldData } from '@/lib/engine/simulation/result-importer';
-import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
+import { errorResponse, getErrorDetails, requireJsonRequest } from '@/lib/utils/api-helpers';
 import type { RunSource } from '@/types/simulation';
 
 type RouteContext = { params: Promise<{ id: string; simId: string }> };
+
+const SIMULATION_IMPORT_RATE_LIMIT = {
+  windowMs: 60_000,
+  maxRequests: 8,
+} as const;
 
 function isProjectOwnerOrAdmin(
   user: { id: string; role: string },
@@ -31,10 +37,23 @@ function isProjectOwnerOrAdmin(
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
+    const rateLimit = evaluateRateLimit(request, 'projects-id-simulations-simid-import-post', SIMULATION_IMPORT_RATE_LIMIT);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
+      );
+    }
+
     const auth = await requireAuth(request);
     if (!auth.authorized) return auth.response;
 
     const { id: projectId, simId } = await context.params;
+
+    const jsonGuard = requireJsonRequest(request);
+    if (jsonGuard) {
+      return jsonGuard;
+    }
 
     const project = await getProjectRecord(projectId);
     if (!project) {
@@ -95,6 +114,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
       return NextResponse.json({
         manifest: result.manifest,
+        fieldEnvelope: result.manifest.fieldEnvelope,
         fieldsImported: result.fields.map((f) => f.name),
       }, { status: 201 });
     } catch (importErr) {

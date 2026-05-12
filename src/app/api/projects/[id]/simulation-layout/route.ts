@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import { getProjectRecord } from '@/lib/firebase/projects-store';
 import {
   getSimulationLayout,
@@ -14,10 +15,21 @@ import {
 import {
   errorResponse,
   getErrorDetails,
+  requireJsonRequest,
   resourceNotFound,
 } from '@/lib/utils/api-helpers';
 
 type RouteContext = { params: Promise<{ id: string }> };
+
+const SIMULATION_LAYOUT_RATE_LIMIT = {
+  windowMs: 60_000,
+  maxRequests: 30,
+} as const;
+
+const SIMULATION_LAYOUT_GET_RATE_LIMIT = {
+  windowMs: 60_000,
+  maxRequests: 60,
+} as const;
 
 function isOwnerOrAdmin(user: { id: string; role: string }, project: { createdBy?: string }): boolean {
   if (user.role === 'admin') return true;
@@ -26,6 +38,14 @@ function isOwnerOrAdmin(user: { id: string; role: string }, project: { createdBy
 
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
+    const rateLimit = evaluateRateLimit(request, 'projects-id-simulation-layout-get', SIMULATION_LAYOUT_GET_RATE_LIMIT);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
+      );
+    }
+
     const auth = await requireAuth(request);
     if (!auth.authorized) return auth.response;
 
@@ -55,10 +75,24 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
+    const rateLimit = evaluateRateLimit(request, 'projects-id-simulation-layout-put', SIMULATION_LAYOUT_RATE_LIMIT);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
+      );
+    }
+
     const auth = await requireAuth(request);
     if (!auth.authorized) return auth.response;
 
     const { id: projectId } = await context.params;
+
+    const jsonGuard = requireJsonRequest(request);
+    if (jsonGuard) {
+      return jsonGuard;
+    }
+
     const body = await request.json();
     const { floorId, hvacPlacements, tilePlacements, canvasScale, connectionOverrides } = body;
 

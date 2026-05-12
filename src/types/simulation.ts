@@ -648,6 +648,44 @@ export interface RunJob {
 
 export type FieldName = 'temperature' | 'velocity' | 'pressure' | 'humidity' | 'turbulentViscosity';
 
+export interface FieldEnvelope {
+  schemaVersion: number;
+  coordinateSystem: 'right-handed-z-up';
+  sampleLocation: 'cell-centered';
+  interpolation: 'trilinear';
+  units: {
+    length: 'm';
+    velocity: 'm/s';
+    temperature: 'C';
+    pressure: 'Pa';
+    humidityRatio: 'kg/kg';
+  };
+  renderAxisMap: {
+    renderX: 'x';
+    renderY: 'z';
+    renderZ: 'y';
+  };
+}
+
+export const DEFAULT_FIELD_ENVELOPE: FieldEnvelope = {
+  schemaVersion: 1,
+  coordinateSystem: 'right-handed-z-up',
+  sampleLocation: 'cell-centered',
+  interpolation: 'trilinear',
+  units: {
+    length: 'm',
+    velocity: 'm/s',
+    temperature: 'C',
+    pressure: 'Pa',
+    humidityRatio: 'kg/kg',
+  },
+  renderAxisMap: {
+    renderX: 'x',
+    renderY: 'z',
+    renderZ: 'y',
+  },
+};
+
 /** Describes how a single field payload is stored/loaded */
 export interface FieldDescriptor {
   name: FieldName;
@@ -666,6 +704,7 @@ export interface ArtifactManifest {
   caseId: string;
   runJobId: string;
   source: RunSource;
+  fieldEnvelope: FieldEnvelope;
   /** Available fields */
   fields: FieldDescriptor[];
   /** Simulation metrics summary */
@@ -692,6 +731,26 @@ export interface CaseResult {
   manifest: ArtifactManifest;
   /** Loaded field payloads (populated on demand) */
   loadedFields: FieldPayload[];
+}
+
+/** Metadata for one persisted run snapshot at a specific iteration. */
+export interface RunFieldSnapshotMeta {
+  caseId: string;
+  runJobId: string;
+  iteration: number;
+  source: RunSource;
+  fieldEnvelope: FieldEnvelope;
+  dimensions: { nx: number; ny: number; nz: number };
+  sampleStride: number;
+  cellCount: number;
+  availableFields: FieldName[];
+  createdAt: string;
+}
+
+/** Snapshot payload for one iteration, including all requested fields. */
+export interface RunFieldSnapshot {
+  meta: RunFieldSnapshotMeta;
+  fields: FieldPayload[];
 }
 
 // ─── Simulation Engine: OpenFOAM/SimFlow Export ─────────────────────

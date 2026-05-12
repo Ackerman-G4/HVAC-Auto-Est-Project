@@ -334,6 +334,8 @@ export function getLocalFirestore(): LocalFirestore {
 }
 
 export function isLocalFirestoreMode(): boolean {
+  const authMode = process.env.AUTH_MODE?.trim().toLowerCase();
+
   // No Firebase credentials configured → use local store
   const saJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON || process.env.FIREBASE_SERVICE_ACCOUNT;
   const projectId = process.env.FIREBASE_PROJECT_ID;
@@ -341,6 +343,11 @@ export function isLocalFirestoreMode(): boolean {
   const privateKey = process.env.FIREBASE_PRIVATE_KEY || process.env.FIREBASE_PRIVATE_KEY_BASE64;
   const gac = process.env.GOOGLE_APPLICATION_CREDENTIALS;
   const emulator = process.env.FIRESTORE_EMULATOR_HOST;
+
+  // Local auth mode should prefer local JSON storage unless an explicit emulator host is provided.
+  if (authMode === 'local' && !emulator?.trim()) {
+    return true;
+  }
 
   // If emulator host is set but no credentials, still use local if the emulator isn't actually running
   if (saJson?.trim()) return false;

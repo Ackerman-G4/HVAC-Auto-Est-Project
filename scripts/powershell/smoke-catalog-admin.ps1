@@ -424,8 +424,9 @@ function Get-EmulatorAuditLogCount {
 
   $queryBody = $query | ConvertTo-Json -Depth 30
   $url = "http://$FirestoreHost/v1/projects/$FirestoreProjectId/databases/(default)/documents:runQuery"
+  $headers = @{ Authorization = 'Bearer owner' }
 
-  $result = Invoke-RestMethod -Uri $url -Method Post -ContentType 'application/json' -Body $queryBody
+  $result = Invoke-RestMethod -Uri $url -Method Post -ContentType 'application/json' -Headers $headers -Body $queryBody
   $rows = @($result)
   return (@($rows | Where-Object { $null -ne $_.document })).Count
 }

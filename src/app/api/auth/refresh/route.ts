@@ -5,10 +5,11 @@ import { getFirebaseAuth } from '@/lib/firebase/server';
 import { lookupAccountByIdToken } from '@/lib/firebase/auth-rest';
 import { resolveLocalFallbackRole } from '@/lib/auth/fallback-role';
 import { isLocalAuthMode, localRefreshToken } from '@/lib/auth/local-auth';
+import { requireJsonRequest } from '@/lib/utils/api-helpers';
 
 const REFRESH_RATE_LIMIT = {
-	windowMs: 60_000,
-	maxRequests: 20,
+	windowMs: 10 * 60_000,
+	maxRequests: 6,
 } as const;
 
 interface SecureTokenResponse {
@@ -30,6 +31,11 @@ function resolveRole(role: unknown): 'admin' | 'engineer' {
 
 export async function POST(req: NextRequest) {
 	try {
+		const jsonGuard = requireJsonRequest(req);
+		if (jsonGuard) {
+			return jsonGuard;
+		}
+
 		const rateLimit = evaluateRateLimit(req, 'auth-refresh', REFRESH_RATE_LIMIT);
 		if (!rateLimit.allowed) {
 			return NextResponse.json(

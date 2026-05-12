@@ -5,6 +5,12 @@
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
+interface ParsedApiError {
+  message: string;
+  details?: string;
+  code?: string;
+}
+
 const AUTH_TOKEN_STORAGE_KEY = 'hvac-auth-token';
 const REFRESH_TOKEN_STORAGE_KEY = 'hvac-refresh-token';
 let authTokenCache: string | null = null;
@@ -131,12 +137,52 @@ export async function authFetch(url: string, init?: RequestInit): Promise<Respon
 class ApiClientError extends Error {
   status: number;
   details?: string;
+  code?: string;
+  endpoint?: string;
 
-  constructor(message: string, status: number, details?: string) {
+  constructor(message: string, status: number, details?: string, code?: string, endpoint?: string) {
     super(message);
     this.name = 'ApiClientError';
     this.status = status;
     this.details = details;
+    this.code = code;
+    this.endpoint = endpoint;
+  }
+}
+
+function pickStringField(record: Record<string, unknown>, key: string): string | undefined {
+  const value = record[key];
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+async function parseErrorResponse(response: Response): Promise<ParsedApiError> {
+  const fallback = response.statusText || `Request failed (${response.status})`;
+  const contentType = response.headers.get('content-type')?.toLowerCase() ?? '';
+
+  if (contentType.includes('application/json')) {
+    try {
+      const data = (await response.json()) as Record<string, unknown>;
+      const message = pickStringField(data, 'error') || fallback;
+      const details = pickStringField(data, 'description') || pickStringField(data, 'details');
+      const code = pickStringField(data, 'code');
+      return { message, details, code };
+    } catch {
+      return { message: fallback };
+    }
+  }
+
+  try {
+    const text = (await response.text()).trim();
+    if (!text) {
+      return { message: fallback };
+    }
+
+    return {
+      message: fallback,
+      details: text.length > 300 ? `${text.slice(0, 300)}...` : text,
+    };
+  } catch {
+    return { message: fallback };
   }
 }
 
@@ -175,16 +221,14 @@ async function request<T>(
   }
 
   if (!res.ok) {
-    let errorMsg = res.statusText;
-    let details: string | undefined;
-    try {
-      const data = await res.json();
-      errorMsg = data.error || errorMsg;
-      details = data.details;
-    } catch {
-      // ignore parse errors for non-JSON responses
-    }
-    throw new ApiClientError(errorMsg, res.status, details);
+    const parsedError = await parseErrorResponse(res);
+    throw new ApiClientError(
+      parsedError.message,
+      res.status,
+      parsedError.details,
+      parsedError.code,
+      `${method} ${url}`,
+    );
   }
 
   if (res.status === 204) return undefined as T;

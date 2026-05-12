@@ -6,23 +6,69 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import { runCFDSimulation } from '@/lib/functions/cfd-simulation';
 import { compareOnly, autoCalibrate, calibrateWithSensors } from '@/lib/functions/calibration-engine';
 import { checkASHRAECompliance } from '@/lib/functions/ashrae-compliance';
 import { simulateFailure, calculatePUE } from '@/lib/functions/failure-simulation';
 import { runOptimization } from '@/lib/functions/cooling-optimization';
-import type { SimulationInput, FailureConfig, CalibrationConfig } from '@/types/simulation';
+import {
+  getSimulationValidationError,
+  simulationActionEnvelopeSchema,
+  simulationInputSchema,
+  failureConfigSchema,
+  calibrationConfigSchema,
+} from '@/lib/validation/simulation';
+import { internalServerError, requireJsonRequest } from '@/lib/utils/api-helpers';
+import type {
+  SimulationInput,
+  FailureConfig,
+  CalibrationConfig,
+  SimulationMetrics,
+  ServerRack,
+  HVACUnit,
+  SensorReading,
+  OptimizationConfig,
+} from '@/types/simulation';
 
 type SimAction = 'cfd' | 'compliance' | 'failure' | 'pue' | 'optimize' | 'calibrate';
 
+const SIMULATION_RATE_LIMIT = {
+  windowMs: 60_000,
+  maxRequests: 12,
+} as const;
+
 export async function POST(request: NextRequest) {
   try {
+    const jsonGuard = requireJsonRequest(request);
+    if (jsonGuard) {
+      return jsonGuard;
+    }
+
+    const rateLimit = evaluateRateLimit(request, 'simulation', SIMULATION_RATE_LIMIT);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
+      );
+    }
+
     const auth = await requireAuth(request);
     if (!auth.authorized) {
       return auth.response;
     }
 
-    const body = await request.json();
+    const rawBody = await request.json();
+    const parsedBody = simulationActionEnvelopeSchema.safeParse(rawBody);
+
+    if (!parsedBody.success) {
+      return NextResponse.json(
+        { error: getSimulationValidationError(parsedBody.error) },
+        { status: 400 },
+      );
+    }
+
+    const body = parsedBody.data;
     const action: SimAction = body.action;
 
     if (!action) {
@@ -34,10 +80,14 @@ export async function POST(request: NextRequest) {
 
     switch (action) {
       case 'cfd': {
-        const input: SimulationInput = body.input;
-        if (!input || !input.config) {
-          return NextResponse.json({ error: 'Simulation input with config is required' }, { status: 400 });
+        const parsedInput = simulationInputSchema.safeParse(body.input);
+        if (!parsedInput.success) {
+          return NextResponse.json(
+            { error: getSimulationValidationError(parsedInput.error) },
+            { status: 400 },
+          );
         }
+        const input = parsedInput.data as SimulationInput;
         const result = runCFDSimulation(input);
         return NextResponse.json({ result });
       }
@@ -47,51 +97,82 @@ export async function POST(request: NextRequest) {
         if (!metrics) {
           return NextResponse.json({ error: 'Simulation metrics required' }, { status: 400 });
         }
-        const report = checkASHRAECompliance(metrics, racks || [], hvacUnits || [], thermalClass);
+        const report = checkASHRAECompliance(
+          metrics as SimulationMetrics,
+          (Array.isArray(racks) ? racks : []) as ServerRack[],
+          (Array.isArray(hvacUnits) ? hvacUnits : []) as HVACUnit[],
+          thermalClass,
+        );
         return NextResponse.json({ report });
       }
 
       case 'failure': {
-        const { racks, hvacUnits, failureConfig, ambientTempC } = body;
-        if (!failureConfig) {
-          return NextResponse.json({ error: 'failureConfig is required' }, { status: 400 });
+        const parsedFailureConfig = failureConfigSchema.safeParse(body.failureConfig);
+        if (!parsedFailureConfig.success) {
+          return NextResponse.json(
+            { error: getSimulationValidationError(parsedFailureConfig.error) },
+            { status: 400 },
+          );
         }
-        const failConfig: FailureConfig = {
-          scenario: failureConfig.scenario || 'crac_failure',
-          failedUnitIds: failureConfig.failedUnitIds || [],
-          duration: failureConfig.duration || 3600,
-          timeStep: failureConfig.timeStep || 10,
-          rackMass: failureConfig.rackMass || 500,
-          specificHeat: failureConfig.specificHeat || 900,
-        };
-        const result = simulateFailure(racks || [], hvacUnits || [], failConfig, ambientTempC);
+        const { racks, hvacUnits, ambientTempC } = body;
+        const failConfig = parsedFailureConfig.data as FailureConfig;
+        const result = simulateFailure(
+          (Array.isArray(racks) ? racks : []) as ServerRack[],
+          (Array.isArray(hvacUnits) ? hvacUnits : []) as HVACUnit[],
+          failConfig,
+          ambientTempC,
+        );
         return NextResponse.json({ result });
       }
 
       case 'pue': {
         const { racks, hvacUnits, lightingPowerKW, otherPowerKW } = body;
-        const analysis = calculatePUE(racks || [], hvacUnits || [], lightingPowerKW, otherPowerKW);
+        const analysis = calculatePUE(
+          (Array.isArray(racks) ? racks : []) as ServerRack[],
+          (Array.isArray(hvacUnits) ? hvacUnits : []) as HVACUnit[],
+          lightingPowerKW,
+          otherPowerKW,
+        );
         return NextResponse.json({ analysis });
       }
 
       case 'optimize': {
-        const { input, optimizationConfig } = body;
-        if (!input || !input.config) {
-          return NextResponse.json({ error: 'Simulation input is required for optimization' }, { status: 400 });
+        const parsedInput = simulationInputSchema.safeParse(body.input);
+        if (!parsedInput.success) {
+          return NextResponse.json(
+            { error: getSimulationValidationError(parsedInput.error) },
+            { status: 400 },
+          );
         }
-        const result = runOptimization(input, optimizationConfig);
+        const { optimizationConfig } = body;
+        const input = parsedInput.data as SimulationInput;
+        const result = runOptimization(input, optimizationConfig as OptimizationConfig | undefined);
         return NextResponse.json({ result });
       }
 
       case 'calibrate': {
-        const { input, calibrationConfig, sensorReadings } = body;
-        if (!input || !input.config) {
-          return NextResponse.json({ error: 'Simulation input is required for calibration' }, { status: 400 });
+        const parsedInput = simulationInputSchema.safeParse(body.input);
+        if (!parsedInput.success) {
+          return NextResponse.json(
+            { error: getSimulationValidationError(parsedInput.error) },
+            { status: 400 },
+          );
         }
-        if (!calibrationConfig) {
-          return NextResponse.json({ error: 'calibrationConfig is required' }, { status: 400 });
+
+        const parsedCalibrationConfig = calibrationConfigSchema.safeParse(body.calibrationConfig);
+        if (!parsedCalibrationConfig.success) {
+          return NextResponse.json(
+            { error: getSimulationValidationError(parsedCalibrationConfig.error) },
+            { status: 400 },
+          );
         }
-        const calConfig: CalibrationConfig = calibrationConfig;
+
+        const input = parsedInput.data as SimulationInput;
+        const calConfig = parsedCalibrationConfig.data as CalibrationConfig;
+        const sensorReadings = (Array.isArray(body.sensorReadings)
+          ? body.sensorReadings
+          : []) as SensorReading[];
+
         // Run initial CFD for comparison baseline
         const cfdResult = runCFDSimulation(input);
         let calibrationResult;
@@ -119,9 +200,6 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     console.error('[Simulation API Error]', error);
-    return NextResponse.json(
-      { error: 'Simulation error', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 },
-    );
+    return internalServerError('Simulation error');
   }
 }

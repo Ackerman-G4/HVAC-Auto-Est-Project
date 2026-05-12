@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import { sizeEquipment } from '@/lib/functions/equipment-sizing';
 import {
   clearSelectedEquipmentForProject,
@@ -14,12 +15,30 @@ import {
   toApiEquipment,
 } from '@/lib/firebase/project-estimation-store';
 import { getFloorsWithRooms, updateProjectRecord } from '@/lib/firebase/projects-store';
-import { errorResponse, getErrorDetails, resourceNotFound, toNumber } from '@/lib/utils/api-helpers';
+import { errorResponse, getErrorDetails, requireJsonRequest, resourceNotFound, toNumber } from '@/lib/utils/api-helpers';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
+const EQUIPMENT_MUTATION_RATE_LIMIT = {
+  windowMs: 60_000,
+  maxRequests: 30,
+} as const;
+
+const EQUIPMENT_GET_RATE_LIMIT = {
+  windowMs: 60_000,
+  maxRequests: 40,
+} as const;
+
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
+    const rateLimit = evaluateRateLimit(request, 'projects-id-equipment-get', EQUIPMENT_GET_RATE_LIMIT);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
+      );
+    }
+
     const auth = await requireAuth(request);
     if (!auth.authorized) {
       return auth.response;
@@ -40,12 +59,26 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
+    const rateLimit = evaluateRateLimit(request, 'projects-id-equipment-post', EQUIPMENT_MUTATION_RATE_LIMIT);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
+      );
+    }
+
     const auth = await requireAuth(request);
     if (!auth.authorized) {
       return auth.response;
     }
 
     const { id: projectId } = await context.params;
+
+    const jsonGuard = requireJsonRequest(request);
+    if (jsonGuard) {
+      return jsonGuard;
+    }
+
     const body = await request.json();
 
     if (body.autoSize) {

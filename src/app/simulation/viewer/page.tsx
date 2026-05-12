@@ -15,11 +15,12 @@ import { Tabs, TabPanel } from '@/components/ui/tabs';
 import { useSimulationStore } from '@/stores/simulation-store';
 import type {
   RackDensity, HVACUnitType, FailureScenario,
-  ServerRack, HVACUnit,
+  ServerRack, HVACUnit, PerforatedTile, Vec3,
 } from '@/types/simulation';
 import type { Project } from '@/types/project';
 import { authFetch } from '@/lib/api-client';
 import { showToast } from '@/components/ui/toast';
+import { getPolygonBounds, parseRoomPolygon } from '@/lib/utils/room-polygon';
 
 const AirflowViewer3D = dynamic(
   () => import('@/components/building/AirflowViewer3D').then(mod => mod.default),
@@ -42,6 +43,7 @@ interface DetectedFloor {
   id: string;
   floorNumber: number;
   name: string;
+  scale: number;
   ceilingHeight: number;
   rooms: DetectedRoom[];
 }
@@ -56,6 +58,387 @@ interface DetectedRoom {
   lightingDensity: number;
   equipmentLoad: number;
   coolingLoad: { trValue?: number; btuValue?: number } | null;
+  polygon?: string;
+}
+
+interface ViewerRoomBoundary {
+  id: string;
+  name: string;
+  points: Array<{ x: number; y: number }>;
+  centroid: { x: number; y: number };
+}
+
+const HVAC_TYPE_DEFAULTS: Record<HVACUnitType, {
+  width: number;
+  depth: number;
+  height: number;
+  capacityKW: number;
+  airflowCFM: number;
+  supplyTempC: number;
+}> = {
+  crac: { width: 1.2, depth: 1.0, height: 2.2, capacityKW: 30, airflowCFM: 5500, supplyTempC: 13 },
+  crah: { width: 1.4, depth: 1.1, height: 2.3, capacityKW: 50, airflowCFM: 7000, supplyTempC: 13 },
+  ahu: { width: 1.5, depth: 1.2, height: 2.4, capacityKW: 25, airflowCFM: 4500, supplyTempC: 15 },
+  in_row: { width: 0.4, depth: 1.2, height: 2.0, capacityKW: 20, airflowCFM: 3000, supplyTempC: 15 },
+  rear_door: { width: 0.6, depth: 0.3, height: 2.1, capacityKW: 8, airflowCFM: 900, supplyTempC: 17 },
+  vent_duct: { width: 0.8, depth: 0.8, height: 0.8, capacityKW: 12, airflowCFM: 2000, supplyTempC: 16 },
+};
+
+const HVAC_TYPES: HVACUnitType[] = ['crac', 'crah', 'ahu', 'in_row', 'rear_door', 'vent_duct'];
+const HVAC_PLACEMENT_GRID_M = 0.25;
+const HVAC_MIN_WALL_CLEARANCE_M = 0.2;
+const HVAC_MIN_UNIT_GAP_M = 0.12;
+
+function toFiniteNumber(value: unknown, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function toHVACType(value: unknown): HVACUnitType {
+  return HVAC_TYPES.includes(value as HVACUnitType)
+    ? (value as HVACUnitType)
+    : 'crac';
+}
+
+function deriveFloorBoundsMeters(floor: DetectedFloor): { width: number; length: number } {
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+
+  for (const room of floor.rooms) {
+    const polygon = parseRoomPolygon(room.polygon ?? '');
+    if (!polygon) {
+      continue;
+    }
+
+    const scale = polygon.scale && polygon.scale > 0
+      ? polygon.scale
+      : floor.scale > 0
+        ? floor.scale
+        : 1;
+    const pointsInMeters = polygon.points.map((point) => ({
+      x: point.x / scale,
+      y: point.y / scale,
+    }));
+    const bounds = getPolygonBounds(pointsInMeters);
+
+    if (!bounds) {
+      continue;
+    }
+
+    minX = Math.min(minX, bounds.minX);
+    minY = Math.min(minY, bounds.minY);
+    maxX = Math.max(maxX, bounds.maxX);
+    maxY = Math.max(maxY, bounds.maxY);
+  }
+
+  if (
+    Number.isFinite(minX)
+    && Number.isFinite(minY)
+    && Number.isFinite(maxX)
+    && Number.isFinite(maxY)
+  ) {
+    return {
+      width: Math.max(1, maxX - minX),
+      length: Math.max(1, maxY - minY),
+    };
+  }
+
+  const totalArea = floor.rooms.reduce((sum, room) => sum + Math.max(0, room.area), 0);
+  const fallbackSide = Math.max(6, Math.sqrt(Math.max(totalArea, 36)));
+  return { width: fallbackSide, length: fallbackSide };
+}
+
+function mapLayoutHVACToUnit(raw: Record<string, unknown>, index: number): HVACUnit {
+  const type = toHVACType(raw.type);
+  const defaults = HVAC_TYPE_DEFAULTS[type];
+  const rawPosition = (raw.position ?? {}) as Record<string, unknown>;
+
+  const capacityKW = Math.max(0.1, toFiniteNumber(raw.capacityKW, defaults.capacityKW));
+  const airflowCFM = Math.max(50, toFiniteNumber(raw.airflowCFM, Math.max(defaults.airflowCFM, capacityKW * 170)));
+
+  return {
+    id: typeof raw.id === 'string' && raw.id.length > 0
+      ? raw.id
+      : `layout-hvac-${index + 1}`,
+    type,
+    name: typeof raw.label === 'string' && raw.label.length > 0
+      ? raw.label
+      : `${type.toUpperCase()} ${index + 1}`,
+    position: {
+      x: toFiniteNumber(rawPosition.x, 0),
+      y: toFiniteNumber(rawPosition.y, 0),
+      z: toFiniteNumber(rawPosition.z, 0),
+    },
+    width: defaults.width,
+    depth: defaults.depth,
+    height: defaults.height,
+    capacityKW,
+    capacityTR: capacityKW / 3.517,
+    airflowCFM,
+    supplyTempC: defaults.supplyTempC,
+    returnTempC: 24,
+    orientation: toFiniteNumber(raw.orientation, 0),
+    powerInputKW: Math.max(0.1, capacityKW / 3),
+    status: 'active',
+  };
+}
+
+function mapLayoutTile(raw: Record<string, unknown>): PerforatedTile | null {
+  const x = toFiniteNumber(raw.x, Number.NaN);
+  const y = toFiniteNumber(raw.y, Number.NaN);
+
+  if (!Number.isFinite(x) || !Number.isFinite(y)) {
+    return null;
+  }
+
+  return {
+    x,
+    y,
+    openArea: Math.max(0.05, Math.min(1, toFiniteNumber(raw.openArea, 0.25))),
+    tileSize: Math.max(0.2, toFiniteNumber(raw.tileSize, 0.6)),
+  };
+}
+
+function mapHVACUnitToLayoutPlacement(unit: HVACUnit): Record<string, unknown> {
+  return {
+    id: unit.id,
+    type: unit.type,
+    label: unit.name,
+    position: {
+      x: unit.position.x,
+      y: unit.position.y,
+      z: unit.position.z,
+    },
+    orientation: unit.orientation,
+    capacityKW: unit.capacityKW,
+    airflowCFM: unit.airflowCFM,
+  };
+}
+
+function mapTileToLayoutPlacement(tile: PerforatedTile, index: number): Record<string, unknown> {
+  return {
+    id: `tile-${index + 1}-${tile.x.toFixed(2)}-${tile.y.toFixed(2)}`,
+    x: tile.x,
+    y: tile.y,
+    openArea: tile.openArea,
+    tileSize: tile.tileSize,
+  };
+}
+
+function resolveCanvasScale(floor: DetectedFloor | null): number {
+  return floor && floor.scale > 0 ? floor.scale : 50;
+}
+
+function buildLayoutPayload(
+  floorId: string,
+  floor: DetectedFloor | null,
+  hvacUnits: HVACUnit[],
+  tiles: PerforatedTile[],
+): {
+  floorId: string;
+  hvacPlacements: Record<string, unknown>[];
+  tilePlacements: Record<string, unknown>[];
+  canvasScale: number;
+} {
+  return {
+    floorId,
+    hvacPlacements: hvacUnits.map(mapHVACUnitToLayoutPlacement),
+    tilePlacements: tiles.map(mapTileToLayoutPlacement),
+    canvasScale: resolveCanvasScale(floor),
+  };
+}
+
+function buildLayoutPayloadHash(payload: {
+  floorId: string;
+  hvacPlacements: Record<string, unknown>[];
+  tilePlacements: Record<string, unknown>[];
+  canvasScale: number;
+}): string {
+  return JSON.stringify(payload);
+}
+
+function buildRoomBoundariesForFloor(floor: DetectedFloor | null): ViewerRoomBoundary[] {
+  if (!floor) {
+    return [];
+  }
+
+  return floor.rooms
+    .map((room) => {
+      const polygon = parseRoomPolygon(room.polygon ?? '');
+      if (!polygon || polygon.points.length < 3) {
+        return null;
+      }
+
+      const scale = polygon.scale && polygon.scale > 0
+        ? polygon.scale
+        : floor.scale > 0
+          ? floor.scale
+          : 1;
+      const points = polygon.points.map((point) => ({
+        x: point.x / scale,
+        y: point.y / scale,
+      }));
+
+      const bounds = getPolygonBounds(points);
+      if (!bounds) {
+        return null;
+      }
+
+      const centroid = points.reduce(
+        (acc, point) => ({ x: acc.x + point.x, y: acc.y + point.y }),
+        { x: 0, y: 0 },
+      );
+      const divisor = points.length || 1;
+
+      return {
+        id: room.id,
+        name: room.name,
+        points,
+        centroid: {
+          x: centroid.x / divisor,
+          y: centroid.y / divisor,
+        },
+      };
+    })
+    .filter((room): room is ViewerRoomBoundary => Boolean(room));
+}
+
+function snapToPlacementGrid(value: number): number {
+  return Math.round(value / HVAC_PLACEMENT_GRID_M) * HVAC_PLACEMENT_GRID_M;
+}
+
+function distancePointToSegment(
+  point: { x: number; y: number },
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+): number {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const lengthSq = dx * dx + dy * dy;
+
+  if (lengthSq < 1e-9) {
+    return Math.hypot(point.x - start.x, point.y - start.y);
+  }
+
+  const t = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSq));
+  const projX = start.x + t * dx;
+  const projY = start.y + t * dy;
+  return Math.hypot(point.x - projX, point.y - projY);
+}
+
+function isPointInsidePolygon(point: { x: number; y: number }, polygon: Array<{ x: number; y: number }>): boolean {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].x;
+    const yi = polygon[i].y;
+    const xj = polygon[j].x;
+    const yj = polygon[j].y;
+
+    const intersects = ((yi > point.y) !== (yj > point.y))
+      && (point.x < ((xj - xi) * (point.y - yi)) / ((yj - yi) || 1e-9) + xi);
+    if (intersects) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+function minDistanceToPolygonEdges(point: { x: number; y: number }, polygon: Array<{ x: number; y: number }>): number {
+  let minDistance = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < polygon.length; i++) {
+    const start = polygon[i];
+    const end = polygon[(i + 1) % polygon.length];
+    const distance = distancePointToSegment(point, start, end);
+    minDistance = Math.min(minDistance, distance);
+  }
+  return minDistance;
+}
+
+function overlapIntervals(aMin: number, aMax: number, bMin: number, bMax: number): boolean {
+  return aMin < bMax && bMin < aMax;
+}
+
+function unitsOverlapInPlan(a: HVACUnit, b: HVACUnit): boolean {
+  const aMinX = a.position.x - a.width / 2 - HVAC_MIN_UNIT_GAP_M;
+  const aMaxX = a.position.x + a.width / 2 + HVAC_MIN_UNIT_GAP_M;
+  const aMinY = a.position.y - a.depth / 2 - HVAC_MIN_UNIT_GAP_M;
+  const aMaxY = a.position.y + a.depth / 2 + HVAC_MIN_UNIT_GAP_M;
+
+  const bMinX = b.position.x - b.width / 2;
+  const bMaxX = b.position.x + b.width / 2;
+  const bMinY = b.position.y - b.depth / 2;
+  const bMaxY = b.position.y + b.depth / 2;
+
+  return overlapIntervals(aMinX, aMaxX, bMinX, bMaxX)
+    && overlapIntervals(aMinY, aMaxY, bMinY, bMaxY);
+}
+
+function snapHVACUnit(unit: HVACUnit): HVACUnit {
+  return {
+    ...unit,
+    position: {
+      ...unit.position,
+      x: snapToPlacementGrid(unit.position.x),
+      y: snapToPlacementGrid(unit.position.y),
+    },
+  };
+}
+
+function validateHVACPlacement(
+  candidate: HVACUnit,
+  existingUnits: HVACUnit[],
+  roomBoundaries: ViewerRoomBoundary[],
+): { valid: boolean; reason?: string } {
+  if (roomBoundaries.length > 0) {
+    const container = roomBoundaries.find((room) => isPointInsidePolygon(candidate.position, room.points));
+    if (!container) {
+      return { valid: false, reason: 'Placement is outside all room boundaries.' };
+    }
+
+    const edgeDistance = minDistanceToPolygonEdges(candidate.position, container.points);
+    const requiredClearance = Math.max(
+      HVAC_MIN_WALL_CLEARANCE_M,
+      Math.min(candidate.width, candidate.depth) * 0.35,
+    );
+    if (edgeDistance < requiredClearance) {
+      return { valid: false, reason: `Placement is too close to room wall boundary (need >= ${requiredClearance.toFixed(2)}m).` };
+    }
+  }
+
+  const overlap = existingUnits.find((unit) => unitsOverlapInPlan(candidate, unit));
+  if (overlap) {
+    return { valid: false, reason: `Placement overlaps with ${overlap.name}.` };
+  }
+
+  return { valid: true };
+}
+
+function sanitizeHVACPlacements(
+  units: HVACUnit[],
+  roomBoundaries: ViewerRoomBoundary[],
+): {
+  accepted: HVACUnit[];
+  rejected: Array<{ unit: HVACUnit; reason: string }>;
+} {
+  const accepted: HVACUnit[] = [];
+  const rejected: Array<{ unit: HVACUnit; reason: string }> = [];
+
+  for (const rawUnit of units) {
+    const unit = snapHVACUnit(rawUnit);
+    const validation = validateHVACPlacement(unit, accepted, roomBoundaries);
+    if (validation.valid) {
+      accepted.push(unit);
+    } else {
+      rejected.push({
+        unit,
+        reason: validation.reason ?? 'Unknown placement validation issue.',
+      });
+    }
+  }
+
+  return { accepted, rejected };
 }
 
 /** Infer server racks from a server_room room's equipment load */
@@ -85,7 +468,7 @@ function inferRacksFromRoom(room: DetectedRoom, offsetX: number): Omit<ServerRac
 }
 
 /** Infer HVAC units needed for a room based on cooling load or area */
-function inferHVACFromRoom(room: DetectedRoom, offsetX: number): Omit<HVACUnit, 'id'>[] {
+function inferHVACFromRoom(room: DetectedRoom, offsetX: number, floorScale: number): Omit<HVACUnit, 'id'>[] {
   // Determine cooling needed in kW
   let coolingKW: number;
   if (room.coolingLoad?.trValue) {
@@ -124,16 +507,47 @@ function inferHVACFromRoom(room: DetectedRoom, offsetX: number): Omit<HVACUnit, 
   const actualPerUnit = coolingKW / unitCount;
   const units: Omit<HVACUnit, 'id'>[] = [];
 
+  let anchorX = offsetX;
+  let anchorY = Math.max(1, Math.sqrt(Math.max(room.area, 1)) - 1);
+  const polygon = parseRoomPolygon(room.polygon ?? '');
+  if (polygon && polygon.points.length >= 3) {
+    const scale = polygon.scale && polygon.scale > 0
+      ? polygon.scale
+      : floorScale > 0
+        ? floorScale
+        : 1;
+    const points = polygon.points.map((point) => ({ x: point.x / scale, y: point.y / scale }));
+    const bounds = getPolygonBounds(points);
+    if (bounds) {
+      anchorX = (bounds.minX + bounds.maxX) / 2;
+      anchorY = (bounds.minY + bounds.maxY) / 2;
+    }
+  }
+
+  const columns = Math.min(2, unitCount);
+
   for (let i = 0; i < unitCount; i++) {
+    const defaults = HVAC_TYPE_DEFAULTS[unitType];
+    const spacing = Math.max(0.9, Math.max(defaults.width, defaults.depth) + 0.35);
+    const row = Math.floor(i / columns);
+    const column = i % columns;
+    const offsetColumn = column - (columns - 1) / 2;
+
     units.push({
       type: unitType,
       name: `${room.name} - ${unitType.toUpperCase()} ${i + 1}`,
-      position: { x: offsetX + i * 2, y: Math.sqrt(room.area) - 1, z: 0 },
-      width: 1.0, depth: 1.0, height: 2.5,
+      position: {
+        x: anchorX + offsetColumn * spacing,
+        y: anchorY + row * spacing * 0.85,
+        z: 0,
+      },
+      width: defaults.width,
+      depth: defaults.depth,
+      height: defaults.height,
       capacityKW: Math.round(actualPerUnit * 10) / 10,
       capacityTR: Math.round((actualPerUnit / 3.517) * 10) / 10,
-      airflowCFM: Math.round(actualPerUnit * 170),
-      supplyTempC: room.spaceType === 'server_room' ? 13 : 16,
+      airflowCFM: Math.round(Math.max(defaults.airflowCFM * 0.5, actualPerUnit * 170)),
+      supplyTempC: room.spaceType === 'server_room' ? Math.min(defaults.supplyTempC, 13) : defaults.supplyTempC,
       returnTempC: 24,
       orientation: 0,
       powerInputKW: Math.round(actualPerUnit / 3 * 10) / 10,
@@ -237,9 +651,10 @@ function TemperatureHeatmap() {
 
 // ─── Equipment Setup Panel ──────────────────────────────────────────
 
-function EquipmentPanel({ floors, selectedFloorId, onFloorChange, onAutoDetect, isDetecting }: {
+function EquipmentPanel({ floors, selectedFloorId, roomBoundaries, onFloorChange, onAutoDetect, isDetecting }: {
   floors: DetectedFloor[];
   selectedFloorId: string;
+  roomBoundaries: ViewerRoomBoundary[];
   onFloorChange: (id: string) => void;
   onAutoDetect: () => void;
   isDetecting: boolean;
@@ -272,11 +687,15 @@ function EquipmentPanel({ floors, selectedFloorId, onFloorChange, onAutoDetect, 
   };
 
   const handleAddHVAC = () => {
-    addHVACUnit({
+    const defaults = HVAC_TYPE_DEFAULTS[hvacForm.type];
+    const candidate: HVACUnit = snapHVACUnit({
+      id: `preview-${Date.now()}`,
       type: hvacForm.type,
       name: hvacForm.name || `${hvacForm.type.toUpperCase()} ${hvacUnits.length + 1}`,
       position: { x: hvacForm.posX, y: hvacForm.posY, z: 0 },
-      width: 1.0, depth: 1.0, height: 2.5,
+      width: defaults.width,
+      depth: defaults.depth,
+      height: defaults.height,
       capacityKW: hvacForm.capacityKW,
       capacityTR: hvacForm.capacityKW / 3.517,
       airflowCFM: hvacForm.airflowCFM,
@@ -286,6 +705,35 @@ function EquipmentPanel({ floors, selectedFloorId, onFloorChange, onAutoDetect, 
       powerInputKW: hvacForm.capacityKW / 3,
       status: 'active',
     });
+
+    const validation = validateHVACPlacement(candidate, hvacUnits, roomBoundaries);
+    if (!validation.valid) {
+      showToast('warning', 'Invalid HVAC placement', validation.reason ?? 'Placement validation failed');
+      return;
+    }
+
+    addHVACUnit({
+      type: candidate.type,
+      name: candidate.name,
+      position: candidate.position,
+      width: candidate.width,
+      depth: candidate.depth,
+      height: candidate.height,
+      capacityKW: candidate.capacityKW,
+      capacityTR: candidate.capacityTR,
+      airflowCFM: candidate.airflowCFM,
+      supplyTempC: candidate.supplyTempC,
+      returnTempC: candidate.returnTempC,
+      orientation: candidate.orientation,
+      powerInputKW: candidate.powerInputKW,
+      status: candidate.status,
+    });
+
+    setHvacForm((form) => ({
+      ...form,
+      posX: candidate.position.x,
+      posY: candidate.position.y,
+    }));
   };
 
   return (
@@ -441,6 +889,9 @@ function EquipmentPanel({ floors, selectedFloorId, onFloorChange, onAutoDetect, 
             <Plus size={16} /> Add Unit
           </button>
         </div>
+        <p className="-mt-2 mb-4 text-xs text-muted-foreground">
+          Placement snaps to 0.25m grid and enforces room-boundary clearance plus no-overlap with existing units.
+        </p>
         {hvacUnits.length > 0 && (
           <div className="panel-glass overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm">
             <table className="w-full text-sm">
@@ -908,19 +1359,36 @@ export default function SimulationPage() {
   const [projectList, setProjectList] = useState<Project[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [activeTab, setActiveTab] = useState('equipment');
+  const [selectedHVACId, setSelectedHVACId] = useState<string | null>(null);
+  const [layoutSaveState, setLayoutSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+  const layoutHydratingRef = useRef(false);
+  const layoutSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastLayoutPayloadHashRef = useRef('');
+
   const {
-    racks, hvacUnits, isRunning, result,
+    racks,
+    hvacUnits,
+    tiles,
+    isRunning,
+    result,
     runSimulation, runCompliance, runPUE, runOptimization,
     activeView, showHotspots, showAirflow, selectedSliceZ,
     setActiveView, setShowHotspots, setShowAirflow, setSelectedSliceZ,
-    addRack, addHVACUnit, setConfig, setMode, config, clearAll,
+    addRack, updateHVACUnit, setHVACUnits, setTiles, setConfig, setMode, config, clearAll,
     inspectedCell, setInspectedCell,
     tileFlowView, setTileFlowView, alerts, tileAirflowData,
-  } = useSimulationStore();  const [selectedProjectId, setSelectedProjectId] = useState('');
+  } = useSimulationStore();
+
+  const [selectedProjectId, setSelectedProjectId] = useState('');
   const [detectedFloors, setDetectedFloors] = useState<DetectedFloor[]>([]);
   const [selectedFloorId, setSelectedFloorId] = useState('');
   const [isDetecting, setIsDetecting] = useState(false);
   const tileFlowViewerRef = useRef<import('@/components/building/AirflowViewer3D').AirflowViewerHandle>(null);
+  const selectedFloor = useMemo(
+    () => detectedFloors.find((floor) => floor.id === selectedFloorId) ?? null,
+    [detectedFloors, selectedFloorId],
+  );
 
   // Fetch projects
   useEffect(() => {
@@ -955,6 +1423,7 @@ export default function SimulationPage() {
             id: f.id as string,
             floorNumber: (f.floorNumber as number) ?? 0,
             name: (f.name as string) ?? `Floor ${f.floorNumber}`,
+            scale: Number(f.scale) > 0 ? Number(f.scale) : 50,
             ceilingHeight: (f.ceilingHeight as number) ?? 3.0,
             rooms: Array.isArray(f.rooms) ? (f.rooms as Record<string, unknown>[]).map((r: Record<string, unknown>) => ({
               id: r.id as string,
@@ -966,6 +1435,7 @@ export default function SimulationPage() {
               lightingDensity: (r.lightingDensity as number) ?? 0,
               equipmentLoad: (r.equipmentLoad as number) ?? 0,
               coolingLoad: r.coolingLoad as DetectedRoom['coolingLoad'],
+              polygon: typeof r.polygon === 'string' ? r.polygon : undefined,
             })) : [],
           }));
           setDetectedFloors(floors);
@@ -974,6 +1444,262 @@ export default function SimulationPage() {
       })
       .catch(() => { /* ignore */ });
   }, [selectedProjectId]);
+
+  // Sync HVAC/tile placements from saved floorplan layout.
+  useEffect(() => {
+    if (!selectedProjectId || !selectedFloorId) {
+      return;
+    }
+
+    let cancelled = false;
+    layoutHydratingRef.current = true;
+
+    authFetch(`/api/projects/${selectedProjectId}/simulation-layout?floorId=${encodeURIComponent(selectedFloorId)}`)
+      .then(async (response) => {
+        if (!response.ok) {
+          return null;
+        }
+        const data = await response.json();
+        return (data?.layout ?? null) as Record<string, unknown> | null;
+      })
+      .then((layout) => {
+        if (cancelled) {
+          return;
+        }
+
+        const hvacPlacements = Array.isArray(layout?.hvacPlacements)
+          ? (layout?.hvacPlacements as Record<string, unknown>[])
+          : [];
+        const tilePlacements = Array.isArray(layout?.tilePlacements)
+          ? (layout?.tilePlacements as Record<string, unknown>[])
+          : [];
+
+        const mappedHVAC = hvacPlacements.map((placement, index) => mapLayoutHVACToUnit(placement, index));
+        const mappedTiles = tilePlacements
+          .map(mapLayoutTile)
+          .filter((tile): tile is PerforatedTile => tile !== null);
+
+        const floorRoomBoundaries = buildRoomBoundariesForFloor(selectedFloor);
+        const sanitizedHVAC = sanitizeHVACPlacements(mappedHVAC, floorRoomBoundaries);
+
+        setHVACUnits(sanitizedHVAC.accepted);
+        setTiles(mappedTiles);
+        if (selectedHVACId && !sanitizedHVAC.accepted.some((unit) => unit.id === selectedHVACId)) {
+          setSelectedHVACId(null);
+        }
+
+        const hydratedPayload = buildLayoutPayload(
+          selectedFloorId,
+          selectedFloor,
+          sanitizedHVAC.accepted,
+          mappedTiles,
+        );
+        lastLayoutPayloadHashRef.current = buildLayoutPayloadHash(hydratedPayload);
+
+        if (sanitizedHVAC.rejected.length > 0) {
+          showToast(
+            'warning',
+            'Layout HVAC validation applied',
+            `${sanitizedHVAC.accepted.length} unit(s) accepted, ${sanitizedHVAC.rejected.length} skipped due to boundary/overlap constraints.`,
+          );
+        }
+
+        const floorBounds = selectedFloor
+          ? deriveFloorBoundsMeters(selectedFloor)
+          : { width: 6, length: 6 };
+        const hvacExtentX = sanitizedHVAC.accepted.reduce((max, unit) => Math.max(max, unit.position.x + unit.width), 0);
+        const hvacExtentY = sanitizedHVAC.accepted.reduce((max, unit) => Math.max(max, unit.position.y + unit.depth), 0);
+        const tileExtentX = mappedTiles.reduce((max, tile) => Math.max(max, tile.x + tile.tileSize), 0);
+        const tileExtentY = mappedTiles.reduce((max, tile) => Math.max(max, tile.y + tile.tileSize), 0);
+
+        const targetWidthM = Math.max(floorBounds.width, hvacExtentX + 1, tileExtentX + 1, 6);
+        const targetLengthM = Math.max(floorBounds.length, hvacExtentY + 1, tileExtentY + 1, 6);
+        const cellSize = Math.max(0.1, config.gridResolution);
+
+        const nextGridSizeX = Math.max(10, Math.min(80, Math.ceil(targetWidthM / cellSize) + 2));
+        const nextGridSizeY = Math.max(10, Math.min(80, Math.ceil(targetLengthM / cellSize) + 2));
+        const nextGridSizeZ = Math.max(
+          6,
+          Math.min(24, Math.ceil(Math.max(2.4, selectedFloor?.ceilingHeight ?? 3.0) / cellSize)),
+        );
+        const currentConfig = useSimulationStore.getState().config;
+
+        if (
+          nextGridSizeX !== currentConfig.gridSizeX
+          || nextGridSizeY !== currentConfig.gridSizeY
+          || nextGridSizeZ !== currentConfig.gridSizeZ
+        ) {
+          setConfig({
+            gridSizeX: nextGridSizeX,
+            gridSizeY: nextGridSizeY,
+            gridSizeZ: nextGridSizeZ,
+          });
+        }
+      })
+      .catch(() => { /* ignore layout sync errors */ })
+      .finally(() => {
+        if (!cancelled) {
+          layoutHydratingRef.current = false;
+        }
+      });
+
+    return () => {
+      cancelled = true;
+      layoutHydratingRef.current = false;
+    };
+  }, [
+    selectedProjectId,
+    selectedFloorId,
+    selectedFloor,
+    selectedHVACId,
+    config.gridResolution,
+    setConfig,
+    setHVACUnits,
+    setTiles,
+  ]);
+
+  const viewerRoomBoundaries = useMemo<ViewerRoomBoundary[]>(
+    () => buildRoomBoundariesForFloor(selectedFloor),
+    [selectedFloor],
+  );
+
+  const canEditHVACIn3D = viewerRoomBoundaries.length > 0;
+
+  const handleHVACDragPreview = useCallback((unitId: string, proposedPosition: Vec3) => {
+    const unit = hvacUnits.find((item) => item.id === unitId);
+    if (!unit) {
+      return {
+        position: proposedPosition,
+        valid: false,
+        reason: 'Selected HVAC unit no longer exists.',
+      };
+    }
+
+    const snappedCandidate = snapHVACUnit({
+      ...unit,
+      position: {
+        x: proposedPosition.x,
+        y: proposedPosition.y,
+        z: unit.position.z,
+      },
+    });
+    const validation = validateHVACPlacement(
+      snappedCandidate,
+      hvacUnits.filter((item) => item.id !== unitId),
+      viewerRoomBoundaries,
+    );
+
+    return {
+      position: snappedCandidate.position,
+      valid: validation.valid,
+      reason: validation.reason,
+    };
+  }, [hvacUnits, viewerRoomBoundaries]);
+
+  const handleHVACDragCommit = useCallback((unitId: string, position: Vec3) => {
+    const unit = hvacUnits.find((item) => item.id === unitId);
+    if (!unit) {
+      return;
+    }
+
+    const snappedCandidate = snapHVACUnit({
+      ...unit,
+      position: {
+        x: position.x,
+        y: position.y,
+        z: unit.position.z,
+      },
+    });
+    const validation = validateHVACPlacement(
+      snappedCandidate,
+      hvacUnits.filter((item) => item.id !== unitId),
+      viewerRoomBoundaries,
+    );
+
+    if (!validation.valid) {
+      showToast('warning', 'Invalid HVAC placement', validation.reason ?? 'Placement failed validation.');
+      return;
+    }
+
+    setSelectedHVACId(unitId);
+    updateHVACUnit(unitId, { position: snappedCandidate.position });
+  }, [hvacUnits, updateHVACUnit, viewerRoomBoundaries]);
+
+  const handleHVACDragInvalid = useCallback((_: string, reason: string) => {
+    showToast('warning', 'Invalid HVAC placement', reason || 'Placement failed validation.');
+  }, []);
+
+  // Persist committed HVAC/tile layout changes back to the floor simulation layout.
+  useEffect(() => {
+    if (!selectedProjectId || !selectedFloorId || layoutHydratingRef.current) {
+      return;
+    }
+
+    const payload = buildLayoutPayload(selectedFloorId, selectedFloor, hvacUnits, tiles);
+    const nextHash = buildLayoutPayloadHash(payload);
+
+    if (nextHash === lastLayoutPayloadHashRef.current) {
+      return;
+    }
+
+    if (layoutSaveTimerRef.current) {
+      clearTimeout(layoutSaveTimerRef.current);
+      layoutSaveTimerRef.current = null;
+    }
+
+    layoutSaveTimerRef.current = setTimeout(() => {
+      setLayoutSaveState('saving');
+      authFetch(`/api/projects/${selectedProjectId}/simulation-layout`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+        .then(async (response) => {
+          if (!response.ok) {
+            const details = await response.text().catch(() => '');
+            throw new Error(details || 'Failed to save simulation layout.');
+          }
+          lastLayoutPayloadHashRef.current = nextHash;
+          setLayoutSaveState('saved');
+        })
+        .catch(() => {
+          setLayoutSaveState('error');
+          showToast(
+            'error',
+            'Simulation layout save failed',
+            'Recent HVAC or tile changes were not persisted. Move the unit again to retry.',
+          );
+        });
+    }, 650);
+
+    return () => {
+      if (layoutSaveTimerRef.current) {
+        clearTimeout(layoutSaveTimerRef.current);
+        layoutSaveTimerRef.current = null;
+      }
+    };
+  }, [selectedProjectId, selectedFloorId, selectedFloor, hvacUnits, tiles]);
+
+  useEffect(() => {
+    if (layoutSaveState !== 'saved') {
+      return;
+    }
+    const clearSavedStateTimer = setTimeout(() => {
+      setLayoutSaveState('idle');
+    }, 1200);
+    return () => {
+      clearTimeout(clearSavedStateTimer);
+    };
+  }, [layoutSaveState]);
+
+  const layoutSaveStatusText = useMemo(() => {
+    if (layoutSaveState === 'saving') return 'Layout saving...';
+    if (layoutSaveState === 'saved') return 'Layout saved';
+    if (layoutSaveState === 'error') return 'Layout save failed';
+    return 'Layout synced';
+  }, [layoutSaveState]);
 
   // Auto-detect handler: infer racks + HVAC from room specs
   const handleAutoDetect = useCallback(() => {
@@ -987,6 +1713,7 @@ export default function SimulationPage() {
 
     // Clear existing equipment and results
     clearAll();
+    setSelectedHVACId(null);
 
     const allRacks: Omit<ServerRack, 'id'>[] = [];
     const allHVAC: Omit<HVACUnit, 'id'>[] = [];
@@ -998,7 +1725,7 @@ export default function SimulationPage() {
       allRacks.push(...racks);
 
       // Infer HVAC units for every room
-      const hvacs = inferHVACFromRoom(room, offsetX);
+      const hvacs = inferHVACFromRoom(room, offsetX, floor.scale);
       allHVAC.push(...hvacs);
 
       offsetX += Math.max(Math.ceil(Math.sqrt(room.area)), 4) + 2;
@@ -1006,7 +1733,13 @@ export default function SimulationPage() {
 
     // Add all to store
     for (const rack of allRacks) addRack(rack);
-    for (const unit of allHVAC) addHVACUnit(unit);
+    const inferredUnits: HVACUnit[] = allHVAC.map((unit, index) => ({
+      ...unit,
+      id: `auto-hvac-${index + 1}-${crypto.randomUUID()}`,
+    }));
+    const floorRoomBoundaries = buildRoomBoundariesForFloor(floor);
+    const sanitizedHVAC = sanitizeHVACPlacements(inferredUnits, floorRoomBoundaries);
+    setHVACUnits(sanitizedHVAC.accepted);
 
     // Auto-size grid based on floor area
     const totalArea = floor.rooms.reduce((s, r) => s + r.area, 0);
@@ -1019,8 +1752,13 @@ export default function SimulationPage() {
     });
 
     setIsDetecting(false);
-    showToast('success', 'Equipment auto-detected', `Added ${allRacks.length} rack${allRacks.length !== 1 ? 's' : ''} and ${allHVAC.length} HVAC unit${allHVAC.length !== 1 ? 's' : ''} from ${floor.rooms.length} room${floor.rooms.length !== 1 ? 's' : ''}`);
-  }, [detectedFloors, selectedFloorId, addRack, addHVACUnit, setConfig, clearAll]);
+    const acceptedCount = sanitizedHVAC.accepted.length;
+    const rejectedCount = sanitizedHVAC.rejected.length;
+    const message = rejectedCount > 0
+      ? `Added ${allRacks.length} rack${allRacks.length !== 1 ? 's' : ''}; ${acceptedCount} HVAC placed, ${rejectedCount} skipped by placement validation.`
+      : `Added ${allRacks.length} rack${allRacks.length !== 1 ? 's' : ''} and ${acceptedCount} HVAC unit${acceptedCount !== 1 ? 's' : ''} from ${floor.rooms.length} room${floor.rooms.length !== 1 ? 's' : ''}.`;
+    showToast(rejectedCount > 0 ? 'warning' : 'success', 'Equipment auto-detected', message);
+  }, [detectedFloors, selectedFloorId, addRack, setHVACUnits, setConfig, clearAll]);
   const totalHeatKW = useMemo(() => racks.reduce((s, r) => s + r.powerKW, 0), [racks]);
   const totalCoolingKW = useMemo(() => hvacUnits.filter(u => u.status !== 'failed').reduce((s, u) => s + u.capacityKW, 0), [hvacUnits]);
 
@@ -1133,6 +1871,7 @@ export default function SimulationPage() {
           <EquipmentPanel
             floors={detectedFloors}
             selectedFloorId={selectedFloorId}
+            roomBoundaries={viewerRoomBoundaries}
             onFloorChange={setSelectedFloorId}
             onAutoDetect={handleAutoDetect}
             isDetecting={isDetecting}
@@ -1309,6 +2048,15 @@ export default function SimulationPage() {
                     />
                     Airflow Particles
                   </label>
+
+                  <div className="ml-auto rounded-lg border border-border/80 bg-background px-3 py-2 text-xs">
+                    <p className="font-semibold text-foreground">
+                      {canEditHVACIn3D ? 'Drag HVAC in 3D to reposition' : 'Room polygons required for HVAC drag editing'}
+                    </p>
+                    <p className={`mt-0.5 font-medium ${layoutSaveState === 'error' ? 'text-red-500' : 'text-muted-foreground'}`}>
+                      {layoutSaveStatusText}
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -1316,6 +2064,13 @@ export default function SimulationPage() {
                 result={result}
                 racks={racks}
                 hvacUnits={hvacUnits}
+                roomBoundaries={viewerRoomBoundaries}
+                editableHVAC={canEditHVACIn3D}
+                selectedHVACId={selectedHVACId}
+                onSelectHVAC={setSelectedHVACId}
+                onHVACDragPreview={handleHVACDragPreview}
+                onHVACDragCommit={handleHVACDragCommit}
+                onHVACDragInvalid={handleHVACDragInvalid}
                 showHotspots={showHotspots}
                 showAirflow={showAirflow}
                 selectedSliceZ={selectedSliceZ}
@@ -1415,6 +2170,7 @@ export default function SimulationPage() {
                 result={result}
                 racks={racks}
                 hvacUnits={hvacUnits}
+                roomBoundaries={viewerRoomBoundaries}
                 showHotspots={showHotspots}
                 showAirflow={false}
                 selectedSliceZ={selectedSliceZ}

@@ -8,6 +8,7 @@
 import { randomUUID } from 'crypto';
 import { getFirebaseDb } from '@/lib/firebase/server';
 import { nowIso } from '@/lib/firebase/value-utils';
+import { DEFAULT_FIELD_ENVELOPE } from '@/types/simulation';
 import type {
   SimulationCase,
   CaseStatus,
@@ -15,6 +16,10 @@ import type {
   JobStatus,
   ResidualSnapshot,
   ArtifactManifest,
+  FieldName,
+  FieldPayload,
+  RunFieldSnapshot,
+  RunFieldSnapshotMeta,
   StructuredGrid,
   CellZoneType,
 } from '@/types/simulation';
@@ -88,6 +93,157 @@ function jobsCol(projectId: string, caseId: string) {
 
 function artifactsCol(projectId: string, caseId: string) {
   return casesCol(projectId).doc(caseId).collection('artifacts');
+}
+
+function fieldSnapshotsCol(projectId: string, caseId: string, runJobId: string) {
+  return jobsCol(projectId, caseId).doc(runJobId).collection('fieldSnapshots');
+}
+
+function fieldSnapshotFieldsCol(projectId: string, caseId: string, runJobId: string, iteration: number) {
+  return fieldSnapshotsCol(projectId, caseId, runJobId).doc(String(iteration)).collection('fields');
+}
+
+function cloneDefaultFieldEnvelope() {
+  return {
+    ...DEFAULT_FIELD_ENVELOPE,
+    units: { ...DEFAULT_FIELD_ENVELOPE.units },
+    renderAxisMap: { ...DEFAULT_FIELD_ENVELOPE.renderAxisMap },
+  };
+}
+
+interface StoredSnapshotFieldDoc {
+  name: FieldName;
+  dataType: 'scalar' | 'vector3';
+  scalarValues?: number[];
+  vectorValues?: number[];
+}
+
+function flattenScalarField(data: number[][][], dims: { nx: number; ny: number; nz: number }): number[] {
+  const flat: number[] = [];
+  for (let x = 0; x < dims.nx; x++) {
+    for (let y = 0; y < dims.ny; y++) {
+      for (let z = 0; z < dims.nz; z++) {
+        flat.push(data[x]?.[y]?.[z] ?? 0);
+      }
+    }
+  }
+  return flat;
+}
+
+function inflateScalarField(values: number[], dims: { nx: number; ny: number; nz: number }): number[][][] {
+  const result: number[][][] = [];
+  let idx = 0;
+  for (let x = 0; x < dims.nx; x++) {
+    result[x] = [];
+    for (let y = 0; y < dims.ny; y++) {
+      result[x][y] = [];
+      for (let z = 0; z < dims.nz; z++) {
+        result[x][y][z] = values[idx++] ?? 0;
+      }
+    }
+  }
+  return result;
+}
+
+function flattenVectorField(
+  data: NonNullable<FieldPayload['vectorData']>,
+  dims: { nx: number; ny: number; nz: number },
+): number[] {
+  const flat: number[] = [];
+  for (let x = 0; x < dims.nx; x++) {
+    for (let y = 0; y < dims.ny; y++) {
+      for (let z = 0; z < dims.nz; z++) {
+        const vector = data[x]?.[y]?.[z];
+        flat.push(vector?.x ?? 0, vector?.y ?? 0, vector?.z ?? 0);
+      }
+    }
+  }
+  return flat;
+}
+
+function inflateVectorField(values: number[], dims: { nx: number; ny: number; nz: number }): NonNullable<FieldPayload['vectorData']> {
+  const result: NonNullable<FieldPayload['vectorData']> = [];
+  let idx = 0;
+  for (let x = 0; x < dims.nx; x++) {
+    result[x] = [];
+    for (let y = 0; y < dims.ny; y++) {
+      result[x][y] = [];
+      for (let z = 0; z < dims.nz; z++) {
+        result[x][y][z] = {
+          x: values[idx++] ?? 0,
+          y: values[idx++] ?? 0,
+          z: values[idx++] ?? 0,
+        };
+      }
+    }
+  }
+  return result;
+}
+
+function serializeSnapshotField(
+  field: FieldPayload,
+  dims: { nx: number; ny: number; nz: number },
+): StoredSnapshotFieldDoc | null {
+  if (field.scalarData) {
+    return {
+      name: field.name,
+      dataType: 'scalar',
+      scalarValues: flattenScalarField(field.scalarData, dims),
+    };
+  }
+
+  if (field.vectorData) {
+    return {
+      name: field.name,
+      dataType: 'vector3',
+      vectorValues: flattenVectorField(field.vectorData, dims),
+    };
+  }
+
+  return null;
+}
+
+function deserializeSnapshotField(
+  stored: StoredSnapshotFieldDoc,
+  dims: { nx: number; ny: number; nz: number },
+): FieldPayload | null {
+  if (stored.dataType === 'scalar' && Array.isArray(stored.scalarValues)) {
+    return {
+      name: stored.name,
+      scalarData: inflateScalarField(stored.scalarValues, dims),
+    };
+  }
+
+  if (stored.dataType === 'vector3' && Array.isArray(stored.vectorValues)) {
+    return {
+      name: stored.name,
+      vectorData: inflateVectorField(stored.vectorValues, dims),
+    };
+  }
+
+  return null;
+}
+
+function withFieldEnvelope(manifest: ArtifactManifest): ArtifactManifest {
+  if (manifest.fieldEnvelope) {
+    return manifest;
+  }
+
+  return {
+    ...manifest,
+    fieldEnvelope: cloneDefaultFieldEnvelope(),
+  };
+}
+
+function withSnapshotEnvelope(meta: RunFieldSnapshotMeta): RunFieldSnapshotMeta {
+  if (meta.fieldEnvelope) {
+    return meta;
+  }
+
+  return {
+    ...meta,
+    fieldEnvelope: cloneDefaultFieldEnvelope(),
+  };
 }
 
 // ── SimulationCase CRUD ─────────────────────────────────────
@@ -259,7 +415,7 @@ export async function saveArtifactManifest(
   caseId: string,
   manifest: ArtifactManifest,
 ): Promise<void> {
-  await artifactsCol(projectId, caseId).doc(manifest.runJobId).set(manifest);
+  await artifactsCol(projectId, caseId).doc(manifest.runJobId).set(withFieldEnvelope(manifest));
 }
 
 export async function getArtifactManifest(
@@ -269,5 +425,95 @@ export async function getArtifactManifest(
 ): Promise<ArtifactManifest | null> {
   const snap = await artifactsCol(projectId, caseId).doc(runJobId).get();
   if (!snap.exists) return null;
-  return snap.data() as ArtifactManifest;
+  return withFieldEnvelope(snap.data() as ArtifactManifest);
+}
+
+// ── Run Field Snapshots ────────────────────────────────────
+
+export async function saveRunFieldSnapshot(
+  projectId: string,
+  caseId: string,
+  runJobId: string,
+  snapshot: RunFieldSnapshot,
+): Promise<void> {
+  const meta = withSnapshotEnvelope(snapshot.meta);
+  const metaRef = fieldSnapshotsCol(projectId, caseId, runJobId).doc(String(meta.iteration));
+  await metaRef.set(meta);
+
+  const batch = getFirebaseDb().batch();
+  let writeCount = 0;
+
+  for (const field of snapshot.fields) {
+    const serialized = serializeSnapshotField(field, meta.dimensions);
+    if (!serialized) continue;
+    batch.set(fieldSnapshotFieldsCol(projectId, caseId, runJobId, meta.iteration).doc(field.name), serialized);
+    writeCount += 1;
+  }
+
+  if (writeCount > 0) {
+    await batch.commit();
+  }
+}
+
+export async function listRunFieldSnapshots(
+  projectId: string,
+  caseId: string,
+  runJobId: string,
+  limit?: number,
+): Promise<RunFieldSnapshotMeta[]> {
+  let query = fieldSnapshotsCol(projectId, caseId, runJobId).orderBy('iteration', 'asc');
+
+  if (typeof limit === 'number' && Number.isFinite(limit)) {
+    query = query.limit(Math.max(1, Math.floor(limit)));
+  }
+
+  const snap = await query.get();
+  return snap.docs.map((doc) => withSnapshotEnvelope(doc.data() as RunFieldSnapshotMeta));
+}
+
+export async function getRunFieldSnapshotMeta(
+  projectId: string,
+  caseId: string,
+  runJobId: string,
+  iteration: number,
+): Promise<RunFieldSnapshotMeta | null> {
+  const snap = await fieldSnapshotsCol(projectId, caseId, runJobId).doc(String(iteration)).get();
+  if (!snap.exists) return null;
+  return withSnapshotEnvelope(snap.data() as RunFieldSnapshotMeta);
+}
+
+export async function getRunFieldSnapshot(
+  projectId: string,
+  caseId: string,
+  runJobId: string,
+  iteration: number,
+): Promise<RunFieldSnapshot | null> {
+  const meta = await getRunFieldSnapshotMeta(projectId, caseId, runJobId, iteration);
+  if (!meta) return null;
+
+  const fieldsSnap = await fieldSnapshotFieldsCol(projectId, caseId, runJobId, iteration).get();
+  const fields = fieldsSnap.docs
+    .map((doc) => deserializeSnapshotField(doc.data() as StoredSnapshotFieldDoc, meta.dimensions))
+    .filter((field): field is FieldPayload => Boolean(field));
+
+  return {
+    meta,
+    fields,
+  };
+}
+
+export async function getRunFieldSnapshotField(
+  projectId: string,
+  caseId: string,
+  runJobId: string,
+  iteration: number,
+  fieldName: FieldName,
+): Promise<FieldPayload | null> {
+  const meta = await getRunFieldSnapshotMeta(projectId, caseId, runJobId, iteration);
+  if (!meta) return null;
+
+  const fieldSnap = await fieldSnapshotFieldsCol(projectId, caseId, runJobId, iteration).doc(fieldName).get();
+  if (!fieldSnap.exists) return null;
+
+  return deserializeSnapshotField(fieldSnap.data() as StoredSnapshotFieldDoc, meta.dimensions);
 }

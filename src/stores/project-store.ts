@@ -1,7 +1,13 @@
 import { create } from 'zustand';
 import type { Project, ProjectFormData } from '@/types/project';
 import { showToast } from '@/components/ui/toast';
-import { projectsApi, getApiClientToken } from '@/lib/api-client';
+import {
+  ApiClientError,
+  getApiClientToken,
+  projectsApi,
+  setApiClientToken,
+  setRefreshToken,
+} from '@/lib/api-client';
 
 interface ProjectStore {
   projects: Project[];
@@ -16,6 +22,23 @@ interface ProjectStore {
   restoreProject: (id: string) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
   setCurrentProject: (project: Project | null) => void;
+}
+
+function clearAuthTokens() {
+  setApiClientToken(null);
+  setRefreshToken(null);
+}
+
+function describeApiError(error: ApiClientError): string {
+  if (error.status === 401) {
+    return 'Your session expired. Please sign in again.';
+  }
+
+  if (error.details) {
+    return error.details;
+  }
+
+  return error.message || 'An unexpected API error occurred.';
 }
 
 export const useProjectStore = create<ProjectStore>((set) => ({
@@ -33,8 +56,20 @@ export const useProjectStore = create<ProjectStore>((set) => ({
       const data = await projectsApi.list();
       set({ projects: (data.projects || []) as Project[], isLoading: false });
     } catch (error) {
-      console.error(error);
-      set({ isLoading: false });
+      if (error instanceof ApiClientError) {
+        if (error.status === 401) {
+          clearAuthTokens();
+          set({ projects: [], currentProject: null, isLoading: false });
+        } else {
+          set({ isLoading: false });
+        }
+
+        showToast('error', 'Failed to load projects', describeApiError(error));
+      } else {
+        console.error(error);
+        set({ isLoading: false });
+        showToast('error', 'Failed to load projects');
+      }
     }
   },
 
@@ -45,9 +80,20 @@ export const useProjectStore = create<ProjectStore>((set) => ({
       const data = await projectsApi.get(id);
       set({ currentProject: (data.project || data) as Project, isLoading: false });
     } catch (error) {
-      console.error(error);
-      set({ isLoading: false });
-      showToast('error', 'Failed to load project');
+      if (error instanceof ApiClientError) {
+        if (error.status === 401) {
+          clearAuthTokens();
+          set({ currentProject: null, isLoading: false });
+        } else {
+          set({ isLoading: false });
+        }
+
+        showToast('error', 'Failed to load project', describeApiError(error));
+      } else {
+        console.error(error);
+        set({ isLoading: false });
+        showToast('error', 'Failed to load project');
+      }
     }
   },
 

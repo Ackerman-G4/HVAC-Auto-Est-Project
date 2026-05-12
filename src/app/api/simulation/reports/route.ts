@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import { getProjectRecord } from '@/lib/firebase/projects-store';
 import type { SimulationEngineeringReport } from '@/lib/reports/simulation-report';
 import {
@@ -20,7 +21,18 @@ import {
   errorResponse,
   getErrorDetails,
   parseBoundedInt,
+  requireJsonRequest,
 } from '@/lib/utils/api-helpers';
+
+const REPORT_HISTORY_GET_RATE_LIMIT = {
+  windowMs: 60_000,
+  maxRequests: 40,
+} as const;
+
+const REPORT_HISTORY_MUTATION_RATE_LIMIT = {
+  windowMs: 60_000,
+  maxRequests: 20,
+} as const;
 
 function isProjectOwnerOrAdmin(
   user: { id: string; role: string },
@@ -48,6 +60,14 @@ function parseReportPayload(value: unknown): SimulationEngineeringReport | undef
 
 export async function GET(request: NextRequest) {
   try {
+    const rateLimit = evaluateRateLimit(request, 'simulation-reports-get', REPORT_HISTORY_GET_RATE_LIMIT);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
+      );
+    }
+
     const auth = await requireAuth(request);
     if (!auth.authorized) {
       return auth.response;
@@ -72,6 +92,19 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const jsonGuard = requireJsonRequest(request);
+    if (jsonGuard) {
+      return jsonGuard;
+    }
+
+    const rateLimit = evaluateRateLimit(request, 'simulation-reports-post', REPORT_HISTORY_MUTATION_RATE_LIMIT);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
+      );
+    }
+
     const auth = await requireAuth(request);
     if (!auth.authorized) {
       return auth.response;
@@ -134,6 +167,14 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const rateLimit = evaluateRateLimit(request, 'simulation-reports-delete', REPORT_HISTORY_MUTATION_RATE_LIMIT);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
+      );
+    }
+
     const auth = await requireAuth(request);
     if (!auth.authorized) {
       return auth.response;

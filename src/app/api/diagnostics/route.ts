@@ -5,18 +5,49 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import { runDiagnostic } from '@/lib/functions/diagnostic';
 import { createDiagnosticHistory } from '@/lib/firebase/catalog-store';
+import { internalServerError, requireJsonRequest } from '@/lib/utils/api-helpers';
+import {
+  diagnosticsRequestSchema,
+  getDiagnosticsValidationError,
+} from '@/lib/validation/diagnostics';
 import type { DiagnosticInput } from '@/types/diagnostic';
+
+const DIAGNOSTICS_RATE_LIMIT = {
+  windowMs: 60_000,
+  maxRequests: 8,
+} as const;
 
 export async function POST(request: NextRequest) {
   try {
+    const jsonGuard = requireJsonRequest(request);
+    if (jsonGuard) {
+      return jsonGuard;
+    }
+
+    const rateLimit = evaluateRateLimit(request, 'diagnostics-run', DIAGNOSTICS_RATE_LIMIT);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
+      );
+    }
+
     const auth = await requireAuth(request);
     if (!auth.authorized) {
       return auth.response;
     }
 
-    const body: Partial<DiagnosticInput> = await request.json();
+    const payload = await request.json();
+    const parsed = diagnosticsRequestSchema.safeParse(payload);
+
+    if (!parsed.success) {
+      return NextResponse.json({ error: getDiagnosticsValidationError(parsed.error) }, { status: 400 });
+    }
+
+    const body = parsed.data;
 
     if (!body.systemType) {
       return NextResponse.json(
@@ -65,6 +96,8 @@ export async function POST(request: NextRequest) {
     // Persist diagnostic run to history
     try {
       await createDiagnosticHistory({
+        userId: auth.user.id,
+        userEmail: auth.user.email,
         systemType: input.systemType,
         payload: JSON.stringify(input),
         result: JSON.stringify(result),
@@ -79,9 +112,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ result });
   } catch (error) {
     console.error('POST /api/diagnostics error:', error);
-    return NextResponse.json(
-      { error: 'Diagnostic analysis failed', description: String(error) },
-      { status: 500 },
-    );
+    return internalServerError('Diagnostic analysis failed');
   }
 }

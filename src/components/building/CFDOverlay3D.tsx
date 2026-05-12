@@ -18,6 +18,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
+import { sampleScalarTrilinear, sampleVectorTrilinear } from '@/lib/simulation/field-sampling';
 import type { SimulationResult, ContourSliceConfig, StreamlineConfig, TileAirflowData, ThermalAlert } from '@/types/simulation';
 
 // ─── Color Mapping ──────────────────────────────────────────────────
@@ -201,6 +202,12 @@ export function AirflowParticles({ result, count = 500 }: ParticlesProps) {
   const res = config.gridResolution;
   const centerX = (config.gridSizeX * res) / 2;
   const centerY = (config.gridSizeY * res) / 2;
+  const samplingSpec = useMemo(() => ({
+    resolution: res,
+    sizeX: config.gridSizeX,
+    sizeY: config.gridSizeY,
+    sizeZ: config.gridSizeZ,
+  }), [res, config.gridSizeX, config.gridSizeY, config.gridSizeZ]);
 
   // Mutable particle state — stored in refs for useFrame mutations
   const stateRef = useRef<{ positions: Float32Array; velocities: Float32Array; lives: Float32Array } | null>(null);
@@ -212,16 +219,20 @@ export function AirflowParticles({ result, count = 500 }: ParticlesProps) {
     const positions = new Float32Array(count * 3);
     const velocities = new Float32Array(count * 3);
     const lives = new Float32Array(count);
+    const maxX = config.gridSizeX * res;
+    const maxY = config.gridSizeY * res;
+    const maxZ = config.gridSizeZ * res;
+    const zeroVelocity = { x: 0, y: 0, z: 0 };
 
     for (let i = 0; i < count; i++) {
-      const gx = Math.floor(Math.random() * config.gridSizeX);
-      const gy = Math.floor(Math.random() * config.gridSizeY);
-      const gz = Math.floor(Math.random() * config.gridSizeZ);
-      const vel = result.velocityField[gx]?.[gy]?.[gz];
+      const worldX = Math.random() * maxX;
+      const worldY = Math.random() * maxY;
+      const worldZ = Math.random() * maxZ;
+      const vel = sampleVectorTrilinear(result.velocityField, worldX, worldY, worldZ, samplingSpec, zeroVelocity);
 
-      positions[i * 3] = gx * res - centerX;
-      positions[i * 3 + 1] = gz * res;
-      positions[i * 3 + 2] = gy * res - centerY;
+      positions[i * 3] = worldX - centerX;
+      positions[i * 3 + 1] = worldZ;
+      positions[i * 3 + 2] = worldY - centerY;
       velocities[i * 3] = vel?.x ?? 0;
       velocities[i * 3 + 1] = vel?.z ?? 0;
       velocities[i * 3 + 2] = vel?.y ?? 0;
@@ -230,7 +241,7 @@ export function AirflowParticles({ result, count = 500 }: ParticlesProps) {
 
     stateRef.current = { positions, velocities, lives };
     colorArrRef.current = new Float32Array(count * 3);
-  }, [result, count, config, res, centerX, centerY]);
+  }, [result, count, config, res, centerX, centerY, samplingSpec]);
 
   useFrame((_, delta) => {
     const mesh = meshRef.current;
@@ -244,6 +255,7 @@ export function AirflowParticles({ result, count = 500 }: ParticlesProps) {
     const maxY = config.gridSizeY * res;
     const maxZ = config.gridSizeZ * res;
     const dt = Math.min(delta, 0.05);
+    const zeroVelocity = { x: 0, y: 0, z: 0 };
 
     for (let i = 0; i < count; i++) {
       positions[i * 3] += velocities[i * 3] * dt * 2;
@@ -257,14 +269,14 @@ export function AirflowParticles({ result, count = 500 }: ParticlesProps) {
       const wz = positions[i * 3 + 1];
 
       if (lives[i] > 100 || wx < 0 || wx > maxX || wy < 0 || wy > maxY || wz < 0 || wz > maxZ) {
-        const gx = Math.floor(Math.random() * config.gridSizeX);
-        const gy = Math.floor(Math.random() * config.gridSizeY);
-        const gz = Math.floor(Math.random() * config.gridSizeZ);
-        const vel = result.velocityField[gx]?.[gy]?.[gz];
+        const seedX = Math.random() * maxX;
+        const seedY = Math.random() * maxY;
+        const seedZ = Math.random() * maxZ;
+        const vel = sampleVectorTrilinear(result.velocityField, seedX, seedY, seedZ, samplingSpec, zeroVelocity);
 
-        positions[i * 3] = gx * res - centerX;
-        positions[i * 3 + 1] = gz * res;
-        positions[i * 3 + 2] = gy * res - centerY;
+        positions[i * 3] = seedX - centerX;
+        positions[i * 3 + 1] = seedZ;
+        positions[i * 3 + 2] = seedY - centerY;
         velocities[i * 3] = vel?.x ?? 0;
         velocities[i * 3 + 1] = vel?.z ?? 0;
         velocities[i * 3 + 2] = vel?.y ?? 0;
@@ -272,10 +284,14 @@ export function AirflowParticles({ result, count = 500 }: ParticlesProps) {
       }
 
       // Update velocity from grid
-      const gx = Math.floor(Math.max(0, Math.min(config.gridSizeX - 1, (positions[i * 3] + centerX) / res)));
-      const gy = Math.floor(Math.max(0, Math.min(config.gridSizeY - 1, (positions[i * 3 + 2] + centerY) / res)));
-      const gz = Math.floor(Math.max(0, Math.min(config.gridSizeZ - 1, positions[i * 3 + 1] / res)));
-      const vel = result.velocityField[gx]?.[gy]?.[gz];
+      const vel = sampleVectorTrilinear(
+        result.velocityField,
+        positions[i * 3] + centerX,
+        positions[i * 3 + 2] + centerY,
+        positions[i * 3 + 1],
+        samplingSpec,
+        zeroVelocity,
+      );
       if (vel) {
         velocities[i * 3] = vel.x;
         velocities[i * 3 + 1] = vel.z;
@@ -283,7 +299,14 @@ export function AirflowParticles({ result, count = 500 }: ParticlesProps) {
       }
 
       // Temperature-based color
-      const temp = result.temperatureField[gx]?.[gy]?.[gz] ?? config.ambientTempC;
+      const temp = sampleScalarTrilinear(
+        result.temperatureField,
+        positions[i * 3] + centerX,
+        positions[i * 3 + 2] + centerY,
+        positions[i * 3 + 1],
+        samplingSpec,
+        config.ambientTempC,
+      );
       const color = valueToColor(temp, result.metrics.minTemperature, result.metrics.maxTemperature);
       colorArr[i * 3] = color.r;
       colorArr[i * 3 + 1] = color.g;
@@ -583,23 +606,23 @@ export function Streamlines({ result, config: slCfg, sliceZ }: StreamlinesProps)
   const res = simCfg.gridResolution;
   const centerX = (simCfg.gridSizeX * res) / 2;
   const centerY = (simCfg.gridSizeY * res) / 2;
+  const samplingSpec = useMemo(() => ({
+    resolution: res,
+    sizeX: simCfg.gridSizeX,
+    sizeY: simCfg.gridSizeY,
+    sizeZ: simCfg.gridSizeZ,
+  }), [res, simCfg.gridSizeX, simCfg.gridSizeY, simCfg.gridSizeZ]);
 
   const sampleVelocity = (x: number, y: number, z: number): THREE.Vector3 => {
-    const gx = Math.floor(Math.max(0, Math.min(simCfg.gridSizeX - 1, x / res)));
-    const gy = Math.floor(Math.max(0, Math.min(simCfg.gridSizeY - 1, y / res)));
-    const gz = Math.floor(Math.max(0, Math.min(simCfg.gridSizeZ - 1, z / res)));
-    const vel = result.velocityField[gx]?.[gy]?.[gz];
+    const vel = sampleVectorTrilinear(result.velocityField, x, y, z, samplingSpec, { x: 0, y: 0, z: 0 });
     return vel ? new THREE.Vector3(vel.x, vel.z, vel.y) : new THREE.Vector3();
   };
 
   const sampleScalar = (x: number, y: number, z: number): number => {
-    const gx = Math.floor(Math.max(0, Math.min(simCfg.gridSizeX - 1, x / res)));
-    const gy = Math.floor(Math.max(0, Math.min(simCfg.gridSizeY - 1, y / res)));
-    const gz = Math.floor(Math.max(0, Math.min(simCfg.gridSizeZ - 1, z / res)));
     if (slCfg.colorBy === 'temperature') {
-      return result.temperatureField[gx]?.[gy]?.[gz] ?? simCfg.ambientTempC;
+      return sampleScalarTrilinear(result.temperatureField, x, y, z, samplingSpec, simCfg.ambientTempC);
     }
-    const vel = result.velocityField[gx]?.[gy]?.[gz];
+    const vel = sampleVectorTrilinear(result.velocityField, x, y, z, samplingSpec, { x: 0, y: 0, z: 0 });
     return vel ? Math.sqrt(vel.x ** 2 + vel.y ** 2 + vel.z ** 2) : 0;
   };
 
@@ -644,7 +667,7 @@ export function Streamlines({ result, config: slCfg, sliceZ }: StreamlinesProps)
     }
     return out;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [result, slCfg.seedCount, slCfg.maxSteps, slCfg.stepSize, slCfg.colorBy, sliceZ]);
+  }, [result, slCfg.seedCount, slCfg.maxSteps, slCfg.stepSize, slCfg.colorBy, sliceZ, samplingSpec]);
 
   const scalarRange = useMemo(() => {
     if (slCfg.colorBy === 'temperature') {

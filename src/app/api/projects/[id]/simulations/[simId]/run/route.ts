@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import { getProjectRecord } from '@/lib/firebase/projects-store';
 import {
   getSimulationCase,
@@ -13,23 +14,44 @@ import {
   updateSimulationCase,
   createRunJob,
   getRunJob,
+  getArtifactManifest,
   updateRunJobStatus,
   appendResiduals,
   saveArtifactManifest,
+  saveRunFieldSnapshot,
 } from '@/lib/firebase/simulation-cases-store';
 import { runCFDSimulation } from '@/lib/functions/cfd-simulation';
+import { runBuildingCFDSimulation } from '@/lib/functions/building-cfd-simulation';
+import { buildRunFieldSnapshotFromResult } from '@/lib/simulation/field-snapshot';
 import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
+import { DEFAULT_FIELD_ENVELOPE } from '@/types/simulation';
 import type {
   SimulationInput,
   ArtifactManifest,
   ResidualSnapshot,
   FieldDescriptor,
   BuildingVisualizationPayload,
-  SimulationMetrics,
-  RoomSimulationMetric,
 } from '@/types/simulation';
 
 type RouteContext = { params: Promise<{ id: string; simId: string }> };
+
+const SIMULATION_RUN_RATE_LIMIT = {
+  windowMs: 60_000,
+  maxRequests: 6,
+} as const;
+
+const SIMULATION_RUN_STATUS_RATE_LIMIT = {
+  windowMs: 60_000,
+  maxRequests: 120,
+} as const;
+
+function cloneDefaultFieldEnvelope() {
+  return {
+    ...DEFAULT_FIELD_ENVELOPE,
+    units: { ...DEFAULT_FIELD_ENVELOPE.units },
+    renderAxisMap: { ...DEFAULT_FIELD_ENVELOPE.renderAxisMap },
+  };
+}
 
 function isProjectOwnerOrAdmin(
   user: { id: string; role: string },
@@ -41,6 +63,14 @@ function isProjectOwnerOrAdmin(
 
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
+    const rateLimit = evaluateRateLimit(request, 'projects-id-simulations-simid-run-get', SIMULATION_RUN_STATUS_RATE_LIMIT);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
+      );
+    }
+
     const auth = await requireAuth(request);
     if (!auth.authorized) return auth.response;
 
@@ -64,7 +94,13 @@ export async function GET(request: NextRequest, context: RouteContext) {
     }
 
     const job = await getRunJob(projectId, simId, simCase.activeRunId);
-    return NextResponse.json({ run: job, status: simCase.status });
+    const manifest = job ? await getArtifactManifest(projectId, simId, job.id) : null;
+    return NextResponse.json({
+      run: job,
+      status: simCase.status,
+      manifest,
+      fieldEnvelope: manifest?.fieldEnvelope ?? null,
+    });
   } catch (error) {
     console.error('GET .../run error:', error);
     const d = getErrorDetails(error, 'Failed to poll run status');
@@ -74,6 +110,14 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
+    const rateLimit = evaluateRateLimit(request, 'projects-id-simulations-simid-run-post', SIMULATION_RUN_RATE_LIMIT);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
+      );
+    }
+
     const auth = await requireAuth(request);
     if (!auth.authorized) return auth.response;
 
@@ -131,10 +175,13 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     const updatedJob = await getRunJob(projectId, simId, job.id);
     const updatedCase = await getSimulationCase(projectId, simId);
+    const manifest = updatedJob ? await getArtifactManifest(projectId, simId, updatedJob.id) : null;
 
     return NextResponse.json({
       run: updatedJob,
       case: updatedCase,
+      manifest,
+      fieldEnvelope: manifest?.fieldEnvelope ?? null,
     }, { status: 201 });
   } catch (error) {
     console.error('POST .../run error:', error);
@@ -246,6 +293,7 @@ async function executeInternalRun(
       caseId,
       runJobId: jobId,
       source: 'internal',
+      fieldEnvelope: cloneDefaultFieldEnvelope(),
       fields,
       metrics: result.metrics,
       convergenceHistory: result.convergenceHistory,
@@ -254,6 +302,18 @@ async function executeInternalRun(
     };
 
     await saveArtifactManifest(projectId, caseId, manifest);
+
+    try {
+      const snapshot = buildRunFieldSnapshotFromResult({
+        caseId,
+        runJobId: jobId,
+        source: 'internal',
+        result,
+      });
+      await saveRunFieldSnapshot(projectId, caseId, jobId, snapshot);
+    } catch (snapshotError) {
+      console.warn('Failed to persist run field snapshot:', snapshotError);
+    }
 
     await updateRunJobStatus(projectId, caseId, jobId, 'completed', {
       currentIteration: result.iteration,
@@ -279,8 +339,77 @@ async function executeInternalRun(
 }
 
 // ── Building Simulation Run ──────────────────────────────────
-// Lightweight room-network solver for building-scope cases.
-// Computes per-room airflow balance and produces visualization payloads.
+
+function toRoomVisualizationSamples(
+  room: NonNullable<NonNullable<Awaited<ReturnType<typeof getSimulationCase>>>['buildingGeometry']>['rooms'][number],
+  grid: Array<Array<{ u: number; v: number; temp: number }>>,
+): BuildingVisualizationPayload['rooms'][number]['samples'] {
+  const nx = grid.length;
+  const ny = grid[0]?.length ?? 0;
+  if (!nx || !ny) return [];
+
+  const maxSamples = 420;
+  const stride = Math.max(1, Math.floor(Math.sqrt((nx * ny) / maxSamples)));
+  const samples: BuildingVisualizationPayload['rooms'][number]['samples'] = [];
+
+  for (let x = 0; x < nx; x += stride) {
+    for (let y = 0; y < ny; y += stride) {
+      const cell = grid[x]?.[y];
+      if (!cell) continue;
+
+      samples.push({
+        position: {
+          x: room.origin.x + ((x + 0.5) / nx) * room.dimensions.width,
+          y: room.origin.y + room.dimensions.height * 0.5,
+          z: room.origin.z + ((y + 0.5) / ny) * room.dimensions.length,
+        },
+        temperature: cell.temp,
+        velocity: {
+          u: cell.u,
+          v: cell.v,
+        },
+        velocityMagnitude: Math.hypot(cell.u, cell.v),
+      });
+    }
+  }
+
+  return samples;
+}
+
+function roomCenter(
+  room: NonNullable<NonNullable<Awaited<ReturnType<typeof getSimulationCase>>>['buildingGeometry']>['rooms'][number],
+) {
+  return {
+    x: room.origin.x + room.dimensions.width / 2,
+    y: room.origin.y + room.dimensions.height / 2,
+    z: room.origin.z + room.dimensions.length / 2,
+  };
+}
+
+function connectionEndpoint(
+  fromRoom: NonNullable<NonNullable<Awaited<ReturnType<typeof getSimulationCase>>>['buildingGeometry']>['rooms'][number],
+  toRoom: NonNullable<NonNullable<Awaited<ReturnType<typeof getSimulationCase>>>['buildingGeometry']>['rooms'][number],
+) {
+  const from = roomCenter(fromRoom);
+  const to = roomCenter(toRoom);
+
+  const dx = to.x - from.x;
+  const dz = to.z - from.z;
+
+  if (Math.abs(dx) >= Math.abs(dz)) {
+    return {
+      x: from.x + Math.sign(dx || 1) * fromRoom.dimensions.width * 0.5,
+      y: from.y,
+      z: from.z,
+    };
+  }
+
+  return {
+    x: from.x,
+    y: from.y,
+    z: from.z + Math.sign(dz || 1) * fromRoom.dimensions.length * 0.5,
+  };
+}
 
 async function executeInternalBuildingRun(
   projectId: string,
@@ -297,101 +426,121 @@ async function executeInternalBuildingRun(
 
     const bg = simCase.buildingGeometry!;
     const rooms = bg.rooms ?? [];
-    const connections = bg.connections ?? [];
+    const progressResiduals: ResidualSnapshot[] = [];
 
-    // Simple airflow network: distribute nominal flows proportional to room volume
-    const totalVolume = rooms.reduce((s, r) => s + r.dimensions.width * r.dimensions.length * r.dimensions.height, 0) || 1;
-    const nominalTotalM3s = 1.5 * rooms.length; // 1.5 m³/s per room nominal
+    const buildingResult = runBuildingCFDSimulation(
+      {
+        projectId,
+        building: bg,
+        config: {
+          mode: 'engineering',
+          gridResolution: Math.max(0.25, simCase.mesh?.cellSizeM ?? 0.5),
+          gridSizeX: simCase.mesh?.nx ?? 20,
+          gridSizeY: simCase.mesh?.ny ?? 20,
+          gridSizeZ: Math.max(6, simCase.mesh?.nz ?? 8),
+          iterations: simCase.solver.maxIterations,
+          convergence: simCase.solver.convergenceTarget,
+          timeStep: simCase.solver.timeStepS || 0.1,
+          ambientTempC: simCase.physics.referenceTemperatureC,
+          ambientHumidityRatio: 0.0093,
+          airDensity: simCase.physics.fluid.density,
+          airViscosity: simCase.physics.fluid.viscosity,
+          thermalDiffusivity:
+            simCase.physics.fluid.thermalConductivity
+            / (simCase.physics.fluid.density * simCase.physics.fluid.specificHeat),
+          specificHeat: simCase.physics.fluid.specificHeat,
+          progressEmitInterval: Math.max(5, Math.floor(simCase.solver.maxIterations / 20)),
+        },
+      },
+      {
+        simulationId: jobId,
+        onProgress: (progress) => {
+          progressResiduals.push({
+            iteration: progress.iteration,
+            continuity: progress.continuityResidual ?? 0,
+            momentumX: progress.momentumResidual ?? 0,
+            momentumY: progress.momentumResidual ?? 0,
+            momentumZ: progress.momentumResidual ?? 0,
+            energy: progress.energyResidual ?? 0,
+            k: progress.momentumResidual,
+            epsilon: progress.momentumResidual,
+          });
+        },
+      },
+    );
 
-    const roomMetrics: RoomSimulationMetric[] = rooms.map((r) => {
-      const vol = r.dimensions.width * r.dimensions.length * r.dimensions.height;
-      const frac = vol / totalVolume;
-      const inflow = nominalTotalM3s * frac;
-      return {
-        roomId: r.id,
-        floorId: r.floorId,
-        floorNumber: r.floorNumber ?? 1,
-        avgTemperature: 24 + (r.heatLoadW ?? 0) / 5000,
-        meanVelocity: 0.3 + frac * 0.5,
-        stagnationRatio: 0.05,
-        pressure: 101325 - frac * 20,
-        inflowM3s: inflow,
-        outflowM3s: inflow,
+    if (progressResiduals.length > 0) {
+      for (const residual of progressResiduals) {
+        const elapsedSec = Math.max(0.001, residual.iteration * (simCase.solver.timeStepS || 0.1));
+        await appendResiduals(projectId, caseId, jobId, residual, residual.iteration, elapsedSec);
+      }
+    } else {
+      const fallbackResidual: ResidualSnapshot = {
+        iteration: buildingResult.iteration,
+        continuity: buildingResult.metrics.continuityResidual,
+        momentumX: buildingResult.metrics.momentumResidual,
+        momentumY: buildingResult.metrics.momentumResidual,
+        momentumZ: buildingResult.metrics.momentumResidual,
+        energy: buildingResult.metrics.energyResidual,
+        k: buildingResult.metrics.turbulenceResidual,
+        epsilon: buildingResult.metrics.turbulenceResidual,
       };
-    });
+      await appendResiduals(
+        projectId,
+        caseId,
+        jobId,
+        fallbackResidual,
+        buildingResult.iteration,
+        Math.max(0.001, buildingResult.iteration * (simCase.solver.timeStepS || 0.1)),
+      );
+    }
 
-    const totalAirflow = roomMetrics.reduce((s, m) => s + m.inflowM3s, 0);
-    const pressureImbalance = roomMetrics.length > 0
-      ? Math.max(...roomMetrics.map((m) => Math.abs(m.inflowM3s - m.outflowM3s))) * 10
-      : 0;
-
-    const metricsSnapshot: SimulationMetrics = {
-      maxTemperature: Math.max(...roomMetrics.map((m) => m.avgTemperature), 24),
-      minTemperature: Math.min(...roomMetrics.map((m) => m.avgTemperature), 22),
-      avgTemperature: roomMetrics.reduce((s, m) => s + m.avgTemperature, 0) / (roomMetrics.length || 1),
-      maxHumidityRatio: 0.012,
-      minHumidityRatio: 0.008,
-      avgHumidityRatio: 0.010,
-      maxVelocity: Math.max(...roomMetrics.map((m) => m.meanVelocity), 0.5),
-      avgVelocity: roomMetrics.reduce((s, m) => s + m.meanVelocity, 0) / (roomMetrics.length || 1),
-      totalHeatLoad: rooms.reduce((s, r) => s + (r.heatLoadW ?? 0), 0),
-      totalCoolingCapacity: rooms.reduce((s, r) => s + (r.heatLoadW ?? 0), 0) * 1.1,
-      coolingDeficit: 0,
-      hotspots: [],
-      pue: 1.4,
-      supplyHeatIndex: 0.2,
-      returnHeatIndex: 0.3,
-      rackInletTemps: [],
-      continuityResidual: 1e-5,
-      momentumResidual: 1e-5,
-      energyResidual: 1e-5,
-      turbulenceResidual: 1e-5,
-      maxDivergence: 1e-5,
-      converged: true,
-      avgTurbulentViscosity: 1.5e-5,
-      maxTurbulentIntensity: 0.05,
-      airflowBalanceM3s: totalAirflow,
-      pressureImbalancePa: pressureImbalance,
-      ventilationEffectiveness: Math.min(1, 0.8 + roomMetrics.length * 0.02),
-      roomMetrics,
-    };
-
+    const roomById = new Map(rooms.map((room) => [room.id, room]));
     const buildingVisualization: BuildingVisualizationPayload = {
-      rooms: rooms.map((r, i) => ({
-        roomId: r.id,
-        avgTemperature: roomMetrics[i]?.avgTemperature ?? 24,
-        avgVelocity: roomMetrics[i]?.meanVelocity ?? 0.3,
-        samples: [
-          {
-            position: { x: r.origin.x + r.dimensions.width / 2, y: r.origin.y + r.dimensions.height / 2, z: r.origin.z + r.dimensions.length / 2 },
-            temperature: roomMetrics[i]?.avgTemperature ?? 24,
-            velocity: { u: 0.2, v: 0.1 },
-            velocityMagnitude: roomMetrics[i]?.meanVelocity ?? 0.3,
-          },
-        ],
-      })),
-      connections: connections.map((c) => {
-        const fromRoom = rooms.find((r) => r.id === c.fromRoom);
-        const toRoom = rooms.find((r) => r.id === c.toRoom);
+      rooms: buildingResult.roomStates
+        .map((state) => {
+          const room = roomById.get(state.roomId);
+          if (!room) return null;
+
+          return {
+            roomId: room.id,
+            avgTemperature: state.avgTemperature,
+            avgVelocity: state.meanVelocity,
+            samples: toRoomVisualizationSamples(room, state.grid),
+          };
+        })
+        .filter((room): room is BuildingVisualizationPayload['rooms'][number] => Boolean(room)),
+      connections: buildingResult.connectionFlows.map((connection, index) => {
+        const fromRoom = roomById.get(connection.fromRoom);
+        const toRoom = roomById.get(connection.toRoom);
+        const fallbackFrom = { x: 0, y: 0, z: 0 };
+        const fallbackTo = { x: 0, y: 0, z: 0 };
+
         return {
-          id: c.id ?? '',
-          flowRateM3s: nominalTotalM3s / (connections.length || 1),
-          fromPoint: fromRoom ? { x: fromRoom.origin.x + fromRoom.dimensions.width, y: fromRoom.origin.y + fromRoom.dimensions.height / 2, z: fromRoom.origin.z + fromRoom.dimensions.length / 2 } : { x: 0, y: 0, z: 0 },
-          toPoint: toRoom ? { x: toRoom.origin.x, y: toRoom.origin.y + toRoom.dimensions.height / 2, z: toRoom.origin.z + toRoom.dimensions.length / 2 } : { x: 1, y: 0, z: 0 },
+          id: connection.id ?? `connection-${index + 1}`,
+          flowRateM3s: connection.flowRateM3s ?? 0,
+          fromPoint: fromRoom && toRoom ? connectionEndpoint(fromRoom, toRoom) : fallbackFrom,
+          toPoint: fromRoom && toRoom ? connectionEndpoint(toRoom, fromRoom) : fallbackTo,
         };
       }),
-      temperatureRange: { min: metricsSnapshot.minTemperature, max: metricsSnapshot.maxTemperature },
-      velocityRange: { min: 0, max: metricsSnapshot.maxVelocity },
+      temperatureRange: {
+        min: buildingResult.metrics.minTemperature,
+        max: buildingResult.metrics.maxTemperature,
+      },
+      velocityRange: {
+        min: 0,
+        max: buildingResult.metrics.maxVelocity,
+      },
     };
 
     const elapsed = (Date.now() - startTime) / 1000;
 
     await updateRunJobStatus(projectId, caseId, jobId, 'completed', {
-      currentIteration: 1,
+      currentIteration: buildingResult.iteration,
       elapsedSeconds: elapsed,
       completedAt: new Date().toISOString(),
       buildingVisualization,
-      metricsSnapshot,
+      metricsSnapshot: buildingResult.metrics,
     });
 
     await updateSimulationCase(projectId, caseId, {

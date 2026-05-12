@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import {
   listBoqItemsForProject,
   listSelectedEquipmentForProject,
@@ -38,6 +39,16 @@ const DEFAULT_PRICING_POLICY = {
 } as const;
 
 type RouteContext = { params: Promise<{ id: string }> };
+
+const BOQ_GENERATION_RATE_LIMIT = {
+  windowMs: 60_000,
+  maxRequests: 10,
+} as const;
+
+const BOQ_GET_RATE_LIMIT = {
+  windowMs: 60_000,
+  maxRequests: 20,
+} as const;
 
 type ProjectPricing = {
   suggestedLaborMultiplier: number;
@@ -75,6 +86,14 @@ function resolvePricingPolicy(project: ProjectPricing | null) {
 
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
+    const rateLimit = evaluateRateLimit(request, 'projects-id-boq-get', BOQ_GET_RATE_LIMIT);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
+      );
+    }
+
     const auth = await requireAuth(request);
     if (!auth.authorized) {
       return auth.response;
@@ -254,6 +273,14 @@ function buildBOQInputs(selections: SelEquip[]) {
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
+    const rateLimit = evaluateRateLimit(request, 'projects-id-boq-post', BOQ_GENERATION_RATE_LIMIT);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
+      );
+    }
+
     const auth = await requireAuth(request);
     if (!auth.authorized) {
       return auth.response;

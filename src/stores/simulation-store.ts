@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { showToast } from '@/components/ui/toast';
 import { authFetch } from '@/lib/api-client';
 import { autoDetectEquipment, type AutoDetectInput } from '@/lib/functions/auto-detect-equipment';
+import { sampleScalarTrilinear, sampleVectorTrilinear } from '@/lib/simulation/field-sampling';
 import type {
   SimulationConfig,
   SimulationMode,
@@ -83,8 +84,10 @@ interface SimulationStore {
   addHVACUnit: (unit: Omit<HVACUnit, 'id'>) => void;
   updateHVACUnit: (id: string, updates: Partial<HVACUnit>) => void;
   removeHVACUnit: (id: string) => void;
+  setHVACUnits: (units: HVACUnit[]) => void;
   addTile: (tile: PerforatedTile) => void;
   removeTile: (x: number, y: number) => void;
+  setTiles: (tiles: PerforatedTile[]) => void;
 
   // Actions - Simulation
   setConfig: (config: Partial<SimulationConfig>) => void;
@@ -242,6 +245,10 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     set(state => ({ hvacUnits: state.hvacUnits.filter(u => u.id !== id) }));
   },
 
+  setHVACUnits: (units) => {
+    set({ hvacUnits: units });
+  },
+
   addTile: (tile) => {
     set(state => ({
       tiles: [...state.tiles.filter(t => !(t.x === tile.x && t.y === tile.y)), tile],
@@ -252,6 +259,10 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     set(state => ({
       tiles: state.tiles.filter(t => !(t.x === x && t.y === y)),
     }));
+  },
+
+  setTiles: (tiles) => {
+    set({ tiles });
   },
 
   // ─── Config ─────────────────────────────────────────────────
@@ -642,24 +653,29 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     if (!result || tiles.length === 0) { set({ tileAirflowData: [] }); return; }
     const cfg = result.config;
     const res = cfg.gridResolution;
+    const samplingSpec = {
+      resolution: res,
+      sizeX: cfg.gridSizeX,
+      sizeY: cfg.gridSizeY,
+      sizeZ: cfg.gridSizeZ,
+    };
+    const floorZ = 0;
+    const topSampleZ = Math.min(3 * res, Math.max((cfg.gridSizeZ - 1) * res, 0));
     const { minCFM } = tileFlowView.alertThresholds;
     const data: TileAirflowData[] = [];
 
     for (const tile of tiles) {
-      const gx = Math.min(Math.floor(tile.x / res), cfg.gridSizeX - 1);
-      const gy = Math.min(Math.floor(tile.y / res), cfg.gridSizeY - 1);
-      // Sample velocity at floor level (z=0)
-      const vel = result.velocityField[gx]?.[gy]?.[0];
-      const temp = result.temperatureField[gx]?.[gy]?.[0] ?? cfg.ambientTempC;
-      const vz = vel ? Math.abs(vel.z) : 0;
+      const vel = sampleVectorTrilinear(result.velocityField, tile.x, tile.y, floorZ, samplingSpec, { x: 0, y: 0, z: 0 });
+      const temp = sampleScalarTrilinear(result.temperatureField, tile.x, tile.y, floorZ, samplingSpec, cfg.ambientTempC);
+      const vz = Math.abs(vel.z);
       // Convert m/s through tile area to CFM (1 m³/s ≈ 2118.88 CFM)
       const tileAreaM2 = (tile.tileSize ?? 0.6) * (tile.tileSize ?? 0.6) * (tile.openArea ?? 0.25);
       const actualCFM = vz * tileAreaM2 * 2118.88;
       const requiredCFM = minCFM;
       const efficiency = requiredCFM > 0 ? actualCFM / requiredCFM : 1;
       // Bypass: fraction of supply air above ambient that doesn't reach rack height
-      const velTop = result.velocityField[gx]?.[gy]?.[Math.min(3, cfg.gridSizeZ - 1)];
-      const vzTop = velTop ? Math.abs(velTop.z) : 0;
+      const velTop = sampleVectorTrilinear(result.velocityField, tile.x, tile.y, topSampleZ, samplingSpec, { x: 0, y: 0, z: 0 });
+      const vzTop = Math.abs(velTop.z);
       const bypassFraction = vz > 0.01 ? Math.max(0, 1 - vzTop / vz) : 0;
 
       data.push({

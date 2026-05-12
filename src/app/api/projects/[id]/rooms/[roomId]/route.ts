@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import {
   deleteRoomRecord,
   getProjectRecord,
@@ -20,6 +21,7 @@ import {
   getErrorDetails,
   buildCoolingLoadInput,
   coolingLoadToDbFields,
+  requireJsonRequest,
   resourceNotFound,
 } from '@/lib/utils/api-helpers';
 import { finalizeDualValue } from '@/lib/utils/dual-control';
@@ -29,6 +31,11 @@ import {
 } from '@/lib/utils/room-polygon';
 
 type RouteContext = { params: Promise<{ id: string; roomId: string }> };
+
+const ROOM_MUTATION_RATE_LIMIT = {
+  windowMs: 60_000,
+  maxRequests: 30,
+} as const;
 
 function derivePolygonMetrics(
   rawPolygon: unknown,
@@ -76,12 +83,26 @@ function derivePolygonMetrics(
 
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
+    const rateLimit = evaluateRateLimit(request, 'projects-id-rooms-roomid-put', ROOM_MUTATION_RATE_LIMIT);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
+      );
+    }
+
     const auth = await requireAuth(request);
     if (!auth.authorized) {
       return auth.response;
     }
 
     const { id: projectId, roomId } = await context.params;
+
+    const jsonGuard = requireJsonRequest(request);
+    if (jsonGuard) {
+      return jsonGuard;
+    }
+
     const body = await request.json();
 
     const existing = await getRoomRecord(roomId);
@@ -191,6 +212,14 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
+    const rateLimit = evaluateRateLimit(request, 'projects-id-rooms-roomid-delete', ROOM_MUTATION_RATE_LIMIT);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
+      );
+    }
+
     const auth = await requireAuth(request);
     if (!auth.authorized) {
       return auth.response;

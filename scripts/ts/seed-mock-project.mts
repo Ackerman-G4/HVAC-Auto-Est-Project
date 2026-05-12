@@ -7,6 +7,10 @@
  *
  * Env overrides:
  *   SEED_BASE_URL=http://localhost:3000   (change target host)
+ *   SEED_PROFILE=medium|large|stress      (default: medium)
+ *   SEED_PROJECT_COUNT=3                  (override profile default)
+ *   SEED_MAX_FLOORS_PER_PROJECT=4         (0 or negative = all floors)
+ *   SEED_MAX_ROOMS_PER_FLOOR=12           (0 or negative = all rooms)
  */
 
 interface RoomDef {
@@ -30,6 +34,22 @@ interface FloorDef {
   name: string;
   ceilingHeight: number;
   rooms: RoomDef[];
+}
+
+type SeedProfile = 'medium' | 'large' | 'stress';
+
+interface SeedConfig {
+  profile: SeedProfile;
+  projectCount: number;
+  maxFloorsPerProject: number;
+  maxRoomsPerFloor: number;
+}
+
+interface SeededProjectSummary {
+  id: string;
+  name: string;
+  floorCount: number;
+  roomCount: number;
 }
 
 // ─── Test User ─────────────────────────────────────────────
@@ -845,6 +865,128 @@ const FLOORS: FloorDef[] = [
 // ─── API Helpers ───────────────────────────────────────────
 const BASE_URL = process.env.SEED_BASE_URL || 'http://localhost:3000';
 
+const PROFILE_DEFAULTS: Record<SeedProfile, Omit<SeedConfig, 'profile'>> = {
+  medium: {
+    projectCount: 3,
+    maxFloorsPerProject: 4,
+    maxRoomsPerFloor: 10,
+  },
+  large: {
+    projectCount: 5,
+    maxFloorsPerProject: 0,
+    maxRoomsPerFloor: 0,
+  },
+  stress: {
+    projectCount: 10,
+    maxFloorsPerProject: 0,
+    maxRoomsPerFloor: 0,
+  },
+};
+
+function parseIntEnv(name: string): number | undefined {
+  const raw = process.env[name];
+  if (!raw) {
+    return undefined;
+  }
+
+  const value = Number.parseInt(raw, 10);
+  return Number.isFinite(value) ? value : undefined;
+}
+
+function resolveSeedProfile(raw: string | undefined): SeedProfile {
+  const normalized = (raw || '').trim().toLowerCase();
+  if (normalized === 'large' || normalized === 'stress') {
+    return normalized;
+  }
+  return 'medium';
+}
+
+function resolveSeedConfig(): SeedConfig {
+  const profile = resolveSeedProfile(process.env.SEED_PROFILE);
+  const defaults = PROFILE_DEFAULTS[profile];
+
+  const projectCountOverride = parseIntEnv('SEED_PROJECT_COUNT');
+  const maxFloorsOverride = parseIntEnv('SEED_MAX_FLOORS_PER_PROJECT');
+  const maxRoomsOverride = parseIntEnv('SEED_MAX_ROOMS_PER_FLOOR');
+
+  return {
+    profile,
+    projectCount:
+      projectCountOverride && projectCountOverride > 0
+        ? projectCountOverride
+        : defaults.projectCount,
+    maxFloorsPerProject:
+      maxFloorsOverride !== undefined ? maxFloorsOverride : defaults.maxFloorsPerProject,
+    maxRoomsPerFloor:
+      maxRoomsOverride !== undefined ? maxRoomsOverride : defaults.maxRoomsPerFloor,
+  };
+}
+
+function selectFloors(config: SeedConfig): FloorDef[] {
+  const floorLimit = config.maxFloorsPerProject;
+  const candidateFloors = floorLimit > 0 ? FLOORS.slice(0, floorLimit) : FLOORS;
+
+  return candidateFloors.map((floor) => {
+    const roomLimit = config.maxRoomsPerFloor;
+    const selectedRooms = roomLimit > 0 ? floor.rooms.slice(0, roomLimit) : floor.rooms;
+
+    return {
+      ...floor,
+      rooms: selectedRooms.map((room) => ({ ...room })),
+    };
+  });
+}
+
+function buildProjectPayload(projectIndex: number, config: SeedConfig, floors: FloorDef[]) {
+  const displayIndex = String(projectIndex + 1).padStart(2, '0');
+  const floorArea = floors.reduce(
+    (projectTotal, floor) => projectTotal + floor.rooms.reduce((sum, room) => sum + room.area, 0),
+    0,
+  );
+
+  const floorsAboveGrade = floors.filter((floor) => floor.floorNumber > 0).length;
+  const floorsBelowGrade = floors.filter((floor) => floor.floorNumber <= 0).length;
+  const outdoorOffset = (projectIndex % 3) * 0.5;
+
+  return {
+    name: `${PROJECT_INPUT.name} [QA ${displayIndex}]`,
+    clientName: PROJECT_INPUT.clientName,
+    buildingType: PROJECT_INPUT.buildingType,
+    location: PROJECT_INPUT.location,
+    city: PROJECT_INPUT.city,
+    totalFloorArea: Math.round(floorArea),
+    floorsAboveGrade,
+    floorsBelowGrade,
+    outdoorDB: PROJECT_INPUT.outdoorDB + outdoorOffset,
+    outdoorWB: PROJECT_INPUT.outdoorWB + outdoorOffset,
+    outdoorRH: PROJECT_INPUT.outdoorRH,
+    indoorDB: PROJECT_INPUT.indoorDB,
+    indoorRH: PROJECT_INPUT.indoorRH,
+    notes: `${PROJECT_INPUT.notes} Seed profile: ${config.profile}, project ${projectIndex + 1}/${config.projectCount}.`,
+  };
+}
+
+function buildRoomPayload(floorDef: FloorDef, room: RoomDef) {
+  return {
+    name: room.name,
+    floorNumber: floorDef.floorNumber,
+    floorName: floorDef.name,
+    spaceType: room.spaceType,
+    area: room.area,
+    perimeter: room.area > 0 ? Math.round(Math.sqrt(room.area) * 4 * 100) / 100 : 0,
+    ceilingHeight: room.ceilingHeight,
+    wallConstruction: room.wallConstruction,
+    windowType: room.windowType,
+    windowArea: room.windowArea,
+    windowOrientation: room.windowOrientation,
+    occupantCount: room.occupantCount,
+    lightingDensity: room.lightingDensity,
+    equipmentLoad: room.equipmentLoad,
+    hasRoofExposure: room.hasRoofExposure ?? false,
+    notes: room.notes ?? '',
+  };
+}
+
 async function apiPost(path: string, body: unknown, token?: string): Promise<unknown> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -862,6 +1004,13 @@ async function apiPost(path: string, body: unknown, token?: string): Promise<unk
 
 // ─── Main ──────────────────────────────────────────────────
 async function main() {
+  const config = resolveSeedConfig();
+
+  console.log(`Seed target: ${BASE_URL}`);
+  console.log(
+    `Seed config: profile=${config.profile}, projects=${config.projectCount}, maxFloors=${config.maxFloorsPerProject || 'all'}, maxRooms=${config.maxRoomsPerFloor || 'all'}`,
+  );
+
   // 1. Register or login test user
   console.log(`Setting up test user: ${TEST_USER.email}`);
   let token: string;
@@ -883,66 +1032,53 @@ async function main() {
     console.log('  → User already exists, logged in.\n');
   }
 
-  // 2. Create project
-  console.log(`Creating project: ${PROJECT_INPUT.name}`);
-  const projResult = (await apiPost(
-    '/api/projects',
-    {
-      name: PROJECT_INPUT.name,
-      clientName: PROJECT_INPUT.clientName,
-      buildingType: PROJECT_INPUT.buildingType,
-      location: PROJECT_INPUT.location,
-      city: PROJECT_INPUT.city,
-      totalFloorArea: PROJECT_INPUT.totalFloorArea,
-      floorsAboveGrade: PROJECT_INPUT.floorsAboveGrade,
-      floorsBelowGrade: PROJECT_INPUT.floorsBelowGrade,
-      outdoorDB: PROJECT_INPUT.outdoorDB,
-      outdoorWB: PROJECT_INPUT.outdoorWB,
-      outdoorRH: PROJECT_INPUT.outdoorRH,
-      indoorDB: PROJECT_INPUT.indoorDB,
-      indoorRH: PROJECT_INPUT.indoorRH,
-      notes: PROJECT_INPUT.notes,
-    },
-    token,
-  )) as { project: { id: string } };
-  const projectId = projResult.project.id;
-  console.log(`  → ${projectId}\n`);
-
-  // 3. Create floors + rooms via the rooms API (auto-creates floors)
+  // 2. Create projects, floors, and rooms
   let totalRooms = 0;
-  for (const floorDef of FLOORS) {
-    console.log(`Floor ${floorDef.floorNumber}: ${floorDef.name}`);
+  let totalFloors = 0;
+  const seededProjects: SeededProjectSummary[] = [];
 
-    for (const room of floorDef.rooms) {
-      await apiPost(
-        `/api/projects/${projectId}/rooms`,
-        {
-          name: room.name,
-          floorNumber: floorDef.floorNumber,
-          floorName: floorDef.name,
-          spaceType: room.spaceType,
-          area: room.area,
-          perimeter: room.area > 0 ? Math.round(Math.sqrt(room.area) * 4 * 100) / 100 : 0,
-          ceilingHeight: room.ceilingHeight,
-          wallConstruction: room.wallConstruction,
-          windowType: room.windowType,
-          windowArea: room.windowArea,
-          windowOrientation: room.windowOrientation,
-          occupantCount: room.occupantCount,
-          lightingDensity: room.lightingDensity,
-          equipmentLoad: room.equipmentLoad,
-          hasRoofExposure: room.hasRoofExposure ?? false,
-          notes: room.notes ?? '',
-        },
-        token,
-      );
-      totalRooms++;
-      console.log(`  + ${room.name} (${room.area} m²)`);
+  for (let projectIndex = 0; projectIndex < config.projectCount; projectIndex += 1) {
+    const floorsForProject = selectFloors(config);
+    const projectPayload = buildProjectPayload(projectIndex, config, floorsForProject);
+
+    console.log(`\nCreating project ${projectIndex + 1}/${config.projectCount}: ${projectPayload.name}`);
+    const projResult = (await apiPost('/api/projects', projectPayload, token)) as {
+      project: { id: string };
+    };
+
+    const projectId = projResult.project.id;
+    console.log(`  → ${projectId}`);
+
+    let roomsInProject = 0;
+    for (const floorDef of floorsForProject) {
+      console.log(`  Floor ${floorDef.floorNumber}: ${floorDef.name}`);
+
+      for (const room of floorDef.rooms) {
+        await apiPost(`/api/projects/${projectId}/rooms`, buildRoomPayload(floorDef, room), token);
+        roomsInProject += 1;
+        totalRooms += 1;
+        console.log(`    + ${room.name} (${room.area} m²)`);
+      }
     }
+
+    totalFloors += floorsForProject.length;
+    seededProjects.push({
+      id: projectId,
+      name: projectPayload.name,
+      floorCount: floorsForProject.length,
+      roomCount: roomsInProject,
+    });
   }
 
-  console.log(`\n✓ Done — ${FLOORS.length} floors, ${totalRooms} rooms.`);
-  console.log(`  Project ID : ${projectId}`);
+  console.log(
+    `\n✓ Done — ${seededProjects.length} projects, ${totalFloors} floors, ${totalRooms} rooms.`,
+  );
+  console.log('  Seeded projects:');
+  for (const project of seededProjects) {
+    console.log(
+      `    - ${project.name} | ${project.id} | floors=${project.floorCount}, rooms=${project.roomCount}`,
+    );
+  }
   console.log(`  Test login : ${TEST_USER.email} / ${TEST_USER.password}`);
   console.log(`  Open the app and log in to view the project.`);
 }
