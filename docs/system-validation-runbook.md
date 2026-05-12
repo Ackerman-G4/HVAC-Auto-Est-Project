@@ -118,7 +118,27 @@ Manual equivalent checklist:
 
 - docs/dual-control-smoke-checklist.md
 
-## Phase 5 - Building Simulation Smoke Validation
+## Phase 5 - Snapshot Playback Smoke Validation
+
+Run snapshot playback smoke:
+
+```bash
+npm run validate:snapshot:playback
+```
+
+What it validates:
+
+- Creates a room-scope simulation case and completes two internal runs
+- Verifies run history and per-run snapshot listing endpoints
+- Verifies partial snapshot field fetch (`?fields=temperature,velocity`)
+- Verifies full snapshot + single-field fetch (`pressure`)
+- Verifies invalid iteration/field requests return 400
+
+Note:
+
+- Browser localStorage persistence and timeline UI hydration are UI concerns and should be verified manually in the Simulation Engine page.
+
+## Phase 6 - Building Simulation Smoke Validation
 
 Run building simulation smoke directly:
 
@@ -132,7 +152,7 @@ Note:
 - `validate:system:local` and `validate:system:strict:local` set these flags automatically before starting the local validation app.
 - Local validation wrappers also set `AUTH_RATE_LIMIT_DISABLED=true` to prevent auth endpoint 429 throttling during automated smoke sequences.
 
-## Phase 6 - Quality And Security Gates
+## Phase 7 - Quality And Security Gates
 
 Run quality gates:
 
@@ -140,7 +160,7 @@ Run quality gates:
 npm run validate:quality
 ```
 
-## Phase 7 - Plan Document Parity Validation
+## Phase 8 - Plan Document Parity Validation
 
 Run DOCX to markdown parity validation:
 
@@ -176,7 +196,7 @@ Run all phases in sequence:
 npm run validate:system
 ```
 
-`validate:system` now runs: preflight -> auth -> RBAC -> dual-control -> building simulation -> catalog admin -> quality.
+`validate:system` now runs: preflight -> auth -> RBAC -> dual-control -> snapshot playback -> building simulation -> catalog admin -> quality.
 
 Optional manual gate:
 

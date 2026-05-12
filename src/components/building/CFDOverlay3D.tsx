@@ -19,7 +19,7 @@ import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { sampleScalarTrilinear, sampleVectorTrilinear } from '@/lib/simulation/field-sampling';
-import type { SimulationResult, ContourSliceConfig, StreamlineConfig, TileAirflowData, ThermalAlert } from '@/types/simulation';
+import type { SimulationResult, ContourSliceConfig, StreamlineConfig, TileAirflowData, ThermalAlert, Vec3 } from '@/types/simulation';
 
 // ─── Color Mapping ──────────────────────────────────────────────────
 
@@ -599,9 +599,10 @@ interface StreamlinesProps {
   result: SimulationResult;
   config: StreamlineConfig;
   sliceZ: number;
+  seedPoints?: Vec3[];
 }
 
-export function Streamlines({ result, config: slCfg, sliceZ }: StreamlinesProps) {
+export function Streamlines({ result, config: slCfg, sliceZ, seedPoints }: StreamlinesProps) {
   const { config: simCfg } = result;
   const res = simCfg.gridResolution;
   const centerX = (simCfg.gridSizeX * res) / 2;
@@ -633,11 +634,32 @@ export function Streamlines({ result, config: slCfg, sliceZ }: StreamlinesProps)
     const seedCount = Math.min(slCfg.seedCount, 50);
     const out: { points: THREE.Vector3[]; values: number[] }[] = [];
 
-    for (let s = 0; s < seedCount; s++) {
-      // Seed evenly across the grid at the selected slice height
-      const sx = ((s % Math.ceil(Math.sqrt(seedCount))) / Math.ceil(Math.sqrt(seedCount))) * maxW;
-      const sy = (Math.floor(s / Math.ceil(Math.sqrt(seedCount))) / Math.ceil(Math.sqrt(seedCount))) * maxH;
-      const sz = sliceZ * res;
+    const providedSeeds = (seedPoints ?? [])
+      .slice(0, seedCount)
+      .map((seed) => ({
+        sx: Math.max(0, Math.min(seed.x, maxW)),
+        sy: Math.max(0, Math.min(seed.y, maxH)),
+        sz: Math.max(0, Math.min(seed.z, maxD)),
+      }));
+
+    const generatedSeeds: Array<{ sx: number; sy: number; sz: number }> = [];
+    if (providedSeeds.length === 0) {
+      const side = Math.ceil(Math.sqrt(seedCount));
+      for (let s = 0; s < seedCount; s++) {
+        generatedSeeds.push({
+          sx: ((s % side) / side) * maxW,
+          sy: (Math.floor(s / side) / side) * maxH,
+          sz: sliceZ * res,
+        });
+      }
+    }
+
+    const seeds = providedSeeds.length > 0 ? providedSeeds : generatedSeeds;
+
+    for (const seed of seeds) {
+      const sx = seed.sx;
+      const sy = seed.sy;
+      const sz = seed.sz;
 
       const pts: THREE.Vector3[] = [];
       const vals: number[] = [];
@@ -667,7 +689,7 @@ export function Streamlines({ result, config: slCfg, sliceZ }: StreamlinesProps)
     }
     return out;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [result, slCfg.seedCount, slCfg.maxSteps, slCfg.stepSize, slCfg.colorBy, sliceZ, samplingSpec]);
+  }, [result, slCfg.seedCount, slCfg.maxSteps, slCfg.stepSize, slCfg.colorBy, sliceZ, samplingSpec, seedPoints]);
 
   const scalarRange = useMemo(() => {
     if (slCfg.colorBy === 'temperature') {

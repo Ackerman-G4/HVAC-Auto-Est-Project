@@ -1,0 +1,3 @@
+﻿PARSE_ERROR_START
+433:49 - Variable reference is not valid. ':' was not followed by a valid variable name character. Consider using ${} to delimit the name.
+PARSE_ERROR_END

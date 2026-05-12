@@ -38,6 +38,7 @@ interface Props {
   onInspect?: (cell: InspectedCellInfo | null) => void;
   // TileFlow overlays
   tileFlowView?: TileFlowViewConfig;
+  streamlineSeedPoints?: Vec3[];
   tileAirflowData?: TileAirflowData[];
   alerts?: ThermalAlert[];
 }
@@ -282,7 +283,7 @@ function Scene(props: Props) {
     showHotspots = true, showAirflow = true,
     selectedSliceZ = 1, viewMode = 'temperature',
     onInspect,
-    tileFlowView, tileAirflowData, alerts,
+    tileFlowView, streamlineSeedPoints, tileAirflowData, alerts,
   } = props;
 
   const { config, metrics } = result;
@@ -556,7 +557,12 @@ function Scene(props: Props) {
 
       {/* TileFlow: Streamlines */}
       {tileFlowView?.showStreamlines && (
-        <Streamlines result={result} config={tileFlowView.streamlineConfig} sliceZ={selectedSliceZ} />
+        <Streamlines
+          result={result}
+          config={tileFlowView.streamlineConfig}
+          sliceZ={selectedSliceZ}
+          seedPoints={streamlineSeedPoints}
+        />
       )}
 
       {/* TileFlow: Volumetric fog */}

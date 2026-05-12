@@ -24,3 +24,10 @@ Scope: Suggested -> Override -> Final behavior across pricing, room loads, equip
 
 ## Automated Runner
 Use the script at scripts/smoke-dual-control.ps1 to execute the same checks against local API endpoints.
+
+## Related Snapshot Playback Validation
+- [ ] Run `npm run validate:snapshot:playback`
+- [ ] Confirm run history returns at least 2 completed runs for the smoke case
+- [ ] Confirm per-run snapshot lists are available and non-empty
+- [ ] Confirm partial snapshot fetch returns exactly temperature and velocity fields
+- [ ] Confirm invalid snapshot iteration and invalid field requests return 400

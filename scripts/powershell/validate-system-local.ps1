@@ -467,6 +467,10 @@ try {
       & powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'smoke-dual-control.ps1') -BaseUrl $baseUrl
     }
 
+    Invoke-ValidationStep -Label 'validate:snapshot:playback' -Action {
+      & powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'smoke-snapshot-playback.ps1') -BaseUrl $baseUrl
+    }
+
     Invoke-ValidationStep -Label 'validate:catalog:admin:strict' -Action {
       & powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'smoke-catalog-admin.ps1') -BaseUrl $baseUrl -Strict
     }
@@ -486,6 +490,10 @@ try {
 
     Invoke-ValidationStep -Label 'validate:dual-control' -Action {
       & powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'smoke-dual-control.ps1') -BaseUrl $baseUrl
+    }
+
+    Invoke-ValidationStep -Label 'validate:snapshot:playback' -Action {
+      & powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'smoke-snapshot-playback.ps1') -BaseUrl $baseUrl
     }
 
     Invoke-ValidationStep -Label 'validate:catalog:admin' -Action {
