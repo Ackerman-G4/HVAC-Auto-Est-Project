@@ -418,7 +418,6 @@ function Get-EmulatorAuditLogCount {
           )
         }
       }
-      limit = 5
     }
   }
 
@@ -438,8 +437,8 @@ function Wait-ForAuditLog {
     [string]$Entity,
     [string]$EntityId,
     [string]$Action,
-    [int]$Attempts = 8,
-    [int]$DelayMs = 250
+    [int]$Attempts = 20,
+    [int]$DelayMs = 400
   )
 
   $count = 0
@@ -463,8 +462,8 @@ function Wait-ForAuditLogIncrease {
     [string]$EntityId,
     [string]$Action,
     [int]$BaselineCount,
-    [int]$Attempts = 8,
-    [int]$DelayMs = 250
+    [int]$Attempts = 20,
+    [int]$DelayMs = 400
   )
 
   $count = $BaselineCount

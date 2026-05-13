@@ -261,6 +261,7 @@ try {
   $simCaseResp = Invoke-RestJson -Uri "$BaseUrl/api/projects/$projectId/simulations" -Method Post -ContentType 'application/json' -Headers $authHeaders -Body (ConvertTo-JsonBody @{
     name = 'Smoke Snapshot Case'
     runSource = 'internal'
+    cellSize = 0.5
     geometry = @{
       roomId = 'snapshot-smoke-room'
       lengthM = 6
@@ -362,7 +363,9 @@ try {
   Write-Host "PASS run #1 snapshot list (iteration $run1Iteration)"
 
   Write-Host '[7/12] Fetching partial snapshot fields (temperature, velocity)...'
-  $partialSnapshotResp = Invoke-RestJson -Uri "$BaseUrl/api/projects/$projectId/simulations/$simId/runs/$runId1/snapshots/$run1Iteration?fields=temperature,velocity" -Method Get -Headers $authHeaders
+  $partialFieldQuery = [Uri]::EscapeDataString('temperature,velocity')
+  $partialSnapshotUri = "$BaseUrl/api/projects/$projectId/simulations/$simId/runs/$runId1/snapshots/${run1Iteration}?fields=$partialFieldQuery"
+  $partialSnapshotResp = Invoke-RestJson -Uri $partialSnapshotUri -Method Get -Headers $authHeaders
   Assert-True (($partialSnapshotResp.snapshot.fields.Count) -eq 2) 'Expected exactly two fields from partial snapshot request.'
   $partialFieldNames = @($partialSnapshotResp.snapshot.fields | ForEach-Object { [string]$_.name })
   Assert-True ($partialFieldNames -contains 'temperature') 'Partial snapshot response missing temperature field.'
@@ -430,7 +433,13 @@ finally {
       Write-Host "Cleanup: deleted smoke project $projectId"
     }
     catch {
-      Write-Warning "Cleanup failed for project $projectId: $($_.Exception.Message)"
+      $cleanupDetail = Get-HttpErrorDetail -ErrorRecord $_
+      if ($cleanupDetail.StatusCode -eq 404) {
+        Write-Host "Cleanup: project $projectId already deleted"
+      }
+      else {
+        Write-Warning "Cleanup failed for project ${projectId}: $($_.Exception.Message)"
+      }
     }
   }
 }

@@ -439,7 +439,7 @@ export default function SimulationEnginePage() {
     }
 
     setPendingTimelineRestoreCaseId(snapshotTimelineByCase[activeCaseId] ? activeCaseId : null);
-  }, [isSnapshotPrefsHydrated, activeCaseId]);
+  }, [isSnapshotPrefsHydrated, activeCaseId, snapshotTimelineByCase]);
 
   useEffect(() => {
     if (!isSnapshotPrefsHydrated || !activeCaseId) {

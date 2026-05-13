@@ -6,6 +6,13 @@ Repository: Ackerman-G4/HVAC-Auto-Est-Project
 Date: 2026-05-04
 Status: Production (Firebase + Next.js + Python Calc Engine)
 
+## Recent Delivery Update (2026-05-13)
+
+- Snapshot playback implementation is complete in Simulation Engine: run/iteration timeline selection, snapshot field loading, 3D preview playback, per-field loading/error states, and retry actions are shipped.
+- Snapshot playback preferences are persisted with accessibility support: preview mode and auto-load persistence, per-case timeline restore, save-status hint, and polite aria-live announcements.
+- Automated snapshot playback smoke validation is now integrated into validation pipelines via `validate:snapshot:playback` and included in `validate:system` and strict/local wrappers.
+- Validation hardening follow-through is complete: `npm audit fix` remediated `protobufjs` vulnerabilities, `validate:quality` and `validate:system:strict:local` pass end-to-end, and smoke cleanup now handles expected not-found/role-limited delete scenarios without noisy false-positive warnings.
+
 ## Executive Summary
 
 This plan addresses four critical accuracy gaps identified in the codebase:

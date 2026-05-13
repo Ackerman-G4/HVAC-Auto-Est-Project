@@ -342,7 +342,28 @@ finally {
       Write-Host 'Cleanup complete: test project deleted'
     }
     catch {
-      Write-Warning "Cleanup failed for project $projectId"
+      $cleanupDetail = Get-HttpErrorDetail -ErrorRecord $_
+      if ($cleanupDetail.StatusCode -eq 404) {
+        Write-Host "Cleanup: project $projectId already deleted"
+      }
+      elseif ($cleanupDetail.StatusCode -eq 403) {
+        try {
+          Invoke-RestMethod -Uri "$BaseUrl/api/projects/${projectId}" -Method Delete -Headers $authHeaders | Out-Null
+          Write-Host 'Cleanup complete: test project deleted (soft-delete fallback)'
+        }
+        catch {
+          $softDeleteDetail = Get-HttpErrorDetail -ErrorRecord $_
+          if (($softDeleteDetail.StatusCode -eq 403) -or ($softDeleteDetail.StatusCode -eq 404)) {
+            Write-Host "Cleanup skipped for project $projectId due to role restrictions"
+          }
+          else {
+            Write-Warning "Cleanup failed for project ${projectId}: $($_.Exception.Message)"
+          }
+        }
+      }
+      else {
+        Write-Warning "Cleanup failed for project ${projectId}: $($_.Exception.Message)"
+      }
     }
   }
 }
