@@ -372,6 +372,35 @@ try {
   }) | Out-Null
   Write-Host 'PASS save connection override'
 
+  Write-Host '[5b/13] Multi-override scenario: Add Room B <-> Room C as opening, Room A <-> Room B as type transition (duct -> opening)'
+  Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId/simulation-layout" -Method Put -ContentType 'application/json' -Headers $authHeaders -Body (ConvertTo-JsonBody @{
+    floorId = $floor1Id
+    hvacPlacements = @()
+    tilePlacements = @()
+    connectionOverrides = @(
+      @{
+        id = "override-$roomAId-$roomBId"
+        fromRoomId = $roomAId
+        toRoomId = $roomBId
+        type = 'opening'
+        openingAreaM2 = 2.2
+        resistance = 0.2
+        enabled = $true
+      },
+      @{
+        id = "override-$roomBId-$roomCId"
+        fromRoomId = $roomBId
+        toRoomId = $roomCId
+        type = 'opening'
+        openingAreaM2 = 1.5
+        resistance = 0.1
+        enabled = $true
+      }
+    )
+    canvasScale = 50
+  }) | Out-Null
+  Write-Host 'PASS multi-override and type transition scenario'
+
   Write-Host '[6/13] Creating building simulation case...'
   try {
     $simCaseResp = Invoke-RestMethod -Uri "$BaseUrl/api/projects/$projectId/simulations" -Method Post -ContentType 'application/json' -Headers $authHeaders -Body (ConvertTo-JsonBody @{
