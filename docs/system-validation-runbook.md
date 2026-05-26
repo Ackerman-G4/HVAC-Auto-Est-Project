@@ -1,33 +1,6 @@
-Run CFD feature flags validation:
-
-```powershell
-npm run validate:cfd:feature-flags
-```
-
 # System Validation Runbook
 
-This runbook operationalizes the validation plan into repeatable command steps, including new CFD SMOKE validation scripts for physics and geometry.
-## Phase 3 - CFD SMOKE Validation
-
-Run CFD physics validation:
-
-```powershell
-npm run validate:cfd:physics
-```
-
-Run building geometry validation:
-
-```powershell
-npm run validate:building-geometry
-```
-
-Run building simulation smoke (with multi-override):
-
-```powershell
-npm run validate:building-simulation
-```
-
-Review logs for convergence, mass/energy balance, geometry, and override scenario results.
+This runbook operationalizes the validation plan into repeatable command steps.
 
 ## Phase 1 - Environment And Credentials
 

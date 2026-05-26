@@ -13,22 +13,20 @@ Status: Production (Firebase + Next.js + Python Calc Engine)
 - Automated snapshot playback smoke validation is now integrated into validation pipelines via `validate:snapshot:playback` and included in `validate:system` and strict/local wrappers.
 - Validation hardening follow-through is complete: `npm audit fix` remediated `protobufjs` vulnerabilities, `validate:quality` and `validate:system:strict:local` pass end-to-end, and smoke cleanup now handles expected not-found/role-limited delete scenarios without noisy false-positive warnings.
 
-
 ## Executive Summary
 
-This plan now includes a dedicated CFD SMOKE validation roadmap:
-
-- **CFD Physics Validation**: Automated script (`validate:cfd:physics`) for reference case, convergence, and mass/energy balance checks.
-- **Building Geometry Enhancement**: Automated script (`validate:building-geometry`) for complex geometry, adjacency, and wall metadata.
-- **Multi-Override Scenarios**: Expanded in `validate:building-simulation` for simultaneous overrides and type transitions.
-- **Snapshot Playback, Error Handling, Feature Flags, Performance, and Reporting**: To be added in future phases.
+This plan addresses four critical accuracy gaps identified in the codebase:
+- CFD Simulation (cfd-simulation.ts) — Uses a simplified explicit solver on a uniform voxel grid with significant numerical diffusion, no turbulence modeling, and coarse boundary treatment
+- 3D Building Visualization (BuildingViewer3D.tsx, AirflowViewer3D.tsx) — Renders rooms as axis-aligned bounding boxes with no actual wall geometry, window cutouts, or HVAC element detail
+- Load Calculations (load-calculation-engine.ts) — Uses flat per-m² envelope factors instead of orientation-specific CLTD/CLF methods or RTS calculations
+- Geometry Representation (room-polygon.ts, floorplan) — Stores rooms as 2D rectangles with no volumetric data, wall thickness, or spatial relationships
 
 Target Error Budgets:
 
 | Domain | Current Error | Target Error | Method |
 | --- | --- | --- | --- |
 | Room Volume | ±15% (rect approximation) | ±0.5% | BIM/IFC import + polygon extrusion |
-| CFD Temperature | ±3-5°C (coarse grid) | ±0.5°C | Adaptive mesh + k-ε turbulence + SMOKE validation |
+| CFD Temperature | ±3-5°C (coarse grid) | ±0.5°C | Adaptive mesh + k-ε turbulence |
 | CFD Velocity | ±0.5 m/s | ±0.1 m/s | Boundary layer resolution |
 | Cooling Load | ±25% (flat factors) | ±8% | RTS/CLTD method + solar angles |
 | Pressure Drop | ±30% | ±10% | Darcy-Weisbach with actual fittings |
