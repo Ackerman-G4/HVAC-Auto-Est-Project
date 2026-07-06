@@ -13,6 +13,7 @@ import {
   writeAuditLog,
 } from '@/lib/firebase/projects-store';
 import { wetBulb as calcWetBulb } from '@/lib/functions/psychrometric';
+import { getClimateData } from '@/constants/climate-data';
 import {
   toNumber,
   toInt,
@@ -61,6 +62,7 @@ export async function GET(request: NextRequest) {
       search,
       sortBy,
       sortOrder,
+      ownerId: auth.user.role === 'admin' ? null : auth.user.id,
     });
 
     return NextResponse.json({ projects });
@@ -112,16 +114,23 @@ export async function POST(request: NextRequest) {
       return errorResponse(400, 'Project name is required', 'Enter a project name before creating the project.', 'MISSING_NAME');
     }
 
-    // Auto-compute wet-bulb from dry-bulb + RH via Carrier psychrometric chart
-    const finalDB = toNumber(body.outdoorDB, 35);
+    // Resolve design conditions from the selected Philippine city (ASHRAE
+    // 0.4% cooling design data) unless the client supplies explicit values.
+    const cityName = toStringField(body.city, 'Manila');
+    const climate = getClimateData(cityName);
+    const dbProvided = body.outdoorDB !== undefined && body.outdoorDB !== null;
+    const wbProvided = body.outdoorWB !== undefined && body.outdoorWB !== null;
+
+    const finalDB = dbProvided ? toNumber(body.outdoorDB, 35) : (climate?.outdoorDB ?? 35);
     const finalRH = toNumber(body.outdoorRH, 50);
-    const computedWB = Number.isFinite(toNumber(body.outdoorWB, NaN))
+    const computedWB = wbProvided
       ? toNumber(body.outdoorWB, 0)
-      : calcWetBulb(finalDB, finalRH);
+      : (climate?.outdoorWB ?? calcWetBulb(finalDB, finalRH));
 
     const project = await createProjectRecord({
       name: projectName,
       createdBy: auth.user.id,
+      ownerId: auth.user.id,
       clientName: toStringField(body.clientName),
       buildingType: toStringField(body.buildingType, 'commercial'),
       location: toStringField(body.location),

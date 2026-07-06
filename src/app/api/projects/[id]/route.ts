@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { canAccessProject, projectAccessDenied } from '@/lib/auth/project-access';
 import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import {
   deleteProjectRecordPermanently,
@@ -44,12 +45,14 @@ function toNullableNumber(value: unknown, fallback: number | null): number | nul
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function isProjectOwnerOrAdmin(
-  user: { id: string; role: string },
-  project: { createdBy?: string },
-): boolean {
-  if (user.role === 'admin') return true;
-  return !!project.createdBy && project.createdBy === user.id;
+async function logProjectAccessDenied(id: string, uid: string, method: string): Promise<void> {
+  await writeAuditLog({
+    projectId: id,
+    action: 'access_denied',
+    entity: 'project',
+    entityId: id,
+    details: JSON.stringify({ uid, method }),
+  });
 }
 
 export async function GET(request: NextRequest, context: RouteContext) {
@@ -79,8 +82,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
       );
     }
 
-    if (!isProjectOwnerOrAdmin(auth.user, project)) {
-      return errorResponse(403, 'Forbidden', 'You do not have access to this project.', 'FORBIDDEN');
+    if (!canAccessProject(project, auth.user)) {
+      await logProjectAccessDenied(id, auth.user.id, 'GET');
+      return projectAccessDenied();
     }
 
     return NextResponse.json({
@@ -126,8 +130,9 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       );
     }
 
-    if (!isProjectOwnerOrAdmin(auth.user, existing)) {
-      return errorResponse(403, 'Forbidden', 'You do not have permission to update this project.', 'FORBIDDEN');
+    if (!canAccessProject(existing, auth.user)) {
+      await logProjectAccessDenied(id, auth.user.id, 'PUT');
+      return projectAccessDenied();
     }
 
     const finalOutdoorDB = toNumber(body.outdoorDB, existing.outdoorDB);
@@ -241,14 +246,12 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       );
     }
 
-    if (!isProjectOwnerOrAdmin(auth.user, existing)) {
-      return errorResponse(403, 'Forbidden', 'You do not have permission to delete this project.', 'FORBIDDEN');
+    if (!canAccessProject(existing, auth.user)) {
+      await logProjectAccessDenied(id, auth.user.id, 'DELETE');
+      return projectAccessDenied();
     }
 
     if (permanent) {
-      if (auth.user.role !== 'admin') {
-        return errorResponse(403, 'Forbidden', 'Only admins can permanently delete projects.', 'FORBIDDEN');
-      }
       await writeAuditLog({
         projectId: id,
         action: 'permanently_deleted',

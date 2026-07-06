@@ -10,9 +10,12 @@ import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import {
   deleteBoqItemRecord,
   getBoqItemRecord,
+  listBoqItemsForProject,
   updateBoqItemRecord,
 } from '@/lib/firebase/project-estimation-store';
-import { writeAuditLog } from '@/lib/firebase/projects-store';
+import { createBoqSnapshot } from '@/lib/firebase/boq-snapshot-store';
+import { getProjectRecord, writeAuditLog } from '@/lib/firebase/projects-store';
+import { computeBoqGrandTotal, computeBoqHash } from '@/lib/functions/boq-integrity';
 import { errorResponse, getErrorDetails, requireJsonRequest, resourceNotFound } from '@/lib/utils/api-helpers';
 import { finalizeDualValue } from '@/lib/utils/dual-control';
 
@@ -21,6 +24,12 @@ type RouteContext = { params: Promise<{ id: string; itemId: string }> };
 const BOQ_ITEM_MUTATION_RATE_LIMIT = {
   windowMs: 60_000,
   maxRequests: 30,
+} as const;
+
+const DEFAULT_PRICING_RATES = {
+  overheadPercent: 0.15,
+  contingencyPercent: 0.05,
+  vatRate: 0.12,
 } as const;
 
 export async function PUT(request: NextRequest, context: RouteContext) {
@@ -87,11 +96,50 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       return resourceNotFound('BOQ item', 'The item does not exist in this project.', 'BOQ_ITEM_NOT_FOUND');
     }
 
+    const [project, currentItems] = await Promise.all([
+      getProjectRecord(projectId),
+      listBoqItemsForProject(projectId),
+    ]);
+    const boqHash = computeBoqHash(currentItems);
+    const grandTotalPhp = computeBoqGrandTotal(currentItems, {
+      overheadPercent: finalizeDualValue(
+        project?.suggestedOverheadPercent ?? DEFAULT_PRICING_RATES.overheadPercent,
+        project?.overheadPercentOverride,
+      ).final,
+      contingencyPercent: finalizeDualValue(
+        project?.suggestedContingencyPercent ?? DEFAULT_PRICING_RATES.contingencyPercent,
+        project?.contingencyPercentOverride,
+      ).final,
+      vatRate: finalizeDualValue(
+        project?.suggestedVatRate ?? DEFAULT_PRICING_RATES.vatRate,
+        project?.vatRateOverride,
+      ).final,
+    });
+    const snapshot = await createBoqSnapshot({
+      projectId,
+      eventType: 'item_override',
+      boqHash,
+      itemCount: currentItems.length,
+      grandTotalPhp,
+      triggeredBy: auth.user.id,
+    });
+
     await writeAuditLog({
       projectId,
       action: 'updated',
       entity: 'boq_item',
       entityId: itemId,
+      details: JSON.stringify({
+        boqHash,
+        snapshot: {
+          id: snapshot.id,
+          algorithm: snapshot.algorithm,
+          itemCount: snapshot.itemCount,
+          grandTotalPhp: snapshot.grandTotalPhp,
+          deltaPhp: snapshot.deltaPhp,
+          createdAt: snapshot.createdAt,
+        },
+      }),
       previousValue: JSON.stringify({
         quantity: existing.quantity,
         unitPrice: existing.finalUnitPrice ?? existing.unitPrice,

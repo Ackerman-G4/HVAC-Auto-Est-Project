@@ -1,5 +1,8 @@
+import { EQUIPMENT_CATALOG } from '@/constants/equipment-catalog';
+import { BRAND_TIERS, type BrandTier } from '@/constants/pricing-engine';
 import { getRuleSetSync } from '@/lib/engine/rules';
 import { constantFromRuleSet, lookupFromRuleSet } from '@/lib/engine/rules/rule-evaluator';
+import type { EquipmentType } from '@/types/equipment';
 
 export type BudgetBand = 'economy' | 'balanced' | 'premium';
 export type OptimizationPriority = 'capex' | 'efficiency' | 'balanced';
@@ -69,48 +72,44 @@ interface CatalogItem {
   budgetBand: BudgetBand;
 }
 
-const CATALOG: CatalogItem[] = [
-  {
-    model: 'AeroCore Split 2.0TR',
-    type: 'inverter_split',
-    capacityTr: 2,
-    eer: 12.8,
-    capexPhp: 54000,
-    budgetBand: 'economy',
-  },
-  {
-    model: 'AeroCore Cassette 3.0TR',
-    type: 'cassette',
-    capacityTr: 3,
-    eer: 12.1,
-    capexPhp: 92000,
-    budgetBand: 'balanced',
-  },
-  {
-    model: 'AeroCore Ducted 5.0TR',
-    type: 'ducted',
-    capacityTr: 5,
-    eer: 11.5,
-    capexPhp: 168000,
-    budgetBand: 'balanced',
-  },
-  {
-    model: 'AeroCore VRF 8.0TR',
-    type: 'vrf',
-    capacityTr: 8,
-    eer: 13.2,
-    capexPhp: 296000,
-    budgetBand: 'premium',
-  },
-  {
-    model: 'AeroCore VRF 12.0TR',
-    type: 'vrf',
-    capacityTr: 12,
-    eer: 13.7,
-    capexPhp: 412000,
-    budgetBand: 'premium',
-  },
-];
+const CATALOG_TYPE_MAP: Partial<Record<EquipmentType, CatalogItem['type']>> = {
+  wall_split: 'inverter_split',
+  ceiling_cassette: 'cassette',
+  ducted_split: 'ducted',
+  vrf_indoor: 'vrf',
+  vrf_outdoor: 'vrf',
+};
+
+const TIER_BUDGET_BANDS: Record<BrandTier, BudgetBand> = {
+  high: 'premium',
+  mid: 'balanced',
+  entry: 'economy',
+};
+
+function formatCapacityTr(capacityTr: number): string {
+  return Number.isInteger(capacityTr) ? capacityTr.toFixed(1) : `${capacityTr}`;
+}
+
+function resolveBudgetBand(manufacturer: string): BudgetBand {
+  const tier: BrandTier | undefined = BRAND_TIERS[manufacturer] ?? BRAND_TIERS[manufacturer.split(' ')[0]];
+  return tier ? TIER_BUDGET_BANDS[tier] : 'balanced';
+}
+
+const CATALOG: CatalogItem[] = EQUIPMENT_CATALOG.flatMap((entry) => {
+  const type = CATALOG_TYPE_MAP[entry.type];
+  if (!type) {
+    return [];
+  }
+
+  return [{
+    model: `${entry.manufacturer} ${entry.model} ${formatCapacityTr(entry.capacityTR)}TR`,
+    type,
+    capacityTr: entry.capacityTR,
+    eer: entry.eer,
+    capexPhp: entry.unitPricePHP,
+    budgetBand: resolveBudgetBand(entry.manufacturer),
+  }];
+});
 
 function round(value: number, digits = 2) {
   const factor = 10 ** digits;

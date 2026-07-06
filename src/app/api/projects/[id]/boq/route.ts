@@ -12,15 +12,19 @@ import {
   listSelectedEquipmentForProject,
   replaceBoqItemsForProject,
 } from '@/lib/firebase/project-estimation-store';
+import { createBoqSnapshot, getLatestBoqSnapshot } from '@/lib/firebase/boq-snapshot-store';
 import {
   getFloorsWithRooms,
   getProjectRecord,
   updateProjectRecord,
   writeAuditLog,
 } from '@/lib/firebase/projects-store';
+import { buildBoqVerification, computeBoqHash } from '@/lib/functions/boq-integrity';
 import { compileBOQ } from '@/lib/functions/cost-engine';
 import { sizeRefrigerantPipe, sizeCondensatePipe } from '@/lib/functions/pipe-sizing';
 import { sizeElectrical } from '@/lib/functions/electrical';
+import { sizeDuct } from '@/lib/functions/duct-sizing';
+import { CFM_PER_TR } from '@/lib/utils/constants';
 import { errorResponse, getErrorDetails, resourceNotFound } from '@/lib/utils/api-helpers';
 import { finalizeDualValue } from '@/lib/utils/dual-control';
 import type { BOQItem } from '@/types/material';
@@ -30,6 +34,20 @@ const DEFAULT_REFRIGERANT_RUN_M = 10;
 const DEFAULT_ELEVATION_DIFF_M = 3;
 const DEFAULT_ELECTRICAL_RUN_M = 15;
 const DEFAULT_CONDENSATE_RUN_M = 5;
+const DEFAULT_DUCT_RUN_M = 8;
+
+/** Equipment types that require sheet-metal ductwork (vs ductless splits/cassettes) */
+const DUCTED_EQUIPMENT_TYPES = new Set([
+  'ducted_split',
+  'ducted',
+  'ahu',
+  'fcu',
+  'concealed',
+]);
+
+function requiresDuctwork(type: string): boolean {
+  return DUCTED_EQUIPMENT_TYPES.has(type) || type.toLowerCase().includes('duct');
+}
 
 const DEFAULT_PRICING_POLICY = {
   laborMultiplier: 0.35,
@@ -100,9 +118,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
     }
 
     const { id } = await context.params;
-    const [project, items] = await Promise.all([
+    const [project, items, latestSnapshot] = await Promise.all([
       getProjectRecord(id),
       listBoqItemsForProject(id),
+      getLatestBoqSnapshot(id),
     ]);
 
     if (!project) {
@@ -204,6 +223,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
           isOverridden: pricingPolicy.vatRate.isOverridden,
         },
       },
+      verification: buildBoqVerification(items, latestSnapshot),
     });
   } catch (error) {
     console.error('GET BOQ error:', error);
@@ -266,6 +286,12 @@ function buildBOQInputs(selections: SelEquip[]) {
       result: sizeCondensatePipe(s.equipment.capacityTR),
       runLengthM: DEFAULT_CONDENSATE_RUN_M,
     })),
+    ducts: selections
+      .filter((s) => requiresDuctwork(s.equipment.type))
+      .map((s) => ({
+        result: sizeDuct({ cfm: Math.max(1, s.equipment.capacityTR * CFM_PER_TR * s.quantity) }),
+        runLengthM: DEFAULT_DUCT_RUN_M * s.quantity,
+      })),
   };
 }
 
@@ -384,6 +410,17 @@ export async function POST(request: NextRequest, context: RouteContext) {
       lastBoqGeneratedAt: new Date().toISOString(),
     });
 
+    const storedItems = await listBoqItemsForProject(projectId);
+    const boqHash = computeBoqHash(storedItems);
+    const snapshot = await createBoqSnapshot({
+      projectId,
+      eventType: 'generated',
+      boqHash,
+      itemCount: storedItems.length,
+      grandTotalPhp: boqSummary.grandTotal,
+      triggeredBy: auth.user.id,
+    });
+
     await writeAuditLog({
       projectId,
       action: 'generated',
@@ -397,6 +434,15 @@ export async function POST(request: NextRequest, context: RouteContext) {
           overheadPercent: pricingPolicy.overheadPercent.final,
           contingencyPercent: pricingPolicy.contingencyPercent.final,
           vatRate: pricingPolicy.vatRate.final,
+        },
+        boqHash,
+        snapshot: {
+          id: snapshot.id,
+          algorithm: snapshot.algorithm,
+          itemCount: snapshot.itemCount,
+          grandTotalPhp: snapshot.grandTotalPhp,
+          deltaPhp: snapshot.deltaPhp,
+          createdAt: snapshot.createdAt,
         },
       }),
     });

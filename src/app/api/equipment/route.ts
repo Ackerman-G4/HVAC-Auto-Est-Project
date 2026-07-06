@@ -7,6 +7,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
 import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import { EQUIPMENT_CATALOG } from '@/constants/equipment-catalog';
+import {
+  getPriceOverridesByModel,
+  type PriceOverrideRecord,
+} from '@/lib/firebase/price-override-store';
 import { parseBoundedInt } from '@/lib/utils/api-helpers';
 
 const EQUIPMENT_CATALOG_GET_RATE_LIMIT = {
@@ -87,14 +91,30 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    let overrides = new Map<string, PriceOverrideRecord>();
+    try {
+      overrides = await getPriceOverridesByModel();
+    } catch (overrideError) {
+      console.error('GET /api/equipment price override lookup failed:', overrideError);
+    }
+
+    const equipmentWithPricing = equipment.map((e) => {
+      const override = overrides.get(e.model);
+      return {
+        ...e,
+        unitPricePHP: override ? override.overridePricePhp : e.unitPricePHP,
+        priceOverridden: Boolean(override),
+      };
+    });
+
     const brands = [...new Set(EQUIPMENT_CATALOG.map((e) => e.manufacturer))];
     const types = [...new Set(EQUIPMENT_CATALOG.map((e) => e.type))];
 
     return NextResponse.json({
-      equipment,
+      equipment: equipmentWithPricing,
       brands,
       types,
-      totalCount: equipment.length,
+      totalCount: equipmentWithPricing.length,
     });
   } catch (error) {
     console.error('GET /api/equipment error:', error);

@@ -106,6 +106,13 @@ export function signInWithGoogleCredential(
   });
 }
 
+export function sendPasswordResetEmail(email: string) {
+  return postIdentityToolkit<{ email: string }>('accounts:sendOobCode', {
+    requestType: 'PASSWORD_RESET',
+    email,
+  });
+}
+
 export async function lookupAccountByIdToken(idToken: string) {
   const data = await postIdentityToolkit<IdentityToolkitLookupResponse>('accounts:lookup', {
     idToken,

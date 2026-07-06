@@ -55,7 +55,7 @@ interface SeededProjectSummary {
 // ─── Test User ─────────────────────────────────────────────
 const TEST_USER = {
   email: 'test@hvac-auto.dev',
-  password: 'Test1234!',
+  password: 'SeedMockPass2026!',
   displayName: 'Test Engineer',
   role: 'admin' as const,
 };

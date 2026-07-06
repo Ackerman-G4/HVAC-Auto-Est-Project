@@ -118,13 +118,12 @@ function LoginPageContent() {
                     />
                     Remember me
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => showToast('info', 'Password Reset', 'Password reset functionality coming soon.')}
+                  <Link
+                    href="/auth/forgot-password"
                     className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
                   >
                     Forgot password?
-                  </button>
+                  </Link>
                 </div>
 
                 {serverError && (

@@ -22,11 +22,13 @@ import {
   ClipboardList,
   Waves,
   Box,
+  ShieldCheck,
 } from 'lucide-react';
 import { HvacLogo } from '@/components/ui/hvac-logo';
 import { cn } from '@/lib/utils/cn';
 import { sidebarVariants } from '@/animations/shared';
 import { useUIStore } from '@/stores/ui-store';
+import { useAuthStore } from '@/stores/auth-store';
 import { Z } from '@/lib/utils/z-indexes';
 
 interface NavItem {
@@ -77,13 +79,18 @@ const bottomNav: NavItem[] = [
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
+const adminNavItem: NavItem = { href: '/admin', label: 'Admin Portal', icon: ShieldCheck };
+
 export function Sidebar() {
   const pathname = usePathname();
   const collapsed = useUIStore((state) => state.sidebarCollapsed);
   const mobileOpen = useUIStore((state) => state.mobileSidebarOpen);
   const toggleSidebar = useUIStore((state) => state.toggleSidebar);
   const setMobileSidebar = useUIStore((state) => state.setMobileSidebar);
+  const isAdmin = useAuthStore((state) => state.user?.role === 'admin');
   const [estimationOpen, setEstimationOpen] = React.useState(false);
+
+  const resolvedBottomNav = isAdmin ? [...bottomNav, adminNavItem] : bottomNav;
 
   // Auto-expand estimation group when a child route is active
   const estimationGroup = mainNav.find((e) => isGroup(e) && e.label === 'Estimation') as NavGroup | undefined;
@@ -221,7 +228,7 @@ export function Sidebar() {
 
         <div className="border-t border-border pt-4">
           <div className="flex flex-col gap-1">
-            {bottomNav.map((item) => renderNavItem(item))}
+            {resolvedBottomNav.map((item) => renderNavItem(item))}
           </div>
         </div>
       </nav>

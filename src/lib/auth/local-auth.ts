@@ -163,6 +163,23 @@ export function localVerifyToken(token: string) {
   }
 }
 
+export function localListUsers(): Array<{
+  id: string;
+  email: string;
+  name: string;
+  role: 'admin' | 'engineer';
+  createdAt: string;
+}> {
+  const store = readUsers();
+  return store.users.map((u) => ({
+    id: u.id,
+    email: u.email,
+    name: u.name,
+    role: u.role === 'admin' ? 'admin' : 'engineer',
+    createdAt: u.createdAt,
+  }));
+}
+
 export function localRefreshToken(refreshTokenStr: string) {
   try {
     const decoded = jwt.verify(refreshTokenStr, resolveJwtSecret()) as {

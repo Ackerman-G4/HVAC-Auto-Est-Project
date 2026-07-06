@@ -312,6 +312,8 @@ export const boqApi = {
     request<{ item: unknown }>(`/api/projects/${projectId}/boq/${itemId}`, 'PUT', data),
   deleteItem: (projectId: string, itemId: string) =>
     request<{ message: string }>(`/api/projects/${projectId}/boq/${itemId}`, 'DELETE'),
+  verify: (projectId: string) =>
+    request<{ verification: unknown }>(`/api/projects/${projectId}/boq/verify`),
 };
 
 // ── Calculate ────────────────────────────────────────────────────────────
@@ -360,6 +362,21 @@ export const diagnosticsApi = {
     const qs = params ? '?' + new URLSearchParams(params).toString() : '';
     return request<{ history: unknown[] }>(`/api/diagnostics/history${qs}`);
   },
+};
+
+// ── Admin ────────────────────────────────────────────────────────────────
+
+export const adminApi = {
+  getStats: () => request<{ stats: unknown }>('/api/admin/stats'),
+  getUsers: () => request<{ mode: 'firebase' | 'local'; users: unknown[] }>('/api/admin/users'),
+  getAuditLogs: (params?: Record<string, string>) => {
+    const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+    return request<{ logs: unknown[]; total: number }>(`/api/admin/audit-logs${qs}`);
+  },
+  getPrices: () => request<{ prices: unknown[] }>('/api/admin/prices'),
+  setPriceOverride: (data: unknown) => request<{ override: unknown }>('/api/admin/prices', 'POST', data),
+  clearPriceOverride: (model: string) =>
+    request<{ cleared: boolean; model: string }>('/api/admin/prices', 'DELETE', { model }),
 };
 
 export { ApiClientError };

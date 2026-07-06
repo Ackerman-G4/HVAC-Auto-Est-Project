@@ -33,6 +33,14 @@ const ROUTE_META: Array<{ match: (pathname: string) => boolean; meta: RouteMeta 
     },
   },
   {
+    match: (pathname) => pathname.startsWith('/admin'),
+    meta: {
+      title: 'Admin Portal',
+      subtitle: 'User management, audit trail, and financial controls',
+      constrained: false,
+    },
+  },
+  {
     match: (pathname) => pathname.startsWith('/load-calculation'),
     meta: {
       title: 'Load Calculation Workspace',

@@ -6,24 +6,106 @@ import { getFirebaseAuth } from '@/lib/firebase/server';
 import { resolveLocalFallbackRole } from '@/lib/auth/fallback-role';
 import { getFirstZodErrorMessage, loginRequestSchema } from '@/lib/validation/auth';
 import { isLocalAuthMode, localSignIn } from '@/lib/auth/local-auth';
-import { requireJsonRequest } from '@/lib/utils/api-helpers';
+import { errorResponse, requireJsonRequest } from '@/lib/utils/api-helpers';
+import {
+	clearFailedLogins,
+	isLockedOut,
+	recordFailedLogin,
+	writeLoginEvent,
+} from '@/lib/firebase/security-store';
 
 const LOGIN_RATE_LIMIT = {
 	windowMs: 60_000,
 	maxRequests: 10,
 } as const;
 
+const GENERIC_CREDENTIAL_ERROR = 'Email or password is invalid';
+
 function resolveRole(role: unknown): 'admin' | 'engineer' {
 	return role === 'admin' ? 'admin' : 'engineer';
 }
 
 function resolveStatusFromError(message: string): number {
-	if (message === 'Account not found') return 404;
-	if (message === 'Email or password is invalid') return 401;
+	if (message === 'Account not found') return 401;
+	if (message === GENERIC_CREDENTIAL_ERROR) return 401;
 	if (message === 'Account is disabled') return 403;
 	if (message === 'Password is too weak' || message === 'Sign-in method is disabled in Firebase Auth') return 400;
 	if (message === 'Too many attempts. Please try again later') return 429;
 	return 500;
+}
+
+function resolveClientAddress(req: NextRequest): string {
+	const forwarded = req.headers.get('x-forwarded-for');
+	if (forwarded) {
+		return forwarded.split(',')[0]?.trim() || '127.0.0.1';
+	}
+
+	const realIp = req.headers.get('x-real-ip');
+	if (realIp?.trim()) {
+		return realIp.trim();
+	}
+
+	return '127.0.0.1';
+}
+
+function isLockoutEnforcementEnabled(): boolean {
+	return process.env.AUTH_RATE_LIMIT_DISABLED !== 'true';
+}
+
+async function writeLoginEventSafely(input: {
+	email: string;
+	uid?: string;
+	ip: string;
+	userAgent: string;
+	success: boolean;
+	reason?: string;
+}): Promise<void> {
+	try {
+		await writeLoginEvent(input);
+	} catch (error) {
+		console.error('Failed to write login event', error);
+	}
+}
+
+async function recordLoginSuccessSafely(input: {
+	email: string;
+	uid: string;
+	ip: string;
+	userAgent: string;
+}): Promise<void> {
+	if (isLockoutEnforcementEnabled()) {
+		try {
+			await clearFailedLogins(input.email);
+		} catch (error) {
+			console.error('Failed to clear login lockout state', error);
+		}
+	}
+
+	await writeLoginEventSafely({ ...input, success: true });
+}
+
+async function recordLoginFailureSafely(input: {
+	email: string;
+	ip: string;
+	userAgent: string;
+	reason: string;
+	countTowardLockout: boolean;
+}): Promise<void> {
+	if (input.countTowardLockout && isLockoutEnforcementEnabled()) {
+		try {
+			await recordFailedLogin(input.email);
+		} catch (error) {
+			console.error('Failed to record failed login attempt', error);
+		}
+	}
+
+	await writeLoginEventSafely({
+		email: input.email,
+		ip: input.ip,
+		userAgent: input.userAgent,
+		success: false,
+		reason: input.reason,
+	});
 }
 
 export async function POST(req: NextRequest) {
@@ -56,51 +138,96 @@ export async function POST(req: NextRequest) {
 		}
 
 		const { email, password } = parsed.data;
+		const ip = resolveClientAddress(req);
+		const userAgent = req.headers.get('user-agent') || '';
 
-		// Use local auth when Firebase is not configured
-		if (isLocalAuthMode()) {
-			const result = await localSignIn(email, password);
-			return createAuthResponse({
-				token: result.token,
-				refreshToken: result.refreshToken,
-				user: result.user,
-			});
+		if (isLockoutEnforcementEnabled()) {
+			let lockout = { locked: false, retryAfterSec: 0 };
+			try {
+				lockout = await isLockedOut(email);
+			} catch (error) {
+				console.error('Failed to check login lockout state', error);
+			}
+
+			if (lockout.locked) {
+				await writeLoginEventSafely({ email, ip, userAgent, success: false, reason: 'locked' });
+				const minutesRemaining = Math.max(1, Math.ceil(lockout.retryAfterSec / 60));
+				return errorResponse(
+					423,
+					'Account temporarily locked',
+					`Too many failed login attempts. Try again in ${minutesRemaining} minute${minutesRemaining === 1 ? '' : 's'}.`,
+					'ACCOUNT_LOCKED',
+				);
+			}
 		}
 
-		const authResponse = await signInWithEmailPassword(email, password);
-
 		try {
-			const auth = getFirebaseAuth();
-			const decoded = await auth.verifyIdToken(authResponse.idToken);
-			const userRecord = await auth.getUser(decoded.uid);
-			const role = resolveRole(decoded.role ?? userRecord.customClaims?.role);
+			// Use local auth when Firebase is not configured
+			if (isLocalAuthMode()) {
+				const result = await localSignIn(email, password);
+				await recordLoginSuccessSafely({ email, uid: result.user.id, ip, userAgent });
+				return createAuthResponse({
+					token: result.token,
+					refreshToken: result.refreshToken,
+					user: result.user,
+				});
+			}
 
-			return createAuthResponse({
-				token: authResponse.idToken,
-				refreshToken: authResponse.refreshToken,
-				user: {
-					id: decoded.uid,
-					email: decoded.email || authResponse.email,
-					name: userRecord.displayName || '',
-					role,
-				},
+			const authResponse = await signInWithEmailPassword(email, password);
+
+			try {
+				const auth = getFirebaseAuth();
+				const decoded = await auth.verifyIdToken(authResponse.idToken);
+				const userRecord = await auth.getUser(decoded.uid);
+				const role = resolveRole(decoded.role ?? userRecord.customClaims?.role);
+
+				await recordLoginSuccessSafely({ email, uid: decoded.uid, ip, userAgent });
+				return createAuthResponse({
+					token: authResponse.idToken,
+					refreshToken: authResponse.refreshToken,
+					user: {
+						id: decoded.uid,
+						email: decoded.email || authResponse.email,
+						name: userRecord.displayName || '',
+						role,
+					},
+				});
+			} catch {
+				const account = await lookupAccountByIdToken(authResponse.idToken);
+				const fallbackEmail = account.email || authResponse.email;
+				await recordLoginSuccessSafely({ email, uid: account.id, ip, userAgent });
+				return createAuthResponse({
+					token: authResponse.idToken,
+					refreshToken: authResponse.refreshToken,
+					user: {
+						id: account.id,
+						email: fallbackEmail,
+						name: account.name,
+						role: resolveLocalFallbackRole(fallbackEmail),
+					},
+				});
+			}
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Login failed';
+			const status = resolveStatusFromError(message);
+			await recordLoginFailureSafely({
+				email,
+				ip,
+				userAgent,
+				reason: message,
+				countTowardLockout: status === 401,
 			});
-		} catch {
-			const account = await lookupAccountByIdToken(authResponse.idToken);
-			const fallbackEmail = account.email || authResponse.email;
-			return createAuthResponse({
-				token: authResponse.idToken,
-				refreshToken: authResponse.refreshToken,
-				user: {
-					id: account.id,
-					email: fallbackEmail,
-					name: account.name,
-					role: resolveLocalFallbackRole(fallbackEmail),
-				},
-			});
+			return NextResponse.json(
+				{ error: status === 401 ? GENERIC_CREDENTIAL_ERROR : message },
+				{ status },
+			);
 		}
 	} catch (error) {
 		const message = error instanceof Error ? error.message : 'Login failed';
-		return NextResponse.json({ error: message }, { status: resolveStatusFromError(message) });
+		const status = resolveStatusFromError(message);
+		return NextResponse.json(
+			{ error: status === 401 ? GENERIC_CREDENTIAL_ERROR : message },
+			{ status },
+		);
 	}
 }

@@ -17,6 +17,8 @@ import {
   Download,
   FileSpreadsheet,
   FileDown,
+  ShieldCheck,
+  AlertTriangle,
 } from 'lucide-react';
 import { PageWrapper, PageHeader } from '@/components/ui/page-wrapper';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
@@ -335,6 +337,16 @@ const parsePricingDraftValue = (value: string): { valid: boolean; value: number 
   return { valid: true, value: parsed };
 };
 
+interface BoqVerification {
+  status: 'verified' | 'tampered' | 'no_snapshot' | 'empty';
+  boqHash: string;
+  snapshotHash: string | null;
+  lockedAt: string | null;
+  grandTotalPhp: number | null;
+  itemCount: number | null;
+  deltaPhp: number | null;
+}
+
 export default function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [project, setProject] = useState<ProjectData | null>(null);
@@ -346,6 +358,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const [activeTab, setActiveTab] = useState('rooms');
   const [boqDraftPrices, setBoqDraftPrices] = useState<Record<string, string>>({});
   const [boqSavingItemId, setBoqSavingItemId] = useState<string | null>(null);
+  const [boqVerification, setBoqVerification] = useState<BoqVerification | null>(null);
   const [pricingDraft, setPricingDraft] = useState<PricingDraftState>(EMPTY_PRICING_DRAFT);
   const [pricingSaving, setPricingSaving] = useState(false);
   const [roomLoadDrafts, setRoomLoadDrafts] = useState<Record<string, RoomLoadDraftState>>({});
@@ -490,9 +503,24 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       });
   }, [id]);
 
+  const fetchBoqVerification = useCallback(async () => {
+    try {
+      const res = await authFetch(`/api/projects/${id}/boq/verify`);
+      if (!res.ok) {
+        setBoqVerification(null);
+        return;
+      }
+      const data = await res.json();
+      setBoqVerification((data.verification as BoqVerification) ?? null);
+    } catch {
+      setBoqVerification(null);
+    }
+  }, [id]);
+
   useEffect(() => {
     fetchProject();
-  }, [fetchProject]);
+    fetchBoqVerification();
+  }, [fetchProject, fetchBoqVerification]);
 
   const snapshotStorageKey = `hvac-project-snapshot:${id}`;
 
@@ -706,6 +734,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       if (res.ok) {
         showToast('success', `BOQ generated: ${formatPHP(data.boq.grandTotal)}`);
         fetchProject();
+        fetchBoqVerification();
       } else {
         showToast('error', data.error || 'BOQ generation failed', data.description || 'Make sure equipment is selected before generating BOQ.');
       }
@@ -749,6 +778,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
       showToast('success', 'BOQ item updated');
       fetchProject();
+      fetchBoqVerification();
     } catch (error) {
       console.error('BOQ item save error:', error);
       showToast('error', 'Failed to save BOQ item', 'Network error or server unreachable.');
@@ -777,6 +807,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
       showToast('success', 'BOQ item reset to suggested price');
       fetchProject();
+      fetchBoqVerification();
     } catch (error) {
       console.error('BOQ item reset error:', error);
       showToast('error', 'Failed to reset BOQ item', 'Network error or server unreachable.');
@@ -1042,6 +1073,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const totalArea = allRooms.reduce((sum, r) => sum + r.area, 0);
   const equipmentCost = project.selectedEquipment.reduce((sum, e) => sum + e.totalPrice, 0);
   const boqTotal = project.boqItems.reduce((sum, b) => sum + b.totalPrice, 0);
+
+  const boqVerified =
+    boqVerification?.status === 'verified' && !project.isBoqStale && project.boqItems.length > 0;
+  const boqTampered = boqVerification?.status === 'tampered';
+  const exportEnabled = boqVerified;
 
   const pricingParsed = {
     laborMultiplier: parsePricingDraftValue(pricingDraft.laborMultiplier),
@@ -1771,9 +1807,25 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Bill of Quantities</h3>
 
-              {project.isBoqStale && (
-                <Badge variant="warning" size="sm">Pricing updated, BOQ needs regeneration</Badge>
-              )}
+              <div className="flex items-center gap-2">
+                {boqTampered ? (
+                  <Badge variant="destructive" size="sm">
+                    <AlertTriangle className="mr-1 h-3 w-3" /> Integrity check failed
+                  </Badge>
+                ) : boqVerified ? (
+                  <Badge
+                    variant="success"
+                    size="sm"
+                    title={boqVerification?.lockedAt ? `Locked ${new Date(boqVerification.lockedAt).toLocaleString()}` : undefined}
+                  >
+                    <ShieldCheck className="mr-1 h-3 w-3" /> Verified
+                  </Badge>
+                ) : boqVerification?.status === 'empty' || project.boqItems.length === 0 ? (
+                  <Badge variant="outline" size="sm">No BOQ yet</Badge>
+                ) : (
+                  <Badge variant="warning" size="sm">Outdated — recalculate</Badge>
+                )}
+              </div>
             </div>
 
             <Card className="panel-glass mb-4 border border-border/70 bg-card shadow-sm">
@@ -2035,9 +2087,22 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               </CardContent>
             </Card>
 
+            {!exportEnabled && (
+              <div className="mb-4 flex items-center gap-2 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm font-medium text-warning">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                {boqTampered
+                  ? 'BOQ integrity check failed. Regenerate the BOQ to restore a verified export.'
+                  : 'Exports are locked until the BOQ is verified. Recalculate the BOQ to lock it before exporting.'}
+              </div>
+            )}
+
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {/* PDF Report */}
-              <Card className="panel-glass cursor-pointer border border-border/70 bg-card transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/45 hover:shadow-md" onClick={() => {
+              <Card className={`panel-glass border border-border/70 bg-card transition-all duration-200 ${exportEnabled ? 'cursor-pointer hover:-translate-y-0.5 hover:border-accent/45 hover:shadow-md' : 'cursor-not-allowed opacity-50'}`} onClick={() => {
+                if (!exportEnabled) {
+                  showToast('warning', 'Export blocked', 'Recalculate the BOQ to lock it before exporting.');
+                  return;
+                }
                 exportProjectPDF(project);
                 showToast('success', 'PDF report downloaded');
               }}>
@@ -2051,7 +2116,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               </Card>
 
               {/* DXF / CAD */}
-              <Card className="panel-glass cursor-pointer border border-border/70 bg-card transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/45 hover:shadow-md" onClick={() => {
+              <Card className={`panel-glass border border-border/70 bg-card transition-all duration-200 ${exportEnabled ? 'cursor-pointer hover:-translate-y-0.5 hover:border-accent/45 hover:shadow-md' : 'cursor-not-allowed opacity-50'}`} onClick={() => {
+                if (!exportEnabled) {
+                  showToast('warning', 'Export blocked', 'Recalculate the BOQ to lock it before exporting.');
+                  return;
+                }
                 exportProjectDXF(project);
                 showToast('success', 'DXF file downloaded — open in AutoCAD or BricsCAD');
               }}>
@@ -2065,7 +2134,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               </Card>
 
               {/* Excel */}
-              <Card className="panel-glass cursor-pointer border border-border/70 bg-card transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/45 hover:shadow-md" onClick={async () => {
+              <Card className={`panel-glass border border-border/70 bg-card transition-all duration-200 ${exportEnabled ? 'cursor-pointer hover:-translate-y-0.5 hover:border-accent/45 hover:shadow-md' : 'cursor-not-allowed opacity-50'}`} onClick={async () => {
+                if (!exportEnabled) {
+                  showToast('warning', 'Export blocked', 'Recalculate the BOQ to lock it before exporting.');
+                  return;
+                }
                 await exportProjectExcel(project);
                 showToast('success', 'Excel workbook downloaded');
               }}>
@@ -2079,7 +2152,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               </Card>
 
               {/* CSV */}
-              <Card className="panel-glass cursor-pointer border border-border/70 bg-card transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/45 hover:shadow-md" onClick={() => {
+              <Card className={`panel-glass border border-border/70 bg-card transition-all duration-200 ${exportEnabled ? 'cursor-pointer hover:-translate-y-0.5 hover:border-accent/45 hover:shadow-md' : 'cursor-not-allowed opacity-50'}`} onClick={() => {
+                if (!exportEnabled) {
+                  showToast('warning', 'Export blocked', 'Recalculate the BOQ to lock it before exporting.');
+                  return;
+                }
                 exportProjectCSV(project);
                 showToast('success', 'CSV file downloaded');
               }}>

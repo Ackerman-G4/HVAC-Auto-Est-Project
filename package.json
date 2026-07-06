@@ -1,3 +1,4 @@
+
 {
   "name": "hvac-app",
   "version": "0.1.0",
@@ -34,6 +35,8 @@
     "validate:rbac:positive:strict": "powershell -ExecutionPolicy Bypass -File ./scripts/validate-rbac-positive.ps1 -StrictAdminPositive",
     "validate:rbac:positive:raw": "powershell -ExecutionPolicy Bypass -File ./scripts/smoke-rbac.ps1 -RequireAdminPositive",
     "validate:building-simulation": "powershell -ExecutionPolicy Bypass -File ./scripts/smoke-building-simulation.ps1",
+    "validate:cfd:physics": "powershell -ExecutionPolicy Bypass -File ./scripts/powershell/smoke-cfd-physics-validation.ps1",
+    "validate:building-geometry": "powershell -ExecutionPolicy Bypass -File ./scripts/powershell/smoke-building-geometry.ps1",
     "validate:dual-control": "powershell -ExecutionPolicy Bypass -File ./scripts/smoke-dual-control.ps1",
     "validate:snapshot:playback": "powershell -ExecutionPolicy Bypass -File ./scripts/smoke-snapshot-playback.ps1",
     "validate:catalog:admin": "powershell -ExecutionPolicy Bypass -File ./scripts/smoke-catalog-admin.ps1",

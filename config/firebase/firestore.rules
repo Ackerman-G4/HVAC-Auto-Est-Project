@@ -15,6 +15,11 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == ownerId;
     }
 
+    function isProjectOwner(projectId) {
+      return isAuthenticated()
+        && get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid;
+    }
+
     // ── Users Collection ────────────────────────────────────
     match /users/{uid} {
       allow read, write: if isOwner(uid);
@@ -67,6 +72,48 @@ service cloud.firestore {
         allow read, write: if isAuthenticated()
           && get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid;
       }
+    }
+
+    // ── Project child collections (top-level, projectId FK) ─
+    match /floors/{floorId} {
+      allow read, update, delete: if isAdmin() || isProjectOwner(resource.data.projectId);
+      allow create: if isAdmin() || isProjectOwner(request.resource.data.projectId);
+    }
+    match /rooms/{roomId} {
+      allow read, update, delete: if isAdmin() || isProjectOwner(resource.data.projectId);
+      allow create: if isAdmin() || isProjectOwner(request.resource.data.projectId);
+    }
+    match /selectedEquipment/{selectionId} {
+      allow read, update, delete: if isAdmin() || isProjectOwner(resource.data.projectId);
+      allow create: if isAdmin() || isProjectOwner(request.resource.data.projectId);
+    }
+    match /boqItems/{itemId} {
+      allow read, update, delete: if isAdmin() || isProjectOwner(resource.data.projectId);
+      allow create: if isAdmin() || isProjectOwner(request.resource.data.projectId);
+    }
+
+    // ── Login Events (admin-read, server-write only) ────────
+    match /loginEvents/{eventId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    // ── Price Audit Logs (admin-read, server-write only) ────
+    match /priceAuditLogs/{logId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // ── Price Overrides (authenticated-read, server-write only)
+    match /priceOverrides/{overrideId} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+
+    // ── BOQ Snapshots (project-owner read, server-write only)
+    match /boqSnapshots/{snapshotId} {
+      allow read: if isAdmin() || isProjectOwner(resource.data.projectId);
+      allow write: if false;
     }
 
     // ── Simulations (owner-scoped) ──────────────────────────

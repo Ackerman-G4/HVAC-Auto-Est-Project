@@ -341,13 +341,7 @@ function calculateInfiltrationLoad(input: CoolingLoadInput): { sensible: number;
  * calculated via ASHRAE CLTD/CLF for the detailed breakdown.
  */
 export function calculateCoolingLoad(input: CoolingLoadInput, roomId: string, roomName: string): CoolingLoadResult {
-  // ── Primary TR estimation — area ÷ factor ──────────────────
-  const sqmPerTR = SQM_PER_TR[input.spaceType] || 15;
-  const trValue = Math.round((input.roomArea / sqmPerTR) * 100) / 100;
-  const totalLoad = Math.round(trValue * 3517);       // Watts
-  const btuPerHour = Math.round(trValue * 12000);      // BTU/h
-
-  // ── Component breakdown (reference) ────────────────────────
+  // ── Component breakdown — ASHRAE CLTD/CLF method ───────────
   const wallLoad = calculateWallLoad(input);
   const roofLoad = calculateRoofLoad(input);
   const glassSolarLoad = calculateGlassSolarLoad(input);
@@ -366,6 +360,22 @@ export function calculateCoolingLoad(input: CoolingLoadInput, roomId: string, ro
   const totalLatentLoad = (
     peopleLoad.latent + ventilationLoad.latent + infiltrationLoad.latent
   );
+
+  // ── Primary TR sizing ──────────────────────────────────────
+  // The component (CLTD/CLF) grand total drives sizing so orientation,
+  // solar, occupancy and equipment loads are reflected. The Philippine
+  // area rule of thumb is retained as a lower bound so no room is sized
+  // below the established baseline when component inputs are sparse.
+  const sqmPerTR = SQM_PER_TR[input.spaceType] || 15;
+  const areaRuleTR = input.roomArea / sqmPerTR;
+  const componentGrandLoad = totalSensibleLoad + totalLatentLoad;
+  const componentTR = componentGrandLoad / 3517;
+  // Guard against non-finite component inputs so sizing never yields NaN.
+  const safeComponentTR = Number.isFinite(componentTR) ? componentTR : 0;
+  const usedComponentMethod = safeComponentTR >= areaRuleTR;
+  const trValue = Math.round(Math.max(safeComponentTR, areaRuleTR) * 100) / 100;
+  const totalLoad = Math.round(trValue * 3517);       // Watts
+  const btuPerHour = Math.round(trValue * 12000);      // BTU/h
 
   // ── Airflow calculations ───────────────────────────────────
   const deltaT_supply = 20; // °F supply‑air ΔT
@@ -402,7 +412,7 @@ export function calculateCoolingLoad(input: CoolingLoadInput, roomId: string, ro
     cfmExhaust,
     safetyFactor: input.safetyFactor,
     diversityFactor: input.diversityFactor,
-    calculationMethod: 'AREA_RULE_OF_THUMB',
+    calculationMethod: usedComponentMethod ? 'CLTD_CLF' : 'AREA_RULE_OF_THUMB',
     timestamp: new Date().toISOString(),
   };
 }
