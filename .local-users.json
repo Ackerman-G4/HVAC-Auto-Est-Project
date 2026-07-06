@@ -1,0 +1,532 @@
+{
+  "users": [
+    {
+      "id": "local_1776239539641_c2f6tx1n",
+      "email": "admin@hvac-auto.dev",
+      "name": "Test Admin",
+      "passwordHash": "$2b$10$hakLzBVqH.PFW5AIgo7Q4OJtbbT0JSW7CxqwPhN2NZmfaMGXieds2",
+      "role": "admin",
+      "createdAt": "2026-04-15T07:52:19.641Z"
+    },
+    {
+      "id": "local_1776239539641_eng0001",
+      "email": "engineer@hvac-auto.dev",
+      "name": "Test Engineer",
+      "passwordHash": "$2b$10$clK/raM4TNdOvu2lnqtO4OsExJWvPJhRJwp/i3IzUebwGoCpWgJMy",
+      "role": "engineer",
+      "createdAt": "2026-04-15T07:52:19.641Z"
+    },
+    {
+      "id": "local_1776908669529_xfesbhpn",
+      "email": "smoke.building.20260423094428477@example.com",
+      "name": "Building Smoke Engineer",
+      "passwordHash": "$2b$10$IdkGHLLKE5UzQ409JoMCc.Bb8LJSsnMC9wCNTHU1zSX4EjElEJFJm",
+      "role": "engineer",
+      "createdAt": "2026-04-23T01:44:29.529Z"
+    },
+    {
+      "id": "local_1776908724042_y4j2m4qu",
+      "email": "smoke.building.20260423094523978@example.com",
+      "name": "Building Smoke Engineer",
+      "passwordHash": "$2b$10$r.1KTlw.YoNeRTUWK5HOE.3pVKMrt.IEW3HkuB5hJZQ1YT15qr536",
+      "role": "engineer",
+      "createdAt": "2026-04-23T01:45:24.042Z"
+    },
+    {
+      "id": "local_1776908798979_xehcz5ss",
+      "email": "smoke.building.20260423094638527@example.com",
+      "name": "Building Smoke Engineer",
+      "passwordHash": "$2b$10$gVXWPqchuKWv9Gc9VT.VxuQQ7E.arO6w98KXHKPK/rzI44527tCuG",
+      "role": "engineer",
+      "createdAt": "2026-04-23T01:46:38.979Z"
+    },
+    {
+      "id": "local_1776908851778_xrto5ub4",
+      "email": "smoke.building.20260423094731244@example.com",
+      "name": "Building Smoke Engineer",
+      "passwordHash": "$2b$10$S/a6gY.5K.1TUB1dgWoPl.XLHI4401gLC8u1QAPe24WlsIDDsDjhq",
+      "role": "engineer",
+      "createdAt": "2026-04-23T01:47:31.778Z"
+    },
+    {
+      "id": "local_1778037578743_eur9e8cf",
+      "email": "test@hvac-auto.dev",
+      "name": "Test Engineer",
+      "passwordHash": "$2b$10$4zvTOuBgwt0y2DfGdwih0OPiUkusQRznXEqbuB2JgWQm.owMzkz8u",
+      "role": "admin",
+      "createdAt": "2026-05-06T03:19:38.743Z"
+    },
+    {
+      "id": "local_1778038812469_cndbe6wq",
+      "email": "smoke.rbac.20260506114012893@example.com",
+      "name": "RBAC Smoke Engineer",
+      "passwordHash": "$2b$10$HVQ8eOKGQQdkuS4xP3Eqp.ZPIxNgk.ZEiVg.avRcPeIdX7jH98TMW",
+      "role": "engineer",
+      "createdAt": "2026-05-06T03:40:12.469Z"
+    },
+    {
+      "id": "local_1778549382370_lkto9tqw",
+      "email": "smoke.auth.20260512092942924@example.com",
+      "name": "Auth Smoke User",
+      "passwordHash": "$2b$10$UAKjiJ52UvGkOk9X1XsoruHH07ETEOKERuj9DBjsIs.add5QS3gtO",
+      "role": "engineer",
+      "createdAt": "2026-05-12T01:29:42.370Z"
+    },
+    {
+      "id": "local_1778549473311_emhwtrvt",
+      "email": "smoke.auth.20260512093113987@example.com",
+      "name": "Auth Smoke User",
+      "passwordHash": "$2b$10$.JwYhJiuy3Ko.aoJ6vJ5veffb86TfgnNprEVgpl2h1rO3Bj5JB.tG",
+      "role": "engineer",
+      "createdAt": "2026-05-12T01:31:13.311Z"
+    },
+    {
+      "id": "local_1778549474928_rqo4i8sl",
+      "email": "smoke.rbac.20260512093114715@example.com",
+      "name": "RBAC Smoke Engineer",
+      "passwordHash": "$2b$10$dLQhCx29CLhngu5Ij5xP/OnQv81MjD6VEvTBhdR1VgBK73M23SZ4G",
+      "role": "engineer",
+      "createdAt": "2026-05-12T01:31:14.928Z"
+    },
+    {
+      "id": "local_1778549660909_64kjb2qm",
+      "email": "strict.local.admin.20260512093420449@example.com",
+      "name": "Strict Local Admin",
+      "passwordHash": "$2b$10$laki1V60uZRq75e85Po9BuJRTc8qVIf5KBU5udb1bZxIgFOdulJPa",
+      "role": "admin",
+      "createdAt": "2026-05-12T01:34:20.909Z"
+    },
+    {
+      "id": "local_1778549663337_lwmg5opc",
+      "email": "smoke.auth.20260512093423995@example.com",
+      "name": "Auth Smoke User",
+      "passwordHash": "$2b$10$jHkup2VRcwJJeY3NYIbdj.Bl/asdzGXhUVV4g95xkhRMrXO73xLOe",
+      "role": "engineer",
+      "createdAt": "2026-05-12T01:34:23.337Z"
+    },
+    {
+      "id": "local_1778549664886_ge36wigr",
+      "email": "smoke.rbac.20260512093424957@example.com",
+      "name": "RBAC Smoke Engineer",
+      "passwordHash": "$2b$10$mu9I1jxRQblYvRcMKSnYJeHh7FG6.wJQRNCJ17KFsOUxSqbhA.v0O",
+      "role": "engineer",
+      "createdAt": "2026-05-12T01:34:24.886Z"
+    },
+    {
+      "id": "local_1778549667086_mkpmljvi",
+      "email": "smoke.dual.20260512093426988@example.com",
+      "name": "Dual Control Smoke Engineer",
+      "passwordHash": "$2b$10$jOruV0Q/FlrQUKdEwRyRoug3qt1kr7xS9kGHTH20jKaGAXbJPIwKO",
+      "role": "engineer",
+      "createdAt": "2026-05-12T01:34:27.086Z"
+    },
+    {
+      "id": "local_1778549744313_j9lbqo7l",
+      "email": "strict.local.admin.20260512093544323@example.com",
+      "name": "Strict Local Admin",
+      "passwordHash": "$2b$10$SW5MP2eh4YgiczETWjR3SusaZfzapTVMpPNKItWOC9SbpEIn2eABC",
+      "role": "admin",
+      "createdAt": "2026-05-12T01:35:44.313Z"
+    },
+    {
+      "id": "local_1778549746907_6uaipsx5",
+      "email": "smoke.auth.20260512093546961@example.com",
+      "name": "Auth Smoke User",
+      "passwordHash": "$2b$10$rTpCP/JecxillBI.rfyy0eVTiCy.6/MZVMaTgsket.JOma968xKQ6",
+      "role": "engineer",
+      "createdAt": "2026-05-12T01:35:46.907Z"
+    },
+    {
+      "id": "local_1778549748504_k0colpnk",
+      "email": "smoke.rbac.20260512093548184@example.com",
+      "name": "RBAC Smoke Engineer",
+      "passwordHash": "$2b$10$cuKKcfj6jegcHAlujSiyd.MlITUGCKANyZe.wMMzSJuumNrbhjVKy",
+      "role": "engineer",
+      "createdAt": "2026-05-12T01:35:48.504Z"
+    },
+    {
+      "id": "local_1778549749426_2r8yrt7j",
+      "email": "smoke.dual.20260512093549682@example.com",
+      "name": "Dual Control Smoke Engineer",
+      "passwordHash": "$2b$10$Av69vQG2Ndc1VpXm7PWQQexdlgI5j9sUrlgRrYbV4w7YXQmZoNVaO",
+      "role": "engineer",
+      "createdAt": "2026-05-12T01:35:49.426Z"
+    },
+    {
+      "id": "local_1778631941254_xbjq4w9d",
+      "email": "smoke.rbac.20260513082541907@example.com",
+      "name": "RBAC Smoke Engineer",
+      "passwordHash": "$2b$10$kkCOPXVidITy0.EMJdhz5e1vb88FCv/61eP43TkYSQbvX1eV7CTFe",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:25:41.254Z"
+    },
+    {
+      "id": "local_1778631941866_y7ql7zi5",
+      "email": "smoke.dual.20260513082541771@example.com",
+      "name": "Dual Control Smoke Engineer",
+      "passwordHash": "$2b$10$6VYb3ShMlN5t9XVje5A65OuMXrb9tKiOlw2.Ohrqi8J0Wa2yQN/86",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:25:41.866Z"
+    },
+    {
+      "id": "local_1778632042431_z23wx9r1",
+      "email": "smoke.rbac.20260513082722216@example.com",
+      "name": "RBAC Smoke Engineer",
+      "passwordHash": "$2b$10$gA34EjM9LnJbkKJII9PJ6.9qUNql080Cb8l9drtkFh6Lqv9pXr4Aa",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:27:22.431Z"
+    },
+    {
+      "id": "local_1778632043044_umatrb9g",
+      "email": "smoke.dual.20260513082722995@example.com",
+      "name": "Dual Control Smoke Engineer",
+      "passwordHash": "$2b$10$YliXhIYXHdwKy4XkBUlxKuNZjZePPUDemr5V0Zn7bsqJNUAtLr27W",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:27:23.044Z"
+    },
+    {
+      "id": "local_1778632046047_60ch4kzm",
+      "email": "smoke.snapshot.20260513082725499@example.com",
+      "name": "Snapshot Playback Smoke Engineer",
+      "passwordHash": "$2b$10$RBIxumjMTRJdRx1IyuBUL.x0VpQDcHbYvOPgOPBG9FNmJjER.rmJm",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:27:26.047Z"
+    },
+    {
+      "id": "local_1778632138468_5dv425b9",
+      "email": "smoke.rbac.20260513082858784@example.com",
+      "name": "RBAC Smoke Engineer",
+      "passwordHash": "$2b$10$bCKqOo2X75n3e2U7vF8b/uoP9AinXRIYMvsPAv.Fx0G7QAWFeG3pe",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:28:58.468Z"
+    },
+    {
+      "id": "local_1778632139111_z6v2u41s",
+      "email": "smoke.dual.20260513082858309@example.com",
+      "name": "Dual Control Smoke Engineer",
+      "passwordHash": "$2b$10$DN0LFLOElhL9HxucxavLfutb9DvQIvZtxWGNvX7T6BUEbyj4DvVJ.",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:28:59.111Z"
+    },
+    {
+      "id": "local_1778632140662_30aij119",
+      "email": "smoke.snapshot.20260513082900616@example.com",
+      "name": "Snapshot Playback Smoke Engineer",
+      "passwordHash": "$2b$10$DjAGDdizGWJ4sNo35WJE9eLo55.W7hN81BhOFopUwzelHb7x.IK7e",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:29:00.662Z"
+    },
+    {
+      "id": "local_1778632220647_6udue7eo",
+      "email": "smoke.rbac.20260513083020477@example.com",
+      "name": "RBAC Smoke Engineer",
+      "passwordHash": "$2b$10$VQXj3MP8iO./0ST8Tl6JMO427EW6HSIkjI8EjDFcz1ANXooAucQxy",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:30:20.647Z"
+    },
+    {
+      "id": "local_1778632221251_wga5m38s",
+      "email": "smoke.dual.20260513083021753@example.com",
+      "name": "Dual Control Smoke Engineer",
+      "passwordHash": "$2b$10$yjjWcpVBhNc3WuA48gF/C.iJoHqriBIwY3Mu2bDvd89F1BJRY4jHa",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:30:21.251Z"
+    },
+    {
+      "id": "local_1778632224130_mxp7ywn5",
+      "email": "smoke.snapshot.20260513083023465@example.com",
+      "name": "Snapshot Playback Smoke Engineer",
+      "passwordHash": "$2b$10$sezps05FZNGV8GMniZmDg.3rrF3Vi6tQwWd8Pb.D31WxT7HIy1Y8a",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:30:24.130Z"
+    },
+    {
+      "id": "local_1778632308080_ttvb5hiu",
+      "email": "smoke.rbac.20260513083147389@example.com",
+      "name": "RBAC Smoke Engineer",
+      "passwordHash": "$2b$10$/KwmVhcfDRDttnFDpaK1CO0xxesr0RgjzcLn//3SVseWjghhO2xDm",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:31:48.080Z"
+    },
+    {
+      "id": "local_1778632308729_xjoco4zs",
+      "email": "smoke.dual.20260513083148797@example.com",
+      "name": "Dual Control Smoke Engineer",
+      "passwordHash": "$2b$10$/IMiZ9XVLeCZD1kpVSzdmOUllYaeLFuLvoUWwrFnWOzNUW4oCK0vG",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:31:48.729Z"
+    },
+    {
+      "id": "local_1778632310366_ny6ac1ji",
+      "email": "smoke.snapshot.20260513083150945@example.com",
+      "name": "Snapshot Playback Smoke Engineer",
+      "passwordHash": "$2b$10$obfl/mz3r7pUNYANr0xDduyxFcA9BnSoJEDLPYOkkeb6ut/sns9FK",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:31:50.366Z"
+    },
+    {
+      "id": "local_1778632569379_exvyg2b7",
+      "email": "strict.local.admin.20260513083609343@example.com",
+      "name": "Strict Local Admin",
+      "passwordHash": "$2b$10$btjhXvFoLj69kVd0EtvvUuxRCUM2P52..QAL5UoZd.k8xXXLAAPpC",
+      "role": "admin",
+      "createdAt": "2026-05-13T00:36:09.380Z"
+    },
+    {
+      "id": "local_1778632571826_ay3ktw7w",
+      "email": "smoke.auth.20260513083611526@example.com",
+      "name": "Auth Smoke User",
+      "passwordHash": "$2b$10$K0FQoM9.YsWjqzvvMThxLOdChiSlBBtbcuV/phxXB9BYwEiZFGxSa",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:36:11.826Z"
+    },
+    {
+      "id": "local_1778632573403_nk9pu9dt",
+      "email": "smoke.rbac.20260513083613101@example.com",
+      "name": "RBAC Smoke Engineer",
+      "passwordHash": "$2b$10$Ei/ZArOjmwSty5zMOjmkyep5ENWcrdwYP/xrnrR6W40pryCcPkoVu",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:36:13.403Z"
+    },
+    {
+      "id": "local_1778632575455_7e9h6uy5",
+      "email": "smoke.dual.20260513083615844@example.com",
+      "name": "Dual Control Smoke Engineer",
+      "passwordHash": "$2b$10$NHff45sZFAd3zNtWtNEkauApJ3SqwlB26OYrPqdit2xMWQaDtjdN6",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:36:15.455Z"
+    },
+    {
+      "id": "local_1778632577095_d7zvdexs",
+      "email": "smoke.snapshot.20260513083616411@example.com",
+      "name": "Snapshot Playback Smoke Engineer",
+      "passwordHash": "$2b$10$SfFdhsyN8ijhTRLQQPly7uL8pMszyt2.afGJ/2Iy/Vif4cpom.MZW",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:36:17.095Z"
+    },
+    {
+      "id": "local_1778632935986_5fa1ubkf",
+      "email": "strict.local.admin.20260513084215156@example.com",
+      "name": "Strict Local Admin",
+      "passwordHash": "$2b$10$ZDtGf/uA9R6DKOKdyHZJC.k2AptKINuzZZZCNm49nx1u35Veuwlvu",
+      "role": "admin",
+      "createdAt": "2026-05-13T00:42:15.986Z"
+    },
+    {
+      "id": "local_1778632938418_8tpgjteq",
+      "email": "smoke.auth.20260513084218103@example.com",
+      "name": "Auth Smoke User",
+      "passwordHash": "$2b$10$FjTUABOFhsFPqz7FH3/roOSnNO0fyDJWgkz9ah5BAQ3CrYcbcs4WC",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:42:18.418Z"
+    },
+    {
+      "id": "local_1778632939957_cawk2ftj",
+      "email": "smoke.rbac.20260513084219254@example.com",
+      "name": "RBAC Smoke Engineer",
+      "passwordHash": "$2b$10$A77rJZv2zX07AQHB/PfxIeXX7tQflAv1IpnfiNRS.7xp3iHi54XOG",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:42:19.957Z"
+    },
+    {
+      "id": "local_1778632941986_pjjuodwx",
+      "email": "smoke.dual.20260513084221680@example.com",
+      "name": "Dual Control Smoke Engineer",
+      "passwordHash": "$2b$10$EkSWaC7rp7svxPPZZP8FIOAS1c.gpoQNWg0ClaESUc84ygC8UrQb.",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:42:21.986Z"
+    },
+    {
+      "id": "local_1778632943683_gid72hj2",
+      "email": "smoke.snapshot.20260513084223294@example.com",
+      "name": "Snapshot Playback Smoke Engineer",
+      "passwordHash": "$2b$10$3vDoz92V4N9qasmi9DY4K.qBfHwZUdb3tmrphpPF3iN7zYJ4a1JgK",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:42:23.683Z"
+    },
+    {
+      "id": "local_1778633154420_201q2qhm",
+      "email": "strict.local.admin.20260513084554837@example.com",
+      "name": "Strict Local Admin",
+      "passwordHash": "$2b$10$CoXjQh9AwBHx6nH9Fx4ycuNn41TQGgNZfbDVrJXSskYHyGXNJdupS",
+      "role": "admin",
+      "createdAt": "2026-05-13T00:45:54.420Z"
+    },
+    {
+      "id": "local_1778633156801_6f2yc9f6",
+      "email": "smoke.auth.20260513084556118@example.com",
+      "name": "Auth Smoke User",
+      "passwordHash": "$2b$10$iLXanou9BGorKIyEB/eFReRTNI4bYI7wFyti/uYlpxc2HTIwFk3Lu",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:45:56.801Z"
+    },
+    {
+      "id": "local_1778633158299_u9vvb2jx",
+      "email": "smoke.rbac.20260513084558185@example.com",
+      "name": "RBAC Smoke Engineer",
+      "passwordHash": "$2b$10$0T0dvvzeIQeuY2VyNsHBKuAGzhFEjCqHRpGwOI.OrXSRhFF.EYZLS",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:45:58.299Z"
+    },
+    {
+      "id": "local_1778633159248_hb2w218v",
+      "email": "smoke.dual.20260513084559828@example.com",
+      "name": "Dual Control Smoke Engineer",
+      "passwordHash": "$2b$10$EgzyCCXrzA7J68aDXqkX4eHKzQ7pvprAZ5Y1zCPgQlEXtU7tNGjBC",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:45:59.248Z"
+    },
+    {
+      "id": "local_1778633160747_8zvznpor",
+      "email": "smoke.snapshot.20260513084600749@example.com",
+      "name": "Snapshot Playback Smoke Engineer",
+      "passwordHash": "$2b$10$.LNAyPIldx1e9qQLAnUDWeU/FX7vUjgD/tKlI/f/hU3JvkYuMevnW",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:46:00.747Z"
+    },
+    {
+      "id": "local_1778633228063_g00smi9l",
+      "email": "smoke.dual.20260513084707386@example.com",
+      "name": "Dual Control Smoke Engineer",
+      "passwordHash": "$2b$10$l30bGh8E/aWOVN4cV4xJJuKUe2VN5BQmqqOe1VXZq9olQ5ktZj4Ea",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:47:08.063Z"
+    },
+    {
+      "id": "local_1778633231339_rpgag3xr",
+      "email": "smoke.snapshot.20260513084711417@example.com",
+      "name": "Snapshot Playback Smoke Engineer",
+      "passwordHash": "$2b$10$zNckRiD7KPHyrMRwBBW/Fu1YgzciNC.3w3Y39HSCfIB.APFc9qR/6",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:47:11.339Z"
+    },
+    {
+      "id": "local_1778633263217_e1samcof",
+      "email": "smoke.dual.20260513084743552@example.com",
+      "name": "Dual Control Smoke Engineer",
+      "passwordHash": "$2b$10$EZs2/1VU148Fd05DlHYgFO200ODFj9KSpxHb8Jz5ltYi3uObz6DHm",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:47:43.217Z"
+    },
+    {
+      "id": "local_1778633303359_37l1g0s1",
+      "email": "strict.local.admin.20260513084823126@example.com",
+      "name": "Strict Local Admin",
+      "passwordHash": "$2b$10$09mAQjLQNl63dVZRdTn94eovD4iF/SwAv8XWC4xtxBQi1YZXzhniy",
+      "role": "admin",
+      "createdAt": "2026-05-13T00:48:23.359Z"
+    },
+    {
+      "id": "local_1778633305741_vlhjto8l",
+      "email": "smoke.auth.20260513084825399@example.com",
+      "name": "Auth Smoke User",
+      "passwordHash": "$2b$10$BuAEZMa.y9.5hIMlL1VUAOqdar8VfJhq7MHwZkL8jriWCSEjMl1be",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:48:25.741Z"
+    },
+    {
+      "id": "local_1778633307254_eqjug1rk",
+      "email": "smoke.rbac.20260513084827711@example.com",
+      "name": "RBAC Smoke Engineer",
+      "passwordHash": "$2b$10$cUl52y/wOlSxOxMc0GtTlu7WaRq.kHL.Y8kmAw/NgoCkMtqy/yJbi",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:48:27.254Z"
+    },
+    {
+      "id": "local_1778633308118_r8oszkfv",
+      "email": "smoke.dual.20260513084828606@example.com",
+      "name": "Dual Control Smoke Engineer",
+      "passwordHash": "$2b$10$IESoA3R2EXG/Zabwyu9tHeQRV751qFB0hDQn1bbmeSYi5bAC1QLU.",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:48:28.118Z"
+    },
+    {
+      "id": "local_1778633309506_ah26a0xp",
+      "email": "smoke.snapshot.20260513084829183@example.com",
+      "name": "Snapshot Playback Smoke Engineer",
+      "passwordHash": "$2b$10$SKXPkf9lwWCIuB2jtBHVb.i2uzjqJDdCSbycXQCz2Rp2V4lB3/cx6",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:48:29.506Z"
+    },
+    {
+      "id": "local_1778633385006_1j0jc0zs",
+      "email": "strict.local.admin.20260513084944426@example.com",
+      "name": "Strict Local Admin",
+      "passwordHash": "$2b$10$tBgbNkVGR7UWE2JJ3HMH1ugMGJgmb0QT.b0pD4EqjFiqMOmkIDg/u",
+      "role": "admin",
+      "createdAt": "2026-05-13T00:49:45.006Z"
+    },
+    {
+      "id": "local_1778633387394_gr6ryjz1",
+      "email": "smoke.auth.20260513084947694@example.com",
+      "name": "Auth Smoke User",
+      "passwordHash": "$2b$10$rECLuPgDrniqB/qspz0W2Ofzr8xvC8sloZdSb9RNKMucOiQQ2Zl7a",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:49:47.394Z"
+    },
+    {
+      "id": "local_1778633388886_a38lloat",
+      "email": "smoke.rbac.20260513084948593@example.com",
+      "name": "RBAC Smoke Engineer",
+      "passwordHash": "$2b$10$yUzgalITVV1KD7mdmg/UY.lbJz9Dg/lllQhzXnjRNAE3wdOfLEE2S",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:49:48.886Z"
+    },
+    {
+      "id": "local_1778633389742_hi5rnhso",
+      "email": "smoke.dual.20260513084949384@example.com",
+      "name": "Dual Control Smoke Engineer",
+      "passwordHash": "$2b$10$Fwd7PBoHwlVit/F0g4tuv.oF9cONki83gVB2IAP9zv7wv1HBNhODK",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:49:49.742Z"
+    },
+    {
+      "id": "local_1778633391062_j7y1pqv1",
+      "email": "smoke.snapshot.20260513084950752@example.com",
+      "name": "Snapshot Playback Smoke Engineer",
+      "passwordHash": "$2b$10$SjdaLxbMlMkrEyiVtQuz5.x4lA9/YdgM4I00jBAYFvykNTa1AzxyO",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:49:51.062Z"
+    },
+    {
+      "id": "local_1778633517875_j7y91jce",
+      "email": "strict.local.admin.20260513085157865@example.com",
+      "name": "Strict Local Admin",
+      "passwordHash": "$2b$10$JVu7MjpwsZ3CyfEc1d5VNeL4rFoGS5cfJCLIXW66EcuMa4dPCK.kO",
+      "role": "admin",
+      "createdAt": "2026-05-13T00:51:57.875Z"
+    },
+    {
+      "id": "local_1778633520471_w3zrjxl0",
+      "email": "smoke.auth.20260513085200603@example.com",
+      "name": "Auth Smoke User",
+      "passwordHash": "$2b$10$dt5dCxNoXteeg/ellGXmmeCyq1uGDaKYmguqEOhefBMfQ927IeKZu",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:52:00.471Z"
+    },
+    {
+      "id": "local_1778633522049_ug4kkwvh",
+      "email": "smoke.rbac.20260513085201498@example.com",
+      "name": "RBAC Smoke Engineer",
+      "passwordHash": "$2b$10$7ivdUcjuPoz2QQyEf2Yeee6b1kwWPCMTOyQTrtDxFFmn47kuTvKlG",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:52:02.049Z"
+    },
+    {
+      "id": "local_1778633522954_4c72net5",
+      "email": "smoke.dual.20260513085202912@example.com",
+      "name": "Dual Control Smoke Engineer",
+      "passwordHash": "$2b$10$SP8cvcl5C/ao/DknVYlXeeBVHxEfWO/AhCP.pA7oZSCwILztS4nMm",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:52:02.954Z"
+    },
+    {
+      "id": "local_1778633524337_nzu0lmci",
+      "email": "smoke.snapshot.20260513085204547@example.com",
+      "name": "Snapshot Playback Smoke Engineer",
+      "passwordHash": "$2b$10$h1zxP94TxreMCMkSvm9/x.oWHa2cWfl4UZG6rkDbPGs1q2MI7CHv.",
+      "role": "engineer",
+      "createdAt": "2026-05-13T00:52:04.337Z"
+    }
+  ]
+}
