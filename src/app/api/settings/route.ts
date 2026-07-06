@@ -1,12 +1,18 @@
 /**
- * Settings API — Firebase-backed user settings
- * GET /api/settings — Get user-specific settings
- * POST /api/settings — Update user-specific settings
+ * Settings API — DB-backed app settings
+ * GET /api/settings — Get settings
+ * PUT /api/settings — Update settings
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb } from '@/lib/db/firebase-admin';
-import { getUserId, errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
+import { requireAuth } from '@/lib/auth/guard';
+import { getMergedSettings, upsertSettings } from '@/lib/firebase/catalog-store';
+import { writeAuditLog } from '@/lib/firebase/projects-store';
+import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
+import {
+  getCatalogValidationError,
+  settingsUpdateSchema,
+} from '@/lib/validation/catalog';
 
 const DEFAULT_SETTINGS = {
   companyName: '',
@@ -26,15 +32,12 @@ const DEFAULT_SETTINGS = {
 
 export async function GET(request: NextRequest) {
   try {
-    const uid = await getUserId(request);
-    if (!uid) {
-      return errorResponse(401, 'Unauthorized', 'You must be logged in to fetch settings.');
+    const auth = await requireAuth(request);
+    if (!auth.authorized) {
+      return auth.response;
     }
 
-    const snapshot = await adminDb.ref(`users/${uid}/settings`).once('value');
-    const data = snapshot.val();
-
-    const settings = { ...DEFAULT_SETTINGS, ...data };
+    const settings = await getMergedSettings(DEFAULT_SETTINGS);
 
     return NextResponse.json({ settings });
   } catch (error) {
@@ -44,27 +47,40 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function PUT(request: NextRequest) {
   try {
-    const uid = await getUserId(request);
-    if (!uid) {
-      return errorResponse(401, 'Unauthorized', 'You must be logged in to update settings.');
+    const auth = await requireAuth(request, { allowedRoles: ['admin'] });
+    if (!auth.authorized) {
+      return auth.response;
     }
 
     const body = await request.json();
-    const ref = adminDb.ref(`users/${uid}/settings`);
-    
-    // Get existing to merge
-    const snapshot = await ref.once('value');
-    const current = snapshot.val() || {};
-    
-    const merged = { ...current, ...body, updatedAt: Date.now() };
+    const parsed = settingsUpdateSchema.safeParse(body);
 
-    await ref.set(merged);
+    if (!parsed.success) {
+      return NextResponse.json({ error: getCatalogValidationError(parsed.error) }, { status: 400 });
+    }
 
-    return NextResponse.json({ settings: merged });
+    const previousSettings = await getMergedSettings(DEFAULT_SETTINGS);
+
+    const settings = await upsertSettings(DEFAULT_SETTINGS, parsed.data || {});
+
+    await writeAuditLog({
+      projectId: 'system',
+      action: 'updated',
+      entity: 'settings',
+      entityId: 'global',
+      details: JSON.stringify({
+        actorId: auth.user.id,
+        actorEmail: auth.user.email,
+      }),
+      previousValue: JSON.stringify(previousSettings),
+      newValue: JSON.stringify(settings),
+    });
+
+    return NextResponse.json({ settings });
   } catch (error) {
-    console.error('POST /api/settings error:', error);
+    console.error('PUT /api/settings error:', error);
     const d = getErrorDetails(error, 'Failed to update settings');
     return errorResponse(500, d.error, d.description, d.code);
   }

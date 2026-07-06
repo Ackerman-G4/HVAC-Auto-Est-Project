@@ -23,6 +23,14 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function toAppRole(value: unknown): 'admin' | 'engineer' | 'viewer' {
+  if (value === 'admin' || value === 'engineer' || value === 'viewer') {
+    return value;
+  }
+
+  return 'engineer';
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,7 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const tokenResult = await user.getIdTokenResult();
         const isAdminClaim = !!tokenResult.claims.admin;
         setIsAdmin(isAdminClaim);
-        setRole(isAdminClaim ? 'admin' : (tokenResult.claims.role as any) || 'engineer');
+        setRole(isAdminClaim ? 'admin' : toAppRole(tokenResult.claims.role));
       } else {
         setIsAdmin(false);
         setRole(null);

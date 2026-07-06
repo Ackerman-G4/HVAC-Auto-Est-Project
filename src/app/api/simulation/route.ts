@@ -5,34 +5,37 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth/guard';
 import { runCFDSimulation } from '@/lib/functions/cfd-simulation';
 import { checkASHRAECompliance } from '@/lib/functions/ashrae-compliance';
 import { simulateFailure, calculatePUE } from '@/lib/functions/failure-simulation';
 import { runOptimization } from '@/lib/functions/cooling-optimization';
-import type { SimulationInput, FailureConfig, OptimizationConfig } from '@/types/simulation';
-import { getUserId, errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
+import type { SimulationInput, FailureConfig } from '@/types/simulation';
 
 type SimAction = 'cfd' | 'compliance' | 'failure' | 'pue' | 'optimize';
 
 export async function POST(request: NextRequest) {
   try {
-    const uid = await getUserId(request);
-    if (!uid) {
-      return errorResponse(401, 'Unauthorized', 'You must be logged in to run simulations.');
+    const auth = await requireAuth(request);
+    if (!auth.authorized) {
+      return auth.response;
     }
 
     const body = await request.json();
     const action: SimAction = body.action;
 
     if (!action) {
-      return errorResponse(400, 'Missing action', 'action is required (cfd | compliance | failure | pue | optimize)');
+      return NextResponse.json(
+        { error: 'action is required (cfd | compliance | failure | pue | optimize)' },
+        { status: 400 },
+      );
     }
 
     switch (action) {
       case 'cfd': {
         const input: SimulationInput = body.input;
         if (!input || !input.config) {
-          return errorResponse(400, 'Invalid input', 'Simulation input with config is required');
+          return NextResponse.json({ error: 'Simulation input with config is required' }, { status: 400 });
         }
         const result = runCFDSimulation(input);
         return NextResponse.json({ result });
@@ -41,7 +44,7 @@ export async function POST(request: NextRequest) {
       case 'compliance': {
         const { metrics, racks, hvacUnits, thermalClass } = body;
         if (!metrics) {
-          return errorResponse(400, 'Invalid input', 'Simulation metrics required');
+          return NextResponse.json({ error: 'Simulation metrics required' }, { status: 400 });
         }
         const report = checkASHRAECompliance(metrics, racks || [], hvacUnits || [], thermalClass);
         return NextResponse.json({ report });
@@ -50,7 +53,7 @@ export async function POST(request: NextRequest) {
       case 'failure': {
         const { racks, hvacUnits, failureConfig, ambientTempC } = body;
         if (!failureConfig) {
-          return errorResponse(400, 'Invalid input', 'failureConfig is required');
+          return NextResponse.json({ error: 'failureConfig is required' }, { status: 400 });
         }
         const failConfig: FailureConfig = {
           scenario: failureConfig.scenario || 'crac_failure',
@@ -73,18 +76,20 @@ export async function POST(request: NextRequest) {
       case 'optimize': {
         const { input, optimizationConfig } = body;
         if (!input || !input.config) {
-          return errorResponse(400, 'Invalid input', 'Simulation input is required for optimization');
+          return NextResponse.json({ error: 'Simulation input is required for optimization' }, { status: 400 });
         }
         const result = runOptimization(input, optimizationConfig);
         return NextResponse.json({ result });
       }
 
       default:
-        return errorResponse(400, 'Unknown action', `Unknown action: ${action}`);
+        return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });
     }
   } catch (error) {
     console.error('[Simulation API Error]', error);
-    const d = getErrorDetails(error, 'Simulation error');
-    return errorResponse(500, d.error, d.description, d.code);
+    return NextResponse.json(
+      { error: 'Simulation error', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 },
+    );
   }
 }

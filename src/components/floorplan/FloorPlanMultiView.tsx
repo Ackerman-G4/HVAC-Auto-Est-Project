@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Maximize2, Eye, Layers, Box } from 'lucide-react';
+import { X, Eye, Layers, Box } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface Room {
@@ -582,7 +582,7 @@ export default function FloorPlanMultiView({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(11,18,29,0.82)] p-3 backdrop-blur-sm"
           onClick={onClose}
         >
           <motion.div
@@ -590,11 +590,11 @@ export default function FloorPlanMultiView({
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.92, opacity: 0 }}
             transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-            className="relative bg-[#F8F9FA] rounded-xl shadow-2xl w-[96vw] h-[93vh] flex flex-col overflow-hidden"
+            className="relative flex h-[93vh] w-[96vw] flex-col overflow-hidden rounded-xl border border-border/70 bg-background shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             {/* ── Header ─────────────────────────────────────────────────── */}
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/50 bg-white">
+            <div className="flex items-center justify-between border-b border-border/60 bg-card/90 px-4 py-2.5">
               <div className="flex items-center gap-2.5">
                 <div className="w-7 h-7 rounded-md bg-accent/10 flex items-center justify-center">
                   <Box className="w-4 h-4 text-accent" />
@@ -610,7 +610,7 @@ export default function FloorPlanMultiView({
               </div>
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-lg hover:bg-secondary transition-colors"
+                className="rounded-lg p-1.5 transition-colors hover:bg-secondary/80"
                 title="Close multi-view"
               >
                 <X className="w-4 h-4 text-muted-foreground" />
@@ -618,7 +618,7 @@ export default function FloorPlanMultiView({
             </div>
 
             {/* ── Views Grid ─────────────────────────────────────────────── */}
-            <div className="flex-1 grid grid-cols-3 grid-rows-2 gap-px bg-[#DEE2E6] overflow-hidden">
+            <div className="flex-1 grid grid-cols-3 grid-rows-2 gap-px overflow-hidden bg-border/65">
               {/* Top-left: Left Side Elevation */}
               <ViewPanel label="Left Elevation" subtitle="West" accentColor={false}>
                 <canvas ref={leftRef} className="absolute inset-0 w-full h-full" />
@@ -645,8 +645,8 @@ export default function FloorPlanMultiView({
               </ViewPanel>
 
               {/* Bottom-right: Legend / Info */}
-              <div className="bg-white flex flex-col">
-                <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-[#E5E7EB] bg-[#F9FAFB]">
+              <div className="flex flex-col bg-background">
+                <div className="flex items-center gap-1.5 border-b border-border/60 bg-card/85 px-3 py-1.5">
                   <Layers className="w-3 h-3 text-muted-foreground" />
                   <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">
                     Room Legend
@@ -662,7 +662,7 @@ export default function FloorPlanMultiView({
                       return (
                         <div
                           key={room.id}
-                          className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-[#F3F4F6] transition-colors"
+                          className="flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-secondary/45"
                         >
                           <div
                             className="w-2.5 h-2.5 rounded-[3px] border border-black/10 shrink-0"
@@ -682,7 +682,7 @@ export default function FloorPlanMultiView({
                   </div>
 
                   {/* Summary stats */}
-                  <div className="mt-3 pt-2.5 border-t border-[#E5E7EB] space-y-1 text-[10px] text-muted-foreground">
+                  <div className="mt-3 space-y-1 border-t border-border/55 pt-2.5 text-[10px] text-muted-foreground">
                     {[
                       ['Rooms', rooms.length.toString()],
                       [
@@ -703,7 +703,7 @@ export default function FloorPlanMultiView({
                   </div>
 
                   {/* View legend */}
-                  <div className="mt-3 pt-2.5 border-t border-[#E5E7EB] text-[10px] text-muted-foreground space-y-1">
+                  <div className="mt-3 space-y-1 border-t border-border/55 pt-2.5 text-[10px] text-muted-foreground">
                     <p className="font-semibold text-muted-foreground text-[9px] uppercase tracking-[0.06em] mb-1">Drawing Legend</p>
                     <div className="flex items-center gap-2">
                       <div className="w-5 border-t-2 border-[#6B7280]" />
@@ -731,7 +731,7 @@ export default function FloorPlanMultiView({
             </div>
 
             {/* ── Footer ─────────────────────────────────────────────────── */}
-            <div className="flex items-center justify-between px-4 py-2 border-t border-border/50 bg-white text-[10px] text-muted-foreground">
+            <div className="flex items-center justify-between border-t border-border/60 bg-card/90 px-4 py-2 text-[10px] text-muted-foreground">
               <span className="tracking-wide">
                 Top (Plan) + Front &middot; Rear &middot; Left &middot; Right Elevations &mdash; All dimensions in meters
               </span>
@@ -760,8 +760,8 @@ function ViewPanel({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-white flex flex-col">
-      <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-[#E5E7EB] bg-[#F9FAFB]">
+    <div className="flex flex-col bg-background">
+      <div className="flex items-center gap-1.5 border-b border-border/60 bg-card/85 px-3 py-1.5">
         <Eye className={`w-3 h-3 ${accentColor ? 'text-accent' : 'text-muted-foreground'}`} />
         <span
           className={`text-[10px] font-bold uppercase tracking-[0.08em] ${

@@ -4,10 +4,16 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth/guard';
 import { EQUIPMENT_CATALOG } from '@/constants/equipment-catalog';
 
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requireAuth(request);
+    if (!auth.authorized) {
+      return auth.response;
+    }
+
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type');
     const brand = searchParams.get('brand');

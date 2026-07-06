@@ -135,7 +135,7 @@ function placeHVACUnits(grid: CFDGrid, units: HVACUnit[], config: SimulationConf
   }
 }
 
-function placePerforatedTiles(grid: CFDGrid, tiles: PerforatedTile[], config: SimulationConfig, raisedFloorHeight: number): void {
+function placePerforatedTiles(grid: CFDGrid, tiles: PerforatedTile[], config: SimulationConfig): void {
   for (const tile of tiles) {
     const cx = tile.x;
     const cy = tile.y;
@@ -164,7 +164,7 @@ export function stepCFDSimulation(grid: CFDGrid, config: SimulationConfig): void
   updateVelocity(grid, config);
   updatePressure(grid, config);
   updateTemperature(grid, config);
-  applyBoundaryConditions(grid, config);
+  applyBoundaryConditions(grid);
 }
 
 function clampIndex(val: number, max: number): number {
@@ -316,7 +316,7 @@ function updateTemperature(grid: CFDGrid, config: SimulationConfig): void {
 /**
  * Apply boundary conditions
  */
-function applyBoundaryConditions(grid: CFDGrid, config: SimulationConfig): void {
+function applyBoundaryConditions(grid: CFDGrid): void {
   // Wall boundaries: no-slip, adiabatic (simplified)
   for (let y = 0; y < grid.sizeY; y++) {
     for (let z = 0; z < grid.sizeZ; z++) {
@@ -401,7 +401,7 @@ function computeMetrics(grid: CFDGrid, racks: ServerRack[], hvacUnits: HVACUnit[
   const rackInletTemps = racks.map(rack => {
     const gx = posToGrid(rack.position.x, config.gridResolution);
     const gy = posToGrid(rack.position.y, config.gridResolution);
-    let temps: number[] = [];
+    const temps: number[] = [];
     for (let dz = 1; dz <= Math.ceil(rack.height / config.gridResolution); dz++) {
       const z = Math.min(dz, grid.sizeZ - 1);
       // Front face of rack (inlet)
@@ -530,7 +530,7 @@ export function runCFDSimulation(input: SimulationInput): SimulationResult {
   // Place equipment on grid
   placeRacks(grid, input.racks, config);
   placeHVACUnits(grid, input.hvacUnits, config);
-  placePerforatedTiles(grid, input.tiles, config, input.raisedFloorHeight);
+  placePerforatedTiles(grid, input.tiles, config);
 
   const convergenceHistory: number[] = [];
   let prevMaxTemp = config.ambientTempC;
@@ -538,7 +538,7 @@ export function runCFDSimulation(input: SimulationInput): SimulationResult {
   // Iterative solver
   for (let iter = 0; iter < config.iterations; iter++) {
     // Step 1: Apply boundary conditions
-    applyBoundaryConditions(grid, config);
+    applyBoundaryConditions(grid);
 
     // Step 2: Update velocity field (momentum)
     updateVelocity(grid, config);

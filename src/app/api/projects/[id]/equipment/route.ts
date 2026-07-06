@@ -5,57 +5,30 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb } from '@/lib/db/firebase-admin';
+import { requireAuth } from '@/lib/auth/guard';
 import { sizeEquipment } from '@/lib/functions/equipment-sizing';
-import { INVERTER_EER_THRESHOLD } from '@/lib/utils/constants';
-import { errorResponse, getErrorDetails, getUserId, getAuthToken, checkProjectAccess } from '@/lib/utils/api-helpers';
+import {
+  clearSelectedEquipmentForProject,
+  createSelectedEquipmentRecord,
+  listSelectedEquipmentForProject,
+  toApiEquipment,
+} from '@/lib/firebase/project-estimation-store';
+import { getFloorsWithRooms, updateProjectRecord } from '@/lib/firebase/projects-store';
+import { errorResponse, getErrorDetails, resourceNotFound, toNumber } from '@/lib/utils/api-helpers';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
-    const token = await getAuthToken(request);
-    if (!token) {
-      return errorResponse(401, 'Unauthorized', 'You must be logged in to access this resource.', 'UNAUTHORIZED');
+    const auth = await requireAuth(request);
+    if (!auth.authorized) {
+      return auth.response;
     }
 
-    const { id: projectId } = await context.params;
-    const ownerId = await checkProjectAccess(projectId, token);
-    
-    if (!ownerId) {
-      return errorResponse(403, 'Forbidden', 'You do not have access to this project.', 'FORBIDDEN');
-    }
+    const { id } = await context.params;
 
-    const [selectionsSnap, equipmentSnap] = await Promise.all([
-      adminDb.ref(`projectData/${projectId}/equipmentSelection`).once('value'),
-      adminDb.ref(`projectData/${projectId}/equipment`).once('value'),
-    ]);
-
-    const selections = selectionsSnap.val() || {};
-    const equipmentLib = equipmentSnap.val() || {};
-
-    const equipment = Object.entries(selections).map(([id, sel]: [string, any]) => {
-      const equip = equipmentLib[sel.equipmentId] || {};
-      const unitPrice = equip.unitPricePHP || 0;
-      const quantity = sel.quantity || 0;
-      const eer = equip.eer || 0;
-
-      return {
-        id,
-        roomId: sel.roomId,
-        brand: equip.manufacturer || '',
-        model: equip.model || '',
-        type: equip.type || '',
-        capacityTR: equip.capacityTR || 0,
-        capacityBTU: equip.capacityBTU || 0,
-        quantity,
-        unitPrice,
-        totalPrice: unitPrice * quantity,
-        eer,
-        isInverter: eer >= INVERTER_EER_THRESHOLD,
-        refrigerant: equip.refrigerant || '',
-      };
-    });
+    const selections = await listSelectedEquipmentForProject(id);
+    const equipment = selections.map((selection) => toApiEquipment(selection));
 
     return NextResponse.json({ equipment });
   } catch (error) {
@@ -67,99 +40,83 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
-    const token = await getAuthToken(request);
-    if (!token) {
-      return errorResponse(401, 'Unauthorized', 'You must be logged in to access this resource.', 'UNAUTHORIZED');
+    const auth = await requireAuth(request);
+    if (!auth.authorized) {
+      return auth.response;
     }
 
     const { id: projectId } = await context.params;
-    const ownerId = await checkProjectAccess(projectId, token);
-    
-    if (!ownerId) {
-      return errorResponse(403, 'Forbidden', 'You do not have access to this project.', 'FORBIDDEN');
-    }
-
     const body = await request.json();
 
     if (body.autoSize) {
-      const [floorsSnap, roomsSnap, loadsSnap] = await Promise.all([
-        adminDb.ref(`projectData/${projectId}/floors`).once('value'),
-        adminDb.ref(`projectData/${projectId}/rooms`).once('value'),
-        adminDb.ref(`projectData/${projectId}/coolingLoads`).once('value'),
-      ]);
+      const floors = await getFloorsWithRooms(projectId, {
+        includeRoomEquipment: false,
+        includeRoomEquipmentCount: false,
+      });
 
-      const floors = floorsSnap.val() || {};
-      const rooms = roomsSnap.val() || {};
-      const loads = loadsSnap.val() || {};
-
-      const allRooms = Object.entries(rooms).map(([id, r]: [string, any]) => ({ id, ...r, coolingLoad: loads[id] }));
+      const allRooms = floors.flatMap((f) => f.rooms);
       if (allRooms.length === 0) {
         return errorResponse(400, 'No rooms found', 'Add rooms to the project before auto-sizing equipment.', 'NO_ROOMS');
       }
 
-      const roomsWithLoads = allRooms.filter((r) => r.coolingLoad);
+      const roomsWithLoads = allRooms.filter((r) => r.coolingLoad && typeof r.coolingLoad === 'object');
       if (roomsWithLoads.length === 0) {
         return errorResponse(400, 'No cooling loads calculated', 'Run "Calculate" first to compute cooling loads for all rooms before auto-sizing equipment.', 'NO_LOADS');
       }
 
-      const results: any[] = [];
-      const updates: Record<string, any> = {};
+      const results: { room: string; equipment: { id: string; brand: string; model: string; type: string; capacityTR: number; quantity: number }; alternatives: ReturnType<typeof sizeEquipment>['alternatives'] }[] = [];
 
-      // Clear existing selections
-      updates[`projectData/${projectId}/equipmentSelection`] = null;
+      await clearSelectedEquipmentForProject(projectId);
 
-      for (const room of allRooms) {
-        if (!room.coolingLoad) continue;
+      for (const floor of floors) {
+        for (const room of floor.rooms) {
+          if (!room.coolingLoad || typeof room.coolingLoad !== 'object') continue;
+          const load = room.coolingLoad as Record<string, unknown>;
 
-        const sizing = sizeEquipment({
-          totalLoadWatts: room.coolingLoad.totalLoad,
-          trValue: room.coolingLoad.trValue,
-          btuPerHour: room.coolingLoad.btuPerHour,
-          spaceType: room.spaceType,
-          roomArea: room.area,
-          ceilingHeight: room.ceilingHeight,
-          budgetLevel: body.budgetLevel || 'mid-range',
-          preferredBrand: body.preferredBrand,
-          preferredType: body.preferredType,
-        });
+          const sizing = sizeEquipment({
+            totalLoadWatts: toNumber(load.totalLoad, 0),
+            trValue: toNumber(load.trValue, 0),
+            btuPerHour: toNumber(load.btuPerHour, 0),
+            spaceType: room.spaceType,
+            roomArea: room.area,
+            ceilingHeight: room.ceilingHeight,
+            budgetLevel: body.budgetLevel || 'mid-range',
+            preferredBrand: body.preferredBrand,
+            preferredType: body.preferredType,
+          });
 
-        if (sizing.recommended.length > 0) {
+          if (sizing.recommended.length === 0) continue;
+
           const top = sizing.recommended[0];
           const avgPrice = (top.equipment.priceMin + top.equipment.priceMax) / 2;
           const eer = top.equipment.eer || 10;
 
-          const equipmentId = top.equipment.id;
-          const equipmentData = {
-            manufacturer: top.equipment.brand,
-            model: top.equipment.model,
-            type: top.equipment.type,
-            capacityTR: top.equipment.capacityTR,
-            capacityBTU: top.equipment.capacityBTU,
-            capacityKW: top.equipment.capacityKW,
-            powerInputKW: top.equipment.capacityKW / eer,
-            currentAmps: 0,
-            phase: top.equipment.powerSupply?.includes('3') ? '3-phase' : '1-phase',
-            voltage: top.equipment.powerSupply?.includes('380') ? 380 : 220,
-            refrigerant: top.equipment.refrigerant || 'R32',
-            eer,
-            cop: eer / 3.412,
-            unitPricePHP: avgPrice,
-          };
-
-          updates[`projectData/${projectId}/equipment/${equipmentId}`] = equipmentData;
-
-          const selectionRef = adminDb.ref(`projectData/${projectId}/equipmentSelection`).push();
-          const selectionId = selectionRef.key!;
-          updates[`projectData/${projectId}/equipmentSelection/${selectionId}`] = {
+          const selection = await createSelectedEquipmentRecord({
+            projectId,
             roomId: room.id,
-            equipmentId,
             quantity: top.quantity,
-          };
+            suggestedQuantity: top.quantity,
+            suggestedUnitPrice: avgPrice,
+            finalUnitPrice: avgPrice,
+            isOverridden: false,
+            equipment: {
+              manufacturer: top.equipment.brand,
+              model: top.equipment.model,
+              type: top.equipment.type,
+              capacityTR: top.equipment.capacityTR,
+              capacityBTU: top.equipment.capacityBTU,
+              capacityKW: top.equipment.capacityKW,
+              unitPricePHP: avgPrice,
+              eer,
+              refrigerant: top.equipment.refrigerant || 'R32',
+              powerSupply: top.equipment.powerSupply || '',
+            },
+          });
 
           results.push({
             room: room.name,
             equipment: {
-              id: selectionId,
+              id: selection.id,
               brand: top.equipment.brand,
               model: top.equipment.model,
               type: top.equipment.type,
@@ -171,44 +128,57 @@ export async function POST(request: NextRequest, context: RouteContext) {
         }
       }
 
-      await adminDb.ref().update(updates);
+      await updateProjectRecord(projectId, {
+        isEquipmentStale: false,
+        isBoqStale: true,
+        lastBoqGeneratedAt: null,
+        lastEquipmentSyncAt: new Date().toISOString(),
+      });
+
       return NextResponse.json({ results }, { status: 201 });
     }
 
     // Manual equipment selection
+    const floors = await getFloorsWithRooms(projectId, {
+      includeRoomEquipment: false,
+      includeRoomEquipmentCount: false,
+    });
+    const roomExists = floors.some((floor) => floor.rooms.some((room) => room.id === body.roomId));
+    if (!roomExists) {
+      return resourceNotFound('Room', 'The room does not exist in this project.', 'ROOM_NOT_FOUND');
+    }
+
     const eer = body.eer || 10;
-    const equipmentId = body.equipmentId || adminDb.ref(`projectData/${projectId}/equipment`).push().key!;
-    const equipmentData = {
-      manufacturer: body.brand || '',
-      model: body.model || '',
-      type: body.type || 'wall_split',
-      capacityTR: body.capacityTR || (body.capacityBTU ? body.capacityBTU / 12000 : 0),
-      capacityBTU: body.capacityBTU || 0,
-      capacityKW: (body.capacityBTU || 0) * 0.000293,
-      powerInputKW: 0,
-      currentAmps: 0,
-      refrigerant: body.refrigerant || 'R32',
-      eer,
-      cop: eer / 3.412,
-      unitPricePHP: body.unitPrice || 0,
-    };
-
-    const selectionRef = adminDb.ref(`projectData/${projectId}/equipmentSelection`).push();
-    const selectionId = selectionRef.key!;
-    
-    const updates: Record<string, any> = {};
-    updates[`projectData/${projectId}/equipment/${equipmentId}`] = equipmentData;
-    updates[`projectData/${projectId}/equipmentSelection/${selectionId}`] = {
+    const selection = await createSelectedEquipmentRecord({
+      projectId,
       roomId: body.roomId,
-      equipmentId,
       quantity: body.quantity || 1,
-    };
+      suggestedQuantity: body.quantity || 1,
+      suggestedUnitPrice: body.unitPrice || 0,
+      finalUnitPrice: body.unitPrice || 0,
+      isOverridden: false,
+      equipment: {
+        manufacturer: body.brand || '',
+        model: body.model || '',
+        type: body.type || 'wall_split',
+        capacityTR: body.capacityTR || body.capacityBTU / 12000,
+        capacityBTU: body.capacityBTU || 0,
+        capacityKW: (body.capacityBTU || 0) * 0.000293,
+        unitPricePHP: body.unitPrice || 0,
+        eer,
+        refrigerant: body.refrigerant || 'R32',
+        powerSupply: body.powerSupply || '',
+      },
+    });
 
-    await adminDb.ref().update(updates);
+    await updateProjectRecord(projectId, {
+      isEquipmentStale: false,
+      isBoqStale: true,
+      lastBoqGeneratedAt: null,
+      lastEquipmentSyncAt: new Date().toISOString(),
+    });
 
-    return NextResponse.json({ 
-      equipment: { id: selectionId, ...updates[`projectData/${projectId}/equipmentSelection/${selectionId}`] } 
-    }, { status: 201 });
+    return NextResponse.json({ equipment: selection }, { status: 201 });
   } catch (error) {
     console.error('POST equipment error:', error);
     const d = getErrorDetails(error, 'Failed to select equipment');

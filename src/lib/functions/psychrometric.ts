@@ -300,8 +300,6 @@ export function psychrometricACRecommendation(
   }
 
   const adjustedTR = roomTR / derating;
-  const adjustedBTU = adjustedTR * 12000;
-  const adjustedKW = adjustedTR * 3.517;
 
   // Recommend unit type based on capacity
   let recType = 'Wall Split';

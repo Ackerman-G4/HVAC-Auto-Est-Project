@@ -1,100 +1,124 @@
 /**
- * Calculation API — Firebase RTDB implementation
+ * Calculation API — Run or re-run cooling load calculations
  * POST /api/projects/[id]/calculate
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb } from '@/lib/db/firebase-admin';
+import { requireAuth } from '@/lib/auth/guard';
+import {
+  getFloorsWithRooms,
+  getProjectRecord,
+  setRoomCoolingLoad,
+  updateProjectRecord,
+  writeAuditLog,
+} from '@/lib/firebase/projects-store';
 import { calculateCoolingLoad } from '@/lib/functions/cooling-load';
 import {
   errorResponse,
   getErrorDetails,
   buildCoolingLoadInput,
   coolingLoadToDbFields,
-  getUserId,
-  getAuthToken,
-  checkProjectAccess,
+  resourceNotFound,
 } from '@/lib/utils/api-helpers';
+import { finalizeDualValue } from '@/lib/utils/dual-control';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
-    const token = await getAuthToken(request);
-    if (!token) {
-      return errorResponse(401, 'Unauthorized', 'You must be logged in to run calculations.', 'UNAUTHORIZED');
+    const auth = await requireAuth(request);
+    if (!auth.authorized) {
+      return auth.response;
     }
 
     const { id: projectId } = await context.params;
-    const ownerId = await checkProjectAccess(projectId, token);
-    
-    if (!ownerId) {
-      return errorResponse(403, 'Forbidden', 'You do not have access to this project.', 'FORBIDDEN');
+
+    const project = await getProjectRecord(projectId);
+
+    if (!project) {
+      return resourceNotFound(
+        'Project',
+        'The project ID does not match any existing project.',
+        'PROJECT_NOT_FOUND',
+      );
     }
 
-    // Get project metadata
-    const projectRef = adminDb.ref(`users/${ownerId}/projects/${projectId}`);
-    const projectSnapshot = await projectRef.once('value');
-    if (!projectSnapshot.exists()) {
-      return errorResponse(404, 'Project not found', 'The project metadata was not found.', 'PROJECT_NOT_FOUND');
-    }
-    const project = projectSnapshot.val();
+    const floors = await getFloorsWithRooms(projectId, {
+      includeRoomEquipment: false,
+      includeRoomEquipmentCount: false,
+    });
 
-    // Fetch all rooms for this project
-    const roomsRef = adminDb.ref(`projectData/${projectId}/rooms`);
-    const roomsSnapshot = await roomsRef.once('value');
-    const roomsData = roomsSnapshot.val() || {};
-    const allRooms = Object.keys(roomsData).map(id => ({ id, ...roomsData[id] }));
-
+    const allRooms = floors.flatMap((f) => f.rooms);
     if (allRooms.length === 0) {
       return errorResponse(400, 'No rooms to calculate', 'Add rooms to the project before running cooling load calculations.', 'NO_ROOMS');
     }
 
-    const results: any[] = [];
+    const results: ReturnType<typeof calculateCoolingLoad>[] = [];
     let totalProjectLoad = 0;
     let totalProjectTR = 0;
 
-    const updates: Record<string, any> = {};
-    const now = new Date().toISOString();
+    for (const floor of floors) {
+      for (const room of floor.rooms) {
+        if (room.area <= 0) continue;
 
-    for (const room of allRooms) {
-      if (!room.area || room.area <= 0) continue;
+        const loadInput = buildCoolingLoadInput(room, project);
+        const loadResult = calculateCoolingLoad(loadInput, room.id, room.name);
+        const existingLoad =
+          room.coolingLoad && typeof room.coolingLoad === 'object'
+            ? (room.coolingLoad as {
+                userTrOverride?: number | null;
+                userBtuOverride?: number | null;
+                overrideReason?: string;
+                overrideUpdatedAt?: string | null;
+              })
+            : undefined;
+        const trSelection = finalizeDualValue(loadResult.trValue, existingLoad?.userTrOverride);
+        const btuSelection = finalizeDualValue(loadResult.btuPerHour, existingLoad?.userBtuOverride);
 
-      // Ensure room has all required fields for calculation, using project defaults if missing
-      const loadInput = buildCoolingLoadInput(room as any, project as any);
-      const loadResult = calculateCoolingLoad(loadInput, room.id, room.name);
-      const fields = coolingLoadToDbFields(loadResult);
+        const fields = {
+          ...coolingLoadToDbFields(loadResult),
+          suggestedTrValue: loadResult.trValue,
+          userTrOverride: trSelection.override,
+          finalTrValue: trSelection.final,
+          trValue: trSelection.final,
+          suggestedBtuPerHour: loadResult.btuPerHour,
+          userBtuOverride: btuSelection.override,
+          finalBtuPerHour: btuSelection.final,
+          btuPerHour: btuSelection.final,
+          isOverridden: trSelection.isOverridden || btuSelection.isOverridden,
+          overrideReason: existingLoad?.overrideReason || '',
+          overrideUpdatedAt:
+            trSelection.isOverridden || btuSelection.isOverridden
+              ? (existingLoad?.overrideUpdatedAt ?? new Date().toISOString())
+              : null,
+          timestamp: new Date().toISOString(),
+        };
 
-      // Path for cooling load: projectData/[projectId]/coolingLoads/[roomId]
-      updates[`projectData/${projectId}/coolingLoads/${room.id}`] = {
-        ...fields,
-        updatedAt: now
-      };
+        await setRoomCoolingLoad(room.id, { roomId: room.id, ...fields });
 
-      totalProjectLoad += loadResult.totalLoad;
-      totalProjectTR += loadResult.trValue;
-      results.push(loadResult);
+        totalProjectLoad += loadResult.totalLoad;
+        totalProjectTR += trSelection.final;
+        results.push(loadResult);
+      }
     }
 
-    // Add audit log to updates (use current user's UID)
-    const auditRef = adminDb.ref(`auditLogs/${token.uid}`).push();
-    updates[`auditLogs/${token.uid}/${auditRef.key}`] = {
+    await updateProjectRecord(projectId, {
+      isEquipmentStale: true,
+      isBoqStale: true,
+      lastBoqGeneratedAt: null,
+      lastCoolingLoadAt: new Date().toISOString(),
+    });
+
+    await writeAuditLog({
       projectId,
       action: 'calculated',
       entity: 'cooling_load',
       entityId: projectId,
-      details: {
+      details: JSON.stringify({
         roomCount: results.length,
         totalTR: totalProjectTR,
-      },
-      timestamp: now
-    };
-
-    // Update project timestamp (on the owner's project record)
-    updates[`users/${ownerId}/projects/${projectId}/updatedAt`] = now;
-
-    // Execute all updates atomically
-    await adminDb.ref().update(updates);
+      }),
+    });
 
     return NextResponse.json({
       results,

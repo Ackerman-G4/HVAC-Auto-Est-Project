@@ -38,15 +38,15 @@ export function Dialog({ open, onClose, title, description, children, size = 'md
     md: 'max-w-lg',
     lg: 'max-w-2xl',
     xl: 'max-w-4xl',
-    full: 'max-w-[90vw]',
+    full: 'max-w-[95vw]',
   };
 
   return (
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
           <motion.div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 bg-[radial-gradient(circle_at_50%_10%,rgba(206,161,74,0.16),rgba(11,18,29,0.82)_62%)] backdrop-blur-sm"
             variants={modalOverlayVariants}
             initial="initial"
             animate="animate"
@@ -55,8 +55,8 @@ export function Dialog({ open, onClose, title, description, children, size = 'md
           />
           <motion.div
             className={cn(
-              'relative z-50 w-full bg-white rounded-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] border border-slate-200',
-              'max-h-[85vh] overflow-y-auto',
+              'relative z-50 w-full rounded-2xl border border-border/70 bg-background/95 shadow-[0_36px_74px_-46px_rgba(19,32,51,0.82)]',
+              'max-h-[88vh] overflow-y-auto',
               sizes[size],
               className
             )}
@@ -66,21 +66,21 @@ export function Dialog({ open, onClose, title, description, children, size = 'md
             exit="exit"
           >
             {(title || description) && (
-              <div className="sticky top-0 bg-white/95 backdrop-blur border-b border-slate-200/80 px-6 sm:px-8 py-5 flex items-start justify-between z-10">
+              <div className="sticky top-0 z-10 flex items-start justify-between border-b border-border/60 bg-card/90 px-6 py-5 backdrop-blur sm:px-8">
                 <div>
-                  {title && <h2 className="text-xl font-bold tracking-tight text-slate-900">{title}</h2>}
-                  {description && <p className="text-sm font-medium text-slate-500 mt-1">{description}</p>}
+                  {title && <h2 className="text-xl font-bold tracking-tight text-[color:var(--foreground)]">{title}</h2>}
+                  {description && <p className="mt-1 text-sm font-medium text-[color:var(--muted-foreground)]">{description}</p>}
                 </div>
                 <button
                   onClick={onClose}
-                  className="rounded-full p-2 bg-slate-100/50 hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="rounded-full border border-transparent bg-secondary/70 p-2 text-[color:var(--muted-foreground)] transition-colors hover:border-border/70 hover:bg-secondary hover:text-[color:var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[color:var(--ring)]"
                 >
                   <X className="h-5 w-5" />
                   <span className="sr-only">Close</span>
                 </button>
               </div>
             )}
-            <div className="p-6 sm:p-8">{children}</div>
+            <div className="p-6 sm:p-7">{children}</div>
           </motion.div>
         </div>
       )}
@@ -113,7 +113,7 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   return (
     <Dialog open={open} onClose={onClose} title={title} description={description} size="sm">
-      <div className="flex justify-end gap-3 mt-4">
+      <div className="mt-5 flex justify-end gap-3 border-t border-border/55 pt-4">
         <Button onClick={onClose} variant="outline" disabled={isLoading}>
           {cancelText}
         </Button>

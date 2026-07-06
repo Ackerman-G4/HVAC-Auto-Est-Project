@@ -1,11 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import dynamic from 'next/dynamic';
-
-const MotionDiv = dynamic(() => import('framer-motion').then((mod) => mod.motion.div), { ssr: true });
-const MotionSection = dynamic(() => import('framer-motion').then((mod) => mod.motion.section), { ssr: true });
-
+import { useCallback, useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import {
   Plus,
   Search,
@@ -31,7 +27,7 @@ import { showToast } from '@/components/ui/toast';
 import { getCityOptions } from '@/constants/climate-data';
 import { psychrometricState } from '@/lib/functions/psychrometric';
 import { cardGridVariants, cardItemVariants } from '@/animations/list-variants';
-import { projectsApi } from '@/lib/api-client';
+import { safeJsonParse } from '@/lib/utils/safe-json';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -50,11 +46,22 @@ interface ProjectListItem {
   _count: { selectedEquipment: number; boqItems: number };
 }
 
+const DASHBOARD_PREFS_KEY = 'hvac-projects-dashboard:v1';
+const DASHBOARD_STATUSES = ['all', 'draft', 'active', 'completed', 'archived', 'deleted'] as const;
+const DASHBOARD_SORT_FIELDS = [
+  { value: 'updatedAt', label: 'Last Updated' },
+  { value: 'createdAt', label: 'Created Date' },
+  { value: 'name', label: 'Project Name' },
+] as const;
+
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<ProjectListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [sortBy, setSortBy] = useState<(typeof DASHBOARD_SORT_FIELDS)[number]['value']>('updatedAt');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [prefsHydrated, setPrefsHydrated] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ProjectListItem | null>(null);
   const [editTarget, setEditTarget] = useState<ProjectListItem | null>(null);
   const [editForm, setEditForm] = useState<Record<string, string | number>>({
@@ -78,30 +85,79 @@ export default function ProjectsPage() {
   const router = useRouter();
   const cityOptions = getCityOptions();
 
-  const fetchProjects = () => {
+  const fetchProjects = useCallback(() => {
     setLoading(true);
-    const params: Record<string, string> = {};
-    if (search) params.search = search;
-    if (statusFilter !== 'all') params.status = statusFilter;
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (statusFilter !== 'all') params.set('status', statusFilter);
+    params.set('sortBy', sortBy);
+    params.set('sortOrder', sortOrder);
 
-    projectsApi.list(params)
+    fetch(`/api/projects?${params}`)
+      .then((r) => r.json())
       .then((data) => {
-        setProjects(data.projects as ProjectListItem[] || []);
+        setProjects(data.projects || []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  };
+  }, [search, statusFilter, sortBy, sortOrder]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const raw = window.localStorage.getItem(DASHBOARD_PREFS_KEY);
+    const parsed = safeJsonParse<{
+      search?: string;
+      statusFilter?: string;
+      sortBy?: string;
+      sortOrder?: string;
+    }>(raw);
+
+    if (!parsed) {
+      setPrefsHydrated(true);
+      return;
+    }
+
+    if (typeof parsed.search === 'string') setSearch(parsed.search);
+    if (typeof parsed.statusFilter === 'string' && DASHBOARD_STATUSES.includes(parsed.statusFilter as typeof DASHBOARD_STATUSES[number])) {
+      setStatusFilter(parsed.statusFilter);
+    }
+    if (typeof parsed.sortBy === 'string' && DASHBOARD_SORT_FIELDS.some((f) => f.value === parsed.sortBy)) {
+      setSortBy(parsed.sortBy as (typeof DASHBOARD_SORT_FIELDS)[number]['value']);
+    }
+    if (parsed.sortOrder === 'asc' || parsed.sortOrder === 'desc') {
+      setSortOrder(parsed.sortOrder);
+    }
+
+    setPrefsHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!prefsHydrated || typeof window === 'undefined') return;
+
+    window.localStorage.setItem(
+      DASHBOARD_PREFS_KEY,
+      JSON.stringify({
+        search,
+        statusFilter,
+        sortBy,
+        sortOrder,
+      }),
+    );
+  }, [search, statusFilter, sortBy, sortOrder, prefsHydrated]);
+
+  useEffect(() => {
+    if (!prefsHydrated) return;
     fetchProjects();
-  }, [statusFilter]);
+  }, [fetchProjects, prefsHydrated]);
 
   const handleSearch = () => fetchProjects();
 
   const openEdit = (project: ProjectListItem) => {
     // Fetch full project data for the form
-    projectsApi.get(project.id)
-      .then((data: any) => {
+    fetch(`/api/projects/${project.id}`)
+      .then((r) => r.json())
+      .then((data) => {
         const p = data.project || data;
         setEditForm({
           name: p.name || '',
@@ -133,12 +189,21 @@ export default function ProjectsPage() {
     }
     setEditSaving(true);
     try {
-      await projectsApi.update(editTarget.id, editForm);
-      showToast('success', 'Project updated successfully');
-      setEditTarget(null);
-      fetchProjects();
+      const res = await fetch(`/api/projects/${editTarget.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editForm),
+      });
+      if (res.ok) {
+        showToast('success', 'Project updated successfully');
+        setEditTarget(null);
+        fetchProjects();
+      } else {
+        const err = await res.json();
+        showToast('error', err.error || 'Failed to update');
+      }
     } catch {
-      showToast('error', 'Failed to update');
+      showToast('error', 'Network error');
     } finally {
       setEditSaving(false);
     }
@@ -162,43 +227,71 @@ export default function ProjectsPage() {
 
   const handleArchive = async (project: ProjectListItem) => {
     try {
-      await projectsApi.update(project.id, { status: 'archived' });
-      showToast('success', 'Project archived');
-      fetchProjects();
+      const res = await fetch(`/api/projects/${project.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'archived' }),
+      });
+      if (res.ok) {
+        showToast('success', 'Project archived');
+        fetchProjects();
+      } else {
+        const err = await res.json();
+        showToast('error', err.error || 'Failed to archive project');
+      }
     } catch {
-      showToast('error', 'Failed to archive project');
+      showToast('error', 'Network error while archiving');
     }
   };
 
   const handleRestore = async (project: ProjectListItem) => {
     try {
-      await projectsApi.update(project.id, { status: 'draft' });
-      showToast('success', 'Project restored');
-      fetchProjects();
+      const res = await fetch(`/api/projects/${project.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'draft' }),
+      });
+      if (res.ok) {
+        showToast('success', 'Project restored');
+        fetchProjects();
+      } else {
+        const err = await res.json();
+        showToast('error', err.error || 'Failed to restore project');
+      }
     } catch {
-      showToast('error', 'Failed to restore project');
+      showToast('error', 'Network error while restoring');
     }
   };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
-      await projectsApi.delete(deleteTarget.id, true);
-      showToast('success', 'Project permanently deleted');
-      fetchProjects();
+      const res = await fetch(`/api/projects/${deleteTarget.id}?permanent=true`, { method: 'DELETE' });
+      if (res.ok) {
+        showToast('success', 'Project permanently deleted');
+      } else {
+        const err = await res.json();
+        showToast('error', err.error || 'Failed to delete project');
+      }
     } catch {
-      showToast('error', 'Failed to delete project');
+      showToast('error', 'Network error while deleting');
     }
     setDeleteTarget(null);
+    fetchProjects();
   };
 
   const handleSoftDelete = async (project: ProjectListItem) => {
     try {
-      await projectsApi.delete(project.id, false);
-      showToast('success', 'Project moved to trash');
-      fetchProjects();
+      const res = await fetch(`/api/projects/${project.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        showToast('success', 'Project moved to trash');
+        fetchProjects();
+      } else {
+        const err = await res.json();
+        showToast('error', err.error || 'Failed to delete project');
+      }
     } catch {
-      showToast('error', 'Failed to delete project');
+      showToast('error', 'Network error while deleting');
     }
   };
 
@@ -210,7 +303,7 @@ export default function ProjectsPage() {
     deleted: 'destructive',
   };
 
-  const statuses = ['all', 'draft', 'active', 'completed', 'archived', 'deleted'];
+  const statuses = DASHBOARD_STATUSES;
   const draftCount = projects.filter((p) => p.status === 'draft').length;
   const activeCount = projects.filter((p) => p.status === 'active').length;
   const completedCount = projects.filter((p) => p.status === 'completed').length;
@@ -226,7 +319,7 @@ export default function ProjectsPage() {
         description="Manage your HVAC estimation projects"
         actions={
           <Link href="/projects/new">
-            <Button variant="accent" size="sm">
+            <Button variant="accent" size="md">
               <Plus className="w-4 h-4 mr-2" />
               New Project
             </Button>
@@ -234,24 +327,24 @@ export default function ProjectsPage() {
         }
       />
 
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 gap-7 xl:grid-cols-4">
         <div className="xl:col-span-3">
-          <Card className="mb-6 border-accent/20 bg-linear-to-r from-accent/10 via-primary/5 to-secondary/40">
+          <Card className="mb-6 border-border/70 bg-[linear-gradient(125deg,rgba(15,139,141,0.14),rgba(31,54,88,0.08),rgba(233,237,240,0.65))] shadow-[0_14px_28px_-24px_rgba(19,32,51,0.7)]">
             <CardContent className="py-4">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Project Workspace</p>
                   <p className="text-sm font-medium text-foreground mt-0.5">Manage active jobs, updates, and archival lifecycle in one view.</p>
                 </div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <FolderKanban className="w-3.5 h-3.5" />
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <FolderKanban className="h-4 w-4" />
                   <span className="tabular-nums">{loading ? '—' : projects.length} total projects</span>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <div className="flex flex-col sm:flex-row gap-3 mb-6">
+          <div className="mb-6 flex flex-col gap-4 rounded-2xl border border-border/70 bg-card/85 p-4 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.66)] sm:flex-row sm:items-center sm:p-5">
             <div className="flex-1 flex gap-2">
               <Input
                 placeholder="Search projects..."
@@ -275,6 +368,27 @@ export default function ProjectsPage() {
                   {s.charAt(0).toUpperCase() + s.slice(1)}
                 </Button>
               ))}
+            </div>
+            <div className="flex gap-2 items-center">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as (typeof DASHBOARD_SORT_FIELDS)[number]['value'])}
+                className="h-10 rounded-xl border border-border/70 bg-background px-3.5 text-sm font-medium text-foreground"
+              >
+                {DASHBOARD_SORT_FIELDS.map((field) => (
+                  <option key={field.value} value={field.value}>
+                    {field.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
+                className="h-10 rounded-xl border border-border/70 bg-background px-3.5 text-sm font-medium text-foreground"
+              >
+                <option value="desc">Descending</option>
+                <option value="asc">Ascending</option>
+              </select>
             </div>
           </div>
 
@@ -315,14 +429,14 @@ export default function ProjectsPage() {
 
                 return (
                   <motion.div key={project.id} variants={cardItemVariants}>
-                    <Card>
+                    <Card className="h-full border-border/65 bg-card/90 shadow-[0_14px_28px_-24px_rgba(19,32,51,0.66)] transition-all duration-200 hover:-translate-y-0.5 hover:border-border hover:shadow-[0_18px_30px_-24px_rgba(19,32,51,0.78)]">
                       <CardContent className="p-5">
                         <div
                           onClick={() => router.push(`/projects/${project.id}`)}
                           className="cursor-pointer"
                         >
                           <div className="flex items-start justify-between mb-3">
-                            <h3 className="text-sm font-semibold text-foreground truncate flex-1 pr-2">
+                            <h3 className="text-base font-semibold text-foreground truncate flex-1 pr-2">
                               {project.name}
                             </h3>
                             <Badge
@@ -332,34 +446,34 @@ export default function ProjectsPage() {
                               {project.status}
                             </Badge>
                           </div>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-sm text-muted-foreground">
                             {project.clientName || 'No client'}
                           </p>
-                          <p className="text-xs text-muted-foreground mb-4">
+                          <p className="mb-4 text-sm text-muted-foreground">
                             {project.buildingType} · {project.city || project.location || '—'}
                           </p>
-                          <div className="grid grid-cols-3 gap-2 text-center">
-                            <div className="bg-secondary/60 rounded-lg py-2">
+                          <div className="mt-4 grid grid-cols-3 gap-3 text-center">
+                            <div className="rounded-xl border border-border/55 bg-secondary/45 py-2.5">
                               <p className="text-lg font-semibold tabular-nums text-foreground">
                                 {roomCount}
                               </p>
-                              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Rooms</p>
+                              <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Rooms</p>
                             </div>
-                            <div className="bg-secondary/60 rounded-lg py-2">
+                            <div className="rounded-xl border border-border/55 bg-secondary/45 py-2.5">
                               <p className="text-lg font-semibold tabular-nums text-foreground">
                                 {projectTR.toFixed(1)}
                               </p>
-                              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">TR</p>
+                              <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">TR</p>
                             </div>
-                            <div className="bg-secondary/60 rounded-lg py-2">
+                            <div className="rounded-xl border border-border/55 bg-secondary/45 py-2.5">
                               <p className="text-lg font-semibold tabular-nums text-foreground">
                                 {project._count?.selectedEquipment || 0}
                               </p>
-                              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Equip</p>
+                              <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Equip</p>
                             </div>
                           </div>
                         </div>
-                        <div className="flex gap-1 border-t border-border/40 pt-3 mt-4">
+                        <div className="mt-4 flex flex-wrap gap-1 border-t border-border/60 pt-3">
                           <Button
                             variant="ghost"
                             size="sm"
@@ -438,46 +552,46 @@ export default function ProjectsPage() {
         </div>
 
         <div className="space-y-6">
-          <Card className="border-accent/20 bg-accent/5">
-            <CardContent className="p-4 space-y-3">
+          <Card className="border-border/65 bg-[linear-gradient(165deg,rgba(15,139,141,0.12),rgba(255,255,255,0.92))] shadow-[0_14px_28px_-24px_rgba(19,32,51,0.68)]">
+            <CardContent className="space-y-4 p-5">
               <div className="flex items-center gap-2">
                 <ClipboardList className="w-4 h-4 text-accent" />
                 <h3 className="text-[13px] font-semibold text-foreground">Portfolio Snapshot</h3>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-lg border border-border/70 bg-card p-3">
-                  <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Draft</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-border/70 bg-card/90 p-4">
+                  <p className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Draft</p>
                   <p className="text-xl font-semibold tabular-nums">{loading ? '—' : draftCount}</p>
                 </div>
-                <div className="rounded-lg border border-border/70 bg-card p-3">
-                  <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Active</p>
+                <div className="rounded-xl border border-border/70 bg-card/90 p-4">
+                  <p className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Active</p>
                   <p className="text-xl font-semibold tabular-nums">{loading ? '—' : activeCount}</p>
                 </div>
-                <div className="rounded-lg border border-border/70 bg-card p-3">
-                  <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Completed</p>
+                <div className="rounded-xl border border-border/70 bg-card/90 p-4">
+                  <p className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Completed</p>
                   <p className="text-xl font-semibold tabular-nums">{loading ? '—' : completedCount}</p>
                 </div>
-                <div className="rounded-lg border border-border/70 bg-card p-3">
-                  <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Archived</p>
+                <div className="rounded-xl border border-border/70 bg-card/90 p-4">
+                  <p className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Archived</p>
                   <p className="text-xl font-semibold tabular-nums">{loading ? '—' : archivedCount}</p>
                 </div>
-                <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3 col-span-2">
-                  <p className="text-[10px] uppercase tracking-[0.08em] text-red-400">Trash</p>
+                <div className="col-span-2 rounded-xl border border-red-500/20 bg-red-500/5 p-4">
+                  <p className="text-xs uppercase tracking-[0.08em] text-red-400">Trash</p>
                   <p className="text-xl font-semibold tabular-nums text-red-400">{loading ? '—' : deletedCount}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-4 space-y-3">
+          <Card className="border-border/65 bg-card/90 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.66)]">
+            <CardContent className="space-y-4 p-5">
               <h3 className="text-[13px] font-semibold text-foreground">Capacity & BOQ</h3>
-              <div className="rounded-lg border border-border/70 bg-secondary/40 p-3">
-                <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Selected Equipment</p>
+              <div className="rounded-lg border border-border/55 bg-secondary/45 p-4">
+                <p className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Selected Equipment</p>
                 <p className="text-2xl font-semibold tabular-nums text-foreground">{loading ? '—' : totalEquipment}</p>
               </div>
-              <div className="rounded-lg border border-border/70 bg-secondary/40 p-3">
-                <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">BOQ Line Items</p>
+              <div className="rounded-lg border border-border/55 bg-secondary/45 p-4">
+                <p className="text-xs uppercase tracking-[0.08em] text-muted-foreground">BOQ Line Items</p>
                 <p className="text-2xl font-semibold tabular-nums text-foreground">{loading ? '—' : totalBOQItems}</p>
               </div>
             </CardContent>
@@ -493,10 +607,13 @@ export default function ProjectsPage() {
         description="Update project details, design conditions, and calculation parameters."
         size="xl"
       >
+        <div className="mb-5 rounded-xl border border-border/60 bg-secondary/35 px-4 py-3 text-sm text-muted-foreground">
+          Changes here tune psychrometric assumptions and project metadata used by downstream room loads, equipment sizing, and BOQ generation.
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Left Column: Project Details */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Project Details</h3>
+          <div className="space-y-4 rounded-2xl border border-border/65 bg-card/85 p-4 sm:p-5">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-foreground">Project Details</h3>
             <Input
               label="Project Name *"
               placeholder="e.g., ABC Office Tower HVAC"
@@ -565,9 +682,9 @@ export default function ProjectsPage() {
           </div>
 
           {/* Right Column: Design Conditions & Parameters */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Design Conditions</h3>
-            <div className="p-3 bg-secondary rounded-lg">
+          <div className="space-y-4 rounded-2xl border border-border/65 bg-card/85 p-4 sm:p-5">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-foreground">Design Conditions</h3>
+            <div className="rounded-lg border border-border/55 bg-secondary/40 p-3">
               <p className="text-xs text-muted-foreground">
                 Carrier Psychrometric Chart — WB, dew point, humidity ratio, and enthalpy are auto-computed from DB & RH.
               </p>
@@ -597,27 +714,27 @@ export default function ProjectsPage() {
               const ps = psychrometricState(Number(editForm.outdoorDB) || 35, Number(editForm.outdoorRH) || 50);
               return (
                 <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="bg-blue-50 rounded-lg py-1.5 px-1">
+                  <div className="rounded-lg border border-border/60 bg-background/90 px-1 py-1.5 shadow-[0_8px_16px_-18px_rgba(19,32,51,0.9)]">
                     <p className="text-sm font-semibold tabular-nums">{ps.wetBulb}°C</p>
                     <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Wet Bulb</p>
                   </div>
-                  <div className="bg-blue-50 rounded-lg py-1.5 px-1">
+                  <div className="rounded-lg border border-border/60 bg-background/90 px-1 py-1.5 shadow-[0_8px_16px_-18px_rgba(19,32,51,0.9)]">
                     <p className="text-sm font-semibold tabular-nums">{ps.dewPoint}°C</p>
                     <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Dew Point</p>
                   </div>
-                  <div className="bg-blue-50 rounded-lg py-1.5 px-1">
+                  <div className="rounded-lg border border-border/60 bg-background/90 px-1 py-1.5 shadow-[0_8px_16px_-18px_rgba(19,32,51,0.9)]">
                     <p className="text-sm font-semibold tabular-nums">{(ps.humidityRatio * 1000).toFixed(1)} g/kg</p>
                     <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Humidity Ratio</p>
                   </div>
-                  <div className="bg-blue-50 rounded-lg py-1.5 px-1">
+                  <div className="rounded-lg border border-border/60 bg-background/90 px-1 py-1.5 shadow-[0_8px_16px_-18px_rgba(19,32,51,0.9)]">
                     <p className="text-sm font-semibold tabular-nums">{ps.enthalpy} kJ/kg</p>
                     <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Enthalpy</p>
                   </div>
-                  <div className="bg-blue-50 rounded-lg py-1.5 px-1">
+                  <div className="rounded-lg border border-border/60 bg-background/90 px-1 py-1.5 shadow-[0_8px_16px_-18px_rgba(19,32,51,0.9)]">
                     <p className="text-sm font-semibold tabular-nums">{ps.specificVolume} m³/kg</p>
                     <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Sp. Volume</p>
                   </div>
-                  <div className="bg-blue-50 rounded-lg py-1.5 px-1">
+                  <div className="rounded-lg border border-border/60 bg-background/90 px-1 py-1.5 shadow-[0_8px_16px_-18px_rgba(19,32,51,0.9)]">
                     <p className="text-sm font-semibold tabular-nums">{ps.density} kg/m³</p>
                     <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Density</p>
                   </div>
@@ -645,7 +762,7 @@ export default function ProjectsPage() {
               />
             </div>
 
-            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider pt-2">Calculation Parameters</h3>
+            <h3 className="pt-2 text-sm font-semibold uppercase tracking-wider text-foreground">Calculation Parameters</h3>
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="Safety Factor"
@@ -678,7 +795,7 @@ export default function ProjectsPage() {
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-3 pt-6 mt-6 border-t border-border">
+        <div className="mt-6 flex justify-end gap-3 border-t border-border/60 bg-card/70 pt-5">
           <Button variant="ghost" size="sm" onClick={() => setEditTarget(null)}>
             Cancel
           </Button>

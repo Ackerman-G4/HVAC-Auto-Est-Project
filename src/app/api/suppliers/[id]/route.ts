@@ -1,53 +1,77 @@
 /**
- * Individual Supplier API — Firebase-backed Update + Delete
+ * Individual Supplier API — Update + Delete
  * PUT    /api/suppliers/[id] — Update supplier
  * DELETE /api/suppliers/[id] — Delete supplier
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb } from '@/lib/db/firebase-admin';
-import { getUserId, getAuthToken, isAdmin, errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
+import { requireAuth } from '@/lib/auth/guard';
+import {
+  deleteSupplierRecord,
+  getSupplierRecord,
+  updateSupplierRecord,
+} from '@/lib/firebase/catalog-store';
+import { writeAuditLog } from '@/lib/firebase/projects-store';
+import { errorResponse, getErrorDetails, resourceNotFound } from '@/lib/utils/api-helpers';
+import {
+  getCatalogValidationError,
+  supplierUpdateSchema,
+} from '@/lib/validation/catalog';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
+    const auth = await requireAuth(request, { allowedRoles: ['admin'] });
+    if (!auth.authorized) {
+      return auth.response;
+    }
+
     const { id } = await context.params;
-    const token = await getAuthToken(request);
-    if (!token) {
-      return errorResponse(401, 'Unauthorized', 'You must be logged in to update suppliers.');
-    }
-
-    if (!isAdmin(token)) {
-      return errorResponse(403, 'Forbidden', 'Only administrators can update suppliers.');
-    }
-
-    const uid = token.uid;
     const body = await request.json();
-    const ref = adminDb.ref(`metadata/suppliers/${id}`);
-    const snapshot = await ref.once('value');
+    const parsed = supplierUpdateSchema.safeParse(body);
 
-    if (!snapshot.exists()) {
-      return errorResponse(404, 'Supplier not found', 'The supplier does not exist.', 'SUPPLIER_NOT_FOUND');
+    if (!parsed.success) {
+      return NextResponse.json({ error: getCatalogValidationError(parsed.error) }, { status: 400 });
     }
 
-    const existing = snapshot.val();
-    const updateData = {
-      name: body.name ?? existing.name,
-      type: body.type ?? existing.type,
-      website: body.website ?? existing.website,
-      location: body.location ?? existing.location,
-      contactInfo: body.contactInfo ?? existing.contactInfo,
-      coverageArea: body.coverageArea ?? existing.coverageArea,
-      categories: body.categories ?? existing.categories,
-      updatedAt: Date.now(),
-    };
+    const payload = parsed.data;
 
-    await ref.update(updateData);
+    const existing = await getSupplierRecord(id);
+    if (!existing) {
+      return resourceNotFound('Supplier', 'The supplier does not exist.', 'SUPPLIER_NOT_FOUND');
+    }
 
-    return NextResponse.json({ 
-      supplier: { id, ...updateData } 
+    const supplier = await updateSupplierRecord(id, {
+      name: payload.name ?? existing.name,
+      type: payload.type ?? existing.type,
+      website: payload.website ?? existing.website,
+      location: payload.location ?? existing.location,
+      contactInfo: payload.contactInfo ?? existing.contactInfo,
+      coverageArea: payload.coverageArea ?? existing.coverageArea,
+      categories: 'categories' in payload
+        ? JSON.stringify(payload.categories ?? [])
+        : existing.categories,
     });
+
+    if (!supplier) {
+      return resourceNotFound('Supplier', 'The supplier does not exist.', 'SUPPLIER_NOT_FOUND');
+    }
+
+    await writeAuditLog({
+      projectId: 'system',
+      action: 'updated',
+      entity: 'supplier',
+      entityId: supplier.id,
+      details: JSON.stringify({
+        actorId: auth.user.id,
+        actorEmail: auth.user.email,
+      }),
+      previousValue: JSON.stringify(existing),
+      newValue: JSON.stringify(supplier),
+    });
+
+    return NextResponse.json({ supplier });
   } catch (error) {
     console.error('PUT supplier error:', error);
     const d = getErrorDetails(error, 'Failed to update supplier');
@@ -57,25 +81,31 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
+    const auth = await requireAuth(request, { allowedRoles: ['admin'] });
+    if (!auth.authorized) {
+      return auth.response;
+    }
+
     const { id } = await context.params;
-    const token = await getAuthToken(request);
-    if (!token) {
-      return errorResponse(401, 'Unauthorized', 'You must be logged in to delete suppliers.');
+
+    const existing = await getSupplierRecord(id);
+    if (!existing) {
+      return resourceNotFound('Supplier', 'The supplier does not exist.', 'SUPPLIER_NOT_FOUND');
     }
 
-    if (!isAdmin(token)) {
-      return errorResponse(403, 'Forbidden', 'Only administrators can delete suppliers.');
-    }
+    await deleteSupplierRecord(id);
 
-    const uid = token.uid;
-    const ref = adminDb.ref(`metadata/suppliers/${id}`);
-    const snapshot = await ref.once('value');
-
-    if (!snapshot.exists()) {
-      return errorResponse(404, 'Supplier not found', 'The supplier does not exist.', 'SUPPLIER_NOT_FOUND');
-    }
-
-    await ref.remove();
+    await writeAuditLog({
+      projectId: 'system',
+      action: 'deleted',
+      entity: 'supplier',
+      entityId: id,
+      details: JSON.stringify({
+        actorId: auth.user.id,
+        actorEmail: auth.user.email,
+      }),
+      previousValue: JSON.stringify(existing),
+    });
 
     return NextResponse.json({ message: 'Supplier deleted' });
   } catch (error) {

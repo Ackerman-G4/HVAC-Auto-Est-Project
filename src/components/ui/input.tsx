@@ -7,34 +7,85 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
   hint?: string;
+  unit?: string;
+  prefix?: string;
+  showRangeHint?: boolean;
   ref?: React.Ref<HTMLInputElement>;
 }
 
-export function Input({ className, label, error, hint, id, ref, ...props }: InputProps) {
+function toFiniteNumber(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+export function Input({ className, label, error, hint, unit, prefix, showRangeHint = true, id, ref, ...props }: InputProps) {
   const inputId = id || label?.toLowerCase().replace(/\s/g, '-');
+  const minValue = toFiniteNumber(props.min);
+  const maxValue = toFiniteNumber(props.max);
+  const currentValue = toFiniteNumber(props.value);
+
+  let derivedError: string | undefined;
+  if (!error && props.type === 'number' && currentValue !== null) {
+    if (minValue !== null && currentValue < minValue) {
+      derivedError = `Value must be >= ${minValue}${unit ? ` ${unit}` : ''}`;
+    } else if (maxValue !== null && currentValue > maxValue) {
+      derivedError = `Value must be <= ${maxValue}${unit ? ` ${unit}` : ''}`;
+    }
+  }
+
+  const activeError = error || derivedError;
+  const rangeHint =
+    showRangeHint && props.type === 'number' && (minValue !== null || maxValue !== null)
+      ? `Range: ${minValue !== null ? minValue : '-'} to ${maxValue !== null ? maxValue : '-'}${unit ? ` ${unit}` : ''}`
+      : undefined;
+
+  const helperText = hint || rangeHint;
+  const hasLeading = !!prefix;
+  const hasTrailing = !!unit;
+
   return (
     <div className="w-full">
       {label && (
-        <label htmlFor={inputId} className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">
+        <label htmlFor={inputId} className="mb-2 block text-[12px] font-bold uppercase tracking-[0.14em] text-[color:var(--muted-foreground)]">
           {label}
         </label>
       )}
-      <input
-        ref={ref}
-        id={inputId}
-        className={cn(
-          'w-full h-11 px-4 rounded-lg border bg-white text-slate-900 text-sm shadow-sm',
-          'placeholder:text-slate-400',
-          'focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500',
-          'transition-all duration-200',
-          'disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-50',
-          error ? 'border-red-500 focus:ring-red-500/20' : 'border-slate-200 hover:border-slate-300',
-          className
+      <div className="relative">
+        {hasLeading && (
+          <span className="pointer-events-none absolute inset-y-0 left-4 inline-flex items-center text-sm font-semibold text-[color:var(--text-subtle)]">
+            {prefix}
+          </span>
         )}
-        {...props}
-      />
-      {error && <p className="mt-1.5 text-xs text-red-500 font-medium">{error}</p>}
-      {hint && !error && <p className="mt-1.5 text-xs text-slate-500">{hint}</p>}
+        <input
+          ref={ref}
+          id={inputId}
+          className={cn(
+            'h-12 w-full rounded-[1rem] border border-[color:var(--input)] bg-[linear-gradient(125deg,color-mix(in_oklab,var(--card)_94%,transparent),color-mix(in_oklab,var(--brand-paper)_62%,transparent))] px-4 text-[15px] text-[color:var(--foreground)] shadow-[0_12px_20px_-20px_rgba(31,63,98,0.9)]',
+            hasLeading && 'pl-10',
+            hasTrailing && 'pr-16',
+            'placeholder:text-[rgba(91,116,110,0.85)]',
+            'focus:outline-none focus:ring-2 focus:ring-[rgba(20,134,115,0.24)] focus:border-[color:var(--ring)] focus:shadow-[0_18px_28px_-22px_rgba(20,134,115,0.74)]',
+            'transition-all duration-200',
+            'disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-[color:var(--secondary)]',
+            activeError
+              ? 'border-[color:var(--destructive)] focus:border-[color:var(--destructive)] focus:ring-[rgba(216,77,87,0.2)]'
+              : 'hover:border-[color:var(--silver)] hover:shadow-[0_16px_24px_-20px_rgba(31,63,98,0.82)]',
+            className
+          )}
+          {...props}
+        />
+        {hasTrailing && (
+          <span className="pointer-events-none absolute inset-y-0 right-4 inline-flex items-center text-sm font-semibold text-[color:var(--text-subtle)]">
+            {unit}
+          </span>
+        )}
+      </div>
+      {activeError && <p className="mt-2 text-[13px] font-medium text-[color:var(--destructive)]">{activeError}</p>}
+      {helperText && !activeError && <p className="mt-2 text-[13px] text-[color:var(--muted-foreground)]">{helperText}</p>}
     </div>
   );
 }
@@ -50,7 +101,7 @@ export function Textarea({ className, label, error, id, ref, ...props }: Textare
   return (
     <div className="w-full">
       {label && (
-        <label htmlFor={inputId} className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">
+        <label htmlFor={inputId} className="mb-2 block text-[12px] font-bold uppercase tracking-[0.14em] text-[color:var(--muted-foreground)]">
           {label}
         </label>
       )}
@@ -58,17 +109,19 @@ export function Textarea({ className, label, error, id, ref, ...props }: Textare
         ref={ref}
         id={inputId}
         className={cn(
-          'w-full min-h-[100px] px-4 py-3 rounded-lg border bg-white text-slate-900 text-sm shadow-sm',
-          'placeholder:text-slate-400 resize-y',
-          'focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500',
+          'min-h-[120px] w-full resize-y rounded-[1rem] border border-[color:var(--input)] bg-[linear-gradient(125deg,color-mix(in_oklab,var(--card)_94%,transparent),color-mix(in_oklab,var(--brand-paper)_62%,transparent))] px-4 py-3.5 text-[15px] text-[color:var(--foreground)] shadow-[0_12px_20px_-20px_rgba(31,63,98,0.9)]',
+          'placeholder:text-[rgba(91,116,110,0.85)]',
+          'focus:outline-none focus:ring-2 focus:ring-[rgba(20,134,115,0.24)] focus:border-[color:var(--ring)] focus:shadow-[0_18px_28px_-22px_rgba(20,134,115,0.74)]',
           'transition-all duration-200',
-          'disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-50',
-          error ? 'border-red-500 focus:ring-red-500/20' : 'border-slate-200 hover:border-slate-300',
+          'disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-[color:var(--secondary)]',
+          error
+            ? 'border-[color:var(--destructive)] focus:border-[color:var(--destructive)] focus:ring-[rgba(216,77,87,0.2)]'
+            : 'hover:border-[color:var(--silver)] hover:shadow-[0_16px_24px_-20px_rgba(31,63,98,0.82)]',
           className
         )}
         {...props}
       />
-      {error && <p className="mt-1.5 text-xs text-red-500 font-medium">{error}</p>}
+      {error && <p className="mt-2 text-[13px] font-medium text-[color:var(--destructive)]">{error}</p>}
     </div>
   );
 }

@@ -22,7 +22,6 @@ const TEMP_CRITICAL = 35;  // °C
 // Default thermal mass values
 const DEFAULT_RACK_MASS = 500;     // kg (server equipment thermal mass)
 const DEFAULT_SPECIFIC_HEAT = 900; // J/(kg·K) (weighted average of metals/electronics)
-const DEFAULT_AIR_MASS_PER_RACK = 2; // kg of air per rack volume
 
 /**
  * Simulate failure scenario and compute thermal transient

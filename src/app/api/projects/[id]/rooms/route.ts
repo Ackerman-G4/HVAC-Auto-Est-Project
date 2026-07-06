@@ -5,59 +5,42 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb } from '@/lib/db/firebase-admin';
+import { requireAuth } from '@/lib/auth/guard';
+import {
+  createFloorRecord,
+  createRoomRecord,
+  findFloorByProjectAndNumber,
+  getFloorsWithRooms,
+  getProjectRecord,
+  getRoomRecord,
+  setRoomCoolingLoad,
+  updateProjectRecord,
+} from '@/lib/firebase/projects-store';
 import { calculateCoolingLoad } from '@/lib/functions/cooling-load';
 import {
   errorResponse,
   getErrorDetails,
   buildCoolingLoadInput,
   coolingLoadToDbFields,
-  getUserId,
-  getAuthToken,
-  checkProjectAccess,
+  resourceNotFound,
 } from '@/lib/utils/api-helpers';
+import { finalizeDualValue } from '@/lib/utils/dual-control';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
-    const token = await getAuthToken(request);
-    if (!token) {
-      return errorResponse(401, 'Unauthorized', 'You must be logged in to access this resource.', 'UNAUTHORIZED');
+    const auth = await requireAuth(request);
+    if (!auth.authorized) {
+      return auth.response;
     }
 
-    const { id: projectId } = await context.params;
-    const ownerId = await checkProjectAccess(projectId, token);
-    
-    if (!ownerId) {
-      return errorResponse(403, 'Forbidden', 'You do not have access to this project.', 'FORBIDDEN');
-    }
+    const { id } = await context.params;
 
-    const [floorsSnap, roomsSnap, loadsSnap] = await Promise.all([
-      adminDb.ref(`projectData/${projectId}/floors`).orderByChild('floorNumber').once('value'),
-      adminDb.ref(`projectData/${projectId}/rooms`).once('value'),
-      adminDb.ref(`projectData/${projectId}/coolingLoads`).once('value'),
-    ]);
-
-    const floorsVal = floorsSnap.val() || {};
-    const roomsVal = roomsSnap.val() || {};
-    const loadsVal = loadsSnap.val() || {};
-
-    const floors = Object.entries(floorsVal).map(([floorId, floor]: [string, any]) => {
-      const floorRooms = Object.entries(roomsVal)
-        .filter(([_, room]: [string, any]) => room.floorId === floorId)
-        .map(([roomId, room]: [string, any]) => ({
-          id: roomId,
-          ...room,
-          coolingLoad: loadsVal[roomId] || null,
-        }));
-
-      return {
-        id: floorId,
-        ...floor,
-        rooms: floorRooms,
-      };
-    }).sort((a, b) => (a.floorNumber || 0) - (b.floorNumber || 0));
+    const floors = await getFloorsWithRooms(id, {
+      includeRoomEquipment: false,
+      includeRoomEquipmentCount: false,
+    });
 
     return NextResponse.json({ floors });
   } catch (error) {
@@ -69,67 +52,37 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
-    const token = await getAuthToken(request);
-    if (!token) {
-      return errorResponse(401, 'Unauthorized', 'You must be logged in to create rooms.', 'UNAUTHORIZED');
+    const auth = await requireAuth(request);
+    if (!auth.authorized) {
+      return auth.response;
     }
 
     const { id: projectId } = await context.params;
-    const ownerId = await checkProjectAccess(projectId, token);
-    
-    if (!ownerId) {
-      return errorResponse(403, 'Forbidden', 'You do not have access to this project.', 'FORBIDDEN');
-    }
-
     const body = await request.json();
 
-    // Verify project exists in projectData
-    const projectSnap = await adminDb.ref(`projectData/${projectId}/metadata`).once('value');
-    if (!projectSnap.exists()) {
-      // If metadata doesn't exist, we might want to check the user's project list again
-      // or just assume it's a new structure. Let's use metadata as the source of truth for project config.
-      // But for now, we'll just proceed if hasAccess was true.
+    const project = await getProjectRecord(projectId);
+    if (!project) {
+      return resourceNotFound('Project', 'The project does not exist.', 'PROJECT_NOT_FOUND');
     }
-    const project = projectSnap.val() || {};
 
     // Find or create floor
-    const floorNumber = body.floorNumber || 1;
-    const floorsSnap = await adminDb.ref(`projectData/${projectId}/floors`)
-      .orderByChild('floorNumber')
-      .equalTo(floorNumber)
-      .once('value');
-    
-    let floorId: string;
-    let floorData: any;
-
-    if (floorsSnap.exists()) {
-      const entries = Object.entries(floorsSnap.val());
-      floorId = entries[0][0];
-      floorData = entries[0][1];
-    } else {
-      const newFloorRef = adminDb.ref(`projectData/${projectId}/floors`).push();
-      floorId = newFloorRef.key!;
-      floorData = {
-        projectId,
-        floorNumber,
-        name: body.floorName || `Floor ${floorNumber}`,
+    let floor = await findFloorByProjectAndNumber(projectId, body.floorNumber || 1);
+    if (!floor) {
+      floor = await createFloorRecord(projectId, {
+        floorNumber: body.floorNumber || 1,
+        name: body.floorName || `Floor ${body.floorNumber || 1}`,
         ceilingHeight: body.ceilingHeight || 2.7,
-        createdAt: Date.now(),
-      };
-      await newFloorRef.set(floorData);
+      });
     }
 
     // Create room
-    const roomRef = adminDb.ref(`projectData/${projectId}/rooms`).push();
-    const roomId = roomRef.key!;
-    const roomData = {
-      floorId,
+    const room = await createRoomRecord(projectId, floor.id, {
       name: body.name || 'New Room',
       spaceType: body.spaceType || 'office',
       area: body.area || 0,
       perimeter: body.perimeter || (body.area > 0 ? Math.sqrt(body.area) * 4 : 0),
-      polygon: body.polygon || [],
-      ceilingHeight: body.ceilingHeight || floorData.ceilingHeight,
+      polygon: body.polygon ? JSON.stringify(body.polygon) : '[]',
+      ceilingHeight: body.ceilingHeight || floor.ceilingHeight,
       wallConstruction: body.wallConstruction || 'concrete_block_200mm',
       windowType: body.windowType || 'single_clear_6mm',
       windowArea: body.windowArea || 0,
@@ -139,26 +92,44 @@ export async function POST(request: NextRequest, context: RouteContext) {
       equipmentLoad: body.equipmentLoad || 10,
       hasRoofExposure: body.hasRoofExposure || false,
       notes: body.notes || '',
-      createdAt: Date.now(),
-    };
-
-    const updates: Record<string, any> = {};
-    updates[`projectData/${projectId}/rooms/${roomId}`] = roomData;
+    });
 
     // Auto‑calculate cooling load when room has an area
-    let coolingLoad = null;
-    if (roomData.area > 0) {
-      const loadInput = buildCoolingLoadInput(roomData, project);
-      const result = calculateCoolingLoad(loadInput, roomId, roomData.name);
-      coolingLoad = coolingLoadToDbFields(result);
-      updates[`projectData/${projectId}/coolingLoads/${roomId}`] = coolingLoad;
+    if (room.area > 0) {
+      const loadInput = buildCoolingLoadInput(room, project);
+      const result = calculateCoolingLoad(loadInput, room.id, room.name);
+      const trSelection = finalizeDualValue(result.trValue, body.userTrOverride);
+      const btuSelection = finalizeDualValue(result.btuPerHour, body.userBtuOverride);
+
+      await setRoomCoolingLoad(room.id, {
+        roomId: room.id,
+        ...coolingLoadToDbFields(result),
+        suggestedTrValue: result.trValue,
+        userTrOverride: trSelection.override,
+        finalTrValue: trSelection.final,
+        trValue: trSelection.final,
+        suggestedBtuPerHour: result.btuPerHour,
+        userBtuOverride: btuSelection.override,
+        finalBtuPerHour: btuSelection.final,
+        btuPerHour: btuSelection.final,
+        isOverridden: trSelection.isOverridden || btuSelection.isOverridden,
+        overrideReason: body.overrideReason || '',
+        overrideUpdatedAt:
+          trSelection.isOverridden || btuSelection.isOverridden ? new Date().toISOString() : null,
+        timestamp: new Date().toISOString(),
+      });
+
+      await updateProjectRecord(projectId, {
+        isEquipmentStale: true,
+        isBoqStale: true,
+        lastBoqGeneratedAt: null,
+        lastCoolingLoadAt: new Date().toISOString(),
+      });
     }
 
-    await adminDb.ref().update(updates);
+    const createdRoom = await getRoomRecord(room.id);
 
-    return NextResponse.json({ 
-      room: { id: roomId, ...roomData, coolingLoad } 
-    }, { status: 201 });
+    return NextResponse.json({ room: createdRoom }, { status: 201 });
   } catch (error) {
     console.error('POST rooms error:', error);
     const d = getErrorDetails(error, 'Failed to create room');
