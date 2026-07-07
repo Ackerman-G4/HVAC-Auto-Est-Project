@@ -1,4 +1,3 @@
-
 {
   "name": "hvac-app",
   "version": "0.1.0",
@@ -19,6 +18,10 @@
     "build:netlify": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "validate:cfd:export": "vitest run src/lib/engine/simulation/__tests__/openfoam-export.smoke.test.ts",
+    "validate:boq:sections": "vitest run src/lib/engine/cost/__tests__/boq-sections.smoke.test.ts",
     "audit:fix": "npm audit fix",
     "audit:check": "npm audit --audit-level=moderate",
     "clean": "Remove-Item -Recurse -Force .next -ErrorAction SilentlyContinue",
@@ -98,7 +101,8 @@
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
     "tsx": "^4.19.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "3.2.7"
   },
   "overrides": {
     "@tootallnate/once": "^3.0.1",

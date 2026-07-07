@@ -343,13 +343,51 @@ export const useSimulationEngineStore = create<SimulationEngineStore>((set, get)
       return;
     }
 
+    const effectiveSource = source || activeCase.runSource || 'internal';
+
+    // Engineering tier (OpenFOAM) is dispatched to the cloud via the C3
+    // orchestration route (POST .../runs), which returns 202 and never blocks on
+    // the solve. Results arrive asynchronously via the openfoam-callback route,
+    // so we refetch history and poll rather than reading a completed run inline.
+    if (effectiveSource === 'openfoam') {
+      try {
+        const res = await authFetch(
+          `/api/projects/${encodeURIComponent(projectId)}/simulations/${encodeURIComponent(activeCase.id)}/runs`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ solverBackend: 'engineering' }),
+          },
+        );
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.description || errData.error || 'Failed to start Engineering run');
+        }
+        const data = await res.json();
+        set((state) => ({
+          snapshotRunId: data.runId ?? state.snapshotRunId,
+          runSnapshots: [],
+          selectedSnapshotIteration: null,
+          activeSnapshot: null,
+          snapshotStreamlineSeeds: {},
+        }));
+        await get().loadRunHistory();
+        get().startPolling();
+        showToast('success', 'Engineering run dispatched to OpenFOAM');
+      } catch (error) {
+        console.error('startRun (engineering) error:', error);
+        showToast('error', error instanceof Error ? error.message : 'Failed to start Engineering run');
+      }
+      return;
+    }
+
     try {
       const res = await authFetch(
         `/api/projects/${encodeURIComponent(projectId)}/simulations/${encodeURIComponent(activeCase.id)}/run`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ source: source || activeCase.runSource }),
+          body: JSON.stringify({ source: effectiveSource }),
         },
       );
       if (!res.ok) {

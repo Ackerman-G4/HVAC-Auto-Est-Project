@@ -284,7 +284,7 @@ export async function listSimulationCases(
 export async function updateSimulationCase(
   projectId: string,
   caseId: string,
-  updates: Partial<Pick<SimulationCase, 'name' | 'description' | 'status' | 'mesh' | 'physics' | 'solver' | 'geometry' | 'activeRunId' | 'resultId' | 'runSource' | 'simulationScope' | 'buildingGeometry'>>,
+  updates: Partial<Pick<SimulationCase, 'name' | 'description' | 'status' | 'mesh' | 'physics' | 'solver' | 'geometry' | 'activeRunId' | 'resultId' | 'runSource' | 'solverBackend' | 'simulationScope' | 'buildingGeometry'>>,
 ): Promise<void> {
   const { mesh, ...rest } = updates;
   const firestoreUpdates: Record<string, unknown> = { ...rest, updatedAt: nowIso() };

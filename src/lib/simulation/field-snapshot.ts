@@ -93,6 +93,66 @@ function downsampleVectorField(
   return output;
 }
 
+/**
+ * Build a persisted RunFieldSnapshot from already-normalized field payloads —
+ * used by the OpenFOAM callback path, where the solver returns full-resolution
+ * scalar/vector arrays rather than an internal SimulationResult. Downsamples to
+ * the same cell budget as the internal path so the R3F viewer treats every tier
+ * identically (plan §5.1 "solver-agnostic by construction").
+ */
+export function buildRunFieldSnapshotFromFields(input: {
+  caseId: string;
+  runJobId: string;
+  source: RunSource;
+  dimensions: { nx: number; ny: number; nz: number };
+  fields: FieldPayload[];
+  iteration?: number;
+  maxCells?: number;
+}): RunFieldSnapshot {
+  const { caseId, runJobId, source, fields: sourceFields } = input;
+  const sourceDims = input.dimensions;
+  const maxCells = input.maxCells ?? DEFAULT_MAX_SNAPSHOT_CELLS;
+
+  const sampleStride = resolveSampleStride(sourceDims.nx, sourceDims.ny, sourceDims.nz, maxCells);
+  const dimensions = {
+    nx: sampledDim(sourceDims.nx, sampleStride),
+    ny: sampledDim(sourceDims.ny, sampleStride),
+    nz: sampledDim(sourceDims.nz, sampleStride),
+  };
+
+  const fields: FieldPayload[] = sourceFields.map((field) => {
+    if (field.vectorData) {
+      return {
+        name: field.name,
+        vectorData: downsampleVectorField(field.vectorData, sourceDims, sampleStride),
+      };
+    }
+    if (field.scalarData) {
+      return {
+        name: field.name,
+        scalarData: downsampleScalarField(field.scalarData, sourceDims, sampleStride),
+      };
+    }
+    return { name: field.name };
+  });
+
+  return {
+    meta: {
+      caseId,
+      runJobId,
+      iteration: input.iteration ?? 0,
+      source,
+      fieldEnvelope: cloneDefaultFieldEnvelope(),
+      dimensions,
+      sampleStride,
+      cellCount: dimensions.nx * dimensions.ny * dimensions.nz,
+      availableFields: fields.map((field) => field.name),
+      createdAt: new Date().toISOString(),
+    },
+    fields,
+  };
+}
+
 export function buildRunFieldSnapshotFromResult(input: {
   caseId: string;
   runJobId: string;

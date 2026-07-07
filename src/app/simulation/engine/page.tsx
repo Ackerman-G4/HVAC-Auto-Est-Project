@@ -8,6 +8,7 @@
  * Right:  Run control, residual convergence, export/import
  */
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import {
   Plus, Play, Download, Upload, Trash2, RefreshCw,
   Box, Settings2, Layers, BarChart3,
@@ -18,6 +19,15 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import AirflowViewer3D from '@/components/building/AirflowViewer3D';
+
+// Strangler-pattern R3F viewer (plan §5.1): loaded client-only, mounted behind a
+// toggle alongside the legacy viewer. Retire the old one only at parity.
+const SimulationCanvas = dynamic(() => import('@/components/simulation/r3f/SimulationCanvas'), {
+  ssr: false,
+  loading: () => (
+    <div className="grid min-h-[320px] place-items-center text-xs text-muted-foreground">Loading 3D viewer…</div>
+  ),
+});
 import { useSimulationEngineStore } from '@/stores/simulation-engine-store';
 import { useProjectStore } from '@/stores/project-store';
 import type {
@@ -233,6 +243,7 @@ export default function SimulationEnginePage() {
   const [newCaseName, setNewCaseName] = useState('');
   const [snapshotPreviewMode, setSnapshotPreviewMode] = useState<SnapshotPreviewMode>('temperature');
   const [snapshotAutoLoadPreviewField, setSnapshotAutoLoadPreviewField] = useState(true);
+  const [useR3FViewer, setUseR3FViewer] = useState(false);
   const [snapshotTimelineByCase, setSnapshotTimelineByCase] = useState<Record<string, SnapshotTimelinePreference>>({});
   const [pendingTimelineRestoreCaseId, setPendingTimelineRestoreCaseId] = useState<string | null>(null);
   const [showSnapshotTimelineHelpNote, setShowSnapshotTimelineHelpNote] = useState(true);
@@ -1326,9 +1337,20 @@ export default function SimulationEnginePage() {
               <Card className="p-4">
                 <div className="mb-2 flex items-center justify-between">
                   <h3 className="text-sm font-semibold">Snapshot 3D Preview</h3>
-                  <Badge variant="outline" className="font-mono text-[10px]">
-                    Iter {snapshotPreviewResult.iteration}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-1 text-[10px] text-muted-foreground" title="Preview the new React Three Fiber viewer (plan §5)">
+                      <input
+                        type="checkbox"
+                        checked={useR3FViewer}
+                        onChange={(event) => setUseR3FViewer(event.target.checked)}
+                        aria-label="Use new R3F viewer (beta)"
+                      />
+                      R3F viewer (beta)
+                    </label>
+                    <Badge variant="outline" className="font-mono text-[10px]">
+                      Iter {snapshotPreviewResult.iteration}
+                    </Badge>
+                  </div>
                 </div>
                 <p className="mb-3 text-xs text-muted-foreground">
                   Streamline playback uses {snapshotStreamlineSeedPoints.length} cached velocity seeds from the selected snapshot.
@@ -1399,17 +1421,27 @@ export default function SimulationEnginePage() {
                             : 'Unavailable'}
                   </span>
                 </div>
-                <AirflowViewer3D
-                  result={snapshotPreviewResult}
-                  racks={activeCase.geometry.racks}
-                  hvacUnits={activeCase.geometry.hvacUnits}
-                  showHotspots={false}
-                  showAirflow={false}
-                  selectedSliceZ={snapshotSliceZ}
-                  viewMode={snapshotPreviewMode}
-                  tileFlowView={snapshotTileFlowView}
-                  streamlineSeedPoints={snapshotStreamlineSeedPoints}
-                />
+                {useR3FViewer ? (
+                  <div className="h-[360px] overflow-hidden rounded-md border border-border/60">
+                    <SimulationCanvas
+                      result={snapshotPreviewResult}
+                      showTemperature={snapshotPreviewMode === 'temperature'}
+                      showVelocity
+                    />
+                  </div>
+                ) : (
+                  <AirflowViewer3D
+                    result={snapshotPreviewResult}
+                    racks={activeCase.geometry.racks}
+                    hvacUnits={activeCase.geometry.hvacUnits}
+                    showHotspots={false}
+                    showAirflow={false}
+                    selectedSliceZ={snapshotSliceZ}
+                    viewMode={snapshotPreviewMode}
+                    tileFlowView={snapshotTileFlowView}
+                    streamlineSeedPoints={snapshotStreamlineSeedPoints}
+                  />
+                )}
               </Card>
             )}
           </>
@@ -1418,29 +1450,39 @@ export default function SimulationEnginePage() {
 
       {/* ── Right Panel: Actions & Export/Import ───────────── */}
       <div className="flex w-64 shrink-0 flex-col gap-3">
-        {/* Run Controls */}
+        {/* Run Controls — solver tier split (plan §D2, §4.3) */}
         <Card className="p-3">
           <h3 className="mb-2 text-sm font-semibold">Run Controls</h3>
-          <div className="space-y-1.5">
-            <Button
-              size="sm"
-              className="w-full"
-              onClick={() => startRun('internal')}
-              disabled={!activeCase || activeCase.status === 'running' || activeCase.status === 'queued'}
-            >
-              {isPolling ? <Loader2 size={12} className="mr-1.5 animate-spin" /> : <Play size={12} className="mr-1.5" />}
-              Run Internal Solver
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="w-full"
-              onClick={() => startRun('openfoam')}
-              disabled={!activeCase || activeCase.status === 'running' || activeCase.status === 'queued'}
-            >
-              <Play size={12} className="mr-1.5" />
-              Run via OpenFOAM
-            </Button>
+          <div className="space-y-2">
+            <div className="rounded-md border border-border/70 p-2">
+              <Button
+                size="sm"
+                className="w-full"
+                onClick={() => startRun('internal')}
+                disabled={!activeCase || activeCase.status === 'running' || activeCase.status === 'queued'}
+              >
+                {isPolling ? <Loader2 size={12} className="mr-1.5 animate-spin" /> : <Play size={12} className="mr-1.5" />}
+                Run Preview
+              </Button>
+              <p className="mt-1 text-[10px] leading-tight text-muted-foreground">
+                Instant, in-browser. Temperature, velocity, pressure &amp; humidity. Free tier.
+              </p>
+            </div>
+            <div className="rounded-md border border-accent/40 p-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full"
+                onClick={() => startRun('openfoam')}
+                disabled={!activeCase || activeCase.status === 'running' || activeCase.status === 'queued'}
+              >
+                <Play size={12} className="mr-1.5" />
+                Run Engineering
+              </Button>
+              <p className="mt-1 text-[10px] leading-tight text-muted-foreground">
+                OpenFOAM cloud solve (minutes). Defensible numbers. No humidity field.
+              </p>
+            </div>
             <Button
               size="sm"
               variant="ghost"

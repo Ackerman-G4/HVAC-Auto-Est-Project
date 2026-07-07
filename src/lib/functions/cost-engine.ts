@@ -43,8 +43,28 @@ export interface CostInputs {
     runLengthM: number;
   }[];
 
+  /** Diffusers & grilles (BOQ Section E, plan §7). */
+  diffusers?: DiffuserInput[];
+
+  /** Controls: thermostats, CO₂ sensors, BMS points (BOQ Section G, plan §7). */
+  controls?: ControlsInput;
+
   /** Installation labor multiplier (default 0.35 = 35% of material cost) */
   laborMultiplier?: number;
+
+  /**
+   * Optional per-trade labor multipliers (plan §7 "labor by trade instead of
+   * flat 35%"). Keys are trade section names ('B - Refrigerant Piping', etc.).
+   * When omitted for a trade, {@link laborMultiplier} is used. Labor is still
+   * itemized per trade regardless (Section I).
+   */
+  laborRatesByTrade?: Record<string, number>;
+
+  /** Engineering / professional fee, fraction of subtotal (BOQ Section J). */
+  engineeringFeePercent?: number;
+
+  /** Permit & compliance fee, fraction of subtotal (BOQ Section K). */
+  permitFeePercent?: number;
 
   /** Overhead & profit percentage (default 0.15 = 15%) */
   overheadPercent?: number;
@@ -54,6 +74,64 @@ export interface CostInputs {
 
   /** Include contingency (default 0.05 = 5%) */
   contingencyPercent?: number;
+}
+
+/** One diffuser / grille line for BOQ Section E. */
+export interface DiffuserInput {
+  /** Space type this device serves (drives default selection). */
+  spaceType?: string;
+  /** Device kind. */
+  kind?: 'supply_diffuser' | 'return_grille' | 'exhaust_grille';
+  /** Nominal size label, e.g. "600x600". */
+  sizeLabel?: string;
+  quantity: number;
+  /** Override unit price (PHP); else catalog/default is used. */
+  unitPrice?: number;
+}
+
+/** Controls & BMS quantities for BOQ Section G. */
+export interface ControlsInput {
+  /** Number of control zones → one thermostat each. */
+  zones?: number;
+  /** CO₂ sensors (per ASHRAE 62.1 occupancy category). */
+  co2Sensors?: number;
+  /** BMS monitoring/control points. */
+  bmsPoints?: number;
+  thermostatUnitPrice?: number;
+  co2SensorUnitPrice?: number;
+  bmsPointUnitPrice?: number;
+}
+
+const DEFAULT_ENGINEERING_FEE_PERCENT = 0.05;
+const DEFAULT_PERMIT_FEE_PERCENT = 0.02;
+
+/** Trades that carry installation labor, itemized in Section I. */
+const LABOR_TRADES: readonly string[] = [
+  'B - Refrigerant Piping',
+  'C - Ductwork',
+  'D - Electrical',
+  'E - Diffusers & Grilles',
+  'F - Drainage',
+  'G - Controls',
+  'H - Miscellaneous',
+];
+
+/**
+ * Estimate diffuser/grille quantities from computed duct runs (plan §7:
+ * "Quantity from duct layout output"). One supply diffuser per duct run plus a
+ * return grille per two runs is a defensible first-order rule; callers with a
+ * real terminal layout should pass explicit {@link DiffuserInput}s instead.
+ */
+export function estimateDiffusersFromDucts(
+  ducts: NonNullable<CostInputs['ducts']>,
+  spaceType?: string,
+): DiffuserInput[] {
+  const runCount = ducts.length;
+  if (runCount <= 0) return [];
+  return [
+    { spaceType, kind: 'supply_diffuser', sizeLabel: '600x600', quantity: runCount },
+    { spaceType, kind: 'return_grille', sizeLabel: '600x600', quantity: Math.max(1, Math.ceil(runCount / 2)) },
+  ];
 }
 
 /** Find material from defaults catalog */
@@ -79,6 +157,8 @@ export function compileBOQ(inputs: CostInputs): BOQSummary {
   const overheadPercent = inputs.overheadPercent ?? 0.15;
   const vatRate = inputs.vatRate ?? 0.12;
   const contingencyPercent = inputs.contingencyPercent ?? 0.05;
+  const engineeringFeePercent = inputs.engineeringFeePercent ?? DEFAULT_ENGINEERING_FEE_PERCENT;
+  const permitFeePercent = inputs.permitFeePercent ?? DEFAULT_PERMIT_FEE_PERCENT;
 
   // ── SECTION A: Equipment ──────────────────────────────────
   for (const eq of inputs.equipment) {
@@ -277,13 +357,38 @@ export function compileBOQ(inputs: CostInputs): BOQSummary {
     }
   }
 
-  // ── SECTION E: Condensate Drain ───────────────────────────
+  // ── SECTION E: Diffusers & Grilles ────────────────────────
+  if (inputs.diffusers) {
+    for (const diff of inputs.diffusers) {
+      if (diff.quantity <= 0) continue;
+      const kind = diff.kind ?? 'supply_diffuser';
+      const size = diff.sizeLabel ?? '600x600';
+      const fallback = kind === 'supply_diffuser' ? 1800 : 1200;
+      const unitPrice = diff.unitPrice ?? getMaterialPrice('diffuser', kind, fallback);
+      const label =
+        kind === 'supply_diffuser' ? 'Supply air diffuser'
+          : kind === 'return_grille' ? 'Return air grille'
+            : 'Exhaust grille';
+      items.push({
+        id: `BOQ-${String(itemId++).padStart(3, '0')}`,
+        section: 'E - Diffusers & Grilles',
+        description: `${label} ${size}${diff.spaceType ? ` (${diff.spaceType})` : ''}`,
+        quantity: diff.quantity,
+        unit: 'pc',
+        unitPrice,
+        totalPrice: unitPrice * diff.quantity,
+        category: 'material',
+      });
+    }
+  }
+
+  // ── SECTION F: Condensate Drain ───────────────────────────
   if (inputs.condensate) {
     for (const drain of inputs.condensate) {
       const pvcPrice = getMaterialPrice('pvc_pipe', drain.result.pipeDiameter.split(' ')[0], 180);
       items.push({
         id: `BOQ-${String(itemId++).padStart(3, '0')}`,
-        section: 'E - Drainage',
+        section: 'F - Drainage',
         description: `PVC Pipe ${drain.result.pipeDiameter} (condensate drain)`,
         quantity: Math.ceil(drain.runLengthM),
         unit: 'meter',
@@ -295,7 +400,7 @@ export function compileBOQ(inputs: CostInputs): BOQSummary {
       // Fittings (elbow, tee, trap)
       items.push({
         id: `BOQ-${String(itemId++).padStart(3, '0')}`,
-        section: 'E - Drainage',
+        section: 'F - Drainage',
         description: 'PVC fittings (elbow, tee, trap) - lot',
         quantity: 1,
         unit: 'lot',
@@ -306,11 +411,59 @@ export function compileBOQ(inputs: CostInputs): BOQSummary {
     }
   }
 
-  // ── SECTION F: Miscellaneous ──────────────────────────────
+  // ── SECTION G: Controls ───────────────────────────────────
+  if (inputs.controls) {
+    const c = inputs.controls;
+    const zones = Math.max(0, Math.floor(c.zones ?? 0));
+    const co2 = Math.max(0, Math.floor(c.co2Sensors ?? 0));
+    const bms = Math.max(0, Math.floor(c.bmsPoints ?? 0));
+
+    if (zones > 0) {
+      const price = c.thermostatUnitPrice ?? getMaterialPrice('controls', 'thermostat', 2800);
+      items.push({
+        id: `BOQ-${String(itemId++).padStart(3, '0')}`,
+        section: 'G - Controls',
+        description: 'Programmable thermostat (one per zone)',
+        quantity: zones,
+        unit: 'pc',
+        unitPrice: price,
+        totalPrice: price * zones,
+        category: 'material',
+      });
+    }
+    if (co2 > 0) {
+      const price = c.co2SensorUnitPrice ?? getMaterialPrice('controls', 'co2', 6500);
+      items.push({
+        id: `BOQ-${String(itemId++).padStart(3, '0')}`,
+        section: 'G - Controls',
+        description: 'CO₂ sensor (ASHRAE 62.1 demand-controlled ventilation)',
+        quantity: co2,
+        unit: 'pc',
+        unitPrice: price,
+        totalPrice: price * co2,
+        category: 'material',
+      });
+    }
+    if (bms > 0) {
+      const price = c.bmsPointUnitPrice ?? getMaterialPrice('controls', 'bms', 3500);
+      items.push({
+        id: `BOQ-${String(itemId++).padStart(3, '0')}`,
+        section: 'G - Controls',
+        description: 'BMS monitoring/control point (wiring + I/O)',
+        quantity: bms,
+        unit: 'point',
+        unitPrice: price,
+        totalPrice: price * bms,
+        category: 'material',
+      });
+    }
+  }
+
+  // ── SECTION H: Miscellaneous ──────────────────────────────
   // Consumables
   items.push({
     id: `BOQ-${String(itemId++).padStart(3, '0')}`,
-    section: 'F - Miscellaneous',
+    section: 'H - Miscellaneous',
     description: 'Sealant, tape, bolts, screws, consumables',
     quantity: 1,
     unit: 'lot',
@@ -332,24 +485,73 @@ export function compileBOQ(inputs: CostInputs): BOQSummary {
     .filter((i) => i.category === 'labor')
     .reduce((sum, i) => sum + i.totalPrice, 0);
 
-  // Additional labor for all materials
-  const additionalLabor = materialCost * laborMultiplier;
-  items.push({
-    id: `BOQ-${String(itemId++).padStart(3, '0')}`,
-    section: 'G - Labor',
-    description: 'Installation labor (piping, ductwork, electrical, drainage)',
-    quantity: 1,
-    unit: 'lot',
-    unitPrice: additionalLabor,
-    totalPrice: additionalLabor,
-    category: 'labor',
-  });
+  // ── SECTION I: Installation Labor (itemized by trade, plan §7) ────
+  // Distribute installation labor across trades using per-trade material cost
+  // and either a per-trade rate or the flat multiplier. Total still reconciles
+  // to Σ(trade material × its rate).
+  const materialByTrade = new Map<string, number>();
+  for (const item of items) {
+    if (item.category !== 'material') continue;
+    materialByTrade.set(item.section, (materialByTrade.get(item.section) ?? 0) + item.totalPrice);
+  }
+
+  let additionalLabor = 0;
+  for (const trade of LABOR_TRADES) {
+    const tradeMaterial = materialByTrade.get(trade) ?? 0;
+    if (tradeMaterial <= 0) continue;
+    const rate = inputs.laborRatesByTrade?.[trade] ?? laborMultiplier;
+    const tradeLabor = tradeMaterial * rate;
+    if (tradeLabor <= 0) continue;
+    additionalLabor += tradeLabor;
+    const tradeName = trade.replace(/^[A-Z] - /, '');
+    items.push({
+      id: `BOQ-${String(itemId++).padStart(3, '0')}`,
+      section: 'I - Labor',
+      description: `Installation labor — ${tradeName} (${Math.round(rate * 100)}%)`,
+      quantity: 1,
+      unit: 'lot',
+      unitPrice: Math.round(tradeLabor),
+      totalPrice: Math.round(tradeLabor),
+      category: 'labor',
+    });
+  }
 
   const totalLabor = laborCost + additionalLabor;
   const subtotal = equipmentCost + materialCost + totalLabor;
+
+  // ── SECTION J: Professional / Engineering Fees ────────────
+  const engineeringFee = subtotal * engineeringFeePercent;
+  if (engineeringFee > 0) {
+    items.push({
+      id: `BOQ-${String(itemId++).padStart(3, '0')}`,
+      section: 'J - Professional Fees',
+      description: `Engineering & design fee (${Math.round(engineeringFeePercent * 100)}% of subtotal)`,
+      quantity: 1,
+      unit: 'lot',
+      unitPrice: Math.round(engineeringFee),
+      totalPrice: Math.round(engineeringFee),
+      category: 'fee',
+    });
+  }
+
+  // ── SECTION K: Permits & Compliance ───────────────────────
+  const permitFee = subtotal * permitFeePercent;
+  if (permitFee > 0) {
+    items.push({
+      id: `BOQ-${String(itemId++).padStart(3, '0')}`,
+      section: 'K - Permits & Compliance',
+      description: `Permit & compliance fees (${Math.round(permitFeePercent * 100)}% of subtotal)`,
+      quantity: 1,
+      unit: 'lot',
+      unitPrice: Math.round(permitFee),
+      totalPrice: Math.round(permitFee),
+      category: 'fee',
+    });
+  }
+
   const overhead = subtotal * overheadPercent;
   const contingency = subtotal * contingencyPercent;
-  const beforeVAT = subtotal + overhead + contingency;
+  const beforeVAT = subtotal + engineeringFee + permitFee + overhead + contingency;
   const vat = beforeVAT * vatRate;
   const grandTotal = beforeVAT + vat;
 

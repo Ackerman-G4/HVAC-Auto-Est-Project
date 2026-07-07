@@ -44,6 +44,55 @@ function normalizePercent(iteration: number, totalIterations: number): number {
   return Math.max(0, Math.min(100, raw));
 }
 
+// OpenFOAM (Engineering) runs have a lifecycle, not an iteration counter
+// (plan §4.3): queued → meshing → solving → done.
+const OPENFOAM_STEPS = ['Queued', 'Meshing', 'Solving', 'Done'] as const;
+
+function openfoamStepIndex(status: string): number {
+  switch (status) {
+    case 'pending':
+      return 0;
+    case 'running':
+      return 2; // meshing is transient; treat an active cloud run as solving
+    case 'completed':
+      return 3;
+    default:
+      return 0;
+  }
+}
+
+function OpenFOAMLifecycle({ status }: { status: string }) {
+  const failed = status === 'failed' || status === 'cancelled';
+  const activeIndex = openfoamStepIndex(status);
+  return (
+    <div className="mt-3 flex items-center gap-1.5" aria-label="OpenFOAM run lifecycle">
+      {OPENFOAM_STEPS.map((label, index) => {
+        const reached = !failed && index <= activeIndex;
+        const current = !failed && index === activeIndex && status !== 'completed';
+        return (
+          <div key={label} className="flex flex-1 flex-col items-center gap-1">
+            <div
+              className={cn(
+                'h-1.5 w-full rounded-full transition-colors',
+                failed ? 'bg-destructive/40' : reached ? 'bg-accent' : 'bg-secondary',
+                current && 'animate-pulse',
+              )}
+            />
+            <span
+              className={cn(
+                'text-[9px]',
+                reached ? 'font-medium text-foreground' : 'text-muted-foreground',
+              )}
+            >
+              {label}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function SimulationRunProgressCard({
   title = 'Run Progress',
   status,
@@ -58,6 +107,7 @@ export default function SimulationRunProgressCard({
   compact = false,
 }: SimulationRunProgressCardProps) {
   const percent = normalizePercent(iteration, totalIterations);
+  const isOpenFOAM = source === 'openfoam';
 
   const residualFields: Array<{ key: string; label: string; value?: number }> = [
     { key: 'continuity', label: 'Cont', value: residual?.continuity },
@@ -80,10 +130,12 @@ export default function SimulationRunProgressCard({
           <span className="text-muted-foreground">Status</span>
           <p className="font-mono capitalize">{status}</p>
         </div>
-        <div>
-          <span className="text-muted-foreground">Iteration</span>
-          <p className="font-mono">{iteration} / {totalIterations}</p>
-        </div>
+        {!isOpenFOAM && (
+          <div>
+            <span className="text-muted-foreground">Iteration</span>
+            <p className="font-mono">{iteration} / {totalIterations}</p>
+          </div>
+        )}
         {typeof elapsedSeconds === 'number' && (
           <div>
             <span className="text-muted-foreground">Elapsed</span>
@@ -92,18 +144,22 @@ export default function SimulationRunProgressCard({
         )}
         {source && (
           <div>
-            <span className="text-muted-foreground">Source</span>
-            <p className="font-mono">{source}</p>
+            <span className="text-muted-foreground">Tier</span>
+            <p className="font-mono">{isOpenFOAM ? 'Engineering' : 'Preview'}</p>
           </div>
         )}
       </div>
 
-      <div className="mt-3 h-2 overflow-hidden rounded-full bg-secondary">
-        <div
-          className="h-full rounded-full bg-accent transition-all"
-          style={{ width: `${percent}%` }}
-        />
-      </div>
+      {isOpenFOAM ? (
+        <OpenFOAMLifecycle status={status} />
+      ) : (
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-secondary">
+          <div
+            className="h-full rounded-full bg-accent transition-all"
+            style={{ width: `${percent}%` }}
+          />
+        </div>
+      )}
 
       {visibleResiduals.length > 0 && (
         <div className="mt-3 border-t border-border/50 pt-2">

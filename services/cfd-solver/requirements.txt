@@ -1,0 +1,5 @@
+# cfd-solver wrapper dependencies (plan §4.1, §D6 Python 3.12)
+fluidfoam>=0.2.5
+numpy>=1.26
+requests>=2.31
+google-cloud-storage>=2.14

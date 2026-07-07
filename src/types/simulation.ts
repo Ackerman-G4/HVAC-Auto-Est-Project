@@ -561,6 +561,37 @@ export type CaseStatus =
 
 export type RunSource = 'internal' | 'openfoam' | 'simflow' | 'manual-import';
 
+/**
+ * Solver tier selected for a case (v2.0 product tier split, plan §D2).
+ * - 'preview'     — instant in-browser TypeScript SIMPLE/k-ε solver (includes humidity)
+ * - 'engineering' — OpenFOAM cloud solve (buoyantSimpleFoam → kOmegaSST), defensible numbers
+ * Maps to RunSource: preview → 'internal', engineering → 'openfoam'.
+ */
+export type SolverBackend = 'preview' | 'engineering';
+
+/** Resolve the RunSource a solver backend produces. */
+export function runSourceForBackend(backend: SolverBackend): RunSource {
+  return backend === 'engineering' ? 'openfoam' : 'internal';
+}
+
+/** Human-facing tier label + copy for the honest trade-off shown in the UI. */
+export const SOLVER_BACKEND_META: Record<SolverBackend, {
+  label: string;
+  runSource: RunSource;
+  blurb: string;
+}> = {
+  preview: {
+    label: 'Preview',
+    runSource: 'internal',
+    blurb: 'Instant, in-browser. Temperature, velocity, pressure and humidity. Free tier.',
+  },
+  engineering: {
+    label: 'Engineering',
+    runSource: 'openfoam',
+    blurb: 'OpenFOAM cloud solve (minutes). Defensible temperature/velocity/pressure. No humidity field.',
+  },
+};
+
 /** Top-level simulation case metadata */
 export interface SimulationCase {
   id: string;
@@ -572,6 +603,12 @@ export interface SimulationCase {
   status: CaseStatus;
   /** Which solver produced the result */
   runSource: RunSource;
+  /**
+   * Selected solver tier for this case (plan §D2). Optional for backward
+   * compatibility with cases created before the tier split — absent is treated
+   * as 'preview'. See {@link SolverBackend}.
+   */
+  solverBackend?: SolverBackend;
   /**
    * Scope of the simulation.
    * - 'room'     — single-room CFD (default)

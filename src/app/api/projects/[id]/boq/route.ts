@@ -20,7 +20,7 @@ import {
   writeAuditLog,
 } from '@/lib/firebase/projects-store';
 import { buildBoqVerification, computeBoqHash } from '@/lib/functions/boq-integrity';
-import { compileBOQ } from '@/lib/functions/cost-engine';
+import { compileBOQ, estimateDiffusersFromDucts } from '@/lib/functions/cost-engine';
 import { sizeRefrigerantPipe, sizeCondensatePipe } from '@/lib/functions/pipe-sizing';
 import { sizeElectrical } from '@/lib/functions/electrical';
 import { sizeDuct } from '@/lib/functions/duct-sizing';
@@ -251,7 +251,26 @@ interface SelEquip {
 }
 
 function buildBOQInputs(selections: SelEquip[]) {
+  const ducts = selections
+    .filter((s) => requiresDuctwork(s.equipment.type))
+    .map((s) => ({
+      result: sizeDuct({ cfm: Math.max(1, s.equipment.capacityTR * CFM_PER_TR * s.quantity) }),
+      runLengthM: DEFAULT_DUCT_RUN_M * s.quantity,
+    }));
+
+  // Controls (BOQ Section G, plan §7): one thermostat per cooled unit, a CO₂
+  // sensor per selection for demand-controlled ventilation, and ~3 BMS points
+  // per unit (supply temp, return temp, status).
+  const totalUnits = selections.reduce((sum, s) => sum + s.quantity, 0);
+
   return {
+    diffusers: estimateDiffusersFromDucts(ducts),
+    controls: {
+      zones: totalUnits,
+      co2Sensors: selections.length,
+      bmsPoints: totalUnits * 3,
+    },
+    ducts,
     equipment: selections.map((s) => ({
       brand: s.equipment.manufacturer,
       model: s.equipment.model,
@@ -286,12 +305,6 @@ function buildBOQInputs(selections: SelEquip[]) {
       result: sizeCondensatePipe(s.equipment.capacityTR),
       runLengthM: DEFAULT_CONDENSATE_RUN_M,
     })),
-    ducts: selections
-      .filter((s) => requiresDuctwork(s.equipment.type))
-      .map((s) => ({
-        result: sizeDuct({ cfm: Math.max(1, s.equipment.capacityTR * CFM_PER_TR * s.quantity) }),
-        runLengthM: DEFAULT_DUCT_RUN_M * s.quantity,
-      })),
   };
 }
 

@@ -18,6 +18,7 @@ import { Info, MapPin, Plus, RefreshCcw, WandSparkles } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatCard } from '@/components/ui/stat-card';
+import LoadBreakdownBar, { segmentsFromEntries } from '@/components/load/LoadBreakdownBar';
 import { CollapsiblePanel } from '@/components/rebuild/CollapsiblePanel';
 import { DenseColumn, DenseDataTable } from '@/components/rebuild/DenseDataTable';
 import { InputField } from '@/components/rebuild/InputField';
@@ -298,6 +299,15 @@ export default function LoadCalculationPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
+            {/* Stacked horizontal assembly bar (plan §6.3) — shows where the heat comes from */}
+            <div className="mb-4">
+              <LoadBreakdownBar
+                segments={segmentsFromEntries(breakdownData.map((d) => ({ label: d.item, value: d.btu })))}
+                unit="BTU/h"
+                totalLabel="Total (before factors)"
+                totalSuffix={`${result.breakdown.trRequired.toFixed(2)} TR`}
+              />
+            </div>
             <div className="h-75 w-full">
               {chartsReady ? (
                 <ResponsiveContainer width="100%" height="100%">
