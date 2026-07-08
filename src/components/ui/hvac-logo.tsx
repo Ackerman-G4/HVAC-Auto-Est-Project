@@ -9,7 +9,7 @@ interface HvacLogoProps {
 
 /**
  * HVAC Studio brand logo — fan-blade/airflow motif.
- * `color` variant uses blue→green gradient (login, hero, loading).
+ * `color` variant uses the ink→jade brand gradient (login, hero, loading).
  * `mono` variant inherits currentColor (sidebar, header).
  */
 export function HvacLogo({ size = 32, variant = 'mono', className }: HvacLogoProps) {
@@ -28,12 +28,12 @@ export function HvacLogo({ size = 32, variant = 'mono', className }: HvacLogoPro
       {variant === 'color' && (
         <defs>
           <linearGradient id={`${id}-grad`} x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#3B82F6" />
-            <stop offset="100%" stopColor="#22C55E" />
+            <stop offset="0%" stopColor="#1F3F62" />
+            <stop offset="100%" stopColor="#148673" />
           </linearGradient>
           <linearGradient id={`${id}-ring`} x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.35" />
-            <stop offset="100%" stopColor="#22C55E" stopOpacity="0.35" />
+            <stop offset="0%" stopColor="#1F3F62" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="#148673" stopOpacity="0.35" />
           </linearGradient>
         </defs>
       )}

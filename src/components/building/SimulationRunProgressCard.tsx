@@ -3,6 +3,8 @@
 import React from 'react';
 import { AlertCircle, CheckCircle2, Activity } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
+import TierBadge from '@/components/simulation/TierBadge';
+import { RunProgressRing, phaseFromStatus } from '@/components/simulation/RunProgressRing';
 
 interface ResidualSnapshotLike {
   continuity?: number;
@@ -125,6 +127,15 @@ export default function SimulationRunProgressCard({
         <Activity size={14} /> {title}
       </h3>
 
+      {!compact && (
+        <div className="mb-4 flex justify-center">
+          <RunProgressRing
+            phase={phaseFromStatus(status, source, percent)}
+            percent={isOpenFOAM ? undefined : percent}
+          />
+        </div>
+      )}
+
       <div className={cn('grid gap-3 text-xs', compact ? 'grid-cols-2' : 'grid-cols-4')}>
         <div>
           <span className="text-muted-foreground">Status</span>
@@ -145,7 +156,7 @@ export default function SimulationRunProgressCard({
         {source && (
           <div>
             <span className="text-muted-foreground">Tier</span>
-            <p className="font-mono">{isOpenFOAM ? 'Engineering' : 'Preview'}</p>
+            <p className="mt-0.5"><TierBadge tier={source} /></p>
           </div>
         )}
       </div>

@@ -6,41 +6,51 @@
 /* ── Modern Enterprise Design System ─────────────────────── */
 
 :root {
-  --background: #f3f7ff;
-  --foreground: #0b1220;
+  /* HVAC Studio identity: ink (navy) primary · jade accent · copper for cost. */
+  --background: #f4f7f9;
+  --foreground: #0e1a24;
   --card: rgba(255, 255, 255, 0.82);
-  --card-foreground: #0b1220;
-  --primary: #3b82f6;
+  --card-foreground: #0e1a24;
+  --primary: #1f3f62;
   --primary-foreground: #ffffff;
   --secondary: rgba(15, 23, 42, 0.06);
   --secondary-foreground: #1e293b;
   --muted: rgba(100, 116, 139, 0.18);
-  --muted-foreground: #475569;
-  --accent: #22c55e;
-  --accent-light: #4ade80;
-  --accent-dark: #16a34a;
+  --muted-foreground: #4a5b6b;
+  --accent: #148673;
+  --accent-light: #1aa88f;
+  --accent-dark: #0f6b5c;
   --accent-foreground: #ffffff;
-  --border: rgba(15, 23, 42, 0.12);
-  --input: rgba(15, 23, 42, 0.12);
-  --ring: #3b82f6;
-  --destructive: #ef4444;
+  --border: rgba(15, 32, 44, 0.12);
+  --input: rgba(15, 32, 44, 0.12);
+  --ring: #1f3f62;
+  --destructive: #dc2626;
   --destructive-foreground: #ffffff;
-  --success: #22c55e;
-  --warning: #f59e0b;
+  --success: #148673;
+  --warning: #c2830c;
+  /* Copper — reserved for currency figures (plan §6.1). */
+  --copper: #b3701f;
+  --copper-foreground: #ffffff;
 
   --glass-bg: rgba(255, 255, 255, 0.62);
-  --glass-bg-strong: rgba(255, 255, 255, 0.78);
-  --glass-border: rgba(15, 23, 42, 0.12);
-  --panel-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
-  --panel-shadow-strong: 0 28px 70px rgba(15, 23, 42, 0.14);
+  --glass-bg-strong: rgba(255, 255, 255, 0.80);
+  --glass-border: rgba(15, 32, 44, 0.12);
+  --panel-shadow: 0 18px 42px rgba(15, 32, 44, 0.08);
+  --panel-shadow-strong: 0 28px 70px rgba(15, 32, 44, 0.14);
 
-  /* Backward-compat aliases (will be removed after component migration) */
+  /* Elevation system (Phase 3): flat = recessed workspace surface,
+     raised = side panels/cards, floating = top nav / overlays. */
+  --elevation-flat: inset 0 1px 2px rgba(15, 32, 44, 0.05);
+  --elevation-raised: 0 4px 14px rgba(15, 32, 44, 0.08);
+  --elevation-floating: 0 12px 34px rgba(15, 32, 44, 0.14);
+
+  /* Brand aliases now carry their real semantics. */
   --silver: #94a3b8;
   --silver-light: #f1f5f9;
   --silver-dark: #64748b;
-  --brand-ink: #3b82f6;
-  --brand-jade: #22c55e;
-  --brand-copper: #f59e0b;
+  --brand-ink: #1f3f62;
+  --brand-jade: #148673;
+  --brand-copper: #b3701f;
   --brand-paper: #ffffff;
   --surface-0: var(--background);
   --surface-1: var(--glass-bg-strong);
@@ -55,42 +65,50 @@
 }
 
 [data-theme='dark'] {
-  --background: #0b1220;
-  --foreground: #e8eefc;
+  --background: #0a141d;
+  --foreground: #e6eef5;
   --card: rgba(255, 255, 255, 0.05);
-  --card-foreground: #e8eefc;
-  --primary: #3b82f6;
-  --primary-foreground: #eaf2ff;
+  --card-foreground: #e6eef5;
+  /* Ink brightened for contrast on the dark ground. */
+  --primary: #5b8fc7;
+  --primary-foreground: #06121e;
   --secondary: rgba(148, 163, 184, 0.14);
   --secondary-foreground: #cbd5e1;
   --muted: rgba(148, 163, 184, 0.16);
-  --muted-foreground: #a9b6d6;
-  --accent: #22c55e;
-  --accent-light: #4ade80;
-  --accent-dark: #16a34a;
-  --accent-foreground: #f0fff4;
+  --muted-foreground: #9fb1c4;
+  --accent: #2bb89d;
+  --accent-light: #46d0b5;
+  --accent-dark: #1c8f79;
+  --accent-foreground: #04140f;
   --border: rgba(255, 255, 255, 0.1);
   --input: rgba(255, 255, 255, 0.16);
-  --ring: #3b82f6;
-  --destructive: #ef4444;
+  --ring: #5b8fc7;
+  --destructive: #f2555a;
   --destructive-foreground: #fff1f1;
-  --success: #22c55e;
-  --warning: #fbbf24;
+  --success: #2bb89d;
+  --warning: #f0b849;
+  --copper: #d99a4e;
+  --copper-foreground: #1a0f04;
 
-  --glass-bg: rgba(17, 25, 40, 0.5);
-  --glass-bg-strong: rgba(17, 25, 40, 0.7);
+  --glass-bg: rgba(15, 26, 38, 0.5);
+  --glass-bg-strong: rgba(15, 26, 38, 0.72);
   --glass-border: rgba(255, 255, 255, 0.14);
-  --panel-shadow: 0 18px 42px rgba(0, 0, 0, 0.36);
-  --panel-shadow-strong: 0 30px 78px rgba(0, 0, 0, 0.5);
+  --panel-shadow: 0 18px 42px rgba(0, 0, 0, 0.38);
+  --panel-shadow-strong: 0 30px 78px rgba(0, 0, 0, 0.52);
 
-  /* Backward-compat aliases */
+  /* Elevation system (Phase 3) — deeper in dark. */
+  --elevation-flat: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+  --elevation-raised: 0 6px 18px rgba(0, 0, 0, 0.4);
+  --elevation-floating: 0 16px 40px rgba(0, 0, 0, 0.55);
+
+  /* Brand aliases */
   --silver: #94a3b8;
   --silver-light: #334155;
   --silver-dark: #cbd5e1;
-  --brand-ink: #3b82f6;
-  --brand-jade: #22c55e;
-  --brand-copper: #fbbf24;
-  --brand-paper: #182337;
+  --brand-ink: #5b8fc7;
+  --brand-jade: #2bb89d;
+  --brand-copper: #d99a4e;
+  --brand-paper: #16273a;
   --surface-0: var(--background);
   --surface-1: var(--glass-bg-strong);
   --surface-2: rgba(255, 255, 255, 0.07);
@@ -122,6 +140,11 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-success: var(--success);
   --color-warning: var(--warning);
+  --color-copper: var(--copper);
+  --color-copper-foreground: var(--copper-foreground);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-jade: var(--brand-jade);
+  --color-brand-copper: var(--brand-copper);
   --color-silver: var(--silver);
   --color-silver-light: var(--silver-light);
   --color-silver-dark: var(--silver-dark);
@@ -157,17 +180,26 @@ body {
 
 h1,
 h2,
-h3,
 .display-heading {
-  font-family: var(--font-sans), 'Segoe UI', sans-serif;
+  /* Display face (Poppins) — gives titles and the logo their own voice. */
+  font-family: var(--font-display), var(--font-sans), 'Segoe UI', sans-serif;
   letter-spacing: -0.02em;
   line-height: 1.15;
   font-weight: 700;
 }
 
-p,
-li,
-dd {
+h3 {
+  /* Denser sub-headers stay on the Inter workhorse for legibility. */
+  font-family: var(--font-sans), 'Segoe UI', sans-serif;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+/* Currency figures are always copper (plan §6.1) with tabular numerals. */
+.text-currency {
+  color: var(--copper);
+  font-variant-numeric: tabular-nums;
 }
 
 /* Custom select arrow (replaces inline style) */
@@ -315,4 +347,113 @@ dd {
 }
 .stage-running {
   animation: stage-pulse 0.8s ease-in-out infinite;
+}
+
+/* ── Phase 1: interaction language ────────────────────────────── */
+
+/* Jade-tinted skeleton shimmer — a loading surface that reads as "this panel
+   is coming", not a dead grey box. Base tone + a sweeping jade highlight. */
+@keyframes skeleton-shimmer {
+  0% { background-position: 180% 0; }
+  100% { background-position: -180% 0; }
+}
+.skeleton {
+  background-color: color-mix(in oklab, var(--secondary) 78%, transparent);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklab, var(--accent) 13%, transparent) 42%,
+    color-mix(in oklab, var(--accent) 22%, transparent) 50%,
+    color-mix(in oklab, var(--accent) 13%, transparent) 58%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  border-radius: var(--radius-control);
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+/* Hover lift — 2px rise + shadow bloom for interactive cards/rows. Motion
+   vocabulary timing (150ms micro, cubic-bezier(0.2,0,0,1)). */
+.hover-lift {
+  transition: transform 150ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 150ms cubic-bezier(0.2, 0, 0, 1),
+    border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+  will-change: transform;
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 32px color-mix(in oklab, var(--primary) 20%, transparent);
+  border-color: color-mix(in oklab, var(--accent) 40%, var(--border));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; }
+  /* Keep the affordance (shadow/border) but drop the positional motion. */
+  .hover-lift:hover { transform: none; }
+}
+
+/* ── Phase 3: elevation + primary CTA ─────────────────────────── */
+
+.elev-flat { box-shadow: var(--elevation-flat); }
+.elev-raised { box-shadow: var(--elevation-raised); }
+.elev-floating { box-shadow: var(--elevation-floating); }
+
+/* Recessed workspace surface — the main canvas reads as a sunken instrument
+   panel the raised side panels sit above. */
+.surface-recessed {
+  background:
+    radial-gradient(120% 120% at 50% 0%, color-mix(in oklab, var(--accent) 5%, transparent) 0%, transparent 60%),
+    var(--background);
+  box-shadow: var(--elevation-flat);
+}
+
+/* Idle glow on the primary action (Run Preview) — a slow jade breathe that
+   draws the eye without shouting. Static ring under reduced motion. */
+@keyframes cta-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 40%, transparent); }
+  50% { box-shadow: 0 0 0 6px color-mix(in oklab, var(--accent) 0%, transparent); }
+}
+.cta-glow:not(:disabled) {
+  animation: cta-breathe 2.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cta-glow:not(:disabled) {
+    animation: none;
+    box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 30%, transparent);
+  }
+}
+
+/* ── Phase 4: the canvas ──────────────────────────────────────── */
+
+/* Ambient gradient-mesh backdrop for the 3D viewer — a slow jade↔ink drift so
+   an empty or transparent canvas reads as a living workspace, not a void. A
+   faint grid sits on top for spatial reference. */
+@keyframes canvas-drift {
+  0% { background-position: 0% 0%, 100% 100%; }
+  100% { background-position: 26% 18%, 74% 82%; }
+}
+.canvas-ambient {
+  position: relative;
+  background-color: var(--background);
+  background-image:
+    radial-gradient(58% 52% at 18% 14%, color-mix(in oklab, var(--accent) 18%, transparent), transparent 70%),
+    radial-gradient(54% 56% at 86% 88%, color-mix(in oklab, var(--primary) 22%, transparent), transparent 72%);
+  background-size: 180% 180%, 200% 200%;
+  animation: canvas-drift 26s ease-in-out infinite alternate;
+}
+.canvas-ambient::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, color-mix(in oklab, var(--border) 40%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--border) 40%, transparent) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: radial-gradient(80% 80% at 50% 50%, #000 40%, transparent 100%);
+  -webkit-mask-image: radial-gradient(80% 80% at 50% 50%, #000 40%, transparent 100%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .canvas-ambient { animation: none; }
 }

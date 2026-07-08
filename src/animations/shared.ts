@@ -1,14 +1,18 @@
-// Shared animation configuration constants
+// Shared animation constants — sourced from the single motion vocabulary
+// (src/lib/ui/motion.ts). One system: durations 150/250/400ms, easing
+// cubic-bezier(0.2,0,0,1). Nothing bounces in an engineering tool, so the old
+// `bounce` curve was removed.
+import { MOTION_DURATION, MOTION_EASE } from '@/lib/ui/motion';
+
 export const ANIMATION_DURATION = {
-  fast: 0.15,
-  normal: 0.3,
-  slow: 0.5,
+  fast: MOTION_DURATION.micro,
+  normal: MOTION_DURATION.panel,
+  slow: MOTION_DURATION.page,
 } as const;
 
 export const EASE_CURVES = {
-  default: [0.25, 0.46, 0.45, 0.94] as [number, number, number, number],
-  bounce: [0.68, -0.55, 0.265, 1.55] as [number, number, number, number],
-  sharp: [0.4, 0, 0.2, 1] as [number, number, number, number],
+  default: MOTION_EASE,
+  sharp: MOTION_EASE,
 } as const;
 
 // Toast notification animation

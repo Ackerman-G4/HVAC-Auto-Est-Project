@@ -2,8 +2,15 @@
  * OpenFOAM Case Exporter
  *
  * Generates OpenFOAM-compatible case configuration from a SimulationCase.
- * Produces blockMeshDict, boundary conditions, controlDict, fvSchemes,
- * fvSolution, and turbulenceProperties content strings.
+ * Produces blockMeshDict, topoSetDict, createPatchDict, boundary conditions,
+ * controlDict, fvSchemes, fvSolution, turbulence + thermophysical/transport
+ * properties, and gravity.
+ *
+ * Wave 8 foundation repair: the emitted case must actually mesh and start a
+ * solver. That means (a) blockMesh declares its six box faces, (b) named patches
+ * are carved by topoSet + createPatch, and (c) the file set switches on the
+ * solver — buoyantSimpleFoam needs thermophysicalProperties + g + p_rgh + alphat
+ * (NOT transportProperties), while simpleFoam needs transportProperties.
  */
 
 import type {
@@ -15,6 +22,7 @@ import type {
   OpenFOAMPatchBC,
   Vec3,
   BoundaryPatch,
+  BoundaryPatchType,
 } from '@/types/simulation';
 
 // ─── Public API ─────────────────────────────────────────────
@@ -30,6 +38,32 @@ export function buildOpenFOAMConfig(simCase: SimulationCase): OpenFOAMCaseConfig
   const mesh = simCase.mesh;
   const physics = simCase.physics;
   const solver = simCase.solver;
+  const buoyant = physics.buoyancy;
+
+  // Sanitize patch names ONCE so blockMesh/topoSet/createPatch and the field
+  // boundary files all reference identical, solver-safe names (hyphens survive).
+  const sanitizedPatches: BoundaryPatch[] = mesh.patches.map((p) => ({
+    ...p,
+    name: sanitizePatchName(p.name),
+  }));
+
+  const extents: Vec3 = { x: mesh.extents.x, y: mesh.extents.y, z: mesh.extents.z };
+
+  // Named patches for topoSet/createPatch, in mesh order.
+  //
+  // Do not sort or reorder this list. createPatch assigns a doubly-claimed face
+  // (a supply grille sits ON a wall, and the wall's bounding box covers it) to
+  // the LAST dict entry that lists it — so specific patches (HVAC vents) MUST
+  // come AFTER generic ones (walls/floor/ceiling). geometry-builder already
+  // emits walls/floor/ceiling first and HVAC vents last; preserve that order.
+  const namedPatches = sanitizedPatches
+    .filter((p) => p.faces.length > 0)
+    .map((p) => ({
+      name: p.name,
+      role: p.type,
+      foamType: mapFoamType(p.type),
+      box: patchFaceBox(p, mesh.cellSizeM, extents),
+    }));
 
   return {
     caseName: sanitizeCaseName(simCase.name),
@@ -38,29 +72,60 @@ export function buildOpenFOAMConfig(simCase: SimulationCase): OpenFOAMCaseConfig
     solver: selectOpenFOAMSolver(physics),
     turbulenceProperties: buildTurbulenceProperties(physics),
     schemes: buildFvSchemes(solver),
-    solution: buildFvSolution(solver, physics, mesh.patches),
-    boundaryConditions: buildBoundaryConditions(mesh.patches, physics),
+    solution: buildFvSolution(solver, physics, sanitizedPatches),
+    boundaryConditions: buildBoundaryConditions(sanitizedPatches, physics),
     controlDict: buildControlDict(simCase.name, solver, physics),
+    namedPatches,
+    meshExtents: extents,
+    gravity: physics.gravity ?? { x: 0, y: 0, z: -9.81 },
+    buoyant,
   };
 }
 
 /**
  * Generate OpenFOAM case directory file-content map for download.
  * Returns a map of relative file paths to their string content.
+ *
+ * The file set switches on the solver (Wave 8): a buoyant case that shipped
+ * transportProperties + no p_rgh/alphat/g would exit at solver startup.
  */
 export function generateCaseFiles(config: OpenFOAMCaseConfig): Map<string, string> {
   const files = new Map<string, string>();
+  const buoyant = config.buoyant ?? config.controlDict.application === 'buoyantSimpleFoam';
 
+  // system/
   files.set('system/blockMeshDict', renderBlockMeshDict(config));
   files.set('system/controlDict', renderControlDict(config));
   files.set('system/fvSchemes', renderFvSchemes(config));
   files.set('system/fvSolution', renderFvSolution(config));
-  files.set('constant/turbulenceProperties', renderTurbulenceProperties(config));
-  files.set('constant/transportProperties', renderTransportProperties(config));
+  files.set('system/topoSetDict', renderTopoSetDict(config));
+  files.set('system/createPatchDict', renderCreatePatchDict(config));
 
-  // Boundary condition files for each field
-  for (const field of ['U', 'p', 'T', 'k', 'epsilon']) {
-    files.set(`0/${field}`, renderFieldBC(config, field));
+  // constant/
+  files.set('constant/turbulenceProperties', renderTurbulenceProperties(config));
+
+  if (buoyant) {
+    files.set('constant/g', renderGravity(config));
+    files.set('constant/thermophysicalProperties', renderThermophysicalProperties());
+
+    // 0/ — buoyantSimpleFoam field set
+    files.set('0/U', renderFieldBC(config, 'U'));
+    files.set('0/T', renderFieldBC(config, 'T'));
+    files.set('0/k', renderFieldBC(config, 'k'));
+    files.set('0/epsilon', renderFieldBC(config, 'epsilon'));
+    files.set('0/p_rgh', renderPRgh(config));
+    files.set('0/p', renderBuoyantP(config));
+    files.set('0/alphat', renderAlphat(config));
+    files.set('0/nut', renderNut(config));
+  } else {
+    files.set('constant/transportProperties', renderTransportProperties());
+
+    // 0/ — simpleFoam field set (isothermal)
+    files.set('0/U', renderFieldBC(config, 'U'));
+    files.set('0/p', renderFieldBC(config, 'p'));
+    files.set('0/k', renderFieldBC(config, 'k'));
+    files.set('0/epsilon', renderFieldBC(config, 'epsilon'));
+    files.set('0/nut', renderNut(config));
   }
 
   return files;
@@ -94,6 +159,47 @@ function buildBlockMeshDict(mesh: StructuredGrid) {
 function selectOpenFOAMSolver(physics: PhysicsSetup): string {
   if (physics.buoyancy) return 'buoyantSimpleFoam';
   return 'simpleFoam';
+}
+
+/** Map a semantic patch role to the OpenFOAM createPatch patch type. */
+function mapFoamType(role: BoundaryPatchType): 'patch' | 'wall' {
+  return role === 'inlet' || role === 'outlet' ? 'patch' : 'wall';
+}
+
+/**
+ * Axis-aligned bounding box (m) selecting a patch's boundary faces via
+ * boxToFace. Each geometry-builder patch is single-direction, so we collapse
+ * the box to a thin slab at the correct wall and span the tangential cells.
+ */
+function patchFaceBox(
+  patch: BoundaryPatch,
+  cs: number,
+  extents: Vec3,
+): { min: Vec3; max: Vec3 } {
+  const dir = patch.faces[0].face;
+  let iMin = Infinity, iMax = -Infinity;
+  let jMin = Infinity, jMax = -Infinity;
+  let kMin = Infinity, kMax = -Infinity;
+  for (const f of patch.faces) {
+    iMin = Math.min(iMin, f.i); iMax = Math.max(iMax, f.i);
+    jMin = Math.min(jMin, f.j); jMax = Math.max(jMax, f.j);
+    kMin = Math.min(kMin, f.k); kMax = Math.max(kMax, f.k);
+  }
+  const e = cs * 0.25;
+  let xlo = iMin * cs - e, xhi = (iMax + 1) * cs + e;
+  let ylo = jMin * cs - e, yhi = (jMax + 1) * cs + e;
+  let zlo = kMin * cs - e, zhi = (kMax + 1) * cs + e;
+
+  switch (dir) {
+    case '-x': xlo = -e; xhi = e; break;
+    case '+x': xlo = extents.x - e; xhi = extents.x + e; break;
+    case '-y': ylo = -e; yhi = e; break;
+    case '+y': ylo = extents.y - e; yhi = extents.y + e; break;
+    case '-z': zlo = -e; zhi = e; break;
+    case '+z': zlo = extents.z - e; zhi = extents.z + e; break;
+  }
+
+  return { min: { x: xlo, y: ylo, z: zlo }, max: { x: xhi, y: yhi, z: zhi } };
 }
 
 function buildTurbulenceProperties(physics: PhysicsSetup) {
@@ -132,19 +238,42 @@ function buildFvSchemes(solver: SolverProfile) {
 
 function buildFvSolution(
   solver: SolverProfile,
-  _physics: PhysicsSetup,
+  physics: PhysicsSetup,
   patches: BoundaryPatch[],
 ) {
   const hasInlet = patches.some((p) => p.type === 'inlet');
+  const buoyant = physics.buoyancy;
+
+  // buoyantSimpleFoam solves p_rgh (not p); simpleFoam solves p.
+  const pressureSolver = { solver: 'GAMG', preconditioner: 'none', tolerance: 1e-6, relTol: 0.01 } as const;
+  const solvers: Record<string, { solver: string; preconditioner?: string; tolerance: number; relTol: number }> = {
+    U: { solver: 'smoothSolver', preconditioner: 'symGaussSeidel', tolerance: 1e-6, relTol: 0.1 },
+    T: { solver: 'smoothSolver', preconditioner: 'symGaussSeidel', tolerance: 1e-6, relTol: 0.1 },
+    k: { solver: 'smoothSolver', preconditioner: 'symGaussSeidel', tolerance: 1e-8, relTol: 0.1 },
+    epsilon: { solver: 'smoothSolver', preconditioner: 'symGaussSeidel', tolerance: 1e-8, relTol: 0.1 },
+  };
+  if (buoyant) {
+    solvers.p_rgh = pressureSolver;
+    solvers.h = { solver: 'smoothSolver', preconditioner: 'symGaussSeidel', tolerance: 1e-6, relTol: 0.1 };
+  } else {
+    solvers.p = pressureSolver;
+  }
+
+  const relaxationFactors: Record<string, number> = {
+    U: solver.relaxation.velocity,
+    T: solver.relaxation.temperature,
+    k: solver.relaxation.turbulence,
+    epsilon: solver.relaxation.turbulence,
+  };
+  if (buoyant) {
+    relaxationFactors.p_rgh = solver.relaxation.pressure;
+    relaxationFactors.h = solver.relaxation.temperature;
+  } else {
+    relaxationFactors.p = solver.relaxation.pressure;
+  }
 
   return {
-    solvers: {
-      p: { solver: 'GAMG', preconditioner: 'none', tolerance: 1e-6, relTol: 0.01 },
-      U: { solver: 'smoothSolver', preconditioner: 'symGaussSeidel', tolerance: 1e-6, relTol: 0.1 },
-      T: { solver: 'smoothSolver', preconditioner: 'symGaussSeidel', tolerance: 1e-6, relTol: 0.1 },
-      k: { solver: 'smoothSolver', preconditioner: 'symGaussSeidel', tolerance: 1e-8, relTol: 0.1 },
-      epsilon: { solver: 'smoothSolver', preconditioner: 'symGaussSeidel', tolerance: 1e-8, relTol: 0.1 },
-    },
+    solvers,
     algorithms: {
       SIMPLE: {
         nNonOrthogonalCorrectors: 1,
@@ -152,13 +281,7 @@ function buildFvSolution(
         pRefValue: hasInlet ? 0 : 0,
       },
     },
-    relaxationFactors: {
-      p: solver.relaxation.pressure,
-      U: solver.relaxation.velocity,
-      T: solver.relaxation.temperature,
-      k: solver.relaxation.turbulence,
-      epsilon: solver.relaxation.turbulence,
-    },
+    relaxationFactors,
   };
 }
 
@@ -171,6 +294,7 @@ function buildBoundaryConditions(
   for (const patch of patches) {
     switch (patch.type) {
       case 'wall':
+      case 'symmetry':
         bcs.push({ patchName: patch.name, field: 'U', type: 'fixedValue', value: { x: 0, y: 0, z: 0 } });
         bcs.push({ patchName: patch.name, field: 'p', type: 'zeroGradient' });
         bcs.push({ patchName: patch.name, field: 'T', type: 'zeroGradient' });
@@ -260,6 +384,39 @@ function renderBlockMeshDict(config: OpenFOAMCaseConfig): string {
   const verts = bm.vertices.map((v) => `    (${v.x} ${v.y} ${v.z})`).join('\n');
   const block = bm.blocks[0];
 
+  // Six generic box faces. createPatch re-assigns matched faces to the named
+  // patches; whatever is left stays here as a wall (safe no-slip default).
+  const boundary = `    box_xmin
+    {
+        type wall;
+        faces ( (0 4 7 3) );
+    }
+    box_xmax
+    {
+        type wall;
+        faces ( (1 2 6 5) );
+    }
+    box_ymin
+    {
+        type wall;
+        faces ( (0 1 5 4) );
+    }
+    box_ymax
+    {
+        type wall;
+        faces ( (3 7 6 2) );
+    }
+    box_zmin
+    {
+        type wall;
+        faces ( (0 3 2 1) );
+    }
+    box_zmax
+    {
+        type wall;
+        faces ( (4 5 6 7) );
+    }`;
+
   return `${foamHeader('dictionary', 'blockMeshDict', 'system')}
 convertToMeters 1;
 
@@ -279,11 +436,100 @@ edges
 
 boundary
 (
+${boundary}
 );
 
 mergePatchPairs
 (
 );
+`;
+}
+
+function renderTopoSetDict(config: OpenFOAMCaseConfig): string {
+  const patches = config.namedPatches ?? [];
+  const actions = patches.map((p) => {
+    const { min, max } = p.box;
+    return `    {
+        name    ${p.name}_faces;
+        type    faceSet;
+        action  new;
+        source  boxToFace;
+        sourceInfo
+        {
+            box (${min.x} ${min.y} ${min.z}) (${max.x} ${max.y} ${max.z});
+        }
+    }`;
+  }).join('\n');
+
+  return `${foamHeader('dictionary', 'topoSetDict', 'system')}
+actions
+(
+${actions}
+);
+`;
+}
+
+function renderCreatePatchDict(config: OpenFOAMCaseConfig): string {
+  const patches = config.namedPatches ?? [];
+  // Order preserved from config.namedPatches — see the "do not reorder" note.
+  const entries = patches.map((p) => `    {
+        name ${p.name};
+        patchInfo
+        {
+            type ${p.foamType};
+        }
+        constructFrom set;
+        set ${p.name}_faces;
+    }`).join('\n');
+
+  return `${foamHeader('dictionary', 'createPatchDict', 'system')}
+pointSync false;
+
+patches
+(
+${entries}
+);
+`;
+}
+
+function renderGravity(config: OpenFOAMCaseConfig): string {
+  const g = config.gravity ?? { x: 0, y: 0, z: -9.81 };
+  return `${foamHeader('uniformDimensionedVectorField', 'g', 'constant')}
+dimensions      [0 1 -2 0 0 0 0];
+value           (${g.x} ${g.y} ${g.z});
+`;
+}
+
+function renderThermophysicalProperties(): string {
+  return `${foamHeader('dictionary', 'thermophysicalProperties', 'constant')}
+thermoType
+{
+    type            heRhoThermo;
+    mixture         pureMixture;
+    transport       const;
+    thermo          hConst;
+    equationOfState perfectGas;
+    specie          specie;
+    energy          sensibleEnthalpy;
+}
+
+mixture
+{
+    specie
+    {
+        molWeight       28.96;
+    }
+    thermodynamics
+    {
+        Cp              1004.5;
+        Hf              0;
+    }
+    transport
+    {
+        mu              1.8e-05;
+        Pr              0.71;
+    }
+}
 `;
 }
 
@@ -383,8 +629,7 @@ function renderTurbulenceProperties(config: OpenFOAMCaseConfig): string {
   return `${foamHeader('dictionary', 'turbulenceProperties', 'constant')}\n${body}`;
 }
 
-function renderTransportProperties(_config: OpenFOAMCaseConfig): string {
-  // Extract from the solved boundary conditions
+function renderTransportProperties(): string {
   return `${foamHeader('dictionary', 'transportProperties', 'constant')}
 transportModel  Newtonian;
 
@@ -440,6 +685,86 @@ ${boundaryBlock}}
 `;
 }
 
+// ── Derived buoyant fields (synthesized from patch roles) ────
+
+/** Render a scalar field whose BCs are derived per patch role. */
+function renderDerivedField(
+  config: OpenFOAMCaseConfig,
+  opts: {
+    field: string;
+    className: string;
+    dimensions: string;
+    internalField: string;
+    bcFor: (role: BoundaryPatchType) => { type: string; value?: string };
+  },
+): string {
+  const patches = config.namedPatches ?? [];
+  let boundaryBlock = '';
+  for (const p of patches) {
+    const bc = opts.bcFor(p.role);
+    boundaryBlock += `    ${p.name}\n    {\n        type            ${bc.type};\n`;
+    if (bc.value) boundaryBlock += `        value           ${bc.value};\n`;
+    boundaryBlock += `    }\n`;
+  }
+
+  return `${foamHeader(opts.className, opts.field, '0')}
+dimensions      ${opts.dimensions};
+
+internalField   ${opts.internalField};
+
+boundaryField
+{
+${boundaryBlock}}
+`;
+}
+
+function renderPRgh(config: OpenFOAMCaseConfig): string {
+  return renderDerivedField(config, {
+    field: 'p_rgh',
+    className: 'volScalarField',
+    dimensions: '[1 -1 -2 0 0 0 0]',
+    internalField: 'uniform 101325',
+    bcFor: (role) => role === 'outlet'
+      ? { type: 'fixedValue', value: 'uniform 101325' }
+      : { type: 'fixedFluxPressure', value: 'uniform 101325' },
+  });
+}
+
+function renderBuoyantP(config: OpenFOAMCaseConfig): string {
+  // p is calculated from p_rgh by buoyantSimpleFoam.
+  return renderDerivedField(config, {
+    field: 'p',
+    className: 'volScalarField',
+    dimensions: '[1 -1 -2 0 0 0 0]',
+    internalField: 'uniform 101325',
+    bcFor: () => ({ type: 'calculated', value: 'uniform 101325' }),
+  });
+}
+
+function renderAlphat(config: OpenFOAMCaseConfig): string {
+  return renderDerivedField(config, {
+    field: 'alphat',
+    className: 'volScalarField',
+    dimensions: '[1 -1 -1 0 0 0 0]',
+    internalField: 'uniform 0',
+    bcFor: (role) => role === 'wall' || role === 'fixedTemperature' || role === 'heatFlux'
+      ? { type: 'compressible::alphatWallFunction', value: 'uniform 0' }
+      : { type: 'calculated', value: 'uniform 0' },
+  });
+}
+
+function renderNut(config: OpenFOAMCaseConfig): string {
+  return renderDerivedField(config, {
+    field: 'nut',
+    className: 'volScalarField',
+    dimensions: '[0 2 -1 0 0 0 0]',
+    internalField: 'uniform 0',
+    bcFor: (role) => role === 'wall' || role === 'fixedTemperature' || role === 'heatFlux'
+      ? { type: 'nutkWallFunction', value: 'uniform 0' }
+      : { type: 'calculated', value: 'uniform 0' },
+  });
+}
+
 function formatBCValue(value: number | Vec3 | undefined, field: string): string {
   if (value === undefined) return '';
   if (typeof value === 'number') {
@@ -453,4 +778,14 @@ function formatBCValue(value: number | Vec3 | undefined, field: string): string 
 
 function sanitizeCaseName(name: string): string {
   return name.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 64);
+}
+
+/**
+ * Sanitize a boundary-patch name for OpenFOAM. Allows letters, digits,
+ * underscore and hyphen — hyphens are preserved so UUID-bearing vent patch
+ * names (e.g. hvac_supply_3f2a-...) survive intact and still match the
+ * boundary-field entries. (The export smoke test asserts hyphen survival.)
+ */
+function sanitizePatchName(name: string): string {
+  return name.replace(/[^a-zA-Z0-9_-]/g, '_');
 }

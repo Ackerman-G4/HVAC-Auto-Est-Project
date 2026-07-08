@@ -18,6 +18,8 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
+import { computeJetSeeds, sampleJetSeed } from '@/lib/simulation/jet-seeding';
+import { usePrefersReducedMotion } from '@/lib/ui/motion';
 import { sampleScalarTrilinear, sampleVectorTrilinear } from '@/lib/simulation/field-sampling';
 import type { SimulationResult, ContourSliceConfig, StreamlineConfig, TileAirflowData, ThermalAlert, Vec3 } from '@/types/simulation';
 
@@ -209,6 +211,15 @@ export function AirflowParticles({ result, count = 500 }: ParticlesProps) {
     sizeZ: config.gridSizeZ,
   }), [res, config.gridSizeX, config.gridSizeY, config.gridSizeZ]);
 
+  // Physically-meaningful seeding: emit particles from the supply jets of the
+  // solved velocity field. Falls back to uniform seeding when the field is still.
+  const jetField = useMemo(
+    () => computeJetSeeds(result.velocityField, samplingSpec),
+    [result.velocityField, samplingSpec],
+  );
+
+  const prefersReducedMotion = usePrefersReducedMotion();
+
   // Mutable particle state — stored in refs for useFrame mutations
   const stateRef = useRef<{ positions: Float32Array; velocities: Float32Array; lives: Float32Array } | null>(null);
   const tempMatrixRef = useRef(new THREE.Matrix4());
@@ -225,9 +236,10 @@ export function AirflowParticles({ result, count = 500 }: ParticlesProps) {
     const zeroVelocity = { x: 0, y: 0, z: 0 };
 
     for (let i = 0; i < count; i++) {
-      const worldX = Math.random() * maxX;
-      const worldY = Math.random() * maxY;
-      const worldZ = Math.random() * maxZ;
+      const seed = sampleJetSeed(jetField, Math.random);
+      const worldX = seed ? seed.x : Math.random() * maxX;
+      const worldY = seed ? seed.y : Math.random() * maxY;
+      const worldZ = seed ? seed.z : Math.random() * maxZ;
       const vel = sampleVectorTrilinear(result.velocityField, worldX, worldY, worldZ, samplingSpec, zeroVelocity);
 
       positions[i * 3] = worldX - centerX;
@@ -241,7 +253,7 @@ export function AirflowParticles({ result, count = 500 }: ParticlesProps) {
 
     stateRef.current = { positions, velocities, lives };
     colorArrRef.current = new Float32Array(count * 3);
-  }, [result, count, config, res, centerX, centerY, samplingSpec]);
+  }, [result, count, config, res, centerX, centerY, samplingSpec, jetField]);
 
   useFrame((_, delta) => {
     const mesh = meshRef.current;
@@ -254,7 +266,9 @@ export function AirflowParticles({ result, count = 500 }: ParticlesProps) {
     const maxX = config.gridSizeX * res;
     const maxY = config.gridSizeY * res;
     const maxZ = config.gridSizeZ * res;
-    const dt = Math.min(delta, 0.05);
+    // Reduced motion: freeze advection (dt = 0). Particles stay visible at their
+    // jet-seeded positions — the information is kept, the animation removed.
+    const dt = prefersReducedMotion ? 0 : Math.min(delta, 0.05);
     const zeroVelocity = { x: 0, y: 0, z: 0 };
 
     for (let i = 0; i < count; i++) {
@@ -269,9 +283,10 @@ export function AirflowParticles({ result, count = 500 }: ParticlesProps) {
       const wz = positions[i * 3 + 1];
 
       if (lives[i] > 100 || wx < 0 || wx > maxX || wy < 0 || wy > maxY || wz < 0 || wz > maxZ) {
-        const seedX = Math.random() * maxX;
-        const seedY = Math.random() * maxY;
-        const seedZ = Math.random() * maxZ;
+        const seed = sampleJetSeed(jetField, Math.random);
+        const seedX = seed ? seed.x : Math.random() * maxX;
+        const seedY = seed ? seed.y : Math.random() * maxY;
+        const seedZ = seed ? seed.z : Math.random() * maxZ;
         const vel = sampleVectorTrilinear(result.velocityField, seedX, seedY, seedZ, samplingSpec, zeroVelocity);
 
         positions[i * 3] = seedX - centerX;

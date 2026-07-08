@@ -1,18 +1,26 @@
 import { type Variants } from 'framer-motion';
+import { MOTION_DURATION, MOTION_EASE } from '@/lib/ui/motion';
+
+// Staggered reveal (plan §6.1): list/grid items fade+slide in on load with a
+// 40ms cascade instead of popping in at once. Sourced from the single motion
+// vocabulary (src/lib/ui/motion.ts).
+
+const STAGGER = 0.04; // 40ms cascade
+const DELAY_CHILDREN = 0.06;
 
 export const listContainerVariants: Variants = {
   initial: {},
   hidden: {},
   animate: {
     transition: {
-      staggerChildren: 0.04,
-      delayChildren: 0.08,
+      staggerChildren: STAGGER,
+      delayChildren: DELAY_CHILDREN,
     },
   },
   visible: {
     transition: {
-      staggerChildren: 0.04,
-      delayChildren: 0.08,
+      staggerChildren: STAGGER,
+      delayChildren: DELAY_CHILDREN,
     },
   },
 };
@@ -20,26 +28,26 @@ export const listContainerVariants: Variants = {
 export const listItemVariants: Variants = {
   initial: {
     opacity: 0,
-    y: 15,
+    y: 12,
   },
   hidden: {
     opacity: 0,
-    y: 15,
+    y: 12,
   },
   animate: {
     opacity: 1,
     y: 0,
     transition: {
-      duration: 0.3,
-      ease: [0.25, 0.46, 0.45, 0.94],
+      duration: MOTION_DURATION.panel,
+      ease: MOTION_EASE,
     },
   },
   visible: {
     opacity: 1,
     y: 0,
     transition: {
-      duration: 0.3,
-      ease: [0.25, 0.46, 0.45, 0.94],
+      duration: MOTION_DURATION.panel,
+      ease: MOTION_EASE,
     },
   },
 };
@@ -47,14 +55,14 @@ export const listItemVariants: Variants = {
 export const tableRowVariants: Variants = {
   initial: {
     opacity: 0,
-    x: -10,
+    x: -8,
   },
   animate: {
     opacity: 1,
     x: 0,
     transition: {
-      duration: 0.2,
-      ease: 'easeOut',
+      duration: MOTION_DURATION.micro,
+      ease: MOTION_EASE,
     },
   },
 };
@@ -64,12 +72,12 @@ export const cardGridVariants: Variants = {
   hidden: {},
   animate: {
     transition: {
-      staggerChildren: 0.08,
+      staggerChildren: STAGGER,
     },
   },
   visible: {
     transition: {
-      staggerChildren: 0.08,
+      staggerChildren: STAGGER,
     },
   },
 };
@@ -77,12 +85,12 @@ export const cardGridVariants: Variants = {
 export const cardItemVariants: Variants = {
   initial: {
     opacity: 0,
-    y: 20,
+    y: 16,
     scale: 0.98,
   },
   hidden: {
     opacity: 0,
-    y: 20,
+    y: 16,
     scale: 0.98,
   },
   animate: {
@@ -90,8 +98,8 @@ export const cardItemVariants: Variants = {
     y: 0,
     scale: 1,
     transition: {
-      duration: 0.35,
-      ease: [0.25, 0.46, 0.45, 0.94],
+      duration: MOTION_DURATION.page,
+      ease: MOTION_EASE,
     },
   },
   visible: {
@@ -99,8 +107,8 @@ export const cardItemVariants: Variants = {
     y: 0,
     scale: 1,
     transition: {
-      duration: 0.35,
-      ease: [0.25, 0.46, 0.45, 0.94],
+      duration: MOTION_DURATION.page,
+      ease: MOTION_EASE,
     },
   },
 };

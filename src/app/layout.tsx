@@ -26,8 +26,8 @@ const jetBrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "HVAC-AEST-EA — Engineering Automation Platform",
-  description: "Next-generation HVAC estimation platform: intelligent cooling load analysis, automated equipment sizing, BOQ generation, and construction-ready outputs.",
+  title: "HVAC Studio — Engineering Estimation Platform",
+  description: "HVAC Studio: intelligent cooling load analysis, automated equipment sizing, BOQ generation, engineering-grade CFD, and construction-ready outputs.",
   manifest: "/manifest.json",
   icons: {
     icon: "/favicon.svg",
@@ -37,12 +37,12 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "HVAC-AEST-EA",
+    title: "HVAC Studio",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#3b82f6",
+  themeColor: "#1f3f62",
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,

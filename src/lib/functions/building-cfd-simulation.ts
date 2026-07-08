@@ -11,6 +11,13 @@ import type {
   SimulationMetrics,
   SimulationRunProgress,
 } from '@/types/simulation';
+import {
+  pmvPpd,
+  humidityRatioToRH,
+  PMV_MAX_AIR_SPEED,
+  DEFAULT_MET,
+  DEFAULT_CLO,
+} from '@/lib/engine/comfort/pmv';
 
 export const BUILDING_CFD_CANCELLED_ERROR = 'CFD_SIMULATION_CANCELLED';
 
@@ -325,6 +332,18 @@ function computeMetrics(
     ? clamp(dominantConnections / connections.length, 0, 1)
     : 0;
 
+  // Real ISO 7730 comfort (Wave 8). Air speed is capped at the ISO applicability
+  // ceiling — supply-jet speeds where nobody sits must not drive comfort — and
+  // the humidity ratio is converted to RH at the mean room temperature.
+  const comfort = pmvPpd({
+    ta: avgTemperature,
+    tr: avgTemperature,
+    vel: Math.min(avgVelocity, PMV_MAX_AIR_SPEED),
+    rh: humidityRatioToRH(config.ambientHumidityRatio, avgTemperature),
+    met: DEFAULT_MET,
+    clo: DEFAULT_CLO,
+  });
+
   return {
     maxTemperature,
     minTemperature,
@@ -358,8 +377,10 @@ function computeMetrics(
     deadZoneRatio: cellCount > 0 ? deadZoneCount / cellCount : 0,
     airflowDistributionScore: 1 - clamp(Math.abs(maxTemperature - minTemperature) / 25, 0, 1),
     uniformityIndex: 1 - clamp((maxTemperature - minTemperature) / 20, 0, 1),
-    pmvApprox: (avgTemperature - 24) * 0.35,
-    ppdApprox: clamp(Math.abs(avgTemperature - 24) * 12, 5, 100),
+    // Field names kept for backward compatibility; the values are now real
+    // ISO 7730 PMV/PPD rather than a linear placeholder.
+    pmvApprox: comfort.pmv,
+    ppdApprox: comfort.ppd,
     airflowBalanceM3s: airflowBalance,
     pressureImbalancePa: pressureImbalance,
     ventilationEffectiveness,

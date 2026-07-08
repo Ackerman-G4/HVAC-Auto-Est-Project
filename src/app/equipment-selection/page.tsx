@@ -18,6 +18,7 @@ import { RefreshCcw, WandSparkles } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatCard } from '@/components/ui/stat-card';
+import { Stagger, StaggerItem } from '@/components/ui/reveal';
 import { CollapsiblePanel } from '@/components/rebuild/CollapsiblePanel';
 import { DenseDataTable, DenseColumn } from '@/components/rebuild/DenseDataTable';
 import { InputField } from '@/components/rebuild/InputField';
@@ -216,12 +217,12 @@ export default function EquipmentSelectionPage() {
         {/* Right — Cost Breakdown + Chart */}
         <div className="space-y-(--space-component-gap)">
           {/* KPI Row */}
-          <div className="grid gap-(--space-component-gap) sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard title="Equipment" value={costBreakdown ? `₱${costBreakdown.equipmentCost.toLocaleString()}` : '—'} />
-            <StatCard title="Materials" value={costBreakdown ? `₱${costBreakdown.materialCost.toLocaleString()}` : '—'} />
-            <StatCard title="Labor" value={costBreakdown ? `₱${costBreakdown.laborCost.toLocaleString()}` : '—'} />
-            <StatCard title="Grand Total" value={costBreakdown ? `₱${costBreakdown.grandTotal.toLocaleString()}` : '—'} />
-          </div>
+          <Stagger className="grid gap-(--space-component-gap) sm:grid-cols-2 lg:grid-cols-4">
+            <StaggerItem><StatCard tone="currency" title="Equipment" value={costBreakdown ? `₱${costBreakdown.equipmentCost.toLocaleString()}` : '—'} /></StaggerItem>
+            <StaggerItem><StatCard tone="currency" title="Materials" value={costBreakdown ? `₱${costBreakdown.materialCost.toLocaleString()}` : '—'} /></StaggerItem>
+            <StaggerItem><StatCard tone="currency" title="Labor" value={costBreakdown ? `₱${costBreakdown.laborCost.toLocaleString()}` : '—'} /></StaggerItem>
+            <StaggerItem><StatCard tone="currency" title="Grand Total" value={costBreakdown ? `₱${costBreakdown.grandTotal.toLocaleString()}` : '—'} /></StaggerItem>
+          </Stagger>
 
           {/* Cost Pie + Score Bar */}
           <div className="grid gap-(--space-component-gap) lg:grid-cols-2">

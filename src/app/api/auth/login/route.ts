@@ -93,7 +93,7 @@ async function recordLoginFailureSafely(input: {
 }): Promise<void> {
 	if (input.countTowardLockout && isLockoutEnforcementEnabled()) {
 		try {
-			await recordFailedLogin(input.email);
+			await recordFailedLogin(input.email, input.ip);
 		} catch (error) {
 			console.error('Failed to record failed login attempt', error);
 		}
@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
 		if (isLockoutEnforcementEnabled()) {
 			let lockout = { locked: false, retryAfterSec: 0 };
 			try {
-				lockout = await isLockedOut(email);
+				lockout = await isLockedOut(email, ip);
 			} catch (error) {
 				console.error('Failed to check login lockout state', error);
 			}

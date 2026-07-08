@@ -422,6 +422,7 @@ export default function ProjectsPage() {
             </div>
           ) : projects.length === 0 ? (
             <EmptyState
+              ghostPreview={!search}
               icon={<Building2 className="w-12 h-12" />}
               title="No projects found"
               description={search ? 'Try a different search term' : 'Create your first HVAC project'}

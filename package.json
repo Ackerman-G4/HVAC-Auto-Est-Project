@@ -22,6 +22,7 @@
     "test:watch": "vitest",
     "validate:cfd:export": "vitest run src/lib/engine/simulation/__tests__/openfoam-export.smoke.test.ts",
     "validate:boq:sections": "vitest run src/lib/engine/cost/__tests__/boq-sections.smoke.test.ts",
+    "validate:price-override": "vitest run src/lib/functions/__tests__/equipment-pricing.test.ts",
     "audit:fix": "npm audit fix",
     "audit:check": "npm audit --audit-level=moderate",
     "clean": "Remove-Item -Recurse -Force .next -ErrorAction SilentlyContinue",

@@ -18,6 +18,7 @@ import { Info, MapPin, Plus, RefreshCcw, WandSparkles } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatCard } from '@/components/ui/stat-card';
+import { Stagger, StaggerItem } from '@/components/ui/reveal';
 import LoadBreakdownBar, { segmentsFromEntries } from '@/components/load/LoadBreakdownBar';
 import { CollapsiblePanel } from '@/components/rebuild/CollapsiblePanel';
 import { DenseColumn, DenseDataTable } from '@/components/rebuild/DenseDataTable';
@@ -285,11 +286,11 @@ export default function LoadCalculationPage() {
         {/* Right Column — Outputs */}
         <div className="space-y-(--space-component-gap)">
           {/* KPI Summary */}
-          <div className="grid gap-(--space-component-gap) sm:grid-cols-3">
-            <StatCard title="Design Load" value={`${result.breakdown.totalBtuAfterFactors.toLocaleString()} BTU/h`} />
-            <StatCard title="Cooling Tonnage" value={`${result.breakdown.trRequired.toFixed(2)} TR`} />
-            <StatCard title="Airflow" value={`${result.breakdown.cfmRequired.toLocaleString()} CFM`} />
-          </div>
+          <Stagger className="grid gap-(--space-component-gap) sm:grid-cols-3">
+            <StaggerItem><StatCard title="Design Load" value={`${result.breakdown.totalBtuAfterFactors.toLocaleString()} BTU/h`} /></StaggerItem>
+            <StaggerItem><StatCard title="Cooling Tonnage" value={`${result.breakdown.trRequired.toFixed(2)} TR`} /></StaggerItem>
+            <StaggerItem><StatCard title="Airflow" value={`${result.breakdown.cfmRequired.toLocaleString()} CFM`} /></StaggerItem>
+          </Stagger>
 
           {/* Load Breakdown Chart */}
           <Card>

@@ -7,8 +7,8 @@ export interface RouteMeta {
 }
 
 const DEFAULT_META: RouteMeta = {
-  title: 'HVAC Engineering Platform',
-  subtitle: 'Program cockpit',
+  title: 'HVAC Studio',
+  subtitle: 'Engineering cockpit',
   hideHeader: false,
   fullBleed: false,
   constrained: false,

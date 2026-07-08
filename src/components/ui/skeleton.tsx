@@ -1,14 +1,48 @@
 'use client';
 
+/**
+ * Skeleton — jade-tinted shimmer placeholders (plan §Phase 1). Replaces blank
+ * panels / bare spinners while data loads so a loading surface reads as
+ * "content is coming", not "nothing here". The shimmer lives in the `.skeleton`
+ * class (globals.css) and collapses to a static tint under reduced motion.
+ */
+
 import React from 'react';
 import { cn } from '@/lib/utils/cn';
 
 export function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn('animate-pulse rounded-2xl bg-secondary/70', className)}
+      className={cn('skeleton rounded-2xl', className)}
+      aria-hidden="true"
       {...props}
     />
+  );
+}
+
+/**
+ * SkeletonList — N stacked card placeholders for async collections
+ * (e.g. "Simulation Cases" while they load). Announces a busy state to AT.
+ */
+export function SkeletonList({
+  count = 3,
+  className,
+}: {
+  count?: number;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn('flex flex-col gap-3', className)}
+      role="status"
+      aria-busy="true"
+      aria-label="Loading"
+    >
+      {Array.from({ length: count }).map((_, i) => (
+        <CardSkeleton key={i} />
+      ))}
+      <span className="sr-only">Loading…</span>
+    </div>
   );
 }
 

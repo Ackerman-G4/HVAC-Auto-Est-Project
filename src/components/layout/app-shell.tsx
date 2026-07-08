@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { HvacLogo } from '@/components/ui/hvac-logo';
 import { SystemLoadingScreen } from '@/components/layout/system-loading-screen';
 import { WelcomeOverlay } from '@/components/layout/welcome-overlay';
+import { PageTransition } from '@/components/ui/page-transition';
 import { useAuthStore } from '@/stores/auth-store';
 import { useUIStore } from '@/stores/ui-store';
 import { getRouteMeta } from '@/config/routes';
@@ -124,7 +125,7 @@ export function AppShell({ children }: AppShellProps) {
       <main id="main-content" className="relative min-w-0 overflow-hidden">
         <div className="flex h-screen min-h-0 flex-col">
           {!routeMeta.hideHeader && (
-            <header className="panel-glass sticky top-0 z-20 flex h-16 shrink-0 items-center border-b border-border/70 px-4 md:px-6">
+            <header className="panel-glass elev-floating sticky top-0 z-20 flex h-16 shrink-0 items-center border-b border-border/70 px-4 md:px-6">
               <div className="flex w-full items-center justify-between gap-4">
                 <div className="flex min-w-0 items-center gap-3 pl-13 md:pl-0">
                   <HvacLogo variant="mono" size={24} className="hidden text-muted-foreground md:block" />
@@ -209,7 +210,7 @@ export function AppShell({ children }: AppShellProps) {
             </header>
           )}
 
-          <div className="relative min-h-0 flex-1 overflow-auto">
+          <div className="surface-recessed relative min-h-0 flex-1 overflow-auto">
             <div
               className={cn(
                 'relative min-h-full w-full',
@@ -221,7 +222,7 @@ export function AppShell({ children }: AppShellProps) {
                   : 'px-(--space-page-x) py-(--space-page-y)',
               )}
             >
-              {children}
+              <PageTransition>{children}</PageTransition>
             </div>
           </div>
         </div>

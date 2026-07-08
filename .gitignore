@@ -60,6 +60,10 @@ next-env.d.ts
 # local pglite database
 .pglite-hvac/
 
+# python bytecode (cfd-solver wrapper)
+__pycache__/
+*.pyc
+
 # generated docx parity artifacts
 /.logs/docx-parity-*/
 /HVAC_Accuracy_Improvement_Plan.docx

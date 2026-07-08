@@ -53,10 +53,13 @@ interface SeededProjectSummary {
 }
 
 // ─── Test User ─────────────────────────────────────────────
+// Credentials are overridable so the seeded projects can be owned by any
+// existing account (e.g. SEED_USER_EMAIL=admin@hvac-auto.dev). If the account
+// already exists, registration fails and the script falls back to login.
 const TEST_USER = {
-  email: 'test@hvac-auto.dev',
-  password: 'SeedMockPass2026!',
-  displayName: 'Test Engineer',
+  email: process.env.SEED_USER_EMAIL || 'test@hvac-auto.dev',
+  password: process.env.SEED_USER_PASSWORD || 'SeedMockPass2026!',
+  displayName: process.env.SEED_USER_NAME || 'Test Engineer',
   role: 'admin' as const,
 };
 
@@ -987,19 +990,52 @@ function buildRoomPayload(floorDef: FloorDef, room: RoomDef) {
   };
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// The API rate-limits mutations (rooms 30/min, projects 20/min). Throttle every
+// request and, on a 429, honour Retry-After and retry so a large seed completes
+// unattended instead of aborting halfway.
+const REQUEST_DELAY_MS = parseIntEnv('SEED_REQUEST_DELAY_MS') ?? 350;
+const MAX_RETRIES = 6;
+
 async function apiPost(path: string, body: unknown, token?: string): Promise<unknown> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`${res.status} ${path}: ${text}`);
+
+  for (let attempt = 0; ; attempt += 1) {
+    let res: Response;
+    try {
+      res = await fetch(`${BASE_URL}${path}`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+    } catch (err) {
+      // Transient network fault (ECONNRESET, dev-server hiccup). Back off and retry.
+      if (attempt < MAX_RETRIES) {
+        console.log(`    · network error (${(err as Error).message}), retrying in 3s…`);
+        await sleep(3000);
+        continue;
+      }
+      throw err;
+    }
+
+    if (res.status === 429 && attempt < MAX_RETRIES) {
+      const retryAfterSec = Number.parseInt(res.headers.get('Retry-After') || '', 10);
+      const waitMs = Number.isFinite(retryAfterSec) && retryAfterSec > 0 ? retryAfterSec * 1000 : 2000;
+      console.log(`    · rate limited, waiting ${Math.ceil(waitMs / 1000)}s…`);
+      await sleep(waitMs + 250);
+      continue;
+    }
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`${res.status} ${path}: ${text}`);
+    }
+
+    await sleep(REQUEST_DELAY_MS);
+    return res.json();
   }
-  return res.json();
 }
 
 // ─── Main ──────────────────────────────────────────────────

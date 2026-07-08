@@ -11,13 +11,17 @@ import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import dynamic from 'next/dynamic';
 import {
   Plus, Play, Download, Upload, Trash2, RefreshCw,
-  Box, Settings2, Layers, BarChart3,
+  Settings2, Layers, BarChart3,
   AlertCircle, CheckCircle2, Loader2,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Stagger, StaggerItem } from '@/components/ui/reveal';
+import { SectionLabel } from '@/components/ui/section-label';
 import AirflowViewer3D from '@/components/building/AirflowViewer3D';
 
 // Strangler-pattern R3F viewer (plan §5.1): loaded client-only, mounted behind a
@@ -27,6 +31,11 @@ const SimulationCanvas = dynamic(() => import('@/components/simulation/r3f/Simul
   loading: () => (
     <div className="grid min-h-[320px] place-items-center text-xs text-muted-foreground">Loading 3D viewer…</div>
   ),
+});
+
+// Ambient wireframe for the zero state — client-only (WebGL), no data.
+const AmbientWireframe = dynamic(() => import('@/components/simulation/r3f/AmbientWireframe'), {
+  ssr: false,
 });
 import { useSimulationEngineStore } from '@/stores/simulation-engine-store';
 import { useProjectStore } from '@/stores/project-store';
@@ -241,6 +250,7 @@ export default function SimulationEnginePage() {
   const [selectedProjectId, setSelectedProjectId] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newCaseName, setNewCaseName] = useState('');
+  const newCaseInputRef = useRef<HTMLInputElement>(null);
   const [snapshotPreviewMode, setSnapshotPreviewMode] = useState<SnapshotPreviewMode>('temperature');
   const [snapshotAutoLoadPreviewField, setSnapshotAutoLoadPreviewField] = useState(true);
   const [useR3FViewer, setUseR3FViewer] = useState(false);
@@ -811,8 +821,10 @@ export default function SimulationEnginePage() {
           </div>
 
           {isLoadingCases && (
-            <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
-              <Loader2 size={14} className="animate-spin" /> Loading...
+            <div className="space-y-1.5 py-1">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-11 w-full rounded-md" />
+              ))}
             </div>
           )}
 
@@ -820,30 +832,34 @@ export default function SimulationEnginePage() {
             <p className="py-4 text-center text-xs text-muted-foreground">No simulation cases yet</p>
           )}
 
-          <div className="space-y-1.5">
-            {cases.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => selectCase(c.id)}
-                className={`w-full rounded-md border p-2 text-left text-xs transition-colors ${
-                  activeCase?.id === c.id
-                    ? 'border-accent bg-accent/10'
-                    : 'border-border hover:bg-muted/30'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-medium">{c.name}</span>
-                  <CaseStatusBadge status={c.status} />
-                </div>
-                <p className="mt-0.5 text-muted-foreground">{c.runSource} &middot; {c.geometry.lengthM}×{c.geometry.widthM}×{c.geometry.heightM}m</p>
-              </button>
-            ))}
-          </div>
+          {!isLoadingCases && cases.length > 0 && (
+            <Stagger className="space-y-1.5">
+              {cases.map((c) => (
+                <StaggerItem key={c.id}>
+                  <button
+                    onClick={() => selectCase(c.id)}
+                    className={`w-full rounded-md border p-2 text-left text-xs transition-colors ${
+                      activeCase?.id === c.id
+                        ? 'border-accent bg-accent/10'
+                        : 'border-border hover:bg-muted/30'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">{c.name}</span>
+                      <CaseStatusBadge status={c.status} />
+                    </div>
+                    <p className="mt-0.5 text-muted-foreground">{c.runSource} &middot; {c.geometry.lengthM}×{c.geometry.widthM}×{c.geometry.heightM}m</p>
+                  </button>
+                </StaggerItem>
+              ))}
+            </Stagger>
+          )}
 
           {/* Create Form */}
           {showCreateForm && (
             <div className="mt-3 space-y-2 rounded-md border border-border p-2">
               <input
+                ref={newCaseInputRef}
                 type="text"
                 value={newCaseName}
                 onChange={(e) => setNewCaseName(e.target.value)}
@@ -917,12 +933,28 @@ export default function SimulationEnginePage() {
       {/* ── Center Panel: Case Details & Mesh Preview ──────── */}
       <div className="flex flex-1 flex-col gap-3 overflow-y-auto">
         {!activeCase ? (
-          <Card className="flex flex-1 items-center justify-center p-8">
-            <div className="text-center">
-              <Box size={40} className="mx-auto mb-3 text-muted-foreground/50" />
-              <p className="text-sm text-muted-foreground">Select or create a simulation case</p>
-            </div>
-          </Card>
+          <EmptyState
+            className="flex-1 border-none bg-transparent py-10"
+            ghostPreview
+            illustration={<AmbientWireframe className="h-full w-full" />}
+            title={cases.length === 0 ? 'No simulation cases yet' : 'Select a simulation case'}
+            description={
+              cases.length === 0
+                ? 'Define a room, pick a solver tier, and run airflow + thermal comfort in the browser.'
+                : 'Choose a case from the list, or spin up a new one to preview the field here.'
+            }
+            action={
+              <Button
+                onClick={() => {
+                  setShowCreateForm(true);
+                  requestAnimationFrame(() => newCaseInputRef.current?.focus());
+                }}
+                disabled={!projectId}
+              >
+                <Plus size={14} /> Create your first simulation case
+              </Button>
+            }
+          />
         ) : (
           <>
             {/* Case Header */}
@@ -1421,27 +1453,37 @@ export default function SimulationEnginePage() {
                             : 'Unavailable'}
                   </span>
                 </div>
-                {useR3FViewer ? (
-                  <div className="h-[360px] overflow-hidden rounded-md border border-border/60">
+                <div className="canvas-ambient relative h-[360px] overflow-hidden rounded-md border border-border/60">
+                  {/* Floating glass toolbar — view context stays next to what you're
+                      looking at, not only in the far sidebar (plan §Phase 4). */}
+                  <div className="pointer-events-none absolute left-3 top-3 z-10 flex items-center gap-2">
+                    <span className="panel-glass rounded-lg border border-border/60 px-2.5 py-1 text-[11px] font-medium capitalize text-foreground shadow-sm">
+                      {snapshotPreviewMode} field
+                    </span>
+                    <span className="panel-glass rounded-lg border border-border/60 px-2.5 py-1 text-[11px] font-medium text-muted-foreground shadow-sm">
+                      {useR3FViewer ? 'R3F viewer' : 'Legacy viewer'}
+                    </span>
+                  </div>
+                  {useR3FViewer ? (
                     <SimulationCanvas
                       result={snapshotPreviewResult}
                       showTemperature={snapshotPreviewMode === 'temperature'}
                       showVelocity
                     />
-                  </div>
-                ) : (
-                  <AirflowViewer3D
-                    result={snapshotPreviewResult}
-                    racks={activeCase.geometry.racks}
-                    hvacUnits={activeCase.geometry.hvacUnits}
-                    showHotspots={false}
-                    showAirflow={false}
-                    selectedSliceZ={snapshotSliceZ}
-                    viewMode={snapshotPreviewMode}
-                    tileFlowView={snapshotTileFlowView}
-                    streamlineSeedPoints={snapshotStreamlineSeedPoints}
-                  />
-                )}
+                  ) : (
+                    <AirflowViewer3D
+                      result={snapshotPreviewResult}
+                      racks={activeCase.geometry.racks}
+                      hvacUnits={activeCase.geometry.hvacUnits}
+                      showHotspots={false}
+                      showAirflow={false}
+                      selectedSliceZ={snapshotSliceZ}
+                      viewMode={snapshotPreviewMode}
+                      tileFlowView={snapshotTileFlowView}
+                      streamlineSeedPoints={snapshotStreamlineSeedPoints}
+                    />
+                  )}
+                </div>
               </Card>
             )}
           </>
@@ -1451,13 +1493,14 @@ export default function SimulationEnginePage() {
       {/* ── Right Panel: Actions & Export/Import ───────────── */}
       <div className="flex w-64 shrink-0 flex-col gap-3">
         {/* Run Controls — solver tier split (plan §D2, §4.3) */}
-        <Card className="p-3">
-          <h3 className="mb-2 text-sm font-semibold">Run Controls</h3>
+        <Card className="elev-raised p-3">
+          <SectionLabel icon={<Play size={12} />}>Run Controls</SectionLabel>
           <div className="space-y-2">
-            <div className="rounded-md border border-border/70 p-2">
+            <div className="rounded-md border border-accent/30 bg-accent/5 p-2">
               <Button
                 size="sm"
-                className="w-full"
+                variant="accent"
+                className="cta-glow w-full"
                 onClick={() => startRun('internal')}
                 disabled={!activeCase || activeCase.status === 'running' || activeCase.status === 'queued'}
               >
@@ -1468,11 +1511,11 @@ export default function SimulationEnginePage() {
                 Instant, in-browser. Temperature, velocity, pressure &amp; humidity. Free tier.
               </p>
             </div>
-            <div className="rounded-md border border-accent/40 p-2">
+            <div className="rounded-md border border-[color:color-mix(in_oklab,var(--copper)_45%,var(--border))] p-2">
               <Button
                 size="sm"
                 variant="outline"
-                className="w-full"
+                className="w-full border-[color:color-mix(in_oklab,var(--copper)_55%,var(--border))] text-[color:var(--copper)] hover:bg-[color:color-mix(in_oklab,var(--copper)_12%,transparent)]"
                 onClick={() => startRun('openfoam')}
                 disabled={!activeCase || activeCase.status === 'running' || activeCase.status === 'queued'}
               >
@@ -1497,8 +1540,8 @@ export default function SimulationEnginePage() {
         </Card>
 
         {/* Export / Import */}
-        <Card className="p-3">
-          <h3 className="mb-2 text-sm font-semibold">Export / Import</h3>
+        <Card className="elev-raised p-3">
+          <SectionLabel icon={<Download size={12} />}>Export / Import</SectionLabel>
           <div className="space-y-1.5">
             <Button
               size="sm"
@@ -1539,8 +1582,8 @@ export default function SimulationEnginePage() {
         </Card>
 
         {/* Contour Slices */}
-        <Card className="flex-1 p-3">
-          <h3 className="mb-2 text-sm font-semibold">Contour Slices</h3>
+        <Card className="elev-raised flex-1 p-3">
+          <SectionLabel icon={<Layers size={12} />}>Contour Slices</SectionLabel>
           <Button
             size="sm"
             variant="ghost"

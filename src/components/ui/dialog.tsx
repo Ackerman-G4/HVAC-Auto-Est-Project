@@ -78,7 +78,7 @@ export function Dialog({ open, onClose, title, description, children, size = 'md
       {open && (
         <div className="fixed inset-0 flex items-center justify-center p-4 sm:p-6" style={{ zIndex: Z.modal }}>
           <motion.div
-            className="fixed inset-0 bg-[radial-gradient(circle_at_50%_10%,rgba(206,161,74,0.16),rgba(11,18,29,0.82)_62%)] backdrop-blur-sm"
+            className="fixed inset-0 bg-[radial-gradient(circle_at_50%_10%,color-mix(in_oklab,var(--primary)_18%,transparent),rgba(10,20,29,0.82)_62%)] backdrop-blur-sm"
             variants={modalOverlayVariants}
             initial="initial"
             animate="animate"

@@ -18,6 +18,7 @@ import { Info, RefreshCcw, WandSparkles } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatCard } from '@/components/ui/stat-card';
+import { Stagger, StaggerItem } from '@/components/ui/reveal';
 import { CollapsiblePanel } from '@/components/rebuild/CollapsiblePanel';
 import { DenseColumn, DenseDataTable } from '@/components/rebuild/DenseDataTable';
 import { InputField } from '@/components/rebuild/InputField';
@@ -143,11 +144,11 @@ export default function AirflowDuctDesignPage() {
       </Card>
 
       {/* KPI Cards */}
-      <section className="grid gap-(--space-component-gap) sm:grid-cols-3">
-        <StatCard title="Total Static Pressure" value={`${result.totalStaticPressureInWg.toFixed(2)} in.wg`} />
-        <StatCard title="Fan Power" value={`${result.requiredFanPowerHp.toFixed(2)} HP`} />
-        <StatCard title="Trunk Duct" value={`${result.trunkDiameterIn} in`} />
-      </section>
+      <Stagger as="section" className="grid gap-(--space-component-gap) sm:grid-cols-3">
+        <StaggerItem><StatCard title="Total Static Pressure" value={`${result.totalStaticPressureInWg.toFixed(2)} in.wg`} /></StaggerItem>
+        <StaggerItem><StatCard title="Fan Power" value={`${result.requiredFanPowerHp.toFixed(2)} HP`} /></StaggerItem>
+        <StaggerItem><StatCard title="Trunk Duct" value={`${result.trunkDiameterIn} in`} /></StaggerItem>
+      </Stagger>
 
       {/* Full-Width Branch Sizing Table */}
       <Card className="panel-glass border-border/70 p-6 lg:p-8">

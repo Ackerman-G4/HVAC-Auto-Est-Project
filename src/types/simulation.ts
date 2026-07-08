@@ -855,6 +855,30 @@ export interface OpenFOAMCaseConfig {
     writeFormat: string;
     writePrecision: number;
   };
+  /**
+   * Named boundary patches for topoSet/createPatch generation (Wave 8 foundation
+   * repair). blockMesh emits six generic box faces; topoSet carves a faceSet per
+   * named patch and createPatch converts them into the real named patches the
+   * boundary-condition files reference. Order matters — see the exporter's
+   * "do not reorder" note (createPatch assigns a doubly-claimed face to the LAST
+   * dict entry, so specific vent patches must follow generic wall patches).
+   */
+  namedPatches?: {
+    /** Sanitized patch name (hyphens preserved). */
+    name: string;
+    /** Original semantic role, drives boundary conditions. */
+    role: BoundaryPatchType;
+    /** OpenFOAM patch type used by createPatch. */
+    foamType: 'patch' | 'wall';
+    /** Axis-aligned box (m) selecting this patch's boundary faces via boxToFace. */
+    box: { min: Vec3; max: Vec3 };
+  }[];
+  /** Mesh extents in metres, for the blockMesh boundary and faceSet boxes. */
+  meshExtents?: Vec3;
+  /** Gravity vector for constant/g (z is vertical in this codebase's grid). */
+  gravity?: Vec3;
+  /** True when the case uses a buoyant (thermophysical) solver. */
+  buoyant?: boolean;
 }
 
 // ─── Simulation Engine: Contour/Slice Visualization ─────────────────

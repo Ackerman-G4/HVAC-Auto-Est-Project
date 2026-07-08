@@ -27,6 +27,7 @@ import {
 import { HvacLogo } from '@/components/ui/hvac-logo';
 import { cn } from '@/lib/utils/cn';
 import { sidebarVariants } from '@/animations/shared';
+import { panelTransition } from '@/lib/ui/motion';
 import { useUIStore } from '@/stores/ui-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { Z } from '@/lib/utils/z-indexes';
@@ -118,7 +119,7 @@ export function Sidebar() {
           collapsed ? 'justify-center' : '',
           indent && !collapsed ? 'ml-4 pl-4' : '',
           active
-            ? 'bg-primary/16 text-primary shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--primary)_35%,transparent)]'
+            ? 'bg-gradient-to-r from-primary/22 via-primary/12 to-transparent text-primary shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--primary)_30%,transparent)]'
             : 'text-muted-foreground hover:bg-secondary/80 hover:text-foreground'
         )}
       >
@@ -182,7 +183,7 @@ export function Sidebar() {
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
+                transition={panelTransition}
                 className="overflow-hidden"
               >
                 <div className="mt-0.5 flex flex-col gap-0.5">
