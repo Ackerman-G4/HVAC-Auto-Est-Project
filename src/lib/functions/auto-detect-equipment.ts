@@ -10,7 +10,6 @@
  * - Any room with selected HVAC equipment → generates matching HVACUnit entries
  * - Perforated tiles placed in a grid under every server_room
  */
-import type { Room, Floor } from '@/types/project';
 import type {
   ServerRack,
   HVACUnit,
@@ -18,9 +17,32 @@ import type {
   RackDensity,
   HVACUnitType,
 } from '@/types/simulation';
+import { resolveRoomRects, type RoomRect } from '@/lib/simulation/building-geometry';
+
+/**
+ * Structural minimums this detector reads. Both the project `Room`/`Floor`
+ * (store path) and the viewer's `DetectedRoom`/`DetectedFloor` satisfy these,
+ * so a single implementation serves both callers.
+ */
+export interface AutoDetectRoom {
+  id: string;
+  name: string;
+  spaceType: string;
+  area: number;
+  perimeter?: number;
+  equipmentLoad: number;
+  polygon?: string;
+}
+
+export interface AutoDetectFloor {
+  id: string;
+  floorNumber: number;
+  scale: number;
+  rooms: AutoDetectRoom[];
+}
 
 export interface AutoDetectInput {
-  floors: (Floor & { rooms: Room[] })[];
+  floors: AutoDetectFloor[];
   /** Grid resolution in meters — used to compute tile grid positions */
   gridResolution: number;
 }
@@ -68,36 +90,42 @@ export function autoDetectEquipment(input: AutoDetectInput): AutoDetectResult {
   let rackCounter = 1;
   let hvacCounter = 1;
 
-  // Track cumulative offsets so each room's equipment occupies its own zone
-  let offsetX = 0;
-  const ROOM_GAP = 1.5; // gap between rooms in the layout
-
   for (const floor of input.floors) {
+    // Equipment places itself inside the SAME room rects the solver builds, so
+    // it aligns with the room walls. Canonical coords: x = floor horizontal,
+    // y = floor depth, z = elevation (0 for floor-mounted). Depth must go to
+    // `y`, never `z` — writing depth to z made every unit float off the grid.
+    const rects = resolveRoomRects(floor);
+    const rectFor = (room: AutoDetectRoom): RoomRect => {
+      const r = rects.get(room.id);
+      if (r) return r;
+      const side = Math.sqrt(Math.max(room.area, 1) * 1.5);
+      return { minX: 0, minY: 0, width: side, length: Math.max(room.area, 1) / side };
+    };
+
     for (const room of floor.rooms) {
       // ── Server rooms → racks + CRAC units + perforated tiles ──
       if (room.spaceType === 'server_room' && room.equipmentLoad > 0) {
         const totalKW = room.equipmentLoad / 1000;
         const density = classifyDensity(room.equipmentLoad / Math.max(room.area, 1));
         const preset = DENSITY_POWER_MAP[density];
-
-        // Number of racks based on total load / per-rack power
         const rackCount = Math.max(1, Math.round(totalKW / preset.powerKW));
 
-        // Lay racks in rows within the room footprint
-        const roomWidthM = Math.sqrt(room.area * 1.5); // approximate width (assume 1.5:1 aspect)
-        const roomDepthM = room.area / roomWidthM;
-        const racksPerRow = Math.max(1, Math.floor((roomWidthM - 1) / (RACK_W + 0.3)));
+        const rect = rectFor(room);
+        const maxX = rect.minX + rect.width - 0.5;
+        const maxY = rect.minY + rect.length - 0.5;
+        const racksPerRow = Math.max(1, Math.floor((rect.width - 1) / (RACK_W + 0.3)));
         const rowSpacing = 1.2; // hot-aisle/cold-aisle spacing
 
         for (let i = 0; i < rackCount; i++) {
           const row = Math.floor(i / racksPerRow);
           const col = i % racksPerRow;
-          const x = offsetX + 0.5 + col * (RACK_W + 0.3);
-          const z = 0.8 + row * (RACK_D + rowSpacing);
+          const x = rect.minX + 0.5 + col * (RACK_W + 0.3);
+          const yDepth = rect.minY + 0.8 + row * (RACK_D + rowSpacing);
 
           racks.push({
             name: `Rack-${String(rackCounter++).padStart(2, '0')}`,
-            position: { x: Math.min(x, offsetX + roomWidthM - 0.5), y: 0, z: Math.min(z, roomDepthM - 0.5) },
+            position: { x: Math.min(x, maxX), y: Math.min(yDepth, maxY), z: 0 },
             width: RACK_W,
             depth: RACK_D,
             height: RACK_H,
@@ -117,14 +145,12 @@ export function autoDetectEquipment(input: AutoDetectInput): AutoDetectResult {
 
         for (let c = 0; c < cracCount; c++) {
           const isStandby = c === cracCount - 1;
+          const x = c % 2 === 0 ? rect.minX + 0.45 : rect.minX + rect.width - 0.9;
+          const yDepth = rect.minY + 0.5 + Math.floor(c / 2) * 3;
           hvacUnits.push({
             type: 'crac' as HVACUnitType,
             name: `CRAC-${String(hvacCounter++).padStart(2, '0')}${isStandby ? ' (Standby)' : ''}`,
-            position: {
-              x: offsetX + (c % 2 === 0 ? 0.3 : roomWidthM - 1.2),
-              y: 0,
-              z: 0.5 + Math.floor(c / 2) * 3,
-            },
+            position: { x: Math.min(Math.max(x, rect.minX + 0.45), maxX), y: Math.min(yDepth, maxY), z: 0 },
             width: 0.9,
             depth: 0.9,
             height: 2.1,
@@ -139,20 +165,21 @@ export function autoDetectEquipment(input: AutoDetectInput): AutoDetectResult {
           });
         }
 
-        // Perforated tiles — grid coverage under server room area
-        const tileGridW = Math.floor(roomWidthM / TILE_SIZE);
-        const tileGridD = Math.floor(roomDepthM / TILE_SIZE);
+        // Perforated tiles — cold-aisle grid, in GRID-CELL indices relative to
+        // this room's rect (matches the CFD tile frame: cellIndex * res = m).
+        const tileGridW = Math.floor(rect.width / TILE_SIZE);
+        const tileGridD = Math.floor(rect.length / TILE_SIZE);
         const cellsPerTile = Math.max(1, Math.round(TILE_SIZE / input.gridResolution));
-        const tileOffsetCells = Math.round(offsetX / input.gridResolution);
+        const baseCellX = Math.round(rect.minX / input.gridResolution);
+        const baseCellY = Math.round(rect.minY / input.gridResolution);
 
         for (let tx = 0; tx < tileGridW; tx++) {
           for (let tz = 0; tz < tileGridD; tz++) {
-            // Place tiles in cold aisles (every other row under racks)
-            const isUnderRack = tx % 3 === 1; // skip hot-aisle positions
-            if (!isUnderRack) {
+            const isColdAisle = tx % 3 === 1; // skip hot-aisle positions
+            if (isColdAisle) {
               tiles.push({
-                x: tileOffsetCells + tx * cellsPerTile,
-                y: tz * cellsPerTile,
+                x: baseCellX + tx * cellsPerTile,
+                y: baseCellY + tz * cellsPerTile,
                 openArea: 0.25,
                 tileSize: TILE_SIZE,
               });
@@ -164,8 +191,6 @@ export function autoDetectEquipment(input: AutoDetectInput): AutoDetectResult {
           `Floor ${floor.floorNumber} "${room.name}": ${rackCount} rack(s) [${density}], ` +
           `${cracCount} CRAC unit(s), ${tiles.length} perforated tile(s)`,
         );
-
-        offsetX += roomWidthM + ROOM_GAP;
       }
 
       // ── Mechanical rooms → AHU units ──────────────────────
@@ -173,13 +198,14 @@ export function autoDetectEquipment(input: AutoDetectInput): AutoDetectResult {
         const loadKW = room.equipmentLoad / 1000;
         const ahuCount = Math.max(1, Math.ceil(loadKW / 50));
         const perAhuKW = loadKW / ahuCount;
-        const roomWidthM = Math.sqrt(room.area * 1.5);
+        const rect = rectFor(room);
+        const maxX = rect.minX + rect.width - 1;
 
         for (let a = 0; a < ahuCount; a++) {
           hvacUnits.push({
             type: 'ahu' as HVACUnitType,
             name: `AHU-${String(hvacCounter++).padStart(2, '0')}`,
-            position: { x: offsetX + 1 + a * 2.5, y: 0, z: 1 },
+            position: { x: Math.min(rect.minX + 1 + a * 2.5, maxX), y: rect.minY + rect.length / 2, z: 0 },
             width: 2.0,
             depth: 1.5,
             height: 2.2,
@@ -197,8 +223,6 @@ export function autoDetectEquipment(input: AutoDetectInput): AutoDetectResult {
         summary.push(
           `Floor ${floor.floorNumber} "${room.name}": ${ahuCount} AHU(s) @ ${perAhuKW.toFixed(1)} kW each`,
         );
-
-        offsetX += roomWidthM + ROOM_GAP;
       }
 
       // ── High-load non-server rooms → in-row cooling ───────
@@ -208,10 +232,11 @@ export function autoDetectEquipment(input: AutoDetectInput): AutoDetectResult {
         room.equipmentLoad > 5000
       ) {
         const loadKW = room.equipmentLoad / 1000;
+        const rect = rectFor(room);
         hvacUnits.push({
           type: 'vent_duct' as HVACUnitType,
           name: `VD-${String(hvacCounter++).padStart(2, '0')} (${room.name})`,
-          position: { x: offsetX + 1, y: 0, z: 1 },
+          position: { x: Math.min(rect.minX + 1, rect.minX + rect.width - 0.3), y: rect.minY + rect.length / 2, z: 0 },
           width: 0.6,
           depth: 0.6,
           height: 0.3,
@@ -227,8 +252,6 @@ export function autoDetectEquipment(input: AutoDetectInput): AutoDetectResult {
         summary.push(
           `Floor ${floor.floorNumber} "${room.name}": 1 vent-duct unit @ ${loadKW.toFixed(1)} kW`,
         );
-
-        offsetX += 3 + ROOM_GAP;
       }
     }
   }

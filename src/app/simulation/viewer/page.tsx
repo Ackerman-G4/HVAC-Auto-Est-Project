@@ -32,9 +32,9 @@ import {
   snapHVACUnit,
   validateHVACPlacement,
   sanitizeHVACPlacements,
-  inferRacksFromRoom,
-  inferHVACFromRoom,
 } from '@/features/simulation/viewer/helpers';
+import { autoDetectEquipment } from '@/lib/functions/auto-detect-equipment';
+import { normalizeRoomLayout } from '@/lib/simulation/normalize-room-layout';
 
 const AirflowViewer3D = dynamic(
   () => import('@/components/building/AirflowViewer3D').then(mod => mod.default),
@@ -1197,7 +1197,8 @@ export default function SimulationPage() {
     return 'Layout synced';
   }, [layoutSaveState]);
 
-  // Auto-detect handler: infer racks + HVAC from room specs
+  // Auto-detect handler: one implementation (autoDetectEquipment) routed
+  // through normalizeRoomLayout so racks, HVAC, and the grid share one frame.
   const handleAutoDetect = useCallback(() => {
     const floor = detectedFloors.find(f => f.id === selectedFloorId);
     if (!floor || floor.rooms.length === 0) {
@@ -1206,55 +1207,34 @@ export default function SimulationPage() {
     }
 
     setIsDetecting(true);
-
-    // Clear existing equipment and results
     clearAll();
     setSelectedHVACId(null);
 
-    const allRacks: Omit<ServerRack, 'id'>[] = [];
-    const allHVAC: Omit<HVACUnit, 'id'>[] = [];
-    let offsetX = 1;
+    const detected = autoDetectEquipment({ floors: [floor], gridResolution: config.gridResolution });
+    const seededRacks: ServerRack[] = detected.racks.map((r, i) => ({ ...r, id: `auto-rack-${i + 1}-${crypto.randomUUID()}` }));
+    const seededHVAC: HVACUnit[] = detected.hvacUnits.map((u, i) => ({ ...u, id: `auto-hvac-${i + 1}-${crypto.randomUUID()}` }));
 
-    for (const room of floor.rooms) {
-      // Infer racks (only for server rooms)
-      const racks = inferRacksFromRoom(room, offsetX);
-      allRacks.push(...racks);
-
-      // Infer HVAC units for every room
-      const hvacs = inferHVACFromRoom(room, offsetX, floor.scale);
-      allHVAC.push(...hvacs);
-
-      offsetX += Math.max(Math.ceil(Math.sqrt(room.area)), 4) + 2;
-    }
-
-    // Add all to store
-    for (const rack of allRacks) addRack(rack);
-    const inferredUnits: HVACUnit[] = allHVAC.map((unit, index) => ({
-      ...unit,
-      id: `auto-hvac-${index + 1}-${crypto.randomUUID()}`,
-    }));
-    const floorRoomBoundaries = buildRoomBoundariesForFloor(floor);
-    const sanitizedHVAC = sanitizeHVACPlacements(inferredUnits, floorRoomBoundaries);
-    setHVACUnits(sanitizedHVAC.accepted);
-
-    // Auto-size grid based on floor area
-    const totalArea = floor.rooms.reduce((s, r) => s + r.area, 0);
-    const gridSide = Math.max(10, Math.ceil(Math.sqrt(totalArea) / 0.5));
-    const gridZ = Math.max(6, Math.ceil(floor.ceilingHeight / 0.5));
-    setConfig({
-      gridSizeX: Math.min(gridSide, 50),
-      gridSizeY: Math.min(gridSide, 50),
-      gridSizeZ: gridZ,
+    const normalized = normalizeRoomLayout({
+      roomBoundaries: buildRoomBoundariesForFloor(floor),
+      racks: seededRacks,
+      hvacUnits: seededHVAC,
+      tiles: detected.tiles,
+      gridResolution: config.gridResolution,
+      ceilingHeightM: floor.ceilingHeight,
     });
 
+    for (const rack of normalized.racks) addRack(rack);
+    setHVACUnits(normalized.hvacUnits);
+    setTiles(normalized.tiles);
+    setConfig(normalized.gridSize);
+
     setIsDetecting(false);
-    const acceptedCount = sanitizedHVAC.accepted.length;
-    const rejectedCount = sanitizedHVAC.rejected.length;
+    const rejectedCount = normalized.warnings.length;
     const message = rejectedCount > 0
-      ? `Added ${allRacks.length} rack${allRacks.length !== 1 ? 's' : ''}; ${acceptedCount} HVAC placed, ${rejectedCount} skipped by placement validation.`
-      : `Added ${allRacks.length} rack${allRacks.length !== 1 ? 's' : ''} and ${acceptedCount} HVAC unit${acceptedCount !== 1 ? 's' : ''} from ${floor.rooms.length} room${floor.rooms.length !== 1 ? 's' : ''}.`;
+      ? `Placed ${normalized.racks.length} rack(s) and ${normalized.hvacUnits.length} HVAC unit(s); ${rejectedCount} adjusted/skipped by placement validation.`
+      : `Placed ${normalized.racks.length} rack(s) and ${normalized.hvacUnits.length} HVAC unit(s) from ${floor.rooms.length} room(s).`;
     showToast(rejectedCount > 0 ? 'warning' : 'success', 'Equipment auto-detected', message);
-  }, [detectedFloors, selectedFloorId, addRack, setHVACUnits, setConfig, clearAll]);
+  }, [detectedFloors, selectedFloorId, config.gridResolution, addRack, setHVACUnits, setTiles, setConfig, clearAll]);
   const totalHeatKW = useMemo(() => racks.reduce((s, r) => s + r.powerKW, 0), [racks]);
   const totalCoolingKW = useMemo(() => hvacUnits.filter(u => u.status !== 'failed').reduce((s, u) => s + u.capacityKW, 0), [hvacUnits]);
 

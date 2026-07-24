@@ -106,6 +106,70 @@ function overlap1D(aMin: number, aMax: number, bMin: number, bMax: number): numb
   return Math.max(0, Math.min(aMax, bMax) - Math.max(aMin, bMin));
 }
 
+export interface RoomRect {
+  minX: number;
+  minY: number;
+  width: number;
+  length: number;
+}
+
+interface RoomRectSource {
+  id: string;
+  polygon?: string;
+  area: number;
+  perimeter?: number;
+}
+
+/**
+ * Resolve every room on a floor to an in-plane metre-space rectangle, using the
+ * SAME algorithm the solver geometry uses (`toFallbackPolygonMeters`): the
+ * polygon bounding box when a polygon is present, otherwise a deterministic
+ * shelf-packed rect derived from area/perimeter. Auto-detected equipment places
+ * itself inside these rects so it aligns with the room walls the solver builds.
+ */
+export function resolveRoomRects(floor: {
+  id: string;
+  scale: number;
+  rooms: RoomRectSource[];
+}): Map<string, RoomRect> {
+  const rects = new Map<string, RoomRect>();
+  const cursor = { x: 0, y: 0, rowDepth: 0 };
+
+  for (const room of floor.rooms) {
+    const polygon = parseRoomPolygon(room.polygon ?? '');
+    if (polygon && polygon.points.length >= 3) {
+      const scale = resolveFloorScale(polygon.scale, floor.scale);
+      const pts = polygon.points.map((p) => ({ x: p.x / scale, y: p.y / scale }));
+      const bounds = getPolygonBounds(pts);
+      if (bounds && bounds.width > 0 && bounds.height > 0) {
+        rects.set(room.id, {
+          minX: bounds.minX,
+          minY: bounds.minY,
+          width: bounds.width,
+          length: bounds.height,
+        });
+        continue;
+      }
+    }
+
+    // Fallback: deterministic shelf-pack identical to toFallbackPolygonMeters.
+    const { width, length } = deriveRectFromArea(room.area, room.perimeter ?? 0);
+    rects.set(room.id, { minX: cursor.x, minY: cursor.y, width, length });
+
+    const nextX = cursor.x + width + 1;
+    if (nextX > 30) {
+      cursor.x = 0;
+      cursor.y = cursor.y + cursor.rowDepth + 1;
+      cursor.rowDepth = length;
+    } else {
+      cursor.x = nextX;
+      cursor.rowDepth = Math.max(cursor.rowDepth, length);
+    }
+  }
+
+  return rects;
+}
+
 function pairKey(a: string, b: string): string {
   return a < b ? `${a}::${b}` : `${b}::${a}`;
 }
