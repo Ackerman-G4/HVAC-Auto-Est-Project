@@ -57,3 +57,34 @@ export function getDomainBBox(config: DomainConfig): { min: Vec3; max: Vec3 } {
     max: { x: centerX, y: height, z: centerZ },
   };
 }
+
+export interface CameraFit {
+  position: [number, number, number];
+  target: [number, number, number];
+  minDistance: number;
+  maxDistance: number;
+}
+
+/**
+ * Fit an orbit camera to a scene-space bounding box (mirrors the working
+ * SimulationCanvas fit): target the box centre, back off by ~1.8× the largest
+ * extent, and derive orbit limits from that extent. No hardcoded domain
+ * constants — the frame follows the geometry.
+ */
+export function computeCameraFit(bbox: { min: Vec3; max: Vec3 }): CameraFit {
+  const cx = (bbox.min.x + bbox.max.x) / 2;
+  const cy = (bbox.min.y + bbox.max.y) / 2;
+  const cz = (bbox.min.z + bbox.max.z) / 2;
+  const ex = bbox.max.x - bbox.min.x;
+  const ey = bbox.max.y - bbox.min.y;
+  const ez = bbox.max.z - bbox.min.z;
+  const maxExtent = Math.max(ex, ey, ez, 1);
+  const dist = maxExtent * 1.8 + 2;
+
+  return {
+    position: [cx + dist, cy + dist * 0.72, cz + dist],
+    target: [cx, cy, cz],
+    minDistance: Math.max(2, maxExtent * 0.15),
+    maxDistance: Math.max(50, maxExtent * 5),
+  };
+}

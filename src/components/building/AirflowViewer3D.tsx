@@ -12,12 +12,12 @@
  * - Pulsing hotspot indicators
  */
 import React, { Suspense, useMemo, useRef, useCallback, useState, forwardRef, useImperativeHandle } from 'react';
-import { Canvas, useFrame, type ThreeEvent } from '@react-three/fiber';
+import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import { Line, OrbitControls, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import type { SimulationResult, ServerRack, HVACUnit, InspectedCellInfo, TileFlowViewConfig, TileAirflowData, ThermalAlert, Vec3 } from '@/types/simulation';
 import { HeatmapSlice, VelocityArrows, AirflowParticles, Streamlines, TemperatureFog, TileAirflowOverlay, AlertZoneMarkers } from './CFDOverlay3D';
-import { getDomainCenter } from '@/lib/simulation/scene-transform';
+import { getDomainCenter, getDomainBBox, computeCameraFit } from '@/lib/simulation/scene-transform';
 import { dumpSceneDebug } from '@/lib/simulation/debug-scene-dump';
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -43,10 +43,54 @@ interface Props {
   streamlineSeedPoints?: Vec3[];
   tileAirflowData?: TileAirflowData[];
   alerts?: ThermalAlert[];
+  /** Bumping this re-fits the camera to the domain (Reset view). */
+  resetToken?: number;
 }
 
 export interface AirflowViewerHandle {
   captureSnapshot: () => string | null;
+  resetView: () => void;
+}
+
+/**
+ * Fits the orbit camera to the domain bounding box on mount and whenever the
+ * domain size changes (or Reset view is pressed). Replaces the previous
+ * hardcoded camera distance so small rooms and large floors both frame well.
+ */
+function AutoFitCamera({
+  config,
+  resetToken,
+}: {
+  config: { gridSizeX: number; gridSizeY: number; gridSizeZ: number; gridResolution: number };
+  resetToken?: number;
+}) {
+  const camera = useThree((s) => s.camera);
+  const controls = useThree((s) => s.controls) as {
+    target: THREE.Vector3;
+    minDistance: number;
+    maxDistance: number;
+    update: () => void;
+  } | null;
+
+  // Re-fit only when the domain size (or a reset request) changes.
+  const fitSignature = `${config.gridSizeX}|${config.gridSizeY}|${config.gridSizeZ}|${config.gridResolution}|${resetToken ?? 0}`;
+
+  React.useEffect(() => {
+    const fit = computeCameraFit(getDomainBBox(config));
+    // R3F requires imperative mutation of the camera/controls objects.
+    camera.position.set(fit.position[0], fit.position[1], fit.position[2]);
+    if (controls) {
+      controls.target.set(fit.target[0], fit.target[1], fit.target[2]);
+      controls.minDistance = fit.minDistance;
+      controls.maxDistance = fit.maxDistance;
+      controls.update();
+    } else {
+      camera.lookAt(fit.target[0], fit.target[1], fit.target[2]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fitSignature, camera, controls]);
+
+  return null;
 }
 
 export interface RoomBoundaryOverlay {
@@ -591,14 +635,13 @@ function Scene(props: Props) {
         <AlertZoneMarkers alerts={alerts} gridResolution={config.gridResolution} />
       )}
 
+      <AutoFitCamera config={config} resetToken={props.resetToken} />
       <OrbitControls
         makeDefault
         enabled={!dragState}
         enableDamping
         dampingFactor={0.1}
         maxPolarAngle={Math.PI / 2}
-        minDistance={Math.max(2, domainSpanM * 0.2)}
-        maxDistance={Math.max(50, domainSpanM * 4)}
       />
     </>
   );
@@ -610,8 +653,8 @@ const AirflowViewer3D = forwardRef<AirflowViewerHandle, Props>(function AirflowV
   const { result, viewMode = 'temperature', selectedSliceZ = 1 } = props;
   const { metrics, config } = result;
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const domainSpanM = Math.max(config.gridSizeX, config.gridSizeY) * config.gridResolution;
-  const cameraDistance = Math.max(8, domainSpanM * 1.15);
+  const [resetToken, setResetToken] = useState(0);
+  const initialFit = computeCameraFit(getDomainBBox(config));
 
   useImperativeHandle(ref, () => ({
     captureSnapshot: () => {
@@ -619,20 +662,31 @@ const AirflowViewer3D = forwardRef<AirflowViewerHandle, Props>(function AirflowV
       if (!canvas) return null;
       return canvas.toDataURL('image/png');
     },
+    resetView: () => setResetToken((t) => t + 1),
   }), []);
 
   return (
     <div className="relative w-full h-125 rounded-xl overflow-hidden border border-slate-700 bg-slate-900">
       <Canvas
         ref={canvasRef}
-        camera={{ position: [cameraDistance, cameraDistance * 0.72, cameraDistance], fov: 50, near: 0.1, far: 600 }}
+        camera={{ position: initialFit.position, fov: 50, near: 0.1, far: 600 }}
         gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, preserveDrawingBuffer: true }}
         style={{ background: '#0f172a' }}
       >
         <Suspense fallback={null}>
-          <Scene {...props} />
+          <Scene {...props} resetToken={resetToken} />
         </Suspense>
       </Canvas>
+
+      {/* Reset view — re-fit the camera to the domain */}
+      <button
+        type="button"
+        onClick={() => setResetToken((t) => t + 1)}
+        className="absolute top-4 right-4 rounded-lg bg-slate-800/80 px-2.5 py-1.5 text-xs font-medium text-white backdrop-blur-sm transition-colors hover:bg-slate-700/90"
+        title="Reset camera view"
+      >
+        Reset view
+      </button>
 
       {/* Legend overlay */}
       <div className="absolute top-4 left-4 bg-slate-800/80 backdrop-blur-sm rounded-lg p-3 text-xs text-white pointer-events-none">
