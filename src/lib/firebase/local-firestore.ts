@@ -21,8 +21,22 @@ interface Store {
 }
 
 // ── Persistence ────────────────────────────────────────────
+//
+// The whole DB lives in a single JSON file. Re-reading and re-parsing it on
+// every get/set/query does not scale — a large file makes each request pay
+// the full parse+serialize cost. So we keep the parsed store in memory
+// (single-process dev server) and:
+//   - serve reads from the in-memory cache (parse the file at most once), and
+//   - coalesce writes behind a short debounce so a burst of mutations (e.g.
+//     seeding many rooms) flushes to disk a few times instead of once per op.
+// A synchronous flush on process exit guarantees the last writes land.
 
-function readStore(): Store {
+let _cache: Store | null = null;
+let _flushTimer: ReturnType<typeof setTimeout> | null = null;
+let _dirty = false;
+let _exitHookInstalled = false;
+
+function loadFromDisk(): Store {
   if (!existsSync(DB_FILE)) return {};
   try {
     let raw = readFileSync(DB_FILE, 'utf-8');
@@ -34,8 +48,53 @@ function readStore(): Store {
   }
 }
 
+function flushToDisk(): void {
+  if (!_dirty || _cache === null) return;
+  try {
+    writeFileSync(DB_FILE, JSON.stringify(_cache, null, 2), 'utf-8');
+    _dirty = false;
+  } catch {
+    // Leave _dirty set so a later flush retries.
+  }
+}
+
+function installExitHook(): void {
+  if (_exitHookInstalled) return;
+  _exitHookInstalled = true;
+  const finalize = () => {
+    if (_flushTimer) {
+      clearTimeout(_flushTimer);
+      _flushTimer = null;
+    }
+    flushToDisk();
+  };
+  process.once('exit', finalize);
+  process.once('SIGINT', () => { finalize(); process.exit(0); });
+  process.once('SIGTERM', () => { finalize(); process.exit(0); });
+}
+
+function readStore(): Store {
+  if (_cache === null) {
+    _cache = loadFromDisk();
+    installExitHook();
+  }
+  return _cache;
+}
+
 function writeStore(store: Store): void {
-  writeFileSync(DB_FILE, JSON.stringify(store, null, 2), 'utf-8');
+  _cache = store;
+  _dirty = true;
+  installExitHook();
+  if (_flushTimer === null) {
+    _flushTimer = setTimeout(() => {
+      _flushTimer = null;
+      flushToDisk();
+    }, 100);
+    // Do not keep the event loop alive solely for a pending flush.
+    if (typeof _flushTimer === 'object' && typeof _flushTimer.unref === 'function') {
+      _flushTimer.unref();
+    }
+  }
 }
 
 // ── Mock Document Snapshot ─────────────────────────────────
