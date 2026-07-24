@@ -44,6 +44,24 @@ import Link from 'next/link';
 import { exportProjectPDF, exportProjectDXF, exportProjectCSV, exportProjectExcel } from '@/lib/utils/project-export';
 import dynamic from 'next/dynamic';
 import { authFetch } from '@/lib/api-client';
+import {
+  SPACE_TYPES,
+  WALL_TYPES,
+  GLASS_TYPES,
+  ORIENTATIONS,
+  EMPTY_PRICING_DRAFT,
+  EMPTY_ROOM_LOAD_DRAFT,
+} from '@/features/project-detail/constants';
+import { parsePricingDraftValue } from '@/features/project-detail/helpers';
+import { PsychrometricMetricGrid } from '@/features/project-detail/components/PsychrometricMetricGrid';
+import type {
+  ProjectData,
+  PricingDraftState,
+  RoomLoadDraftState,
+  EquipmentDraftState,
+  LocalProjectSnapshot,
+  BoqVerification,
+} from '@/features/project-detail/types';
 
 const BuildingViewer3D = dynamic(() => import('@/components/building/BuildingViewer3D'), {
   ssr: false,
@@ -56,297 +74,6 @@ const BuildingViewer3D = dynamic(() => import('@/components/building/BuildingVie
     </div>
   ),
 });
-
-const SPACE_TYPES = [
-  { value: 'office', label: 'Office' },
-  { value: 'conference', label: 'Conference Room' },
-  { value: 'lobby', label: 'Lobby' },
-  { value: 'retail', label: 'Retail' },
-  { value: 'restaurant', label: 'Restaurant' },
-  { value: 'kitchen', label: 'Kitchen' },
-  { value: 'hotel_room', label: 'Hotel Room' },
-  { value: 'server_room', label: 'Server Room' },
-  { value: 'corridor', label: 'Corridor' },
-  { value: 'restroom', label: 'Restroom' },
-  { value: 'storage', label: 'Storage' },
-  { value: 'residential', label: 'Residential' },
-  { value: 'classroom', label: 'Classroom' },
-  { value: 'hospital_ward', label: 'Hospital Ward' },
-  { value: 'operating_room', label: 'Operating Room' },
-  { value: 'gym', label: 'Gym' },
-  { value: 'theater', label: 'Theater' },
-  { value: 'warehouse', label: 'Warehouse' },
-  { value: 'parking', label: 'Parking' },
-];
-
-const WALL_TYPES = [
-  { value: 'concrete_block_200mm', label: 'Concrete Block 200mm' },
-  { value: 'concrete_block_150mm', label: 'Concrete Block 150mm' },
-  { value: 'brick_wall_200mm', label: 'Brick Wall 200mm' },
-  { value: 'drywall_metal_stud', label: 'Drywall Metal Stud' },
-  { value: 'curtain_wall', label: 'Curtain Wall' },
-  { value: 'precast_concrete_150mm', label: 'Precast Concrete 150mm' },
-];
-
-const GLASS_TYPES = [
-  { value: 'single_clear_6mm', label: 'Single Clear 6mm' },
-  { value: 'single_tinted_6mm', label: 'Single Tinted 6mm' },
-  { value: 'double_clear_6mm', label: 'Double Clear 6mm' },
-  { value: 'double_tinted_6mm', label: 'Double Tinted 6mm' },
-  { value: 'double_low_e', label: 'Double Low-E' },
-  { value: 'triple_low_e', label: 'Triple Low-E' },
-];
-
-const ORIENTATIONS = [
-  { value: 'N', label: 'North' },
-  { value: 'NE', label: 'Northeast' },
-  { value: 'E', label: 'East' },
-  { value: 'SE', label: 'Southeast' },
-  { value: 'S', label: 'South' },
-  { value: 'SW', label: 'Southwest' },
-  { value: 'W', label: 'West' },
-  { value: 'NW', label: 'Northwest' },
-];
-
-type PsychrometricSnapshot = ReturnType<typeof psychrometricState>;
-
-const PSYCHROMETRIC_METRICS: Array<{
-  term: string;
-  definition: string;
-  formatValue: (state: PsychrometricSnapshot) => string;
-}> = [
-  {
-    term: 'DB',
-    definition: 'Dry-bulb temperature: the actual air temperature measured by a standard thermometer.',
-    formatValue: (state) => `${state.dryBulb}°C`,
-  },
-  {
-    term: 'WB',
-    definition: 'Wet-bulb temperature: indicates evaporative cooling potential and moisture influence.',
-    formatValue: (state) => `${state.wetBulb}°C`,
-  },
-  {
-    term: 'RH',
-    definition: 'Relative humidity: percentage of moisture in air relative to saturation at the same temperature.',
-    formatValue: (state) => `${state.relativeHumidity}%`,
-  },
-  {
-    term: 'Dew Pt',
-    definition: 'Dew point temperature: point where air becomes saturated and condensation begins.',
-    formatValue: (state) => `${state.dewPoint}°C`,
-  },
-  {
-    term: 'W (g/kg)',
-    definition: 'Humidity ratio: grams of water vapor per kilogram of dry air.',
-    formatValue: (state) => (state.humidityRatio * 1000).toFixed(1),
-  },
-  {
-    term: 'h (kJ/kg)',
-    definition: 'Specific enthalpy: total heat content per kilogram of dry air.',
-    formatValue: (state) => String(state.enthalpy),
-  },
-];
-
-function renderPsychrometricMetricGrid(
-  state: PsychrometricSnapshot,
-  toneClassName: string,
-) {
-  return (
-    <div className="grid grid-cols-3 gap-1.5 text-center">
-      {PSYCHROMETRIC_METRICS.map((metric) => (
-        <div key={metric.term} className={`rounded py-1.5 ${toneClassName}`}>
-          <p className="text-sm font-bold tabular-nums">{metric.formatValue(state)}</p>
-          <p className="text-[8px] uppercase tracking-wider text-muted-foreground">
-            <TermHint term={metric.term} definition={metric.definition} compact />
-          </p>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-interface ProjectData {
-  id: string;
-  name: string;
-  clientName: string;
-  buildingType: string;
-  status: string;
-  location: string;
-  city: string;
-  totalFloorArea: number;
-  outdoorDB: number;
-  outdoorWB: number;
-  outdoorRH: number;
-  indoorDB: number;
-  indoorRH: number;
-  notes: string;
-  suggestedLaborMultiplier?: number;
-  laborMultiplierOverride?: number | null;
-  suggestedOverheadPercent?: number;
-  overheadPercentOverride?: number | null;
-  suggestedContingencyPercent?: number;
-  contingencyPercentOverride?: number | null;
-  suggestedVatRate?: number;
-  vatRateOverride?: number | null;
-  isBoqStale?: boolean;
-  lastBoqGeneratedAt?: string | null;
-  pricingPolicy?: {
-    laborMultiplier: number;
-    overheadPercent: number;
-    contingencyPercent: number;
-    vatRate: number;
-  };
-  floors: {
-    id: string;
-    floorNumber: number;
-    name: string;
-    rooms: {
-      id: string;
-      name: string;
-      spaceType: string;
-      area: number;
-      perimeter: number;
-      polygon?: string;
-      ceilingHeight: number;
-      wallConstruction: string;
-      windowType: string;
-      windowArea: number;
-      windowOrientation: string;
-      occupantCount: number;
-      lightingDensity: number;
-      equipmentLoad: number;
-      hasRoofExposure: boolean;
-      coolingLoad?: {
-        totalLoad: number;
-        trValue: number;
-        btuPerHour: number;
-        suggestedTrValue?: number;
-        userTrOverride?: number | null;
-        finalTrValue?: number;
-        suggestedBtuPerHour?: number;
-        userBtuOverride?: number | null;
-        finalBtuPerHour?: number;
-        isOverridden?: boolean;
-        totalSensibleLoad: number;
-        totalLatentLoad: number;
-        wallLoad: number;
-        roofLoad: number;
-        glassSolarLoad: number;
-        glassConductionLoad: number;
-        lightingLoad: number;
-        peopleLoadSensible: number;
-        peopleLoadLatent: number;
-        equipmentLoadSensible: number;
-        ventilationLoadSensible: number;
-        ventilationLoadLatent: number;
-        cfmSupply: number;
-        cfmReturn: number;
-      } | null;
-    }[];
-  }[];
-  selectedEquipment: {
-    id: string;
-    roomId: string;
-    brand: string;
-    model: string;
-    type: string;
-    capacityTR: number;
-    capacityBTU: number;
-    quantity: number;
-    suggestedQuantity?: number;
-    userQuantityOverride?: number | null;
-    suggestedUnitPrice?: number;
-    userUnitPriceOverride?: number | null;
-    unitPrice: number;
-    totalPrice: number;
-    eer: number;
-    isInverter: boolean;
-    sourceState?: 'suggested' | 'override';
-    isOverridden?: boolean;
-  }[];
-  boqItems: {
-    id: string;
-    section: string;
-    description: string;
-    quantity: number;
-    unit: string;
-    suggestedUnitPrice?: number;
-    suggestedTotalPrice?: number;
-    userUnitPriceOverride?: number | null;
-    userTotalPriceOverride?: number | null;
-    finalUnitPrice?: number;
-    finalTotalPrice?: number;
-    sourceState?: 'suggested' | 'override';
-    isOverridden?: boolean;
-    overrideReason?: string;
-    unitPrice: number;
-    totalPrice: number;
-  }[];
-}
-
-type PricingDraftState = {
-  laborMultiplier: string;
-  overheadPercent: string;
-  contingencyPercent: string;
-  vatRate: string;
-};
-
-type RoomLoadDraftState = {
-  tr: string;
-  btu: string;
-};
-
-type EquipmentDraftState = {
-  quantity: string;
-  unitPrice: string;
-};
-
-type LocalProjectSnapshot = {
-  version: 1;
-  projectId: string;
-  savedAt: string;
-  project: ProjectData;
-  boqDraftPrices: Record<string, string>;
-  pricingDraft: PricingDraftState;
-  roomLoadDrafts: Record<string, RoomLoadDraftState>;
-  equipmentDrafts: Record<string, EquipmentDraftState>;
-};
-
-const EMPTY_PRICING_DRAFT: PricingDraftState = {
-  laborMultiplier: '',
-  overheadPercent: '',
-  contingencyPercent: '',
-  vatRate: '',
-};
-
-const EMPTY_ROOM_LOAD_DRAFT: RoomLoadDraftState = {
-  tr: '',
-  btu: '',
-};
-
-const parsePricingDraftValue = (value: string): { valid: boolean; value: number | null } => {
-  const trimmed = value.trim();
-  if (trimmed === '') {
-    return { valid: true, value: null };
-  }
-
-  const parsed = Number(trimmed);
-  if (!Number.isFinite(parsed)) {
-    return { valid: false, value: null };
-  }
-
-  return { valid: true, value: parsed };
-};
-
-interface BoqVerification {
-  status: 'verified' | 'tampered' | 'no_snapshot' | 'empty';
-  boqHash: string;
-  snapshotHash: string | null;
-  lockedAt: string | null;
-  grandTotalPhp: number | null;
-  itemCount: number | null;
-  deltaPhp: number | null;
-}
 
 export default function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -1190,12 +917,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 {/* Outdoor */}
                 <div>
                   <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Outdoor Air</p>
-                  {renderPsychrometricMetricGrid(outdoorPS, 'bg-[rgba(219,142,47,0.14)]')}
+                  <PsychrometricMetricGrid state={outdoorPS} toneClassName="bg-[rgba(219,142,47,0.14)]" />
                 </div>
                 {/* Indoor */}
                 <div>
                   <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Indoor Air (Design)</p>
-                  {renderPsychrometricMetricGrid(indoorPS, 'bg-[rgba(15,139,141,0.14)]')}
+                  <PsychrometricMetricGrid state={indoorPS} toneClassName="bg-[rgba(15,139,141,0.14)]" />
                 </div>
               </div>
             </CardContent>
