@@ -1,0 +1,736 @@
+{
+  "coolingLoad": {
+    "golden-office-01": {
+      "roomId": "golden-office-01",
+      "roomName": "Small Office 75sqm",
+      "wallLoad": 3026.1,
+      "roofLoad": 0,
+      "glassSolarLoad": 3420,
+      "glassConductionLoad": 563.76,
+      "lightingLoad": 765,
+      "peopleLoadSensible": 600,
+      "peopleLoadLatent": 440,
+      "equipmentLoadSensible": 1350,
+      "infiltrationLoadSensible": 373.404935475,
+      "infiltrationLoadLatent": 1083.327201276,
+      "ventilationLoadSensible": 564.25634694,
+      "ventilationLoadLatent": 1637.027770817,
+      "totalSensibleLoad": 10662.521282415,
+      "totalLatentLoad": 3160.354972092,
+      "totalLoad": 17585,
+      "trValue": 5,
+      "btuPerHour": 60000,
+      "cfmSupply": 1684.283454426,
+      "cfmFreshAir": 90.0575,
+      "cfmReturn": 1515.855108983,
+      "cfmExhaust": 168.428345443,
+      "safetyFactor": 1.1,
+      "diversityFactor": 1,
+      "calculationMethod": "AREA_RULE_OF_THUMB"
+    },
+    "golden-server-01": {
+      "roomId": "golden-server-01",
+      "roomName": "Server Room 40sqm",
+      "wallLoad": 2269.575,
+      "roofLoad": 4378.88,
+      "glassSolarLoad": 0,
+      "glassConductionLoad": 0,
+      "lightingLoad": 340,
+      "peopleLoadSensible": 150,
+      "peopleLoadLatent": 110,
+      "equipmentLoadSensible": 10800,
+      "infiltrationLoadSensible": 221.2769988,
+      "infiltrationLoadLatent": 641.97167483,
+      "ventilationLoadSensible": 225.702538776,
+      "ventilationLoadLatent": 654.811108327,
+      "totalSensibleLoad": 18385.434537576,
+      "totalLatentLoad": 1406.782783157,
+      "totalLoad": 19801,
+      "trValue": 5.63,
+      "btuPerHour": 67560,
+      "cfmSupply": 2904.217714917,
+      "cfmFreshAir": 36.023,
+      "cfmReturn": 2613.795943425,
+      "cfmExhaust": 290.421771492,
+      "safetyFactor": 1.2,
+      "diversityFactor": 1,
+      "calculationMethod": "CLTD_CLF"
+    },
+    "golden-retail-01": {
+      "roomId": "golden-retail-01",
+      "roomName": "Retail Floor 220sqm",
+      "wallLoad": 7060.9,
+      "roofLoad": 24083.84,
+      "glassSolarLoad": 7290,
+      "glassConductionLoad": 704.7,
+      "lightingLoad": 3366,
+      "peopleLoadSensible": 3375,
+      "peopleLoadLatent": 2475,
+      "equipmentLoadSensible": 3600,
+      "infiltrationLoadSensible": 1379.29329252,
+      "infiltrationLoadLatent": 4001.623439774,
+      "ventilationLoadSensible": 4022.815838184,
+      "ventilationLoadLatent": 11671.045048411,
+      "totalSensibleLoad": 54882.549130704,
+      "totalLatentLoad": 18147.668488185,
+      "totalLoad": 73013,
+      "trValue": 20.76,
+      "btuPerHour": 249120,
+      "cfmSupply": 8669.410075646,
+      "cfmFreshAir": 642.057,
+      "cfmReturn": 7802.469068082,
+      "cfmExhaust": 866.941007565,
+      "safetyFactor": 1.1,
+      "diversityFactor": 0.9,
+      "calculationMethod": "CLTD_CLF"
+    }
+  },
+  "equipmentSelection": {
+    "equip-small-economy": {
+      "candidates": [
+        {
+          "id": "Condura FP-12AXN010B 1.0TR-5",
+          "model": "Condura FP-12AXN010B 1.0TR",
+          "type": "inverter_split",
+          "quantity": 5,
+          "providedTr": 5,
+          "utilizationPct": 100,
+          "capexPhp": 105000,
+          "annualEnergyKwh": 15294.12,
+          "annualEnergyCostPhp": 191176.47,
+          "totalLifecyclePhp": 1060882.35,
+          "score": 80.3
+        },
+        {
+          "id": "Koppel KSW-12R5CA 1.0TR-5",
+          "model": "Koppel KSW-12R5CA 1.0TR",
+          "type": "inverter_split",
+          "quantity": 5,
+          "providedTr": 5,
+          "utilizationPct": 100,
+          "capexPhp": 110000,
+          "annualEnergyKwh": 15000,
+          "annualEnergyCostPhp": 187500,
+          "totalLifecyclePhp": 1047500,
+          "score": 77.89
+        },
+        {
+          "id": "Condura FP-24AXN010B 2.0TR-3",
+          "model": "Condura FP-24AXN010B 2.0TR",
+          "type": "inverter_split",
+          "quantity": 3,
+          "providedTr": 6,
+          "utilizationPct": 83.33,
+          "capexPhp": 99000,
+          "annualEnergyKwh": 19914.89,
+          "annualEnergyCostPhp": 248936.17,
+          "totalLifecyclePhp": 1343680.85,
+          "score": 76.51
+        },
+        {
+          "id": "Condura FP-18AXN010B 1.5TR-4",
+          "model": "Condura FP-18AXN010B 1.5TR",
+          "type": "inverter_split",
+          "quantity": 4,
+          "providedTr": 6,
+          "utilizationPct": 83.33,
+          "capexPhp": 104000,
+          "annualEnergyKwh": 18909.09,
+          "annualEnergyCostPhp": 236363.64,
+          "totalLifecyclePhp": 1285818.18,
+          "score": 74.17
+        },
+        {
+          "id": "Koppel KSW-24R5CA 2.0TR-3",
+          "model": "Koppel KSW-24R5CA 2.0TR",
+          "type": "inverter_split",
+          "quantity": 3,
+          "providedTr": 6,
+          "utilizationPct": 83.33,
+          "capexPhp": 105000,
+          "annualEnergyKwh": 19500,
+          "annualEnergyCostPhp": 243750,
+          "totalLifecyclePhp": 1323750,
+          "score": 73.59
+        },
+        {
+          "id": "Koppel KSW-18R5CA 1.5TR-4",
+          "model": "Koppel KSW-18R5CA 1.5TR",
+          "type": "inverter_split",
+          "quantity": 4,
+          "providedTr": 6,
+          "utilizationPct": 83.33,
+          "capexPhp": 112000,
+          "annualEnergyKwh": 18720,
+          "annualEnergyCostPhp": 234000,
+          "totalLifecyclePhp": 1282000,
+          "score": 70.23
+        },
+        {
+          "id": "Condura FP-09AXN010B 0.75TR-7",
+          "model": "Condura FP-09AXN010B 0.75TR",
+          "type": "inverter_split",
+          "quantity": 7,
+          "providedTr": 5.25,
+          "utilizationPct": 95.24,
+          "capexPhp": 122500,
+          "annualEnergyKwh": 16058.82,
+          "annualEnergyCostPhp": 200735.29,
+          "totalLifecyclePhp": 1126176.47,
+          "score": 69.77
+        },
+        {
+          "id": "Koppel KSW-09R5CA 0.75TR-7",
+          "model": "Koppel KSW-09R5CA 0.75TR",
+          "type": "inverter_split",
+          "quantity": 7,
+          "providedTr": 5.25,
+          "utilizationPct": 95.24,
+          "capexPhp": 126000,
+          "annualEnergyKwh": 15452.83,
+          "annualEnergyCostPhp": 193160.38,
+          "totalLifecyclePhp": 1091801.89,
+          "score": 68.16
+        },
+        {
+          "id": "Panasonic CS-PN12XKJ 1.0TR-5",
+          "model": "Panasonic CS-PN12XKJ 1.0TR",
+          "type": "inverter_split",
+          "quantity": 5,
+          "providedTr": 5,
+          "utilizationPct": 100,
+          "capexPhp": 140000,
+          "annualEnergyKwh": 13220.34,
+          "annualEnergyCostPhp": 165254.24,
+          "totalLifecyclePhp": 966271.19,
+          "score": 63.49
+        },
+        {
+          "id": "Samsung AR12TYHYC 1.0TR-5",
+          "model": "Samsung AR12TYHYC 1.0TR",
+          "type": "inverter_split",
+          "quantity": 5,
+          "providedTr": 5,
+          "utilizationPct": 100,
+          "capexPhp": 150000,
+          "annualEnergyKwh": 13684.21,
+          "annualEnergyCostPhp": 171052.63,
+          "totalLifecyclePhp": 1005263.16,
+          "score": 58.41
+        },
+        {
+          "id": "LG HS-12IPX 1.0TR-5",
+          "model": "LG HS-12IPX 1.0TR",
+          "type": "inverter_split",
+          "quantity": 5,
+          "providedTr": 5,
+          "utilizationPct": 100,
+          "capexPhp": 150000,
+          "annualEnergyKwh": 13805.31,
+          "annualEnergyCostPhp": 172566.37,
+          "totalLifecyclePhp": 1012831.86,
+          "score": 58.37
+        },
+        {
+          "id": "Panasonic CS-PN24XKJ 2.0TR-3",
+          "model": "Panasonic CS-PN24XKJ 2.0TR",
+          "type": "inverter_split",
+          "quantity": 3,
+          "providedTr": 6,
+          "utilizationPct": 83.33,
+          "capexPhp": 138000,
+          "annualEnergyKwh": 17018.18,
+          "annualEnergyCostPhp": 212727.27,
+          "totalLifecyclePhp": 1201636.36,
+          "score": 57.63
+        }
+      ],
+      "selectedCandidateId": "Condura FP-12AXN010B 1.0TR-5",
+      "formulas": [
+        {
+          "label": "Capacity Target",
+          "expression": "Target TR = Required TR x Redundancy Factor",
+          "value": "5.00 x 1.00 = 5.00 TR"
+        },
+        {
+          "label": "Energy Use",
+          "expression": "kWh = (Provided TR x 12000 x Hours) / (EER x 1000)",
+          "value": "Computed per candidate option"
+        },
+        {
+          "label": "Lifecycle Cost",
+          "expression": "Lifecycle PHP = Capex + (Annual Energy Cost x 5 years)",
+          "value": "Compared in candidate matrix"
+        }
+      ],
+      "alerts": []
+    },
+    "equip-mid-balanced": {
+      "candidates": [
+        {
+          "id": "Condura FP-18AXN010B 1.5TR-14",
+          "model": "Condura FP-18AXN010B 1.5TR",
+          "type": "inverter_split",
+          "quantity": 14,
+          "providedTr": 21,
+          "utilizationPct": 85.71,
+          "capexPhp": 364000,
+          "annualEnergyKwh": 86545.45,
+          "annualEnergyCostPhp": 1081818.18,
+          "totalLifecyclePhp": 5773090.91,
+          "score": 63.99
+        },
+        {
+          "id": "Koppel KSW-18R5CA 1.5TR-14",
+          "model": "Koppel KSW-18R5CA 1.5TR",
+          "type": "inverter_split",
+          "quantity": 14,
+          "providedTr": 21,
+          "utilizationPct": 85.71,
+          "capexPhp": 392000,
+          "annualEnergyKwh": 85680,
+          "annualEnergyCostPhp": 1071000,
+          "totalLifecyclePhp": 5747000,
+          "score": 63.47
+        },
+        {
+          "id": "Condura FP-12AXN010B 1.0TR-21",
+          "model": "Condura FP-12AXN010B 1.0TR",
+          "type": "inverter_split",
+          "quantity": 21,
+          "providedTr": 21,
+          "utilizationPct": 85.71,
+          "capexPhp": 441000,
+          "annualEnergyKwh": 84000,
+          "annualEnergyCostPhp": 1050000,
+          "totalLifecyclePhp": 5691000,
+          "score": 62.57
+        },
+        {
+          "id": "Koppel KSW-12R5CA 1.0TR-21",
+          "model": "Koppel KSW-12R5CA 1.0TR",
+          "type": "inverter_split",
+          "quantity": 21,
+          "providedTr": 21,
+          "utilizationPct": 85.71,
+          "capexPhp": 462000,
+          "annualEnergyKwh": 82384.62,
+          "annualEnergyCostPhp": 1029807.69,
+          "totalLifecyclePhp": 5611038.46,
+          "score": 62.19
+        },
+        {
+          "id": "Condura FP-24AXN010B 2.0TR-11",
+          "model": "Condura FP-24AXN010B 2.0TR",
+          "type": "inverter_split",
+          "quantity": 11,
+          "providedTr": 22,
+          "utilizationPct": 81.82,
+          "capexPhp": 363000,
+          "annualEnergyKwh": 95489.36,
+          "annualEnergyCostPhp": 1193617.02,
+          "totalLifecyclePhp": 6331085.11,
+          "score": 62.06
+        },
+        {
+          "id": "Koppel KSW-24R5CA 2.0TR-11",
+          "model": "Koppel KSW-24R5CA 2.0TR",
+          "type": "inverter_split",
+          "quantity": 11,
+          "providedTr": 22,
+          "utilizationPct": 81.82,
+          "capexPhp": 385000,
+          "annualEnergyKwh": 93500,
+          "annualEnergyCostPhp": 1168750,
+          "totalLifecyclePhp": 6228750,
+          "score": 61.66
+        },
+        {
+          "id": "Condura FP-09AXN010B 0.75TR-28",
+          "model": "Condura FP-09AXN010B 0.75TR",
+          "type": "inverter_split",
+          "quantity": 28,
+          "providedTr": 21,
+          "utilizationPct": 85.71,
+          "capexPhp": 490000,
+          "annualEnergyKwh": 84000,
+          "annualEnergyCostPhp": 1050000,
+          "totalLifecyclePhp": 5740000,
+          "score": 61.65
+        },
+        {
+          "id": "Koppel KSW-09R5CA 0.75TR-28",
+          "model": "Koppel KSW-09R5CA 0.75TR",
+          "type": "inverter_split",
+          "quantity": 28,
+          "providedTr": 21,
+          "utilizationPct": 85.71,
+          "capexPhp": 504000,
+          "annualEnergyKwh": 80830.19,
+          "annualEnergyCostPhp": 1010377.36,
+          "totalLifecyclePhp": 5555886.79,
+          "score": 61.42
+        },
+        {
+          "id": "Panasonic CS-PN18XKJ 1.5TR-14",
+          "model": "Panasonic CS-PN18XKJ 1.5TR",
+          "type": "inverter_split",
+          "quantity": 14,
+          "providedTr": 21,
+          "utilizationPct": 85.71,
+          "capexPhp": 518000,
+          "annualEnergyKwh": 75157.89,
+          "annualEnergyCostPhp": 939473.68,
+          "totalLifecyclePhp": 5215368.42,
+          "score": 61.23
+        },
+        {
+          "id": "Samsung AR18TYHYC 1.5TR-14",
+          "model": "Samsung AR18TYHYC 1.5TR",
+          "type": "inverter_split",
+          "quantity": 14,
+          "providedTr": 21,
+          "utilizationPct": 85.71,
+          "capexPhp": 532000,
+          "annualEnergyKwh": 78605.5,
+          "annualEnergyCostPhp": 982568.81,
+          "totalLifecyclePhp": 5444844.04,
+          "score": 60.92
+        },
+        {
+          "id": "LG HS-18IPX 1.5TR-14",
+          "model": "LG HS-18IPX 1.5TR",
+          "type": "inverter_split",
+          "quantity": 14,
+          "providedTr": 21,
+          "utilizationPct": 85.71,
+          "capexPhp": 546000,
+          "annualEnergyKwh": 80074.77,
+          "annualEnergyCostPhp": 1000934.58,
+          "totalLifecyclePhp": 5550672.9,
+          "score": 60.64
+        },
+        {
+          "id": "Carrier 42KHA018 1.5TR-14",
+          "model": "Carrier 42KHA018 1.5TR",
+          "type": "inverter_split",
+          "quantity": 14,
+          "providedTr": 21,
+          "utilizationPct": 85.71,
+          "capexPhp": 546000,
+          "annualEnergyKwh": 81600,
+          "annualEnergyCostPhp": 1020000,
+          "totalLifecyclePhp": 5646000,
+          "score": 60.62
+        }
+      ],
+      "selectedCandidateId": "Condura FP-18AXN010B 1.5TR-14",
+      "formulas": [
+        {
+          "label": "Capacity Target",
+          "expression": "Target TR = Required TR x Redundancy Factor",
+          "value": "18.00 x 1.15 = 20.70 TR"
+        },
+        {
+          "label": "Energy Use",
+          "expression": "kWh = (Provided TR x 12000 x Hours) / (EER x 1000)",
+          "value": "Computed per candidate option"
+        },
+        {
+          "label": "Lifecycle Cost",
+          "expression": "Lifecycle PHP = Capex + (Annual Energy Cost x 5 years)",
+          "value": "Compared in candidate matrix"
+        }
+      ],
+      "alerts": [
+        "N+1 redundancy is active: target capacity increased by 15%."
+      ]
+    },
+    "equip-large-premium": {
+      "candidates": [
+        {
+          "id": "Condura FP-18AXN010B 1.5TR-46",
+          "model": "Condura FP-18AXN010B 1.5TR",
+          "type": "inverter_split",
+          "quantity": 46,
+          "providedTr": 69,
+          "utilizationPct": 86.96,
+          "capexPhp": 1196000,
+          "annualEnergyKwh": 732654.55,
+          "annualEnergyCostPhp": 9671040,
+          "totalLifecyclePhp": 49551200,
+          "score": 45.16
+        },
+        {
+          "id": "Condura FP-24AXN010B 2.0TR-35",
+          "model": "Condura FP-24AXN010B 2.0TR",
+          "type": "inverter_split",
+          "quantity": 35,
+          "providedTr": 70,
+          "utilizationPct": 85.71,
+          "capexPhp": 1155000,
+          "annualEnergyKwh": 782808.51,
+          "annualEnergyCostPhp": 10333072.34,
+          "totalLifecyclePhp": 52820361.7,
+          "score": 45.02
+        },
+        {
+          "id": "Condura FP-12AXN010B 1.0TR-69",
+          "model": "Condura FP-12AXN010B 1.0TR",
+          "type": "inverter_split",
+          "quantity": 69,
+          "providedTr": 69,
+          "utilizationPct": 86.96,
+          "capexPhp": 1449000,
+          "annualEnergyKwh": 711105.88,
+          "annualEnergyCostPhp": 9386597.65,
+          "totalLifecyclePhp": 48381988.24,
+          "score": 43.24
+        },
+        {
+          "id": "Condura FP-09AXN010B 0.75TR-92",
+          "model": "Condura FP-09AXN010B 0.75TR",
+          "type": "inverter_split",
+          "quantity": 92,
+          "providedTr": 69,
+          "utilizationPct": 86.96,
+          "capexPhp": 1610000,
+          "annualEnergyKwh": 711105.88,
+          "annualEnergyCostPhp": 9386597.65,
+          "totalLifecyclePhp": 48542988.24,
+          "score": 42.01
+        },
+        {
+          "id": "Panasonic CS-PN24XKJ 2.0TR-35",
+          "model": "Panasonic CS-PN24XKJ 2.0TR",
+          "type": "inverter_split",
+          "quantity": 35,
+          "providedTr": 70,
+          "utilizationPct": 85.71,
+          "capexPhp": 1610000,
+          "annualEnergyKwh": 668945.45,
+          "annualEnergyCostPhp": 8830080,
+          "totalLifecyclePhp": 45760400,
+          "score": 41.58
+        },
+        {
+          "id": "Panasonic CS-PN18XKJ 1.5TR-46",
+          "model": "Panasonic CS-PN18XKJ 1.5TR",
+          "type": "inverter_split",
+          "quantity": 46,
+          "providedTr": 69,
+          "utilizationPct": 86.96,
+          "capexPhp": 1702000,
+          "annualEnergyKwh": 636252.63,
+          "annualEnergyCostPhp": 8398534.74,
+          "totalLifecyclePhp": 43694673.68,
+          "score": 41.33
+        },
+        {
+          "id": "Samsung AR24TYHYC 2.0TR-35",
+          "model": "Samsung AR24TYHYC 2.0TR",
+          "type": "inverter_split",
+          "quantity": 35,
+          "providedTr": 70,
+          "utilizationPct": 85.71,
+          "capexPhp": 1680000,
+          "annualEnergyKwh": 707538.46,
+          "annualEnergyCostPhp": 9339507.69,
+          "totalLifecyclePhp": 48377538.46,
+          "score": 41.03
+        },
+        {
+          "id": "Samsung AR18TYHYC 1.5TR-46",
+          "model": "Samsung AR18TYHYC 1.5TR",
+          "type": "inverter_split",
+          "quantity": 46,
+          "providedTr": 69,
+          "utilizationPct": 86.96,
+          "capexPhp": 1748000,
+          "annualEnergyKwh": 665438.53,
+          "annualEnergyCostPhp": 8783788.62,
+          "totalLifecyclePhp": 45666943.12,
+          "score": 40.98
+        },
+        {
+          "id": "Carrier 42KHA018 1.5TR-46",
+          "model": "Carrier 42KHA018 1.5TR",
+          "type": "inverter_split",
+          "quantity": 46,
+          "providedTr": 69,
+          "utilizationPct": 86.96,
+          "capexPhp": 1794000,
+          "annualEnergyKwh": 690788.57,
+          "annualEnergyCostPhp": 9118409.14,
+          "totalLifecyclePhp": 47386045.71,
+          "score": 40.62
+        },
+        {
+          "id": "LG HS-18IPX 1.5TR-46",
+          "model": "LG HS-18IPX 1.5TR",
+          "type": "inverter_split",
+          "quantity": 46,
+          "providedTr": 69,
+          "utilizationPct": 86.96,
+          "capexPhp": 1794000,
+          "annualEnergyKwh": 677876.64,
+          "annualEnergyCostPhp": 8947971.59,
+          "totalLifecyclePhp": 46533857.94,
+          "score": 40.62
+        },
+        {
+          "id": "LG HS-24IPX 2.0TR-35",
+          "model": "LG HS-24IPX 2.0TR",
+          "type": "inverter_split",
+          "quantity": 35,
+          "providedTr": 70,
+          "utilizationPct": 85.71,
+          "capexPhp": 1750000,
+          "annualEnergyKwh": 707538.46,
+          "annualEnergyCostPhp": 9339507.69,
+          "totalLifecyclePhp": 48447538.46,
+          "score": 40.5
+        },
+        {
+          "id": "Carrier 42KHA024 2.0TR-35",
+          "model": "Carrier 42KHA024 2.0TR",
+          "type": "inverter_split",
+          "quantity": 35,
+          "providedTr": 70,
+          "utilizationPct": 85.71,
+          "capexPhp": 1820000,
+          "annualEnergyKwh": 728554.46,
+          "annualEnergyCostPhp": 9616918.81,
+          "totalLifecyclePhp": 49904594.06,
+          "score": 39.96
+        }
+      ],
+      "selectedCandidateId": "Condura FP-18AXN010B 1.5TR-46",
+      "formulas": [
+        {
+          "label": "Capacity Target",
+          "expression": "Target TR = Required TR x Redundancy Factor",
+          "value": "60.00 x 1.15 = 69.00 TR"
+        },
+        {
+          "label": "Energy Use",
+          "expression": "kWh = (Provided TR x 12000 x Hours) / (EER x 1000)",
+          "value": "Computed per candidate option"
+        },
+        {
+          "label": "Lifecycle Cost",
+          "expression": "Lifecycle PHP = Capex + (Annual Energy Cost x 5 years)",
+          "value": "Compared in candidate matrix"
+        }
+      ],
+      "alerts": [
+        "N+1 redundancy is active: target capacity increased by 15%."
+      ]
+    }
+  },
+  "boqSummary": {
+    "items": [
+      {
+        "id": "BOQ-001",
+        "section": "A - Equipment",
+        "description": "Daikin FTKM50 (inverter_split) - 1.5 TR",
+        "quantity": 3,
+        "unit": "unit",
+        "unitPrice": 75000,
+        "totalPrice": 225000,
+        "category": "equipment"
+      },
+      {
+        "id": "BOQ-002",
+        "section": "A - Equipment",
+        "description": "Installation of Daikin FTKM50",
+        "quantity": 3,
+        "unit": "unit",
+        "unitPrice": 11250,
+        "totalPrice": 33750,
+        "category": "labor"
+      },
+      {
+        "id": "BOQ-003",
+        "section": "A - Equipment",
+        "description": "Carrier 42QHC024 (cassette) - 2 TR",
+        "quantity": 2,
+        "unit": "unit",
+        "unitPrice": 106500,
+        "totalPrice": 213000,
+        "category": "equipment"
+      },
+      {
+        "id": "BOQ-004",
+        "section": "A - Equipment",
+        "description": "Installation of Carrier 42QHC024",
+        "quantity": 2,
+        "unit": "unit",
+        "unitPrice": 15975,
+        "totalPrice": 31950,
+        "category": "labor"
+      },
+      {
+        "id": "BOQ-005",
+        "section": "H - Miscellaneous",
+        "description": "Sealant, tape, bolts, screws, consumables",
+        "quantity": 1,
+        "unit": "lot",
+        "unitPrice": 5000,
+        "totalPrice": 5000,
+        "category": "material"
+      },
+      {
+        "id": "BOQ-006",
+        "section": "I - Labor",
+        "description": "Installation labor — Miscellaneous (35%)",
+        "quantity": 1,
+        "unit": "lot",
+        "unitPrice": 1750,
+        "totalPrice": 1750,
+        "category": "labor"
+      },
+      {
+        "id": "BOQ-007",
+        "section": "J - Professional Fees",
+        "description": "Engineering & design fee (5% of subtotal)",
+        "quantity": 1,
+        "unit": "lot",
+        "unitPrice": 25523,
+        "totalPrice": 25523,
+        "category": "fee"
+      },
+      {
+        "id": "BOQ-008",
+        "section": "K - Permits & Compliance",
+        "description": "Permit & compliance fees (2% of subtotal)",
+        "quantity": 1,
+        "unit": "lot",
+        "unitPrice": 10209,
+        "totalPrice": 10209,
+        "category": "fee"
+      }
+    ],
+    "equipmentCost": 438000,
+    "materialCost": 5000,
+    "laborCost": 67450,
+    "overhead": 76568,
+    "contingency": 25523,
+    "subtotal": 510450,
+    "vat": 77793,
+    "grandTotal": 726064,
+    "costPerTR": 85419,
+    "alerts": []
+  },
+  "projectCost": {
+    "equipmentCost": 438000,
+    "materialCost": 63375,
+    "laborCost": 131400,
+    "subtotal": 632775,
+    "overhead": 63278,
+    "contingency": 31639,
+    "netTotal": 727691,
+    "vat": 87323,
+    "grandTotal": 815014
+  }
+}

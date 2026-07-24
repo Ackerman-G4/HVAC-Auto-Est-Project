@@ -10,6 +10,7 @@ import { HvacLogo } from '@/components/ui/hvac-logo';
 import { SystemLoadingScreen } from '@/components/layout/system-loading-screen';
 import { WelcomeOverlay } from '@/components/layout/welcome-overlay';
 import { PageTransition } from '@/components/ui/page-transition';
+import { CommandPalette } from '@/components/ui/command-palette';
 import { useAuthStore } from '@/stores/auth-store';
 import { useUIStore } from '@/stores/ui-store';
 import { getRouteMeta } from '@/config/routes';
@@ -135,12 +136,21 @@ export function AppShell({ children }: AppShellProps) {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {/* Search bar */}
-                  <div className="hidden items-center gap-2 rounded-xl border border-border/70 bg-card/60 px-3 py-1.5 text-sm text-muted-foreground md:flex">
+                  {/* Command palette trigger */}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      window.dispatchEvent(
+                        new KeyboardEvent('keydown', { key: 'k', metaKey: true }),
+                      )
+                    }
+                    className="hidden items-center gap-2 rounded-xl border border-border/70 bg-card/60 px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:border-accent/40 hover:text-foreground md:flex"
+                    aria-label="Open command palette"
+                  >
                     <Search size={14} />
                     <span className="text-xs">Search...</span>
                     <kbd className="ml-2 rounded-md border border-border/80 bg-secondary/50 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">⌘K</kbd>
-                  </div>
+                  </button>
                   {/* Workspace mode toggle pill */}
                   <div className="hidden items-center rounded-lg border border-border/70 bg-card/60 p-0.5 md:flex" role="radiogroup" aria-label="Workspace mode">
                     <button
@@ -234,6 +244,7 @@ export function AppShell({ children }: AppShellProps) {
         onComplete={() => setShowWelcome(false)}
       />
 
+      <CommandPalette />
       <ToastContainer />
     </div>
   );

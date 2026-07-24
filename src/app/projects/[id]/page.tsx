@@ -32,6 +32,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { showToast } from '@/components/ui/toast';
 import { DualValueExplainer } from '@/components/ui/dual-value-explainer';
+import { WorkflowRail, deriveWorkflowStages } from '@/components/ui/workflow-rail';
 import { TermHint } from '@/components/ui/term-hint';
 import { listContainerVariants, listItemVariants } from '@/animations/list-variants';
 import { formatPHP } from '@/lib/utils/format-currency';
@@ -1120,6 +1121,19 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     { id: 'export', label: 'Export', icon: <Download className="w-4 h-4" /> },
   ];
 
+  // Workflow rail (overhaul-v3 §4.2): derive pipeline status from data this
+  // page already computes. `isBoqStale` maps straight onto the stale badge.
+  const workflowStages = deriveWorkflowStages({
+    roomCount: allRooms.length,
+    loadsCalculated: allRooms.some((r) => Boolean(r.coolingLoad)),
+    equipmentSelected: project.selectedEquipment.length > 0,
+    ductsSized: project.boqItems.some((b) => b.section.toLowerCase().includes('duct')),
+    boqItemCount: project.boqItems.length,
+    quotationGenerated: boqVerified,
+    reportsGenerated: false,
+    staleStages: project.isBoqStale ? ['boq', 'quotation'] : undefined,
+  });
+
   return (
     <PageWrapper>
       <PageHeader
@@ -1142,6 +1156,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             </Button>
           </div>
         }
+      />
+
+      {/* Workflow rail — the golden path, always visible */}
+      <WorkflowRail
+        projectId={id}
+        stages={workflowStages}
+        activeStage="boq"
+        className="mb-6"
       />
 
       {/* Stats */}
