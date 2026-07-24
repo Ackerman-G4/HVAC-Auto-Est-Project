@@ -65,7 +65,7 @@
     "@types/three": "0.179.0",
     "bcryptjs": "3.0.3",
     "clsx": "^2.1.1",
-    "dotenv": "16.6.1",
+    "dotenv": "17.4.2",
     "exceljs": "4.4.0",
     "fabric": "^7.2.0",
     "firebase": "12.12.1",
