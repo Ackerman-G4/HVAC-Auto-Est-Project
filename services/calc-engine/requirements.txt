@@ -1,4 +1,4 @@
-fastapi==0.121.3
+fastapi==0.139.2
 uvicorn[standard]==0.34.2
 psychrolib==2.5.0
 pydantic==2.11.4
