@@ -23,7 +23,6 @@ import { showToast } from '@/components/ui/toast';
 import { HVAC_TYPE_DEFAULTS } from '@/features/simulation/viewer/constants';
 import type { DetectedFloor, DetectedRoom, ViewerRoomBoundary } from '@/features/simulation/viewer/types';
 import {
-  deriveFloorBoundsMeters,
   mapLayoutHVACToUnit,
   mapLayoutTile,
   buildLayoutPayload,
@@ -31,7 +30,6 @@ import {
   buildRoomBoundariesForFloor,
   snapHVACUnit,
   validateHVACPlacement,
-  sanitizeHVACPlacements,
 } from '@/features/simulation/viewer/helpers';
 import { autoDetectEquipment } from '@/lib/functions/auto-detect-equipment';
 import { normalizeRoomLayout } from '@/lib/simulation/normalize-room-layout';
@@ -975,61 +973,50 @@ export default function SimulationPage() {
           .map(mapLayoutTile)
           .filter((tile): tile is PerforatedTile => tile !== null);
 
-        const floorRoomBoundaries = buildRoomBoundariesForFloor(selectedFloor);
-        const sanitizedHVAC = sanitizeHVACPlacements(mappedHVAC, floorRoomBoundaries);
+        // Single normalization pass: floor-snap, drop NaN, validate, one grid
+        // size. Same pipeline as auto-detect so a hydrated layout and a freshly
+        // detected one are grounded and framed identically.
+        const normalized = normalizeRoomLayout({
+          roomBoundaries: buildRoomBoundariesForFloor(selectedFloor),
+          racks: [],
+          hvacUnits: mappedHVAC,
+          tiles: mappedTiles,
+          gridResolution: config.gridResolution,
+          ceilingHeightM: selectedFloor?.ceilingHeight,
+        });
 
-        setHVACUnits(sanitizedHVAC.accepted);
-        setTiles(mappedTiles);
-        if (selectedHVACId && !sanitizedHVAC.accepted.some((unit) => unit.id === selectedHVACId)) {
+        setHVACUnits(normalized.hvacUnits);
+        setTiles(normalized.tiles);
+        if (selectedHVACId && !normalized.hvacUnits.some((unit) => unit.id === selectedHVACId)) {
           setSelectedHVACId(null);
         }
 
+        // Seed the autosave baseline from the NORMALIZED payload so opening a
+        // project never triggers a PUT /simulation-layout — render-time sanitize
+        // only, storage is never silently mutated.
         const hydratedPayload = buildLayoutPayload(
           selectedFloorId,
           selectedFloor,
-          sanitizedHVAC.accepted,
-          mappedTiles,
+          normalized.hvacUnits,
+          normalized.tiles,
         );
         lastLayoutPayloadHashRef.current = buildLayoutPayloadHash(hydratedPayload);
 
-        if (sanitizedHVAC.rejected.length > 0) {
+        if (normalized.warnings.length > 0) {
           showToast(
             'warning',
-            'Layout HVAC validation applied',
-            `${sanitizedHVAC.accepted.length} unit(s) accepted, ${sanitizedHVAC.rejected.length} skipped due to boundary/overlap constraints.`,
+            'Layout adjusted on load',
+            `${normalized.hvacUnits.length} unit(s) placed; ${normalized.warnings.length} adjusted or skipped by placement validation.`,
           );
         }
 
-        const floorBounds = selectedFloor
-          ? deriveFloorBoundsMeters(selectedFloor)
-          : { width: 6, length: 6 };
-        const hvacExtentX = sanitizedHVAC.accepted.reduce((max, unit) => Math.max(max, unit.position.x + unit.width), 0);
-        const hvacExtentY = sanitizedHVAC.accepted.reduce((max, unit) => Math.max(max, unit.position.y + unit.depth), 0);
-        const tileExtentX = mappedTiles.reduce((max, tile) => Math.max(max, tile.x + tile.tileSize), 0);
-        const tileExtentY = mappedTiles.reduce((max, tile) => Math.max(max, tile.y + tile.tileSize), 0);
-
-        const targetWidthM = Math.max(floorBounds.width, hvacExtentX + 1, tileExtentX + 1, 6);
-        const targetLengthM = Math.max(floorBounds.length, hvacExtentY + 1, tileExtentY + 1, 6);
-        const cellSize = Math.max(0.1, config.gridResolution);
-
-        const nextGridSizeX = Math.max(10, Math.min(80, Math.ceil(targetWidthM / cellSize) + 2));
-        const nextGridSizeY = Math.max(10, Math.min(80, Math.ceil(targetLengthM / cellSize) + 2));
-        const nextGridSizeZ = Math.max(
-          6,
-          Math.min(24, Math.ceil(Math.max(2.4, selectedFloor?.ceilingHeight ?? 3.0) / cellSize)),
-        );
         const currentConfig = useSimulationStore.getState().config;
-
         if (
-          nextGridSizeX !== currentConfig.gridSizeX
-          || nextGridSizeY !== currentConfig.gridSizeY
-          || nextGridSizeZ !== currentConfig.gridSizeZ
+          normalized.gridSize.gridSizeX !== currentConfig.gridSizeX
+          || normalized.gridSize.gridSizeY !== currentConfig.gridSizeY
+          || normalized.gridSize.gridSizeZ !== currentConfig.gridSizeZ
         ) {
-          setConfig({
-            gridSizeX: nextGridSizeX,
-            gridSizeY: nextGridSizeY,
-            gridSizeZ: nextGridSizeZ,
-          });
+          setConfig(normalized.gridSize);
         }
       })
       .catch(() => { /* ignore layout sync errors */ })
