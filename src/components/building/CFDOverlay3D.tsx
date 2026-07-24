@@ -18,6 +18,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
+import { getDomainCenter } from '@/lib/simulation/scene-transform';
 import { computeJetSeeds, sampleJetSeed } from '@/lib/simulation/jet-seeding';
 import { usePrefersReducedMotion } from '@/lib/ui/motion';
 import { sampleScalarTrilinear, sampleVectorTrilinear } from '@/lib/simulation/field-sampling';
@@ -85,8 +86,7 @@ export function HeatmapSlice({ result, sliceZ, viewMode }: HeatmapProps) {
     if (!isFinite(minVal)) minVal = 0;
     if (!isFinite(maxVal)) maxVal = minVal + 1;
 
-    const centerX = (config.gridSizeX * res) / 2;
-    const centerY = (config.gridSizeY * res) / 2;
+    const { centerX, centerZ: centerY } = getDomainCenter(config);
     const matrix = new THREE.Matrix4();
 
     for (let x = 0; x < config.gridSizeX; x++) {
@@ -150,8 +150,7 @@ export function VelocityArrows({ result, sliceZ }: ArrowsProps) {
 
   const arrows = useMemo(() => {
     const items: { pos: THREE.Vector3; dir: THREE.Vector3; speed: number }[] = [];
-    const centerX = (config.gridSizeX * res) / 2;
-    const centerY = (config.gridSizeY * res) / 2;
+    const { centerX, centerZ: centerY } = getDomainCenter(config);
     const maxVel = Math.max(result.metrics.maxVelocity, 0.1);
 
     for (let x = 0; x < config.gridSizeX; x += step) {
@@ -202,8 +201,7 @@ export function AirflowParticles({ result, count = 500 }: ParticlesProps) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const { config } = result;
   const res = config.gridResolution;
-  const centerX = (config.gridSizeX * res) / 2;
-  const centerY = (config.gridSizeY * res) / 2;
+  const { centerX, centerZ: centerY } = getDomainCenter(config);
   const samplingSpec = useMemo(() => ({
     resolution: res,
     sizeX: config.gridSizeX,
@@ -474,8 +472,7 @@ export function ContourSlicePlane({ result, config: sliceConfig }: ContourSliceP
     if (!isFinite(maxVal)) maxVal = minVal + 1;
 
     const colorFn = COLOR_MAPS[colorMap] || COLOR_MAPS.jet;
-    const centerX = (simConfig.gridSizeX * res) / 2;
-    const centerY = (simConfig.gridSizeY * res) / 2;
+    const { centerX, centerZ: centerY } = getDomainCenter(simConfig);
     const sliceIdx = Math.floor(position / res);
 
     const matrix = new THREE.Matrix4();
@@ -563,8 +560,7 @@ export function DenseVelocityArrows({ result, sliceZ, density = 0.3, scale = 1.0
 
   const arrows = useMemo(() => {
     const items: { pos: THREE.Vector3; dir: THREE.Vector3; speed: number; color: THREE.Color }[] = [];
-    const centerX = (config.gridSizeX * res) / 2;
-    const centerY = (config.gridSizeY * res) / 2;
+    const { centerX, centerZ: centerY } = getDomainCenter(config);
     const maxVel = Math.max(result.metrics.maxVelocity, 0.1);
 
     for (let x = 0; x < config.gridSizeX; x += step) {
@@ -620,8 +616,7 @@ interface StreamlinesProps {
 export function Streamlines({ result, config: slCfg, sliceZ, seedPoints }: StreamlinesProps) {
   const { config: simCfg } = result;
   const res = simCfg.gridResolution;
-  const centerX = (simCfg.gridSizeX * res) / 2;
-  const centerY = (simCfg.gridSizeY * res) / 2;
+  const { centerX, centerZ: centerY } = getDomainCenter(simCfg);
   const samplingSpec = useMemo(() => ({
     resolution: res,
     sizeX: simCfg.gridSizeX,
@@ -753,8 +748,7 @@ export function TemperatureFog({ result, opacity = 0.35 }: TemperatureFogProps) 
     const mats: THREE.Matrix4[] = [];
     const cols: THREE.Color[] = [];
     const ops: number[] = [];
-    const centerX = (config.gridSizeX * res) / 2;
-    const centerY = (config.gridSizeY * res) / 2;
+    const { centerX, centerZ: centerY } = getDomainCenter(config);
     const minT = result.metrics.minTemperature;
     const maxT = result.metrics.maxTemperature;
     const ambient = config.ambientTempC;
@@ -824,8 +818,7 @@ function efficiencyColor(eff: number): THREE.Color {
 export function TileAirflowOverlay({ tileData, gridResolution: res, gridSizeX, gridSizeY }: TileAirflowOverlayProps) {
   const groupRef = useRef<THREE.Group>(null);
   const clockRef = useRef(0);
-  const centerX = (gridSizeX * res) / 2;
-  const centerY = (gridSizeY * res) / 2;
+  const { centerX, centerZ: centerY } = getDomainCenter({ gridSizeX, gridSizeY, gridResolution: res });
 
   const tiles = useMemo(() =>
     tileData.map(tile => {

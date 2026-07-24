@@ -17,6 +17,8 @@ import { Line, OrbitControls, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import type { SimulationResult, ServerRack, HVACUnit, InspectedCellInfo, TileFlowViewConfig, TileAirflowData, ThermalAlert, Vec3 } from '@/types/simulation';
 import { HeatmapSlice, VelocityArrows, AirflowParticles, Streamlines, TemperatureFog, TileAirflowOverlay, AlertZoneMarkers } from './CFDOverlay3D';
+import { getDomainCenter } from '@/lib/simulation/scene-transform';
+import { dumpSceneDebug } from '@/lib/simulation/debug-scene-dump';
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -287,8 +289,12 @@ function Scene(props: Props) {
   } = props;
 
   const { config, metrics } = result;
-  const centerX = (config.gridSizeX * config.gridResolution) / 2;
-  const centerZ = (config.gridSizeY * config.gridResolution) / 2;
+  const { centerX, centerZ } = getDomainCenter(config);
+
+  // TEMPORARY (WS1): numeric scene dump for verifying the CFD fix. Removed in WS7.
+  React.useEffect(() => {
+    dumpSceneDebug({ label: 'AirflowViewer3D', racks, hvacUnits, tiles: [], config });
+  }, [racks, hvacUnits, config]);
 
   const handleInspect = useCallback((cell: InspectedCellInfo | null) => {
     onInspect?.(cell);
