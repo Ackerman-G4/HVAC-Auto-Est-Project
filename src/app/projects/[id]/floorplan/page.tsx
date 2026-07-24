@@ -37,7 +37,6 @@ import { Badge } from '@/components/ui/badge';
 import { showToast } from '@/components/ui/toast';
 import FloorPlanMultiView from '@/components/floorplan/FloorPlanMultiView';
 import {
-  calculatePolygonArea,
   createRectPolygonPoints,
   getPolygonBounds,
   parseRoomPolygon,
@@ -50,189 +49,16 @@ import Image from 'next/image';
 import { authFetch } from '@/lib/api-client';
 import { useSimulationStore } from '@/stores/simulation-store';
 import type { LayoutHVACPlacement, LayoutTilePlacement } from '@/types/simulation';
-
-const SPACE_TYPE_OPTIONS = [
-  { value: 'office', label: 'Office' },
-  { value: 'conference_room', label: 'Conference Room' },
-  { value: 'lobby', label: 'Lobby' },
-  { value: 'retail', label: 'Retail' },
-  { value: 'restaurant', label: 'Restaurant' },
-  { value: 'kitchen', label: 'Kitchen' },
-  { value: 'server_room', label: 'Server Room' },
-  { value: 'residential', label: 'Residential' },
-  { value: 'classroom', label: 'Classroom' },
-  { value: 'warehouse', label: 'Warehouse' },
-];
-
-interface CanvasRoom {
-  id: string;
-  name: string;
-  spaceType: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  color: string;
-  polygonPoints?: RoomPolygonPoint[];
-}
-
-interface FloorData {
-  id: string;
-  floorNumber: number;
-  name: string;
-  floorPlanImage: string | null;
-  scale: number;
-}
-
-type Tool = 'select' | 'draw' | 'polygon' | 'measure' | 'wall' | 'hvac' | 'tile';
-
-interface WallSegment {
-  id: string;
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-  thickness: number;
-}
-
-const ROOM_COLORS = [
-  'rgba(37, 99, 235, 0.15)',
-  'rgba(22, 163, 74, 0.15)',
-  'rgba(234, 179, 8, 0.15)',
-  'rgba(239, 68, 68, 0.15)',
-  'rgba(168, 85, 247, 0.15)',
-  'rgba(14, 165, 233, 0.15)',
-  'rgba(249, 115, 22, 0.15)',
-  'rgba(236, 72, 153, 0.15)',
-];
-
-function drawPolygonPath(ctx: CanvasRenderingContext2D, points: RoomPolygonPoint[]): void {
-  if (points.length === 0) return;
-  ctx.beginPath();
-  ctx.moveTo(points[0].x, points[0].y);
-  for (let i = 1; i < points.length; i++) {
-    ctx.lineTo(points[i].x, points[i].y);
-  }
-  ctx.closePath();
-}
-
-function pointInPolygon(point: RoomPolygonPoint, polygon: RoomPolygonPoint[]): boolean {
-  let inside = false;
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    const xi = polygon[i].x;
-    const yi = polygon[i].y;
-    const xj = polygon[j].x;
-    const yj = polygon[j].y;
-    const intersects = ((yi > point.y) !== (yj > point.y))
-      && (point.x < ((xj - xi) * (point.y - yi)) / (yj - yi) + xi);
-    if (intersects) inside = !inside;
-  }
-  return inside;
-}
-
-function distancePointToSegment(
-  point: RoomPolygonPoint,
-  segmentStart: RoomPolygonPoint,
-  segmentEnd: RoomPolygonPoint,
-): number {
-  const dx = segmentEnd.x - segmentStart.x;
-  const dy = segmentEnd.y - segmentStart.y;
-
-  if (dx === 0 && dy === 0) {
-    return Math.hypot(point.x - segmentStart.x, point.y - segmentStart.y);
-  }
-
-  const t = ((point.x - segmentStart.x) * dx + (point.y - segmentStart.y) * dy) / (dx * dx + dy * dy);
-  const clampedT = Math.max(0, Math.min(1, t));
-  const closestX = segmentStart.x + clampedT * dx;
-  const closestY = segmentStart.y + clampedT * dy;
-
-  return Math.hypot(point.x - closestX, point.y - closestY);
-}
-
-function findNearestEdgeIndex(
-  polygon: RoomPolygonPoint[],
-  point: RoomPolygonPoint,
-  maxDistance: number,
-): number | null {
-  if (polygon.length < 3) {
-    return null;
-  }
-
-  let nearestIndex: number | null = null;
-  let nearestDistance = Number.POSITIVE_INFINITY;
-
-  for (let i = 0; i < polygon.length; i++) {
-    const start = polygon[i];
-    const end = polygon[(i + 1) % polygon.length];
-    const distance = distancePointToSegment(point, start, end);
-    if (distance < nearestDistance) {
-      nearestDistance = distance;
-      nearestIndex = i;
-    }
-  }
-
-  if (nearestDistance > maxDistance) {
-    return null;
-  }
-
-  return nearestIndex;
-}
-
-function getRoomPolygonPoints(room: CanvasRoom): RoomPolygonPoint[] {
-  if (room.polygonPoints && room.polygonPoints.length >= 3) {
-    return room.polygonPoints;
-  }
-
-  return createRectPolygonPoints({
-    x: room.x,
-    y: room.y,
-    width: room.width,
-    height: room.height,
-  });
-}
-
-function getRoomAreaM2(room: CanvasRoom, scalePxPerM: number): number {
-  const points = getRoomPolygonPoints(room).map((point) => ({
-    x: point.x / scalePxPerM,
-    y: point.y / scalePxPerM,
-  }));
-  return calculatePolygonArea(points);
-}
-
-function getRoomLabelCenter(room: CanvasRoom): { x: number; y: number } {
-  const polygon = room.polygonPoints;
-  if (!polygon || polygon.length < 3) {
-    return {
-      x: room.x + room.width / 2,
-      y: room.y + room.height / 2,
-    };
-  }
-
-  let areaFactor = 0;
-  let centerX = 0;
-  let centerY = 0;
-
-  for (let i = 0; i < polygon.length; i++) {
-    const next = polygon[(i + 1) % polygon.length];
-    const cross = polygon[i].x * next.y - next.x * polygon[i].y;
-    areaFactor += cross;
-    centerX += (polygon[i].x + next.x) * cross;
-    centerY += (polygon[i].y + next.y) * cross;
-  }
-
-  if (Math.abs(areaFactor) <= 1e-9) {
-    return {
-      x: room.x + room.width / 2,
-      y: room.y + room.height / 2,
-    };
-  }
-
-  return {
-    x: centerX / (3 * areaFactor),
-    y: centerY / (3 * areaFactor),
-  };
-}
+import { SPACE_TYPE_OPTIONS, ROOM_COLORS } from '@/features/floorplan/constants';
+import {
+  drawPolygonPath,
+  pointInPolygon,
+  findNearestEdgeIndex,
+  getRoomPolygonPoints,
+  getRoomAreaM2,
+  getRoomLabelCenter,
+} from '@/features/floorplan/geometry';
+import type { CanvasRoom, FloorData, Tool, WallSegment } from '@/features/floorplan/types';
 
 export default function FloorPlanPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
