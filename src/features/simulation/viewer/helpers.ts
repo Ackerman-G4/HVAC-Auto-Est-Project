@@ -3,14 +3,28 @@ import type {
   ServerRack, HVACUnit, PerforatedTile,
 } from '@/types/simulation';
 import { getPolygonBounds, parseRoomPolygon } from '@/lib/utils/room-polygon';
+import { resolveFloorScale } from '@/lib/simulation/geometry-2d';
 import type { DetectedFloor, DetectedRoom, ViewerRoomBoundary } from './types';
 import {
   HVAC_TYPE_DEFAULTS,
   HVAC_TYPES,
-  HVAC_PLACEMENT_GRID_M,
-  HVAC_MIN_WALL_CLEARANCE_M,
-  HVAC_MIN_UNIT_GAP_M,
 } from './constants';
+
+// 2D predicates + placement primitives now live in the shared lib layer so the
+// zustand store and the layout normalizer can use them without importing this
+// feature module. Re-exported here for existing viewer importers.
+export {
+  distancePointToSegment,
+  isPointInsidePolygon,
+  minDistanceToPolygonEdges,
+  overlapIntervals,
+} from '@/lib/simulation/geometry-2d';
+export {
+  snapToPlacementGrid,
+  snapHVACUnit,
+  validateHVACPlacement,
+  sanitizeHVACPlacements,
+} from '@/lib/simulation/normalize-room-layout';
 
 export function toFiniteNumber(value: unknown, fallback: number): number {
   const parsed = Number(value);
@@ -35,11 +49,7 @@ export function deriveFloorBoundsMeters(floor: DetectedFloor): { width: number; 
       continue;
     }
 
-    const scale = polygon.scale && polygon.scale > 0
-      ? polygon.scale
-      : floor.scale > 0
-        ? floor.scale
-        : 1;
+    const scale = resolveFloorScale(polygon.scale, floor.scale);
     const pointsInMeters = polygon.points.map((point) => ({
       x: point.x / scale,
       y: point.y / scale,
@@ -73,10 +83,19 @@ export function deriveFloorBoundsMeters(floor: DetectedFloor): { width: number; 
   return { width: fallbackSide, length: fallbackSide };
 }
 
-export function mapLayoutHVACToUnit(raw: Record<string, unknown>, index: number): HVACUnit {
+export function mapLayoutHVACToUnit(raw: Record<string, unknown>, index: number): HVACUnit | null {
   const type = toHVACType(raw.type);
   const defaults = HVAC_TYPE_DEFAULTS[type];
   const rawPosition = (raw.position ?? {}) as Record<string, unknown>;
+
+  // Drop malformed placements rather than piling them at the origin (mirrors
+  // mapLayoutTile). normalizeRoomLayout also guards, but dropping here keeps
+  // the "no NaN → 0 corner pile-up" invariant regardless of the consumer.
+  const px = toFiniteNumber(rawPosition.x, Number.NaN);
+  const py = toFiniteNumber(rawPosition.y, Number.NaN);
+  if (!Number.isFinite(px) || !Number.isFinite(py)) {
+    return null;
+  }
 
   const capacityKW = Math.max(0.1, toFiniteNumber(raw.capacityKW, defaults.capacityKW));
   const airflowCFM = Math.max(50, toFiniteNumber(raw.airflowCFM, Math.max(defaults.airflowCFM, capacityKW * 170)));
@@ -90,8 +109,8 @@ export function mapLayoutHVACToUnit(raw: Record<string, unknown>, index: number)
       ? raw.label
       : `${type.toUpperCase()} ${index + 1}`,
     position: {
-      x: toFiniteNumber(rawPosition.x, 0),
-      y: toFiniteNumber(rawPosition.y, 0),
+      x: px,
+      y: py,
       z: toFiniteNumber(rawPosition.z, 0),
     },
     width: defaults.width,
@@ -194,11 +213,7 @@ export function buildRoomBoundariesForFloor(floor: DetectedFloor | null): Viewer
         return null;
       }
 
-      const scale = polygon.scale && polygon.scale > 0
-        ? polygon.scale
-        : floor.scale > 0
-          ? floor.scale
-          : 1;
+      const scale = resolveFloorScale(polygon.scale, floor.scale);
       const points = polygon.points.map((point) => ({
         x: point.x / scale,
         y: point.y / scale,
@@ -226,142 +241,6 @@ export function buildRoomBoundariesForFloor(floor: DetectedFloor | null): Viewer
       };
     })
     .filter((room): room is ViewerRoomBoundary => Boolean(room));
-}
-
-export function snapToPlacementGrid(value: number): number {
-  return Math.round(value / HVAC_PLACEMENT_GRID_M) * HVAC_PLACEMENT_GRID_M;
-}
-
-export function distancePointToSegment(
-  point: { x: number; y: number },
-  start: { x: number; y: number },
-  end: { x: number; y: number },
-): number {
-  const dx = end.x - start.x;
-  const dy = end.y - start.y;
-  const lengthSq = dx * dx + dy * dy;
-
-  if (lengthSq < 1e-9) {
-    return Math.hypot(point.x - start.x, point.y - start.y);
-  }
-
-  const t = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSq));
-  const projX = start.x + t * dx;
-  const projY = start.y + t * dy;
-  return Math.hypot(point.x - projX, point.y - projY);
-}
-
-export function isPointInsidePolygon(point: { x: number; y: number }, polygon: Array<{ x: number; y: number }>): boolean {
-  let inside = false;
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    const xi = polygon[i].x;
-    const yi = polygon[i].y;
-    const xj = polygon[j].x;
-    const yj = polygon[j].y;
-
-    const intersects = ((yi > point.y) !== (yj > point.y))
-      && (point.x < ((xj - xi) * (point.y - yi)) / ((yj - yi) || 1e-9) + xi);
-    if (intersects) {
-      inside = !inside;
-    }
-  }
-  return inside;
-}
-
-export function minDistanceToPolygonEdges(point: { x: number; y: number }, polygon: Array<{ x: number; y: number }>): number {
-  let minDistance = Number.POSITIVE_INFINITY;
-  for (let i = 0; i < polygon.length; i++) {
-    const start = polygon[i];
-    const end = polygon[(i + 1) % polygon.length];
-    const distance = distancePointToSegment(point, start, end);
-    minDistance = Math.min(minDistance, distance);
-  }
-  return minDistance;
-}
-
-export function overlapIntervals(aMin: number, aMax: number, bMin: number, bMax: number): boolean {
-  return aMin < bMax && bMin < aMax;
-}
-
-export function unitsOverlapInPlan(a: HVACUnit, b: HVACUnit): boolean {
-  const aMinX = a.position.x - a.width / 2 - HVAC_MIN_UNIT_GAP_M;
-  const aMaxX = a.position.x + a.width / 2 + HVAC_MIN_UNIT_GAP_M;
-  const aMinY = a.position.y - a.depth / 2 - HVAC_MIN_UNIT_GAP_M;
-  const aMaxY = a.position.y + a.depth / 2 + HVAC_MIN_UNIT_GAP_M;
-
-  const bMinX = b.position.x - b.width / 2;
-  const bMaxX = b.position.x + b.width / 2;
-  const bMinY = b.position.y - b.depth / 2;
-  const bMaxY = b.position.y + b.depth / 2;
-
-  return overlapIntervals(aMinX, aMaxX, bMinX, bMaxX)
-    && overlapIntervals(aMinY, aMaxY, bMinY, bMaxY);
-}
-
-export function snapHVACUnit(unit: HVACUnit): HVACUnit {
-  return {
-    ...unit,
-    position: {
-      ...unit.position,
-      x: snapToPlacementGrid(unit.position.x),
-      y: snapToPlacementGrid(unit.position.y),
-    },
-  };
-}
-
-export function validateHVACPlacement(
-  candidate: HVACUnit,
-  existingUnits: HVACUnit[],
-  roomBoundaries: ViewerRoomBoundary[],
-): { valid: boolean; reason?: string } {
-  if (roomBoundaries.length > 0) {
-    const container = roomBoundaries.find((room) => isPointInsidePolygon(candidate.position, room.points));
-    if (!container) {
-      return { valid: false, reason: 'Placement is outside all room boundaries.' };
-    }
-
-    const edgeDistance = minDistanceToPolygonEdges(candidate.position, container.points);
-    const requiredClearance = Math.max(
-      HVAC_MIN_WALL_CLEARANCE_M,
-      Math.min(candidate.width, candidate.depth) * 0.35,
-    );
-    if (edgeDistance < requiredClearance) {
-      return { valid: false, reason: `Placement is too close to room wall boundary (need >= ${requiredClearance.toFixed(2)}m).` };
-    }
-  }
-
-  const overlap = existingUnits.find((unit) => unitsOverlapInPlan(candidate, unit));
-  if (overlap) {
-    return { valid: false, reason: `Placement overlaps with ${overlap.name}.` };
-  }
-
-  return { valid: true };
-}
-
-export function sanitizeHVACPlacements(
-  units: HVACUnit[],
-  roomBoundaries: ViewerRoomBoundary[],
-): {
-  accepted: HVACUnit[];
-  rejected: Array<{ unit: HVACUnit; reason: string }>;
-} {
-  const accepted: HVACUnit[] = [];
-  const rejected: Array<{ unit: HVACUnit; reason: string }> = [];
-
-  for (const rawUnit of units) {
-    const unit = snapHVACUnit(rawUnit);
-    const validation = validateHVACPlacement(unit, accepted, roomBoundaries);
-    if (validation.valid) {
-      accepted.push(unit);
-    } else {
-      rejected.push({
-        unit,
-        reason: validation.reason ?? 'Unknown placement validation issue.',
-      });
-    }
-  }
-
-  return { accepted, rejected };
 }
 
 /** Infer server racks from a server_room room's equipment load */

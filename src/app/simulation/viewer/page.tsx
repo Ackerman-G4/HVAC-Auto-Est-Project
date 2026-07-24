@@ -968,7 +968,9 @@ export default function SimulationPage() {
           ? (layout?.tilePlacements as Record<string, unknown>[])
           : [];
 
-        const mappedHVAC = hvacPlacements.map((placement, index) => mapLayoutHVACToUnit(placement, index));
+        const mappedHVAC = hvacPlacements
+          .map((placement, index) => mapLayoutHVACToUnit(placement, index))
+          .filter((unit): unit is HVACUnit => unit !== null);
         const mappedTiles = tilePlacements
           .map(mapLayoutTile)
           .filter((tile): tile is PerforatedTile => tile !== null);

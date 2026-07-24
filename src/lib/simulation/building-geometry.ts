@@ -1,6 +1,7 @@
 import { extrudeRoomFromPolygon } from '@/lib/geometry/room-extruder';
 import { detectAdjacentRooms } from '@/lib/geometry/spatial-index';
 import { createRectPolygonPoints, getPolygonBounds, parseRoomPolygon } from '@/lib/utils/room-polygon';
+import { resolveFloorScale } from '@/lib/simulation/geometry-2d';
 import type { Point2D, RoomGeometry } from '@/types/geometry';
 import type {
   AirConnection,
@@ -167,9 +168,7 @@ function toPolygonMeters(source: FloorRoomSource): Point2D[] | null {
     return null;
   }
 
-  const scale = polygon.scale && polygon.scale > 0
-    ? polygon.scale
-    : 1;
+  const scale = resolveFloorScale(polygon.scale, source.floorScale);
   const points = polygon.points.map((point) => ({
     x: point.x / scale,
     y: point.y / scale,
