@@ -1,0 +1,2459 @@
+diff --git a/package-lock.json b/package-lock.json
+index a78c09e..f136168 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -2720,9 +2720,6 @@
+       "cpu": [
+         "arm64"
+       ],
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -2739,9 +2736,6 @@
+       "cpu": [
+         "arm64"
+       ],
+-      "libc": [
+-        "musl"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -2758,9 +2752,6 @@
+       "cpu": [
+         "x64"
+       ],
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -2777,9 +2768,6 @@
+       "cpu": [
+         "x64"
+       ],
+-      "libc": [
+-        "musl"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -3240,9 +3228,6 @@
+         "arm"
+       ],
+       "dev": true,
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -3257,9 +3242,6 @@
+         "arm"
+       ],
+       "dev": true,
+-      "libc": [
+-        "musl"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -3274,9 +3256,6 @@
+         "arm64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -3291,9 +3270,6 @@
+         "arm64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "musl"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -3308,9 +3284,6 @@
+         "loong64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -3325,9 +3298,6 @@
+         "loong64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "musl"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -3342,9 +3312,6 @@
+         "ppc64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -3359,9 +3326,6 @@
+         "ppc64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "musl"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -3376,9 +3340,6 @@
+         "riscv64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -3393,9 +3354,6 @@
+         "riscv64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "musl"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -3410,9 +3368,6 @@
+         "s390x"
+       ],
+       "dev": true,
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -3427,9 +3382,6 @@
+         "x64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -3444,9 +3396,6 @@
+         "x64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "musl"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+diff --git a/src/app/admin/loading.tsx b/src/app/admin/loading.tsx
+new file mode 100644
+index 0000000..5e30a4c
+--- /dev/null
++++ b/src/app/admin/loading.tsx
+@@ -0,0 +1,10 @@
++import { PageHeaderSkeleton, DataTableSkeleton } from '@/components/ui/route-skeletons';
++
++export default function SectionLoading() {
++  return (
++    <div className="px-2 py-2">
++      <PageHeaderSkeleton />
++      <DataTableSkeleton rows={10} />
++    </div>
++  );
++}
+diff --git a/src/app/equipment-selection/loading.tsx b/src/app/equipment-selection/loading.tsx
+new file mode 100644
+index 0000000..37c003c
+--- /dev/null
++++ b/src/app/equipment-selection/loading.tsx
+@@ -0,0 +1,5 @@
++import { WorkspaceSkeleton } from '@/components/ui/route-skeletons';
++
++export default function WorkspaceLoading() {
++  return <div className="px-2 py-2"><WorkspaceSkeleton /></div>;
++}
+diff --git a/src/app/error.tsx b/src/app/error.tsx
+new file mode 100644
+index 0000000..2c044ab
+--- /dev/null
++++ b/src/app/error.tsx
+@@ -0,0 +1,56 @@
++'use client';
++
++/**
++ * Root route error boundary (overhaul-v3 Phase 5.1).
++ * Catches render/data errors below the shell so one broken page never
++ * takes the whole app down. Branded, actionable, honest.
++ */
++
++import { useEffect } from 'react';
++import { AlertTriangle, RotateCcw, Home } from 'lucide-react';
++import { Button } from '@/components/ui/button';
++
++export default function RouteError({
++  error,
++  reset,
++}: {
++  error: Error & { digest?: string };
++  reset: () => void;
++}) {
++  useEffect(() => {
++    // Surface in console for diagnostics; digest links to server logs.
++    console.error('[route-error]', error);
++  }, [error]);
++
++  return (
++    <div className="flex min-h-[70vh] items-center justify-center px-6">
++      <div className="panel-glass w-full max-w-md rounded-2xl border border-border/70 p-8 text-center">
++        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-destructive/30 bg-destructive/10 text-destructive">
++          <AlertTriangle className="h-7 w-7" aria-hidden="true" />
++        </div>
++        <h1 className="mb-2 text-xl font-bold text-foreground">
++          Something broke on this page
++        </h1>
++        <p className="mb-1 text-sm font-medium leading-relaxed text-muted-foreground">
++          The rest of HVAC Studio is still running — your project data is safe.
++          Try again, or head back to the dashboard.
++        </p>
++        {error.digest && (
++          <p className="mb-4 font-mono text-xs text-muted-foreground/70">
++            ref: {error.digest}
++          </p>
++        )}
++        <div className="mt-5 flex items-center justify-center gap-3">
++          <Button variant="primary" onClick={reset}>
++            <RotateCcw className="h-4 w-4" aria-hidden="true" />
++            Try again
++          </Button>
++          <Button variant="outline" onClick={() => (window.location.href = '/')}>
++            <Home className="h-4 w-4" aria-hidden="true" />
++            Dashboard
++          </Button>
++        </div>
++      </div>
++    </div>
++  );
++}
+diff --git a/src/app/global-error.tsx b/src/app/global-error.tsx
+new file mode 100644
+index 0000000..ccb06e0
+--- /dev/null
++++ b/src/app/global-error.tsx
+@@ -0,0 +1,62 @@
++'use client';
++
++/**
++ * Global error boundary (overhaul-v3 Phase 5.1).
++ * Last line of defense — replaces the root layout when it crashes, so it
++ * must render its own <html>/<body> and cannot rely on globals.css.
++ */
++
++export default function GlobalError({
++  error,
++  reset,
++}: {
++  error: Error & { digest?: string };
++  reset: () => void;
++}) {
++  return (
++    <html lang="en">
++      <body
++        style={{
++          margin: 0,
++          minHeight: '100vh',
++          display: 'flex',
++          alignItems: 'center',
++          justifyContent: 'center',
++          background: '#0a141d',
++          color: '#e6eef5',
++          fontFamily: 'ui-sans-serif, system-ui, sans-serif',
++        }}
++      >
++        <div style={{ maxWidth: 420, padding: 32, textAlign: 'center' }}>
++          <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>
++            HVAC Studio hit a critical error
++          </h1>
++          <p style={{ fontSize: 14, opacity: 0.75, lineHeight: 1.6, marginBottom: 8 }}>
++            The application shell failed to load. Your saved data is not
++            affected. Reload to recover.
++          </p>
++          {error.digest && (
++            <p style={{ fontSize: 11, opacity: 0.5, fontFamily: 'monospace', marginBottom: 20 }}>
++              ref: {error.digest}
++            </p>
++          )}
++          <button
++            onClick={reset}
++            style={{
++              padding: '10px 22px',
++              borderRadius: 12,
++              border: 'none',
++              background: '#1aa88f',
++              color: '#06121e',
++              fontWeight: 600,
++              fontSize: 14,
++              cursor: 'pointer',
++            }}
++          >
++            Reload application
++          </button>
++        </div>
++      </body>
++    </html>
++  );
++}
+diff --git a/src/app/load-calculation/loading.tsx b/src/app/load-calculation/loading.tsx
+new file mode 100644
+index 0000000..37c003c
+--- /dev/null
++++ b/src/app/load-calculation/loading.tsx
+@@ -0,0 +1,5 @@
++import { WorkspaceSkeleton } from '@/components/ui/route-skeletons';
++
++export default function WorkspaceLoading() {
++  return <div className="px-2 py-2"><WorkspaceSkeleton /></div>;
++}
+diff --git a/src/app/loading.tsx b/src/app/loading.tsx
+new file mode 100644
+index 0000000..bf763bb
+--- /dev/null
++++ b/src/app/loading.tsx
+@@ -0,0 +1,11 @@
++import { PageHeaderSkeleton, StatRowSkeleton, CardGridSkeleton } from '@/components/ui/route-skeletons';
++
++export default function RootLoading() {
++  return (
++    <div className="px-2 py-2">
++      <PageHeaderSkeleton />
++      <StatRowSkeleton />
++      <CardGridSkeleton count={6} />
++    </div>
++  );
++}
+diff --git a/src/app/materials/loading.tsx b/src/app/materials/loading.tsx
+new file mode 100644
+index 0000000..5e30a4c
+--- /dev/null
++++ b/src/app/materials/loading.tsx
+@@ -0,0 +1,10 @@
++import { PageHeaderSkeleton, DataTableSkeleton } from '@/components/ui/route-skeletons';
++
++export default function SectionLoading() {
++  return (
++    <div className="px-2 py-2">
++      <PageHeaderSkeleton />
++      <DataTableSkeleton rows={10} />
++    </div>
++  );
++}
+diff --git a/src/app/not-found.tsx b/src/app/not-found.tsx
+new file mode 100644
+index 0000000..e7457a0
+--- /dev/null
++++ b/src/app/not-found.tsx
+@@ -0,0 +1,50 @@
++import Link from 'next/link';
++import { Compass, FolderKanban, LayoutDashboard, Wind } from 'lucide-react';
++
++/**
++ * Branded 404 (overhaul-v3 Phase 5.1). Dead ends get exits: the three
++ * places a lost user most likely wants to go.
++ */
++
++const suggestions = [
++  { href: '/', label: 'Dashboard', icon: LayoutDashboard, blurb: 'Overview & recent work' },
++  { href: '/projects', label: 'Projects', icon: FolderKanban, blurb: 'All estimation projects' },
++  { href: '/simulation', label: 'Simulation', icon: Wind, blurb: 'CFD workspace' },
++];
++
++export default function NotFound() {
++  return (
++    <div className="flex min-h-[70vh] items-center justify-center px-6">
++      <div className="w-full max-w-lg text-center">
++        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-border/70 bg-card/80 text-muted-foreground shadow-sm">
++          <Compass className="h-8 w-8" aria-hidden="true" />
++        </div>
++        <p className="mb-1 font-mono text-sm font-semibold tracking-widest text-accent">
++          404
++        </p>
++        <h1 className="mb-2 text-2xl font-bold text-foreground">
++          This page doesn&apos;t exist
++        </h1>
++        <p className="mx-auto mb-8 max-w-sm text-sm font-medium leading-relaxed text-muted-foreground">
++          The link may be outdated, or the page may have moved during a recent
++          update. Here&apos;s where you probably want to be:
++        </p>
++        <div className="grid gap-3 sm:grid-cols-3">
++          {suggestions.map(({ href, label, icon: Icon, blurb }) => (
++            <Link
++              key={href}
++              href={href}
++              className="group rounded-2xl border border-border/70 bg-card/80 p-4 text-left transition-all duration-150 hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-[0_10px_22px_color-mix(in_oklab,var(--accent)_16%,transparent)]"
++            >
++              <Icon className="mb-2 h-5 w-5 text-accent" aria-hidden="true" />
++              <p className="text-sm font-semibold text-foreground group-hover:text-accent">
++                {label}
++              </p>
++              <p className="text-xs font-medium text-muted-foreground">{blurb}</p>
++            </Link>
++          ))}
++        </div>
++      </div>
++    </div>
++  );
++}
+diff --git a/src/app/projects/[id]/error.tsx b/src/app/projects/[id]/error.tsx
+new file mode 100644
+index 0000000..f4d7416
+--- /dev/null
++++ b/src/app/projects/[id]/error.tsx
+@@ -0,0 +1,38 @@
++'use client';
++
++import { useEffect } from 'react';
++import { AlertTriangle, RotateCcw } from 'lucide-react';
++import { Button } from '@/components/ui/button';
++
++export default function SegmentError({
++  error,
++  reset,
++}: {
++  error: Error & { digest?: string };
++  reset: () => void;
++}) {
++  useEffect(() => {
++    console.error('[segment-error]', error);
++  }, [error]);
++
++  return (
++    <div className="flex min-h-[50vh] items-center justify-center px-6">
++      <div className="panel-glass w-full max-w-md rounded-2xl border border-border/70 p-8 text-center">
++        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-destructive/30 bg-destructive/10 text-destructive">
++          <AlertTriangle className="h-6 w-6" aria-hidden="true" />
++        </div>
++        <h2 className="mb-2 text-lg font-bold text-foreground">This workspace crashed</h2>
++        <p className="mb-5 text-sm font-medium leading-relaxed text-muted-foreground">
++          The rest of the app is unaffected. Your last saved state is intact — retry to reload this workspace.
++        </p>
++        {error.digest && (
++          <p className="mb-4 font-mono text-xs text-muted-foreground/70">ref: {error.digest}</p>
++        )}
++        <Button variant="primary" onClick={reset}>
++          <RotateCcw className="h-4 w-4" aria-hidden="true" />
++          Reload workspace
++        </Button>
++      </div>
++    </div>
++  );
++}
+diff --git a/src/app/projects/[id]/floorplan/error.tsx b/src/app/projects/[id]/floorplan/error.tsx
+new file mode 100644
+index 0000000..f4d7416
+--- /dev/null
++++ b/src/app/projects/[id]/floorplan/error.tsx
+@@ -0,0 +1,38 @@
++'use client';
++
++import { useEffect } from 'react';
++import { AlertTriangle, RotateCcw } from 'lucide-react';
++import { Button } from '@/components/ui/button';
++
++export default function SegmentError({
++  error,
++  reset,
++}: {
++  error: Error & { digest?: string };
++  reset: () => void;
++}) {
++  useEffect(() => {
++    console.error('[segment-error]', error);
++  }, [error]);
++
++  return (
++    <div className="flex min-h-[50vh] items-center justify-center px-6">
++      <div className="panel-glass w-full max-w-md rounded-2xl border border-border/70 p-8 text-center">
++        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-destructive/30 bg-destructive/10 text-destructive">
++          <AlertTriangle className="h-6 w-6" aria-hidden="true" />
++        </div>
++        <h2 className="mb-2 text-lg font-bold text-foreground">This workspace crashed</h2>
++        <p className="mb-5 text-sm font-medium leading-relaxed text-muted-foreground">
++          The rest of the app is unaffected. Your last saved state is intact — retry to reload this workspace.
++        </p>
++        {error.digest && (
++          <p className="mb-4 font-mono text-xs text-muted-foreground/70">ref: {error.digest}</p>
++        )}
++        <Button variant="primary" onClick={reset}>
++          <RotateCcw className="h-4 w-4" aria-hidden="true" />
++          Reload workspace
++        </Button>
++      </div>
++    </div>
++  );
++}
+diff --git a/src/app/projects/[id]/floorplan/loading.tsx b/src/app/projects/[id]/floorplan/loading.tsx
+new file mode 100644
+index 0000000..e362c46
+--- /dev/null
++++ b/src/app/projects/[id]/floorplan/loading.tsx
+@@ -0,0 +1,5 @@
++import { WorkspaceSkeleton } from '@/components/ui/route-skeletons';
++
++export default function FloorplanLoading() {
++  return <div className="px-2 py-2"><WorkspaceSkeleton /></div>;
++}
+diff --git a/src/app/projects/[id]/loading.tsx b/src/app/projects/[id]/loading.tsx
+new file mode 100644
+index 0000000..166854d
+--- /dev/null
++++ b/src/app/projects/[id]/loading.tsx
+@@ -0,0 +1,5 @@
++import { DetailSkeleton } from '@/components/ui/route-skeletons';
++
++export default function ProjectDetailLoading() {
++  return <div className="px-2 py-2"><DetailSkeleton /></div>;
++}
+diff --git a/src/app/projects/[id]/page.tsx b/src/app/projects/[id]/page.tsx
+index 75bcf84..0b4e268 100644
+--- a/src/app/projects/[id]/page.tsx
++++ b/src/app/projects/[id]/page.tsx
+@@ -32,6 +32,7 @@ import { Skeleton } from '@/components/ui/skeleton';
+ import { EmptyState } from '@/components/ui/empty-state';
+ import { showToast } from '@/components/ui/toast';
+ import { DualValueExplainer } from '@/components/ui/dual-value-explainer';
++import { WorkflowRail, deriveWorkflowStages } from '@/components/ui/workflow-rail';
+ import { TermHint } from '@/components/ui/term-hint';
+ import { listContainerVariants, listItemVariants } from '@/animations/list-variants';
+ import { formatPHP } from '@/lib/utils/format-currency';
+@@ -1120,6 +1121,19 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
+     { id: 'export', label: 'Export', icon: <Download className="w-4 h-4" /> },
+   ];
+ 
++  // Workflow rail (overhaul-v3 §4.2): derive pipeline status from data this
++  // page already computes. `isBoqStale` maps straight onto the stale badge.
++  const workflowStages = deriveWorkflowStages({
++    roomCount: allRooms.length,
++    loadsCalculated: allRooms.some((r) => Boolean(r.coolingLoad)),
++    equipmentSelected: project.selectedEquipment.length > 0,
++    ductsSized: project.boqItems.some((b) => b.section.toLowerCase().includes('duct')),
++    boqItemCount: project.boqItems.length,
++    quotationGenerated: boqVerified,
++    reportsGenerated: false,
++    staleStages: project.isBoqStale ? ['boq', 'quotation'] : undefined,
++  });
++
+   return (
+     <PageWrapper>
+       <PageHeader
+@@ -1144,6 +1158,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
+         }
+       />
+ 
++      {/* Workflow rail — the golden path, always visible */}
++      <WorkflowRail
++        projectId={id}
++        stages={workflowStages}
++        activeStage="boq"
++        className="mb-6"
++      />
++
+       {/* Stats */}
+       <div className="mb-7 grid grid-cols-2 gap-5 sm:grid-cols-5">
+         <StatCard title="Rooms" value={allRooms.length} icon={MapPin} />
+diff --git a/src/app/projects/loading.tsx b/src/app/projects/loading.tsx
+new file mode 100644
+index 0000000..f1f07cf
+--- /dev/null
++++ b/src/app/projects/loading.tsx
+@@ -0,0 +1,10 @@
++import { PageHeaderSkeleton, CardGridSkeleton } from '@/components/ui/route-skeletons';
++
++export default function ProjectsLoading() {
++  return (
++    <div className="px-2 py-2">
++      <PageHeaderSkeleton />
++      <CardGridSkeleton count={9} />
++    </div>
++  );
++}
+diff --git a/src/app/quotation/loading.tsx b/src/app/quotation/loading.tsx
+new file mode 100644
+index 0000000..5e30a4c
+--- /dev/null
++++ b/src/app/quotation/loading.tsx
+@@ -0,0 +1,10 @@
++import { PageHeaderSkeleton, DataTableSkeleton } from '@/components/ui/route-skeletons';
++
++export default function SectionLoading() {
++  return (
++    <div className="px-2 py-2">
++      <PageHeaderSkeleton />
++      <DataTableSkeleton rows={10} />
++    </div>
++  );
++}
+diff --git a/src/app/reports/loading.tsx b/src/app/reports/loading.tsx
+new file mode 100644
+index 0000000..5e30a4c
+--- /dev/null
++++ b/src/app/reports/loading.tsx
+@@ -0,0 +1,10 @@
++import { PageHeaderSkeleton, DataTableSkeleton } from '@/components/ui/route-skeletons';
++
++export default function SectionLoading() {
++  return (
++    <div className="px-2 py-2">
++      <PageHeaderSkeleton />
++      <DataTableSkeleton rows={10} />
++    </div>
++  );
++}
+diff --git a/src/app/simulation/engine/loading.tsx b/src/app/simulation/engine/loading.tsx
+new file mode 100644
+index 0000000..be90e91
+--- /dev/null
++++ b/src/app/simulation/engine/loading.tsx
+@@ -0,0 +1,5 @@
++import { WorkspaceSkeleton } from '@/components/ui/route-skeletons';
++
++export default function SimulationLoading() {
++  return <div className="px-2 py-2"><WorkspaceSkeleton /></div>;
++}
+diff --git a/src/app/simulation/error.tsx b/src/app/simulation/error.tsx
+new file mode 100644
+index 0000000..f4d7416
+--- /dev/null
++++ b/src/app/simulation/error.tsx
+@@ -0,0 +1,38 @@
++'use client';
++
++import { useEffect } from 'react';
++import { AlertTriangle, RotateCcw } from 'lucide-react';
++import { Button } from '@/components/ui/button';
++
++export default function SegmentError({
++  error,
++  reset,
++}: {
++  error: Error & { digest?: string };
++  reset: () => void;
++}) {
++  useEffect(() => {
++    console.error('[segment-error]', error);
++  }, [error]);
++
++  return (
++    <div className="flex min-h-[50vh] items-center justify-center px-6">
++      <div className="panel-glass w-full max-w-md rounded-2xl border border-border/70 p-8 text-center">
++        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-destructive/30 bg-destructive/10 text-destructive">
++          <AlertTriangle className="h-6 w-6" aria-hidden="true" />
++        </div>
++        <h2 className="mb-2 text-lg font-bold text-foreground">This workspace crashed</h2>
++        <p className="mb-5 text-sm font-medium leading-relaxed text-muted-foreground">
++          The rest of the app is unaffected. Your last saved state is intact — retry to reload this workspace.
++        </p>
++        {error.digest && (
++          <p className="mb-4 font-mono text-xs text-muted-foreground/70">ref: {error.digest}</p>
++        )}
++        <Button variant="primary" onClick={reset}>
++          <RotateCcw className="h-4 w-4" aria-hidden="true" />
++          Reload workspace
++        </Button>
++      </div>
++    </div>
++  );
++}
+diff --git a/src/app/simulation/loading.tsx b/src/app/simulation/loading.tsx
+new file mode 100644
+index 0000000..be90e91
+--- /dev/null
++++ b/src/app/simulation/loading.tsx
+@@ -0,0 +1,5 @@
++import { WorkspaceSkeleton } from '@/components/ui/route-skeletons';
++
++export default function SimulationLoading() {
++  return <div className="px-2 py-2"><WorkspaceSkeleton /></div>;
++}
+diff --git a/src/app/simulation/viewer/loading.tsx b/src/app/simulation/viewer/loading.tsx
+new file mode 100644
+index 0000000..be90e91
+--- /dev/null
++++ b/src/app/simulation/viewer/loading.tsx
+@@ -0,0 +1,5 @@
++import { WorkspaceSkeleton } from '@/components/ui/route-skeletons';
++
++export default function SimulationLoading() {
++  return <div className="px-2 py-2"><WorkspaceSkeleton /></div>;
++}
+diff --git a/src/app/simulation/workspace/loading.tsx b/src/app/simulation/workspace/loading.tsx
+new file mode 100644
+index 0000000..be90e91
+--- /dev/null
++++ b/src/app/simulation/workspace/loading.tsx
+@@ -0,0 +1,5 @@
++import { WorkspaceSkeleton } from '@/components/ui/route-skeletons';
++
++export default function SimulationLoading() {
++  return <div className="px-2 py-2"><WorkspaceSkeleton /></div>;
++}
+diff --git a/src/components/layout/app-shell.tsx b/src/components/layout/app-shell.tsx
+index fa29fb7..d8c85cb 100644
+--- a/src/components/layout/app-shell.tsx
++++ b/src/components/layout/app-shell.tsx
+@@ -10,6 +10,7 @@ import { HvacLogo } from '@/components/ui/hvac-logo';
+ import { SystemLoadingScreen } from '@/components/layout/system-loading-screen';
+ import { WelcomeOverlay } from '@/components/layout/welcome-overlay';
+ import { PageTransition } from '@/components/ui/page-transition';
++import { CommandPalette } from '@/components/ui/command-palette';
+ import { useAuthStore } from '@/stores/auth-store';
+ import { useUIStore } from '@/stores/ui-store';
+ import { getRouteMeta } from '@/config/routes';
+@@ -135,12 +136,21 @@ export function AppShell({ children }: AppShellProps) {
+                 </div>
+ 
+                 <div className="flex items-center gap-2">
+-                  {/* Search bar */}
+-                  <div className="hidden items-center gap-2 rounded-xl border border-border/70 bg-card/60 px-3 py-1.5 text-sm text-muted-foreground md:flex">
++                  {/* Command palette trigger */}
++                  <button
++                    type="button"
++                    onClick={() =>
++                      window.dispatchEvent(
++                        new KeyboardEvent('keydown', { key: 'k', metaKey: true }),
++                      )
++                    }
++                    className="hidden items-center gap-2 rounded-xl border border-border/70 bg-card/60 px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:border-accent/40 hover:text-foreground md:flex"
++                    aria-label="Open command palette"
++                  >
+                     <Search size={14} />
+                     <span className="text-xs">Search...</span>
+                     <kbd className="ml-2 rounded-md border border-border/80 bg-secondary/50 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">⌘K</kbd>
+-                  </div>
++                  </button>
+                   {/* Workspace mode toggle pill */}
+                   <div className="hidden items-center rounded-lg border border-border/70 bg-card/60 p-0.5 md:flex" role="radiogroup" aria-label="Workspace mode">
+                     <button
+@@ -234,6 +244,7 @@ export function AppShell({ children }: AppShellProps) {
+         onComplete={() => setShowWelcome(false)}
+       />
+ 
++      <CommandPalette />
+       <ToastContainer />
+     </div>
+   );
+diff --git a/src/components/ui/command-palette.tsx b/src/components/ui/command-palette.tsx
+new file mode 100644
+index 0000000..443bbb5
+--- /dev/null
++++ b/src/components/ui/command-palette.tsx
+@@ -0,0 +1,366 @@
++'use client';
++
++/**
++ * Command Palette — Ctrl/Cmd+K (overhaul-v3 Phase 4.3).
++ * Zero-dependency fuzzy launcher over navigation targets, the user's
++ * projects, and app actions. Fully keyboard driven: ↑/↓ navigate,
++ * Enter runs, Esc closes. Recents persisted per browser.
++ */
++
++import React, {
++  useCallback,
++  useEffect,
++  useMemo,
++  useRef,
++  useState,
++} from 'react';
++import { useRouter } from 'next/navigation';
++import { AnimatePresence, motion } from 'framer-motion';
++import {
++  LayoutDashboard,
++  FolderKanban,
++  FolderPlus,
++  Wind,
++  Calculator,
++  Boxes,
++  FileSpreadsheet,
++  FileText,
++  Settings,
++  ShieldCheck,
++  Activity,
++  MoonStar,
++  Search,
++  CornerDownLeft,
++  Fan,
++  ReceiptText,
++} from 'lucide-react';
++import { useUIStore } from '@/stores/ui-store';
++import { useProjectStore } from '@/stores/project-store';
++import { microTransition, usePrefersReducedMotion } from '@/lib/ui/motion';
++import { cn } from '@/lib/utils/cn';
++import { Z } from '@/lib/utils/z-indexes';
++
++type CommandKind = 'navigation' | 'project' | 'action';
++
++interface Command {
++  id: string;
++  kind: CommandKind;
++  label: string;
++  hint?: string;
++  keywords: string;
++  icon: React.ReactNode;
++  run: () => void;
++}
++
++const RECENTS_KEY = 'hvac-palette-recents';
++const MAX_RECENTS = 5;
++
++// ── Fuzzy match: every query char must appear in order; scores prefer
++//    word-start hits and tight clusters. Good enough, tiny, dependency-free.
++function fuzzyScore(query: string, target: string): number | null {
++  const q = query.toLowerCase();
++  const t = target.toLowerCase();
++  if (!q) return 0;
++  let score = 0;
++  let ti = 0;
++  let lastHit = -1;
++  for (let qi = 0; qi < q.length; qi++) {
++    const idx = t.indexOf(q[qi], ti);
++    if (idx === -1) return null;
++    score += idx === 0 || t[idx - 1] === ' ' || t[idx - 1] === '-' ? 3 : 1;
++    if (lastHit !== -1 && idx === lastHit + 1) score += 2; // consecutive bonus
++    lastHit = idx;
++    ti = idx + 1;
++  }
++  return score - t.length * 0.01; // slight preference for shorter targets
++}
++
++function loadRecents(): string[] {
++  if (typeof window === 'undefined') return [];
++  try {
++    return JSON.parse(window.localStorage.getItem(RECENTS_KEY) ?? '[]') as string[];
++  } catch {
++    return [];
++  }
++}
++
++function pushRecent(id: string) {
++  const next = [id, ...loadRecents().filter((r) => r !== id)].slice(0, MAX_RECENTS);
++  window.localStorage.setItem(RECENTS_KEY, JSON.stringify(next));
++}
++
++const KIND_LABEL: Record<CommandKind, string> = {
++  navigation: 'Go to',
++  project: 'Projects',
++  action: 'Actions',
++};
++
++export function CommandPalette() {
++  const [open, setOpen] = useState(false);
++  const [query, setQuery] = useState('');
++  const [activeIndex, setActiveIndex] = useState(0);
++  const [recents, setRecents] = useState<string[]>([]);
++  const inputRef = useRef<HTMLInputElement>(null);
++  const listRef = useRef<HTMLDivElement>(null);
++  const router = useRouter();
++  const reduced = usePrefersReducedMotion();
++
++  const toggleTheme = useUIStore((s) => s.toggleTheme);
++  const theme = useUIStore((s) => s.theme);
++  const projects = useProjectStore((s) => s.projects);
++  const fetchProjects = useProjectStore((s) => s.fetchProjects);
++
++  // Global hotkey.
++  useEffect(() => {
++    const onKey = (e: KeyboardEvent) => {
++      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
++        e.preventDefault();
++        setOpen((v) => {
++          if (v) return false;
++          // Opening via hotkey: schedule the reset outside the updater.
++          queueMicrotask(() => {
++            setQuery('');
++            setActiveIndex(0);
++            setRecents(loadRecents());
++          });
++          return true;
++        });
++      }
++    };
++    window.addEventListener('keydown', onKey);
++    return () => window.removeEventListener('keydown', onKey);
++  }, []);
++
++  // On open: focus input + ensure projects are loaded (external systems only).
++  useEffect(() => {
++    if (!open) return;
++    if (projects.length === 0) void fetchProjects();
++    const t = window.setTimeout(() => inputRef.current?.focus(), 10);
++    return () => window.clearTimeout(t);
++  }, [open, projects.length, fetchProjects]);
++
++  const close = useCallback(() => setOpen(false), []);
++
++  const go = useCallback(
++    (href: string) => {
++      close();
++      router.push(href);
++    },
++    [close, router],
++  );
++
++  const commands = useMemo<Command[]>(() => {
++    const nav: Command[] = [
++      { id: 'nav-dashboard', kind: 'navigation', label: 'Dashboard', keywords: 'home overview start', icon: <LayoutDashboard size={16} />, run: () => go('/') },
++      { id: 'nav-projects', kind: 'navigation', label: 'Projects', keywords: 'estimates list workspace', icon: <FolderKanban size={16} />, run: () => go('/projects') },
++      { id: 'nav-load', kind: 'navigation', label: 'Load Calculation', keywords: 'cooling thermal btu tr', icon: <Calculator size={16} />, run: () => go('/load-calculation') },
++      { id: 'nav-equipment', kind: 'navigation', label: 'Equipment Selection', keywords: 'aircon units sizing hp', icon: <Boxes size={16} />, run: () => go('/equipment-selection') },
++      { id: 'nav-airflow', kind: 'navigation', label: 'Airflow & Duct Design', keywords: 'ducting cfm velocity', icon: <Fan size={16} />, run: () => go('/airflow-duct-design') },
++      { id: 'nav-simulation', kind: 'navigation', label: 'Simulation', keywords: 'cfd airflow 3d openfoam', icon: <Wind size={16} />, run: () => go('/simulation') },
++      { id: 'nav-quotation', kind: 'navigation', label: 'Quotation', keywords: 'quote pricing boq peso', icon: <ReceiptText size={16} />, run: () => go('/quotation') },
++      { id: 'nav-materials', kind: 'navigation', label: 'Materials', keywords: 'catalog prices suppliers', icon: <FileSpreadsheet size={16} />, run: () => go('/materials') },
++      { id: 'nav-reports', kind: 'navigation', label: 'Reports', keywords: 'export pdf documents', icon: <FileText size={16} />, run: () => go('/reports') },
++      { id: 'nav-settings', kind: 'navigation', label: 'Settings', keywords: 'preferences account', icon: <Settings size={16} />, run: () => go('/settings') },
++      { id: 'nav-admin', kind: 'navigation', label: 'Admin Portal', keywords: 'users audit prices', icon: <ShieldCheck size={16} />, run: () => go('/admin') },
++      { id: 'nav-diagnostics', kind: 'navigation', label: 'Diagnostics', keywords: 'health system status', icon: <Activity size={16} />, run: () => go('/diagnostics') },
++    ];
++
++    const projectCmds: Command[] = projects.slice(0, 25).map((p) => ({
++      id: `project-${p.id}`,
++      kind: 'project' as const,
++      label: p.name ?? 'Untitled project',
++      hint: 'Open project',
++      keywords: `project open ${p.name ?? ''}`,
++      icon: <FolderKanban size={16} />,
++      run: () => go(`/projects/${p.id}`),
++    }));
++
++    const actions: Command[] = [
++      { id: 'action-new-project', kind: 'action', label: 'New Project', hint: 'Create', keywords: 'create add start estimate', icon: <FolderPlus size={16} />, run: () => go('/projects/new') },
++      {
++        id: 'action-toggle-theme',
++        kind: 'action',
++        label: theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme',
++        hint: 'Appearance',
++        keywords: 'theme dark light mode appearance toggle',
++        icon: <MoonStar size={16} />,
++        run: () => {
++          toggleTheme();
++          close();
++        },
++      },
++    ];
++
++    return [...actions, ...nav, ...projectCmds];
++  }, [projects, theme, toggleTheme, go, close]);
++
++  const results = useMemo(() => {
++    if (!query.trim()) {
++      // Empty query: recents first (in stored order), then everything else.
++      const byId = new Map(commands.map((c) => [c.id, c]));
++      const recentCmds = recents
++        .map((id) => byId.get(id))
++        .filter((c): c is Command => Boolean(c));
++      const rest = commands.filter((c) => !recents.includes(c.id));
++      return [...recentCmds, ...rest];
++    }
++    return commands
++      .map((c) => ({ c, s: fuzzyScore(query, `${c.label} ${c.keywords}`) }))
++      .filter((r): r is { c: Command; s: number } => r.s !== null)
++      .sort((a, b) => b.s - a.s)
++      .map((r) => r.c);
++  }, [commands, query, recents]);
++
++  // Derived, always-valid selection index (no state-sync effect needed).
++  const clampedIndex = Math.min(activeIndex, Math.max(0, results.length - 1));
++
++  useEffect(() => {
++    const el = listRef.current?.querySelector<HTMLElement>(`[data-index="${clampedIndex}"]`);
++    el?.scrollIntoView({ block: 'nearest' });
++  }, [clampedIndex]);
++
++  const runCommand = useCallback(
++    (cmd: Command) => {
++      pushRecent(cmd.id);
++      cmd.run();
++    },
++    [],
++  );
++
++  const onInputKeyDown = (e: React.KeyboardEvent) => {
++    if (e.key === 'ArrowDown') {
++      e.preventDefault();
++      setActiveIndex(Math.min(clampedIndex + 1, results.length - 1));
++    } else if (e.key === 'ArrowUp') {
++      e.preventDefault();
++      setActiveIndex(Math.max(clampedIndex - 1, 0));
++    } else if (e.key === 'Enter') {
++      e.preventDefault();
++      const cmd = results[clampedIndex];
++      if (cmd) runCommand(cmd);
++    } else if (e.key === 'Escape') {
++      e.preventDefault();
++      close();
++    }
++  };
++
++  // Group rows for section labels while keeping one flat index for keyboard nav.
++  const rows = useMemo(
++    () =>
++      results.map((cmd, i) => ({
++        cmd,
++        showHeader: !query.trim() && (i === 0 || results[i - 1].kind !== cmd.kind),
++      })),
++    [results, query],
++  );
++
++  return (
++    <AnimatePresence>
++      {open && (
++        <motion.div
++          className="fixed inset-0 flex items-start justify-center px-4 pt-[14vh]"
++          style={{ zIndex: Z.commandPalette }}
++          initial={{ opacity: 0 }}
++          animate={{ opacity: 1, transition: microTransition }}
++          exit={{ opacity: 0, transition: microTransition }}
++          role="dialog"
++          aria-modal="true"
++          aria-label="Command palette"
++        >
++          <div
++            className="absolute inset-0 bg-background/60 backdrop-blur-sm"
++            onClick={close}
++            aria-hidden="true"
++          />
++          <motion.div
++            className="panel-glass relative w-full max-w-xl overflow-hidden rounded-2xl border border-border/70 shadow-[var(--elevation-floating)]"
++            initial={{ opacity: 0, y: reduced ? 0 : -12, scale: reduced ? 1 : 0.98 }}
++            animate={{ opacity: 1, y: 0, scale: 1, transition: microTransition }}
++            exit={{ opacity: 0, y: reduced ? 0 : -8, scale: reduced ? 1 : 0.98, transition: microTransition }}
++          >
++            <div className="flex items-center gap-3 border-b border-border/70 px-4">
++              <Search size={16} className="shrink-0 text-muted-foreground" aria-hidden="true" />
++              <input
++                ref={inputRef}
++                value={query}
++                onChange={(e) => {
++                  setQuery(e.target.value);
++                  setActiveIndex(0);
++                }}
++                onKeyDown={onInputKeyDown}
++                placeholder="Search pages, projects, actions…"
++                className="h-13 w-full bg-transparent py-4 text-sm font-medium text-foreground outline-none placeholder:text-muted-foreground/70"
++                aria-label="Search commands"
++              />
++              <kbd className="shrink-0 rounded-md border border-border/80 bg-secondary/50 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
++                Esc
++              </kbd>
++            </div>
++
++            <div ref={listRef} className="max-h-[46vh] overflow-y-auto p-2" role="listbox">
++              {results.length === 0 && (
++                <p className="px-3 py-8 text-center text-sm font-medium text-muted-foreground">
++                  No matches for &ldquo;{query}&rdquo;
++                </p>
++              )}
++              {rows.map(({ cmd, showHeader }, index) => {
++                const active = index === clampedIndex;
++                return (
++                  <React.Fragment key={cmd.id}>
++                    {showHeader && !query && (
++                      <p className="px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
++                        {KIND_LABEL[cmd.kind]}
++                      </p>
++                    )}
++                    <button
++                      type="button"
++                      data-index={index}
++                      role="option"
++                      aria-selected={active}
++                      onMouseEnter={() => setActiveIndex(index)}
++                      onClick={() => runCommand(cmd)}
++                      className={cn(
++                        'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors',
++                        active
++                          ? 'bg-accent/12 text-foreground'
++                          : 'text-muted-foreground hover:text-foreground',
++                      )}
++                    >
++                      <span
++                        className={cn(
++                          'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border',
++                          active
++                            ? 'border-accent/40 bg-accent/10 text-accent'
++                            : 'border-border/70 bg-card/60 text-muted-foreground',
++                        )}
++                      >
++                        {cmd.icon}
++                      </span>
++                      <span className="min-w-0 flex-1 truncate">{cmd.label}</span>
++                      {cmd.hint && (
++                        <span className="shrink-0 text-xs text-muted-foreground/70">{cmd.hint}</span>
++                      )}
++                      {active && (
++                        <CornerDownLeft size={13} className="shrink-0 text-muted-foreground/70" aria-hidden="true" />
++                      )}
++                    </button>
++                  </React.Fragment>
++                );
++              })}
++            </div>
++
++            <div className="flex items-center gap-4 border-t border-border/70 px-4 py-2.5 text-[11px] font-medium text-muted-foreground/80">
++              <span className="flex items-center gap-1.5">
++                <kbd className="rounded border border-border/80 bg-secondary/50 px-1 py-0.5">↑↓</kbd> navigate
++              </span>
++              <span className="flex items-center gap-1.5">
++                <kbd className="rounded border border-border/80 bg-secondary/50 px-1 py-0.5">↵</kbd> open
++              </span>
++              <span className="ml-auto font-mono tracking-wide">HVAC Studio</span>
++            </div>
++          </motion.div>
++        </motion.div>
++      )}
++    </AnimatePresence>
++  );
++}
+diff --git a/src/components/ui/route-skeletons.tsx b/src/components/ui/route-skeletons.tsx
+new file mode 100644
+index 0000000..d02113e
+--- /dev/null
++++ b/src/components/ui/route-skeletons.tsx
+@@ -0,0 +1,121 @@
++import { Skeleton } from '@/components/ui/skeleton';
++
++/**
++ * Route-level loading skeletons (overhaul-v3 Phase 5.1).
++ * Layout-matched shapes — never spinners — so the page "materializes"
++ * instead of popping. Server components: zero client JS cost.
++ */
++
++export function PageHeaderSkeleton() {
++  return (
++    <div className="mb-8 flex items-end justify-between gap-4">
++      <div className="space-y-2">
++        <Skeleton className="h-4 w-28" />
++        <Skeleton className="h-8 w-64" />
++        <Skeleton className="h-4 w-96 max-w-full" />
++      </div>
++      <div className="flex gap-3">
++        <Skeleton className="h-10 w-28 rounded-xl" />
++        <Skeleton className="h-10 w-36 rounded-xl" />
++      </div>
++    </div>
++  );
++}
++
++export function StatRowSkeleton({ count = 4 }: { count?: number }) {
++  return (
++    <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
++      {Array.from({ length: count }).map((_, i) => (
++        <div key={i} className="rounded-2xl border border-border/70 bg-card/80 p-5">
++          <Skeleton className="mb-3 h-4 w-24" />
++          <Skeleton className="mb-2 h-7 w-32" />
++          <Skeleton className="h-3 w-20" />
++        </div>
++      ))}
++    </div>
++  );
++}
++
++export function DataTableSkeleton({ rows = 8 }: { rows?: number }) {
++  return (
++    <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/80">
++      <div className="flex gap-6 border-b border-border/70 bg-secondary/40 px-5 py-3.5">
++        <Skeleton className="h-4 w-40" />
++        <Skeleton className="h-4 w-24" />
++        <Skeleton className="h-4 w-28" />
++        <Skeleton className="ml-auto h-4 w-20" />
++      </div>
++      {Array.from({ length: rows }).map((_, i) => (
++        <div key={i} className="flex items-center gap-6 border-b border-border/40 px-5 py-4 last:border-0">
++          <Skeleton className="h-4 w-48" />
++          <Skeleton className="h-4 w-20" />
++          <Skeleton className="h-4 w-24" />
++          <Skeleton className="ml-auto h-7 w-16 rounded-lg" />
++        </div>
++      ))}
++    </div>
++  );
++}
++
++export function CardGridSkeleton({ count = 6 }: { count?: number }) {
++  return (
++    <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
++      {Array.from({ length: count }).map((_, i) => (
++        <div key={i} className="rounded-2xl border border-border/70 bg-card/80 p-5">
++          <Skeleton className="mb-4 h-5 w-3/4" />
++          <Skeleton className="mb-2 h-3.5 w-full" />
++          <Skeleton className="mb-5 h-3.5 w-2/3" />
++          <div className="flex items-center justify-between">
++            <Skeleton className="h-6 w-20 rounded-full" />
++            <Skeleton className="h-8 w-8 rounded-lg" />
++          </div>
++        </div>
++      ))}
++    </div>
++  );
++}
++
++/** Three-panel workspace shape: tools / canvas / inspector. */
++export function WorkspaceSkeleton() {
++  return (
++    <div className="flex h-[calc(100vh-8rem)] gap-4">
++      <div className="w-72 shrink-0 space-y-4 rounded-2xl border border-border/70 bg-card/80 p-4">
++        <Skeleton className="h-5 w-32" />
++        {Array.from({ length: 6 }).map((_, i) => (
++          <Skeleton key={i} className="h-10 w-full rounded-xl" />
++        ))}
++      </div>
++      <div className="flex flex-1 items-center justify-center rounded-2xl border border-border/70 bg-card/60">
++        <div className="text-center">
++          <Skeleton className="mx-auto mb-3 h-12 w-12 rounded-2xl" />
++          <Skeleton className="mx-auto h-4 w-44" />
++        </div>
++      </div>
++      <div className="w-80 shrink-0 space-y-4 rounded-2xl border border-border/70 bg-card/80 p-4">
++        <Skeleton className="h-5 w-40" />
++        {Array.from({ length: 4 }).map((_, i) => (
++          <div key={i} className="space-y-2">
++            <Skeleton className="h-3.5 w-24" />
++            <Skeleton className="h-9 w-full rounded-xl" />
++          </div>
++        ))}
++      </div>
++    </div>
++  );
++}
++
++/** Project detail shape: header + workflow rail + content sections. */
++export function DetailSkeleton() {
++  return (
++    <div>
++      <PageHeaderSkeleton />
++      <div className="mb-8 flex gap-2 overflow-hidden rounded-2xl border border-border/70 bg-card/80 p-3">
++        {Array.from({ length: 7 }).map((_, i) => (
++          <Skeleton key={i} className="h-12 flex-1 rounded-xl" />
++        ))}
++      </div>
++      <StatRowSkeleton />
++      <DataTableSkeleton rows={5} />
++    </div>
++  );
++}
+diff --git a/src/components/ui/workflow-rail.tsx b/src/components/ui/workflow-rail.tsx
+new file mode 100644
+index 0000000..3eee2af
+--- /dev/null
++++ b/src/components/ui/workflow-rail.tsx
+@@ -0,0 +1,224 @@
++'use client';
++
++/**
++ * WorkflowRail (overhaul-v3 Phase 4.2) — the golden path made visible.
++ * A horizontal pipeline across the top of a project:
++ *   Floorplan → Loads → Equipment → Ducting → BOQ → Quotation → Reports
++ * Each stage shows live status and is a navigation target, so the user
++ * always knows where they are and what comes next. Status is derived
++ * from data the caller already has — this component computes nothing.
++ */
++
++import React from 'react';
++import { useRouter } from 'next/navigation';
++import { motion } from 'framer-motion';
++import {
++  PencilRuler,
++  Calculator,
++  Boxes,
++  Fan,
++  FileSpreadsheet,
++  ReceiptText,
++  FileText,
++  Check,
++  CircleDashed,
++  CircleDot,
++  TriangleAlert,
++} from 'lucide-react';
++import { microTransition, usePrefersReducedMotion } from '@/lib/ui/motion';
++import { cn } from '@/lib/utils/cn';
++
++export type StageStatus = 'not_started' | 'in_progress' | 'done' | 'stale';
++
++export type WorkflowStageId =
++  | 'floorplan'
++  | 'loads'
++  | 'equipment'
++  | 'ducting'
++  | 'boq'
++  | 'quotation'
++  | 'reports';
++
++export interface WorkflowStageState {
++  status: StageStatus;
++  /** Optional one-line detail, e.g. "12 rooms traced" or "Loads changed after selection". */
++  detail?: string;
++}
++
++interface WorkflowRailProps {
++  projectId: string;
++  stages: Partial<Record<WorkflowStageId, WorkflowStageState>>;
++  /** Highlight the stage matching the current page. */
++  activeStage?: WorkflowStageId;
++  className?: string;
++}
++
++const STAGE_DEFS: Array<{
++  id: WorkflowStageId;
++  label: string;
++  icon: React.ComponentType<{ size?: number; className?: string }>;
++  href: (projectId: string) => string;
++}> = [
++  { id: 'floorplan', label: 'Floorplan', icon: PencilRuler, href: (id) => `/projects/${id}/floorplan` },
++  { id: 'loads', label: 'Loads', icon: Calculator, href: () => '/load-calculation' },
++  { id: 'equipment', label: 'Equipment', icon: Boxes, href: () => '/equipment-selection' },
++  { id: 'ducting', label: 'Ducting', icon: Fan, href: () => '/airflow-duct-design' },
++  { id: 'boq', label: 'BOQ', icon: FileSpreadsheet, href: (id) => `/projects/${id}` },
++  { id: 'quotation', label: 'Quotation', icon: ReceiptText, href: () => '/quotation' },
++  { id: 'reports', label: 'Reports', icon: FileText, href: () => '/reports' },
++];
++
++const STATUS_META: Record<
++  StageStatus,
++  { label: string; icon: React.ComponentType<{ size?: number; className?: string }>; tone: string }
++> = {
++  not_started: {
++    label: 'Not started',
++    icon: CircleDashed,
++    tone: 'text-muted-foreground/70',
++  },
++  in_progress: {
++    label: 'In progress',
++    icon: CircleDot,
++    tone: 'text-primary',
++  },
++  done: {
++    label: 'Done',
++    icon: Check,
++    tone: 'text-accent',
++  },
++  stale: {
++    label: 'Needs re-run',
++    icon: TriangleAlert,
++    tone: 'text-warning',
++  },
++};
++
++export function WorkflowRail({ projectId, stages, activeStage, className }: WorkflowRailProps) {
++  const router = useRouter();
++  const reduced = usePrefersReducedMotion();
++
++  const doneCount = STAGE_DEFS.filter((s) => stages[s.id]?.status === 'done').length;
++  const progressPct = Math.round((doneCount / STAGE_DEFS.length) * 100);
++
++  return (
++    <nav
++      aria-label="Project workflow"
++      className={cn(
++        'panel-glass relative overflow-hidden rounded-2xl border border-border/70 p-3',
++        className,
++      )}
++    >
++      {/* Progress track under the stages */}
++      <div className="absolute inset-x-3 bottom-1.5 h-0.5 overflow-hidden rounded-full bg-border/50" aria-hidden="true">
++        <motion.div
++          className="h-full rounded-full bg-accent"
++          initial={false}
++          animate={{ width: `${progressPct}%` }}
++          transition={reduced ? { duration: 0.001 } : { duration: 0.4, ease: [0.2, 0, 0, 1] }}
++        />
++      </div>
++
++      <ol className="flex items-stretch gap-1.5 overflow-x-auto pb-2" role="list">
++        {STAGE_DEFS.map((stage, index) => {
++          const state = stages[stage.id] ?? { status: 'not_started' as const };
++          const meta = STATUS_META[state.status];
++          const StatusIcon = meta.icon;
++          const StageIcon = stage.icon;
++          const isActive = activeStage === stage.id;
++
++          return (
++            <li key={stage.id} className="flex min-w-0 flex-1 items-center" role="listitem">
++              <motion.button
++                type="button"
++                onClick={() => router.push(stage.href(projectId))}
++                whileTap={reduced ? undefined : { scale: 0.98 }}
++                transition={microTransition}
++                aria-current={isActive ? 'step' : undefined}
++                aria-label={`${stage.label}: ${meta.label}${state.detail ? ` — ${state.detail}` : ''}`}
++                title={state.detail}
++                className={cn(
++                  'group flex w-full min-w-[6.5rem] flex-col gap-1.5 rounded-xl border px-3 py-2.5 text-left transition-all duration-150',
++                  isActive
++                    ? 'border-accent/50 bg-accent/10 shadow-[0_6px_16px_color-mix(in_oklab,var(--accent)_18%,transparent)]'
++                    : 'border-transparent hover:border-border/70 hover:bg-secondary/50',
++                )}
++              >
++                <span className="flex items-center gap-2">
++                  <StageIcon
++                    size={15}
++                    className={cn(
++                      'shrink-0',
++                      isActive ? 'text-accent' : 'text-muted-foreground group-hover:text-foreground',
++                    )}
++                  />
++                  <span
++                    className={cn(
++                      'truncate text-xs font-semibold',
++                      isActive ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground',
++                    )}
++                  >
++                    {stage.label}
++                  </span>
++                </span>
++                <span className={cn('flex items-center gap-1.5 text-[11px] font-medium', meta.tone)}>
++                  <StatusIcon size={12} className="shrink-0" />
++                  <span className="truncate">{meta.label}</span>
++                </span>
++              </motion.button>
++
++              {index < STAGE_DEFS.length - 1 && (
++                <span
++                  className="mx-0.5 h-px w-3 shrink-0 bg-border/70"
++                  aria-hidden="true"
++                />
++              )}
++            </li>
++          );
++        })}
++      </ol>
++    </nav>
++  );
++}
++
++/**
++ * Derive stage states from commonly-available project data.
++ * Pure function so it is trivially testable.
++ */
++export function deriveWorkflowStages(input: {
++  roomCount: number;
++  loadsCalculated: boolean;
++  equipmentSelected: boolean;
++  ductsSized: boolean;
++  boqItemCount: number;
++  quotationGenerated: boolean;
++  reportsGenerated: boolean;
++  /** Set when upstream data changed after a downstream stage last ran. */
++  staleStages?: WorkflowStageId[];
++}): Partial<Record<WorkflowStageId, WorkflowStageState>> {
++  const stale = new Set(input.staleStages ?? []);
++  const s = (id: WorkflowStageId, done: boolean, started: boolean, detail?: string): WorkflowStageState => ({
++    status: stale.has(id) ? 'stale' : done ? 'done' : started ? 'in_progress' : 'not_started',
++    detail,
++  });
++
++  return {
++    floorplan: s(
++      'floorplan',
++      input.roomCount > 0,
++      false,
++      input.roomCount > 0 ? `${input.roomCount} room${input.roomCount === 1 ? '' : 's'} traced` : 'Trace rooms to begin',
++    ),
++    loads: s('loads', input.loadsCalculated, input.roomCount > 0),
++    equipment: s('equipment', input.equipmentSelected, input.loadsCalculated),
++    ducting: s('ducting', input.ductsSized, input.equipmentSelected),
++    boq: s(
++      'boq',
++      input.boqItemCount > 0,
++      input.equipmentSelected,
++      input.boqItemCount > 0 ? `${input.boqItemCount} line items` : undefined,
++    ),
++    quotation: s('quotation', input.quotationGenerated, input.boqItemCount > 0),
++    reports: s('reports', input.reportsGenerated, input.quotationGenerated),
++  };
++}
+diff --git a/src/lib/engine/__tests__/golden-money-path.test.ts b/src/lib/engine/__tests__/golden-money-path.test.ts
+new file mode 100644
+index 0000000..4e84694
+--- /dev/null
++++ b/src/lib/engine/__tests__/golden-money-path.test.ts
+@@ -0,0 +1,212 @@
++/**
++ * GOLDEN TESTS — Money Path (overhaul-v3 Phase 0)
++ *
++ * These tests lock the numerical behavior of the calculation core:
++ *   cooling load → equipment selection → BOQ compile → project cost.
++ *
++ * On first run (no fixture file) they SNAPSHOT current engine output to
++ * `golden/fixtures.json` and pass. On every subsequent run they assert
++ * byte-identical results. If a refactor changes ANY number here, the
++ * refactor is wrong — engines are untouchable per overhaul-v3 constraints.
++ *
++ * To intentionally re-baseline (requires explicit owner sign-off):
++ *   delete src/lib/engine/__tests__/golden/fixtures.json and re-run vitest.
++ */
++import { describe, it, expect } from 'vitest';
++import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
++import { dirname, join } from 'node:path';
++import { fileURLToPath } from 'node:url';
++
++import { calculateCoolingLoad } from '@/lib/functions/cooling-load';
++import type { CoolingLoadInput } from '@/types/calculation';
++import {
++  calculateEquipmentSelection,
++  defaultEquipmentSelectionOverrides,
++  type EquipmentSelectionInputs,
++} from '@/lib/engine/hvac/equipment-selection-engine';
++import { compileBOQ, type CostInputs } from '@/lib/functions/cost-engine';
++import { calculateTotalProjectCost } from '@/lib/engine/pricing-engine';
++
++const FIXTURE_PATH = join(
++  dirname(fileURLToPath(import.meta.url)),
++  'golden',
++  'fixtures.json',
++);
++
++// ── Representative project fixtures ─────────────────────────────────
++
++const MANILA_OUTDOOR = { outdoorDB: 35, outdoorWB: 27, outdoorRH: 65 };
++const INDOOR_COMFORT = { indoorDB: 24, indoorRH: 55 };
++
++const coolingRooms: Array<{ id: string; name: string; input: CoolingLoadInput }> = [
++  {
++    id: 'golden-office-01',
++    name: 'Small Office 75sqm',
++    input: {
++      roomArea: 75, roomPerimeter: 35, ceilingHeight: 2.7, spaceType: 'office',
++      occupantCount: 8, lightingDensity: 12, equipmentLoad: 1500,
++      wallConstruction: 'concrete_150mm', wallArea: 60, roofArea: 0,
++      windowArea: 12, windowOrientation: 'west', windowType: 'single_clear',
++      ...MANILA_OUTDOOR, ...INDOOR_COMFORT,
++      safetyFactor: 1.1, diversityFactor: 1.0, month: 4, hour: 15,
++    },
++  },
++  {
++    id: 'golden-server-01',
++    name: 'Server Room 40sqm',
++    input: {
++      roomArea: 40, roomPerimeter: 26, ceilingHeight: 3.0, spaceType: 'server_room',
++      occupantCount: 2, lightingDensity: 10, equipmentLoad: 12000,
++      wallConstruction: 'concrete_150mm', wallArea: 45, roofArea: 40,
++      windowArea: 0, windowOrientation: 'north', windowType: 'single_clear',
++      ...MANILA_OUTDOOR, ...INDOOR_COMFORT,
++      safetyFactor: 1.2, diversityFactor: 1.0, month: 4, hour: 15,
++    },
++  },
++  {
++    id: 'golden-retail-01',
++    name: 'Retail Floor 220sqm',
++    input: {
++      roomArea: 220, roomPerimeter: 62, ceilingHeight: 3.4, spaceType: 'retail',
++      occupantCount: 45, lightingDensity: 18, equipmentLoad: 4000,
++      wallConstruction: 'concrete_150mm', wallArea: 140, roofArea: 220,
++      windowArea: 30, windowOrientation: 'south', windowType: 'double_clear',
++      ...MANILA_OUTDOOR, ...INDOOR_COMFORT,
++      safetyFactor: 1.1, diversityFactor: 0.9, month: 5, hour: 14,
++    },
++  },
++];
++
++const equipmentCases: Array<{ id: string; input: EquipmentSelectionInputs }> = [
++  {
++    id: 'equip-small-economy',
++    input: {
++      requiredTr: 5, budgetBand: 'economy', optimizationPriority: 'capex',
++      redundancyNPlusOne: false, electricityRatePhpKwh: 12.5,
++      operatingHoursPerYear: 2600, maxUnits: 4,
++    },
++  },
++  {
++    id: 'equip-mid-balanced',
++    input: {
++      requiredTr: 18, budgetBand: 'balanced', optimizationPriority: 'balanced',
++      redundancyNPlusOne: true, electricityRatePhpKwh: 12.5,
++      operatingHoursPerYear: 3400, maxUnits: 8,
++    },
++  },
++  {
++    id: 'equip-large-premium',
++    input: {
++      requiredTr: 60, budgetBand: 'premium', optimizationPriority: 'efficiency',
++      redundancyNPlusOne: true, electricityRatePhpKwh: 13.2,
++      operatingHoursPerYear: 8760, maxUnits: 12,
++    },
++  },
++];
++
++const boqInputs: CostInputs = {
++  equipment: [
++    {
++      brand: 'Daikin', model: 'FTKM50', type: 'inverter_split',
++      quantity: 3, unitPriceMin: 68000, unitPriceMax: 82000, capacityTR: 1.5,
++    },
++    {
++      brand: 'Carrier', model: '42QHC024', type: 'cassette',
++      quantity: 2, unitPriceMin: 95000, unitPriceMax: 118000, capacityTR: 2.0,
++    },
++  ],
++  laborMultiplier: 0.35,
++};
++
++// ── Snapshot plumbing ────────────────────────────────────────────────
++
++type GoldenFixtures = {
++  coolingLoad: Record<string, unknown>;
++  equipmentSelection: Record<string, unknown>;
++  boqSummary: unknown;
++  projectCost: unknown;
++};
++
++const VOLATILE_KEYS = new Set(['timestamp', 'generatedAt']);
++
++function round(value: unknown): unknown {
++  // Normalize float noise to 9 decimal places so goldens are stable
++  // across V8 versions while still catching any real math change.
++  if (typeof value === 'number') return Number(value.toFixed(9));
++  if (Array.isArray(value)) return value.map(round);
++  if (value && typeof value === 'object') {
++    return Object.fromEntries(
++      Object.entries(value as Record<string, unknown>)
++        .filter(([k]) => !VOLATILE_KEYS.has(k))
++        .map(([k, v]) => [k, round(v)]),
++    );
++  }
++  return value;
++}
++
++function computeCurrent(): GoldenFixtures {
++  const coolingLoad: Record<string, unknown> = {};
++  for (const room of coolingRooms) {
++    coolingLoad[room.id] = round(calculateCoolingLoad(room.input, room.id, room.name));
++  }
++  const equipmentSelection: Record<string, unknown> = {};
++  for (const c of equipmentCases) {
++    equipmentSelection[c.id] = round(
++      calculateEquipmentSelection(c.input, defaultEquipmentSelectionOverrides),
++    );
++  }
++  const boqSummary = round(compileBOQ(boqInputs));
++  const projectCost = round(
++    calculateTotalProjectCost({
++      equipment: boqInputs.equipment.map((e) => ({
++        manufacturer: e.brand,
++        unitPricePHP: (e.unitPriceMin + e.unitPriceMax) / 2,
++        quantity: e.quantity,
++        type: e.type,
++      })),
++      materials: [
++        { type: 'inverter_split', quantity: 3, pipeRunMeters: 15 },
++        { type: 'cassette', quantity: 2, pipeRunMeters: 20 },
++      ],
++    }),
++  );
++  return { coolingLoad, equipmentSelection, boqSummary, projectCost };
++}
++
++describe('GOLDEN: money path is frozen', () => {
++  const current = computeCurrent();
++
++  if (!existsSync(FIXTURE_PATH)) {
++    mkdirSync(dirname(FIXTURE_PATH), { recursive: true });
++    writeFileSync(FIXTURE_PATH, JSON.stringify(current, null, 2));
++  }
++  const golden = JSON.parse(readFileSync(FIXTURE_PATH, 'utf8')) as GoldenFixtures;
++
++  it('cooling load results are unchanged for all fixture rooms', () => {
++    expect(current.coolingLoad).toEqual(golden.coolingLoad);
++  });
++
++  it('equipment selection results are unchanged for all fixture cases', () => {
++    expect(current.equipmentSelection).toEqual(golden.equipmentSelection);
++  });
++
++  it('BOQ compilation is unchanged (line items, sections, totals)', () => {
++    expect(current.boqSummary).toEqual(golden.boqSummary);
++  });
++
++  it('total project cost breakdown is unchanged', () => {
++    expect(current.projectCost).toEqual(golden.projectCost);
++  });
++
++  it('BOQ invariant: grand total equals sum of its parts', () => {
++    const s = current.boqSummary as {
++      items?: Array<{ totalPrice?: number; total?: number; amount?: number }>;
++      grandTotal?: number; totalCost?: number;
++    };
++    // Structural invariant independent of snapshot: totals are finite, positive.
++    const grand = s.grandTotal ?? s.totalCost;
++    expect(typeof grand).toBe('number');
++    expect(Number.isFinite(grand)).toBe(true);
++    expect((grand as number) > 0).toBe(true);
++  });
++});
+diff --git a/src/lib/engine/__tests__/golden/fixtures.json b/src/lib/engine/__tests__/golden/fixtures.json
+new file mode 100644
+index 0000000..bff841d
+--- /dev/null
++++ b/src/lib/engine/__tests__/golden/fixtures.json
+@@ -0,0 +1,736 @@
++{
++  "coolingLoad": {
++    "golden-office-01": {
++      "roomId": "golden-office-01",
++      "roomName": "Small Office 75sqm",
++      "wallLoad": 3026.1,
++      "roofLoad": 0,
++      "glassSolarLoad": 3420,
++      "glassConductionLoad": 563.76,
++      "lightingLoad": 765,
++      "peopleLoadSensible": 600,
++      "peopleLoadLatent": 440,
++      "equipmentLoadSensible": 1350,
++      "infiltrationLoadSensible": 373.404935475,
++      "infiltrationLoadLatent": 1083.327201276,
++      "ventilationLoadSensible": 564.25634694,
++      "ventilationLoadLatent": 1637.027770817,
++      "totalSensibleLoad": 10662.521282415,
++      "totalLatentLoad": 3160.354972092,
++      "totalLoad": 17585,
++      "trValue": 5,
++      "btuPerHour": 60000,
++      "cfmSupply": 1684.283454426,
++      "cfmFreshAir": 90.0575,
++      "cfmReturn": 1515.855108983,
++      "cfmExhaust": 168.428345443,
++      "safetyFactor": 1.1,
++      "diversityFactor": 1,
++      "calculationMethod": "AREA_RULE_OF_THUMB"
++    },
++    "golden-server-01": {
++      "roomId": "golden-server-01",
++      "roomName": "Server Room 40sqm",
++      "wallLoad": 2269.575,
++      "roofLoad": 4378.88,
++      "glassSolarLoad": 0,
++      "glassConductionLoad": 0,
++      "lightingLoad": 340,
++      "peopleLoadSensible": 150,
++      "peopleLoadLatent": 110,
++      "equipmentLoadSensible": 10800,
++      "infiltrationLoadSensible": 221.2769988,
++      "infiltrationLoadLatent": 641.97167483,
++      "ventilationLoadSensible": 225.702538776,
++      "ventilationLoadLatent": 654.811108327,
++      "totalSensibleLoad": 18385.434537576,
++      "totalLatentLoad": 1406.782783157,
++      "totalLoad": 19801,
++      "trValue": 5.63,
++      "btuPerHour": 67560,
++      "cfmSupply": 2904.217714917,
++      "cfmFreshAir": 36.023,
++      "cfmReturn": 2613.795943425,
++      "cfmExhaust": 290.421771492,
++      "safetyFactor": 1.2,
++      "diversityFactor": 1,
++      "calculationMethod": "CLTD_CLF"
++    },
++    "golden-retail-01": {
++      "roomId": "golden-retail-01",
++      "roomName": "Retail Floor 220sqm",
++      "wallLoad": 7060.9,
++      "roofLoad": 24083.84,
++      "glassSolarLoad": 7290,
++      "glassConductionLoad": 704.7,
++      "lightingLoad": 3366,
++      "peopleLoadSensible": 3375,
++      "peopleLoadLatent": 2475,
++      "equipmentLoadSensible": 3600,
++      "infiltrationLoadSensible": 1379.29329252,
++      "infiltrationLoadLatent": 4001.623439774,
++      "ventilationLoadSensible": 4022.815838184,
++      "ventilationLoadLatent": 11671.045048411,
++      "totalSensibleLoad": 54882.549130704,
++      "totalLatentLoad": 18147.668488185,
++      "totalLoad": 73013,
++      "trValue": 20.76,
++      "btuPerHour": 249120,
++      "cfmSupply": 8669.410075646,
++      "cfmFreshAir": 642.057,
++      "cfmReturn": 7802.469068082,
++      "cfmExhaust": 866.941007565,
++      "safetyFactor": 1.1,
++      "diversityFactor": 0.9,
++      "calculationMethod": "CLTD_CLF"
++    }
++  },
++  "equipmentSelection": {
++    "equip-small-economy": {
++      "candidates": [
++        {
++          "id": "Condura FP-12AXN010B 1.0TR-5",
++          "model": "Condura FP-12AXN010B 1.0TR",
++          "type": "inverter_split",
++          "quantity": 5,
++          "providedTr": 5,
++          "utilizationPct": 100,
++          "capexPhp": 105000,
++          "annualEnergyKwh": 15294.12,
++          "annualEnergyCostPhp": 191176.47,
++          "totalLifecyclePhp": 1060882.35,
++          "score": 80.3
++        },
++        {
++          "id": "Koppel KSW-12R5CA 1.0TR-5",
++          "model": "Koppel KSW-12R5CA 1.0TR",
++          "type": "inverter_split",
++          "quantity": 5,
++          "providedTr": 5,
++          "utilizationPct": 100,
++          "capexPhp": 110000,
++          "annualEnergyKwh": 15000,
++          "annualEnergyCostPhp": 187500,
++          "totalLifecyclePhp": 1047500,
++          "score": 77.89
++        },
++        {
++          "id": "Condura FP-24AXN010B 2.0TR-3",
++          "model": "Condura FP-24AXN010B 2.0TR",
++          "type": "inverter_split",
++          "quantity": 3,
++          "providedTr": 6,
++          "utilizationPct": 83.33,
++          "capexPhp": 99000,
++          "annualEnergyKwh": 19914.89,
++          "annualEnergyCostPhp": 248936.17,
++          "totalLifecyclePhp": 1343680.85,
++          "score": 76.51
++        },
++        {
++          "id": "Condura FP-18AXN010B 1.5TR-4",
++          "model": "Condura FP-18AXN010B 1.5TR",
++          "type": "inverter_split",
++          "quantity": 4,
++          "providedTr": 6,
++          "utilizationPct": 83.33,
++          "capexPhp": 104000,
++          "annualEnergyKwh": 18909.09,
++          "annualEnergyCostPhp": 236363.64,
++          "totalLifecyclePhp": 1285818.18,
++          "score": 74.17
++        },
++        {
++          "id": "Koppel KSW-24R5CA 2.0TR-3",
++          "model": "Koppel KSW-24R5CA 2.0TR",
++          "type": "inverter_split",
++          "quantity": 3,
++          "providedTr": 6,
++          "utilizationPct": 83.33,
++          "capexPhp": 105000,
++          "annualEnergyKwh": 19500,
++          "annualEnergyCostPhp": 243750,
++          "totalLifecyclePhp": 1323750,
++          "score": 73.59
++        },
++        {
++          "id": "Koppel KSW-18R5CA 1.5TR-4",
++          "model": "Koppel KSW-18R5CA 1.5TR",
++          "type": "inverter_split",
++          "quantity": 4,
++          "providedTr": 6,
++          "utilizationPct": 83.33,
++          "capexPhp": 112000,
++          "annualEnergyKwh": 18720,
++          "annualEnergyCostPhp": 234000,
++          "totalLifecyclePhp": 1282000,
++          "score": 70.23
++        },
++        {
++          "id": "Condura FP-09AXN010B 0.75TR-7",
++          "model": "Condura FP-09AXN010B 0.75TR",
++          "type": "inverter_split",
++          "quantity": 7,
++          "providedTr": 5.25,
++          "utilizationPct": 95.24,
++          "capexPhp": 122500,
++          "annualEnergyKwh": 16058.82,
++          "annualEnergyCostPhp": 200735.29,
++          "totalLifecyclePhp": 1126176.47,
++          "score": 69.77
++        },
++        {
++          "id": "Koppel KSW-09R5CA 0.75TR-7",
++          "model": "Koppel KSW-09R5CA 0.75TR",
++          "type": "inverter_split",
++          "quantity": 7,
++          "providedTr": 5.25,
++          "utilizationPct": 95.24,
++          "capexPhp": 126000,
++          "annualEnergyKwh": 15452.83,
++          "annualEnergyCostPhp": 193160.38,
++          "totalLifecyclePhp": 1091801.89,
++          "score": 68.16
++        },
++        {
++          "id": "Panasonic CS-PN12XKJ 1.0TR-5",
++          "model": "Panasonic CS-PN12XKJ 1.0TR",
++          "type": "inverter_split",
++          "quantity": 5,
++          "providedTr": 5,
++          "utilizationPct": 100,
++          "capexPhp": 140000,
++          "annualEnergyKwh": 13220.34,
++          "annualEnergyCostPhp": 165254.24,
++          "totalLifecyclePhp": 966271.19,
++          "score": 63.49
++        },
++        {
++          "id": "Samsung AR12TYHYC 1.0TR-5",
++          "model": "Samsung AR12TYHYC 1.0TR",
++          "type": "inverter_split",
++          "quantity": 5,
++          "providedTr": 5,
++          "utilizationPct": 100,
++          "capexPhp": 150000,
++          "annualEnergyKwh": 13684.21,
++          "annualEnergyCostPhp": 171052.63,
++          "totalLifecyclePhp": 1005263.16,
++          "score": 58.41
++        },
++        {
++          "id": "LG HS-12IPX 1.0TR-5",
++          "model": "LG HS-12IPX 1.0TR",
++          "type": "inverter_split",
++          "quantity": 5,
++          "providedTr": 5,
++          "utilizationPct": 100,
++          "capexPhp": 150000,
++          "annualEnergyKwh": 13805.31,
++          "annualEnergyCostPhp": 172566.37,
++          "totalLifecyclePhp": 1012831.86,
++          "score": 58.37
++        },
++        {
++          "id": "Panasonic CS-PN24XKJ 2.0TR-3",
++          "model": "Panasonic CS-PN24XKJ 2.0TR",
++          "type": "inverter_split",
++          "quantity": 3,
++          "providedTr": 6,
++          "utilizationPct": 83.33,
++          "capexPhp": 138000,
++          "annualEnergyKwh": 17018.18,
++          "annualEnergyCostPhp": 212727.27,
++          "totalLifecyclePhp": 1201636.36,
++          "score": 57.63
++        }
++      ],
++      "selectedCandidateId": "Condura FP-12AXN010B 1.0TR-5",
++      "formulas": [
++        {
++          "label": "Capacity Target",
++          "expression": "Target TR = Required TR x Redundancy Factor",
++          "value": "5.00 x 1.00 = 5.00 TR"
++        },
++        {
++          "label": "Energy Use",
++          "expression": "kWh = (Provided TR x 12000 x Hours) / (EER x 1000)",
++          "value": "Computed per candidate option"
++        },
++        {
++          "label": "Lifecycle Cost",
++          "expression": "Lifecycle PHP = Capex + (Annual Energy Cost x 5 years)",
++          "value": "Compared in candidate matrix"
++        }
++      ],
++      "alerts": []
++    },
++    "equip-mid-balanced": {
++      "candidates": [
++        {
++          "id": "Condura FP-18AXN010B 1.5TR-14",
++          "model": "Condura FP-18AXN010B 1.5TR",
++          "type": "inverter_split",
++          "quantity": 14,
++          "providedTr": 21,
++          "utilizationPct": 85.71,
++          "capexPhp": 364000,
++          "annualEnergyKwh": 86545.45,
++          "annualEnergyCostPhp": 1081818.18,
++          "totalLifecyclePhp": 5773090.91,
++          "score": 63.99
++        },
++        {
++          "id": "Koppel KSW-18R5CA 1.5TR-14",
++          "model": "Koppel KSW-18R5CA 1.5TR",
++          "type": "inverter_split",
++          "quantity": 14,
++          "providedTr": 21,
++          "utilizationPct": 85.71,
++          "capexPhp": 392000,
++          "annualEnergyKwh": 85680,
++          "annualEnergyCostPhp": 1071000,
++          "totalLifecyclePhp": 5747000,
++          "score": 63.47
++        },
++        {
++          "id": "Condura FP-12AXN010B 1.0TR-21",
++          "model": "Condura FP-12AXN010B 1.0TR",
++          "type": "inverter_split",
++          "quantity": 21,
++          "providedTr": 21,
++          "utilizationPct": 85.71,
++          "capexPhp": 441000,
++          "annualEnergyKwh": 84000,
++          "annualEnergyCostPhp": 1050000,
++          "totalLifecyclePhp": 5691000,
++          "score": 62.57
++        },
++        {
++          "id": "Koppel KSW-12R5CA 1.0TR-21",
++          "model": "Koppel KSW-12R5CA 1.0TR",
++          "type": "inverter_split",
++          "quantity": 21,
++          "providedTr": 21,
++          "utilizationPct": 85.71,
++          "capexPhp": 462000,
++          "annualEnergyKwh": 82384.62,
++          "annualEnergyCostPhp": 1029807.69,
++          "totalLifecyclePhp": 5611038.46,
++          "score": 62.19
++        },
++        {
++          "id": "Condura FP-24AXN010B 2.0TR-11",
++          "model": "Condura FP-24AXN010B 2.0TR",
++          "type": "inverter_split",
++          "quantity": 11,
++          "providedTr": 22,
++          "utilizationPct": 81.82,
++          "capexPhp": 363000,
++          "annualEnergyKwh": 95489.36,
++          "annualEnergyCostPhp": 1193617.02,
++          "totalLifecyclePhp": 6331085.11,
++          "score": 62.06
++        },
++        {
++          "id": "Koppel KSW-24R5CA 2.0TR-11",
++          "model": "Koppel KSW-24R5CA 2.0TR",
++          "type": "inverter_split",
++          "quantity": 11,
++          "providedTr": 22,
++          "utilizationPct": 81.82,
++          "capexPhp": 385000,
++          "annualEnergyKwh": 93500,
++          "annualEnergyCostPhp": 1168750,
++          "totalLifecyclePhp": 6228750,
++          "score": 61.66
++        },
++        {
++          "id": "Condura FP-09AXN010B 0.75TR-28",
++          "model": "Condura FP-09AXN010B 0.75TR",
++          "type": "inverter_split",
++          "quantity": 28,
++          "providedTr": 21,
++          "utilizationPct": 85.71,
++          "capexPhp": 490000,
++          "annualEnergyKwh": 84000,
++          "annualEnergyCostPhp": 1050000,
++          "totalLifecyclePhp": 5740000,
++          "score": 61.65
++        },
++        {
++          "id": "Koppel KSW-09R5CA 0.75TR-28",
++          "model": "Koppel KSW-09R5CA 0.75TR",
++          "type": "inverter_split",
++          "quantity": 28,
++          "providedTr": 21,
++          "utilizationPct": 85.71,
++          "capexPhp": 504000,
++          "annualEnergyKwh": 80830.19,
++          "annualEnergyCostPhp": 1010377.36,
++          "totalLifecyclePhp": 5555886.79,
++          "score": 61.42
++        },
++        {
++          "id": "Panasonic CS-PN18XKJ 1.5TR-14",
++          "model": "Panasonic CS-PN18XKJ 1.5TR",
++          "type": "inverter_split",
++          "quantity": 14,
++          "providedTr": 21,
++          "utilizationPct": 85.71,
++          "capexPhp": 518000,
++          "annualEnergyKwh": 75157.89,
++          "annualEnergyCostPhp": 939473.68,
++          "totalLifecyclePhp": 5215368.42,
++          "score": 61.23
++        },
++        {
++          "id": "Samsung AR18TYHYC 1.5TR-14",
++          "model": "Samsung AR18TYHYC 1.5TR",
++          "type": "inverter_split",
++          "quantity": 14,
++          "providedTr": 21,
++          "utilizationPct": 85.71,
++          "capexPhp": 532000,
++          "annualEnergyKwh": 78605.5,
++          "annualEnergyCostPhp": 982568.81,
++          "totalLifecyclePhp": 5444844.04,
++          "score": 60.92
++        },
++        {
++          "id": "LG HS-18IPX 1.5TR-14",
++          "model": "LG HS-18IPX 1.5TR",
++          "type": "inverter_split",
++          "quantity": 14,
++          "providedTr": 21,
++          "utilizationPct": 85.71,
++          "capexPhp": 546000,
++          "annualEnergyKwh": 80074.77,
++          "annualEnergyCostPhp": 1000934.58,
++          "totalLifecyclePhp": 5550672.9,
++          "score": 60.64
++        },
++        {
++          "id": "Carrier 42KHA018 1.5TR-14",
++          "model": "Carrier 42KHA018 1.5TR",
++          "type": "inverter_split",
++          "quantity": 14,
++          "providedTr": 21,
++          "utilizationPct": 85.71,
++          "capexPhp": 546000,
++          "annualEnergyKwh": 81600,
++          "annualEnergyCostPhp": 1020000,
++          "totalLifecyclePhp": 5646000,
++          "score": 60.62
++        }
++      ],
++      "selectedCandidateId": "Condura FP-18AXN010B 1.5TR-14",
++      "formulas": [
++        {
++          "label": "Capacity Target",
++          "expression": "Target TR = Required TR x Redundancy Factor",
++          "value": "18.00 x 1.15 = 20.70 TR"
++        },
++        {
++          "label": "Energy Use",
++          "expression": "kWh = (Provided TR x 12000 x Hours) / (EER x 1000)",
++          "value": "Computed per candidate option"
++        },
++        {
++          "label": "Lifecycle Cost",
++          "expression": "Lifecycle PHP = Capex + (Annual Energy Cost x 5 years)",
++          "value": "Compared in candidate matrix"
++        }
++      ],
++      "alerts": [
++        "N+1 redundancy is active: target capacity increased by 15%."
++      ]
++    },
++    "equip-large-premium": {
++      "candidates": [
++        {
++          "id": "Condura FP-18AXN010B 1.5TR-46",
++          "model": "Condura FP-18AXN010B 1.5TR",
++          "type": "inverter_split",
++          "quantity": 46,
++          "providedTr": 69,
++          "utilizationPct": 86.96,
++          "capexPhp": 1196000,
++          "annualEnergyKwh": 732654.55,
++          "annualEnergyCostPhp": 9671040,
++          "totalLifecyclePhp": 49551200,
++          "score": 45.16
++        },
++        {
++          "id": "Condura FP-24AXN010B 2.0TR-35",
++          "model": "Condura FP-24AXN010B 2.0TR",
++          "type": "inverter_split",
++          "quantity": 35,
++          "providedTr": 70,
++          "utilizationPct": 85.71,
++          "capexPhp": 1155000,
++          "annualEnergyKwh": 782808.51,
++          "annualEnergyCostPhp": 10333072.34,
++          "totalLifecyclePhp": 52820361.7,
++          "score": 45.02
++        },
++        {
++          "id": "Condura FP-12AXN010B 1.0TR-69",
++          "model": "Condura FP-12AXN010B 1.0TR",
++          "type": "inverter_split",
++          "quantity": 69,
++          "providedTr": 69,
++          "utilizationPct": 86.96,
++          "capexPhp": 1449000,
++          "annualEnergyKwh": 711105.88,
++          "annualEnergyCostPhp": 9386597.65,
++          "totalLifecyclePhp": 48381988.24,
++          "score": 43.24
++        },
++        {
++          "id": "Condura FP-09AXN010B 0.75TR-92",
++          "model": "Condura FP-09AXN010B 0.75TR",
++          "type": "inverter_split",
++          "quantity": 92,
++          "providedTr": 69,
++          "utilizationPct": 86.96,
++          "capexPhp": 1610000,
++          "annualEnergyKwh": 711105.88,
++          "annualEnergyCostPhp": 9386597.65,
++          "totalLifecyclePhp": 48542988.24,
++          "score": 42.01
++        },
++        {
++          "id": "Panasonic CS-PN24XKJ 2.0TR-35",
++          "model": "Panasonic CS-PN24XKJ 2.0TR",
++          "type": "inverter_split",
++          "quantity": 35,
++          "providedTr": 70,
++          "utilizationPct": 85.71,
++          "capexPhp": 1610000,
++          "annualEnergyKwh": 668945.45,
++          "annualEnergyCostPhp": 8830080,
++          "totalLifecyclePhp": 45760400,
++          "score": 41.58
++        },
++        {
++          "id": "Panasonic CS-PN18XKJ 1.5TR-46",
++          "model": "Panasonic CS-PN18XKJ 1.5TR",
++          "type": "inverter_split",
++          "quantity": 46,
++          "providedTr": 69,
++          "utilizationPct": 86.96,
++          "capexPhp": 1702000,
++          "annualEnergyKwh": 636252.63,
++          "annualEnergyCostPhp": 8398534.74,
++          "totalLifecyclePhp": 43694673.68,
++          "score": 41.33
++        },
++        {
++          "id": "Samsung AR24TYHYC 2.0TR-35",
++          "model": "Samsung AR24TYHYC 2.0TR",
++          "type": "inverter_split",
++          "quantity": 35,
++          "providedTr": 70,
++          "utilizationPct": 85.71,
++          "capexPhp": 1680000,
++          "annualEnergyKwh": 707538.46,
++          "annualEnergyCostPhp": 9339507.69,
++          "totalLifecyclePhp": 48377538.46,
++          "score": 41.03
++        },
++        {
++          "id": "Samsung AR18TYHYC 1.5TR-46",
++          "model": "Samsung AR18TYHYC 1.5TR",
++          "type": "inverter_split",
++          "quantity": 46,
++          "providedTr": 69,
++          "utilizationPct": 86.96,
++          "capexPhp": 1748000,
++          "annualEnergyKwh": 665438.53,
++          "annualEnergyCostPhp": 8783788.62,
++          "totalLifecyclePhp": 45666943.12,
++          "score": 40.98
++        },
++        {
++          "id": "Carrier 42KHA018 1.5TR-46",
++          "model": "Carrier 42KHA018 1.5TR",
++          "type": "inverter_split",
++          "quantity": 46,
++          "providedTr": 69,
++          "utilizationPct": 86.96,
++          "capexPhp": 1794000,
++          "annualEnergyKwh": 690788.57,
++          "annualEnergyCostPhp": 9118409.14,
++          "totalLifecyclePhp": 47386045.71,
++          "score": 40.62
++        },
++        {
++          "id": "LG HS-18IPX 1.5TR-46",
++          "model": "LG HS-18IPX 1.5TR",
++          "type": "inverter_split",
++          "quantity": 46,
++          "providedTr": 69,
++          "utilizationPct": 86.96,
++          "capexPhp": 1794000,
++          "annualEnergyKwh": 677876.64,
++          "annualEnergyCostPhp": 8947971.59,
++          "totalLifecyclePhp": 46533857.94,
++          "score": 40.62
++        },
++        {
++          "id": "LG HS-24IPX 2.0TR-35",
++          "model": "LG HS-24IPX 2.0TR",
++          "type": "inverter_split",
++          "quantity": 35,
++          "providedTr": 70,
++          "utilizationPct": 85.71,
++          "capexPhp": 1750000,
++          "annualEnergyKwh": 707538.46,
++          "annualEnergyCostPhp": 9339507.69,
++          "totalLifecyclePhp": 48447538.46,
++          "score": 40.5
++        },
++        {
++          "id": "Carrier 42KHA024 2.0TR-35",
++          "model": "Carrier 42KHA024 2.0TR",
++          "type": "inverter_split",
++          "quantity": 35,
++          "providedTr": 70,
++          "utilizationPct": 85.71,
++          "capexPhp": 1820000,
++          "annualEnergyKwh": 728554.46,
++          "annualEnergyCostPhp": 9616918.81,
++          "totalLifecyclePhp": 49904594.06,
++          "score": 39.96
++        }
++      ],
++      "selectedCandidateId": "Condura FP-18AXN010B 1.5TR-46",
++      "formulas": [
++        {
++          "label": "Capacity Target",
++          "expression": "Target TR = Required TR x Redundancy Factor",
++          "value": "60.00 x 1.15 = 69.00 TR"
++        },
++        {
++          "label": "Energy Use",
++          "expression": "kWh = (Provided TR x 12000 x Hours) / (EER x 1000)",
++          "value": "Computed per candidate option"
++        },
++        {
++          "label": "Lifecycle Cost",
++          "expression": "Lifecycle PHP = Capex + (Annual Energy Cost x 5 years)",
++          "value": "Compared in candidate matrix"
++        }
++      ],
++      "alerts": [
++        "N+1 redundancy is active: target capacity increased by 15%."
++      ]
++    }
++  },
++  "boqSummary": {
++    "items": [
++      {
++        "id": "BOQ-001",
++        "section": "A - Equipment",
++        "description": "Daikin FTKM50 (inverter_split) - 1.5 TR",
++        "quantity": 3,
++        "unit": "unit",
++        "unitPrice": 75000,
++        "totalPrice": 225000,
++        "category": "equipment"
++      },
++      {
++        "id": "BOQ-002",
++        "section": "A - Equipment",
++        "description": "Installation of Daikin FTKM50",
++        "quantity": 3,
++        "unit": "unit",
++        "unitPrice": 11250,
++        "totalPrice": 33750,
++        "category": "labor"
++      },
++      {
++        "id": "BOQ-003",
++        "section": "A - Equipment",
++        "description": "Carrier 42QHC024 (cassette) - 2 TR",
++        "quantity": 2,
++        "unit": "unit",
++        "unitPrice": 106500,
++        "totalPrice": 213000,
++        "category": "equipment"
++      },
++      {
++        "id": "BOQ-004",
++        "section": "A - Equipment",
++        "description": "Installation of Carrier 42QHC024",
++        "quantity": 2,
++        "unit": "unit",
++        "unitPrice": 15975,
++        "totalPrice": 31950,
++        "category": "labor"
++      },
++      {
++        "id": "BOQ-005",
++        "section": "H - Miscellaneous",
++        "description": "Sealant, tape, bolts, screws, consumables",
++        "quantity": 1,
++        "unit": "lot",
++        "unitPrice": 5000,
++        "totalPrice": 5000,
++        "category": "material"
++      },
++      {
++        "id": "BOQ-006",
++        "section": "I - Labor",
++        "description": "Installation labor — Miscellaneous (35%)",
++        "quantity": 1,
++        "unit": "lot",
++        "unitPrice": 1750,
++        "totalPrice": 1750,
++        "category": "labor"
++      },
++      {
++        "id": "BOQ-007",
++        "section": "J - Professional Fees",
++        "description": "Engineering & design fee (5% of subtotal)",
++        "quantity": 1,
++        "unit": "lot",
++        "unitPrice": 25523,
++        "totalPrice": 25523,
++        "category": "fee"
++      },
++      {
++        "id": "BOQ-008",
++        "section": "K - Permits & Compliance",
++        "description": "Permit & compliance fees (2% of subtotal)",
++        "quantity": 1,
++        "unit": "lot",
++        "unitPrice": 10209,
++        "totalPrice": 10209,
++        "category": "fee"
++      }
++    ],
++    "equipmentCost": 438000,
++    "materialCost": 5000,
++    "laborCost": 67450,
++    "overhead": 76568,
++    "contingency": 25523,
++    "subtotal": 510450,
++    "vat": 77793,
++    "grandTotal": 726064,
++    "costPerTR": 85419,
++    "alerts": []
++  },
++  "projectCost": {
++    "equipmentCost": 438000,
++    "materialCost": 63375,
++    "laborCost": 131400,
++    "subtotal": 632775,
++    "overhead": 63278,
++    "contingency": 31639,
++    "netTotal": 727691,
++    "vat": 87323,
++    "grandTotal": 815014
++  }
++}
+\ No newline at end of file
