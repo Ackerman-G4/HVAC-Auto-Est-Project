@@ -23,7 +23,6 @@ import { showToast } from '@/components/ui/toast';
 import { HVAC_TYPE_DEFAULTS } from '@/features/simulation/viewer/constants';
 import type { DetectedFloor, DetectedRoom, ViewerRoomBoundary } from '@/features/simulation/viewer/types';
 import {
-  deriveFloorBoundsMeters,
   mapLayoutHVACToUnit,
   mapLayoutTile,
   buildLayoutPayload,
@@ -31,10 +30,9 @@ import {
   buildRoomBoundariesForFloor,
   snapHVACUnit,
   validateHVACPlacement,
-  sanitizeHVACPlacements,
-  inferRacksFromRoom,
-  inferHVACFromRoom,
 } from '@/features/simulation/viewer/helpers';
+import { autoDetectEquipment } from '@/lib/functions/auto-detect-equipment';
+import { normalizeRoomLayout } from '@/lib/simulation/normalize-room-layout';
 
 const AirflowViewer3D = dynamic(
   () => import('@/components/building/AirflowViewer3D').then(mod => mod.default),
@@ -968,66 +966,57 @@ export default function SimulationPage() {
           ? (layout?.tilePlacements as Record<string, unknown>[])
           : [];
 
-        const mappedHVAC = hvacPlacements.map((placement, index) => mapLayoutHVACToUnit(placement, index));
+        const mappedHVAC = hvacPlacements
+          .map((placement, index) => mapLayoutHVACToUnit(placement, index))
+          .filter((unit): unit is HVACUnit => unit !== null);
         const mappedTiles = tilePlacements
           .map(mapLayoutTile)
           .filter((tile): tile is PerforatedTile => tile !== null);
 
-        const floorRoomBoundaries = buildRoomBoundariesForFloor(selectedFloor);
-        const sanitizedHVAC = sanitizeHVACPlacements(mappedHVAC, floorRoomBoundaries);
+        // Single normalization pass: floor-snap, drop NaN, validate, one grid
+        // size. Same pipeline as auto-detect so a hydrated layout and a freshly
+        // detected one are grounded and framed identically.
+        const normalized = normalizeRoomLayout({
+          roomBoundaries: buildRoomBoundariesForFloor(selectedFloor),
+          racks: [],
+          hvacUnits: mappedHVAC,
+          tiles: mappedTiles,
+          gridResolution: config.gridResolution,
+          ceilingHeightM: selectedFloor?.ceilingHeight,
+        });
 
-        setHVACUnits(sanitizedHVAC.accepted);
-        setTiles(mappedTiles);
-        if (selectedHVACId && !sanitizedHVAC.accepted.some((unit) => unit.id === selectedHVACId)) {
+        setHVACUnits(normalized.hvacUnits);
+        setTiles(normalized.tiles);
+        if (selectedHVACId && !normalized.hvacUnits.some((unit) => unit.id === selectedHVACId)) {
           setSelectedHVACId(null);
         }
 
+        // Seed the autosave baseline from the NORMALIZED payload so opening a
+        // project never triggers a PUT /simulation-layout — render-time sanitize
+        // only, storage is never silently mutated.
         const hydratedPayload = buildLayoutPayload(
           selectedFloorId,
           selectedFloor,
-          sanitizedHVAC.accepted,
-          mappedTiles,
+          normalized.hvacUnits,
+          normalized.tiles,
         );
         lastLayoutPayloadHashRef.current = buildLayoutPayloadHash(hydratedPayload);
 
-        if (sanitizedHVAC.rejected.length > 0) {
+        if (normalized.warnings.length > 0) {
           showToast(
             'warning',
-            'Layout HVAC validation applied',
-            `${sanitizedHVAC.accepted.length} unit(s) accepted, ${sanitizedHVAC.rejected.length} skipped due to boundary/overlap constraints.`,
+            'Layout adjusted on load',
+            `${normalized.hvacUnits.length} unit(s) placed; ${normalized.warnings.length} adjusted or skipped by placement validation.`,
           );
         }
 
-        const floorBounds = selectedFloor
-          ? deriveFloorBoundsMeters(selectedFloor)
-          : { width: 6, length: 6 };
-        const hvacExtentX = sanitizedHVAC.accepted.reduce((max, unit) => Math.max(max, unit.position.x + unit.width), 0);
-        const hvacExtentY = sanitizedHVAC.accepted.reduce((max, unit) => Math.max(max, unit.position.y + unit.depth), 0);
-        const tileExtentX = mappedTiles.reduce((max, tile) => Math.max(max, tile.x + tile.tileSize), 0);
-        const tileExtentY = mappedTiles.reduce((max, tile) => Math.max(max, tile.y + tile.tileSize), 0);
-
-        const targetWidthM = Math.max(floorBounds.width, hvacExtentX + 1, tileExtentX + 1, 6);
-        const targetLengthM = Math.max(floorBounds.length, hvacExtentY + 1, tileExtentY + 1, 6);
-        const cellSize = Math.max(0.1, config.gridResolution);
-
-        const nextGridSizeX = Math.max(10, Math.min(80, Math.ceil(targetWidthM / cellSize) + 2));
-        const nextGridSizeY = Math.max(10, Math.min(80, Math.ceil(targetLengthM / cellSize) + 2));
-        const nextGridSizeZ = Math.max(
-          6,
-          Math.min(24, Math.ceil(Math.max(2.4, selectedFloor?.ceilingHeight ?? 3.0) / cellSize)),
-        );
         const currentConfig = useSimulationStore.getState().config;
-
         if (
-          nextGridSizeX !== currentConfig.gridSizeX
-          || nextGridSizeY !== currentConfig.gridSizeY
-          || nextGridSizeZ !== currentConfig.gridSizeZ
+          normalized.gridSize.gridSizeX !== currentConfig.gridSizeX
+          || normalized.gridSize.gridSizeY !== currentConfig.gridSizeY
+          || normalized.gridSize.gridSizeZ !== currentConfig.gridSizeZ
         ) {
-          setConfig({
-            gridSizeX: nextGridSizeX,
-            gridSizeY: nextGridSizeY,
-            gridSizeZ: nextGridSizeZ,
-          });
+          setConfig(normalized.gridSize);
         }
       })
       .catch(() => { /* ignore layout sync errors */ })
@@ -1195,7 +1184,8 @@ export default function SimulationPage() {
     return 'Layout synced';
   }, [layoutSaveState]);
 
-  // Auto-detect handler: infer racks + HVAC from room specs
+  // Auto-detect handler: one implementation (autoDetectEquipment) routed
+  // through normalizeRoomLayout so racks, HVAC, and the grid share one frame.
   const handleAutoDetect = useCallback(() => {
     const floor = detectedFloors.find(f => f.id === selectedFloorId);
     if (!floor || floor.rooms.length === 0) {
@@ -1204,55 +1194,34 @@ export default function SimulationPage() {
     }
 
     setIsDetecting(true);
-
-    // Clear existing equipment and results
     clearAll();
     setSelectedHVACId(null);
 
-    const allRacks: Omit<ServerRack, 'id'>[] = [];
-    const allHVAC: Omit<HVACUnit, 'id'>[] = [];
-    let offsetX = 1;
+    const detected = autoDetectEquipment({ floors: [floor], gridResolution: config.gridResolution });
+    const seededRacks: ServerRack[] = detected.racks.map((r, i) => ({ ...r, id: `auto-rack-${i + 1}-${crypto.randomUUID()}` }));
+    const seededHVAC: HVACUnit[] = detected.hvacUnits.map((u, i) => ({ ...u, id: `auto-hvac-${i + 1}-${crypto.randomUUID()}` }));
 
-    for (const room of floor.rooms) {
-      // Infer racks (only for server rooms)
-      const racks = inferRacksFromRoom(room, offsetX);
-      allRacks.push(...racks);
-
-      // Infer HVAC units for every room
-      const hvacs = inferHVACFromRoom(room, offsetX, floor.scale);
-      allHVAC.push(...hvacs);
-
-      offsetX += Math.max(Math.ceil(Math.sqrt(room.area)), 4) + 2;
-    }
-
-    // Add all to store
-    for (const rack of allRacks) addRack(rack);
-    const inferredUnits: HVACUnit[] = allHVAC.map((unit, index) => ({
-      ...unit,
-      id: `auto-hvac-${index + 1}-${crypto.randomUUID()}`,
-    }));
-    const floorRoomBoundaries = buildRoomBoundariesForFloor(floor);
-    const sanitizedHVAC = sanitizeHVACPlacements(inferredUnits, floorRoomBoundaries);
-    setHVACUnits(sanitizedHVAC.accepted);
-
-    // Auto-size grid based on floor area
-    const totalArea = floor.rooms.reduce((s, r) => s + r.area, 0);
-    const gridSide = Math.max(10, Math.ceil(Math.sqrt(totalArea) / 0.5));
-    const gridZ = Math.max(6, Math.ceil(floor.ceilingHeight / 0.5));
-    setConfig({
-      gridSizeX: Math.min(gridSide, 50),
-      gridSizeY: Math.min(gridSide, 50),
-      gridSizeZ: gridZ,
+    const normalized = normalizeRoomLayout({
+      roomBoundaries: buildRoomBoundariesForFloor(floor),
+      racks: seededRacks,
+      hvacUnits: seededHVAC,
+      tiles: detected.tiles,
+      gridResolution: config.gridResolution,
+      ceilingHeightM: floor.ceilingHeight,
     });
 
+    for (const rack of normalized.racks) addRack(rack);
+    setHVACUnits(normalized.hvacUnits);
+    setTiles(normalized.tiles);
+    setConfig(normalized.gridSize);
+
     setIsDetecting(false);
-    const acceptedCount = sanitizedHVAC.accepted.length;
-    const rejectedCount = sanitizedHVAC.rejected.length;
+    const rejectedCount = normalized.warnings.length;
     const message = rejectedCount > 0
-      ? `Added ${allRacks.length} rack${allRacks.length !== 1 ? 's' : ''}; ${acceptedCount} HVAC placed, ${rejectedCount} skipped by placement validation.`
-      : `Added ${allRacks.length} rack${allRacks.length !== 1 ? 's' : ''} and ${acceptedCount} HVAC unit${acceptedCount !== 1 ? 's' : ''} from ${floor.rooms.length} room${floor.rooms.length !== 1 ? 's' : ''}.`;
+      ? `Placed ${normalized.racks.length} rack(s) and ${normalized.hvacUnits.length} HVAC unit(s); ${rejectedCount} adjusted/skipped by placement validation.`
+      : `Placed ${normalized.racks.length} rack(s) and ${normalized.hvacUnits.length} HVAC unit(s) from ${floor.rooms.length} room(s).`;
     showToast(rejectedCount > 0 ? 'warning' : 'success', 'Equipment auto-detected', message);
-  }, [detectedFloors, selectedFloorId, addRack, setHVACUnits, setConfig, clearAll]);
+  }, [detectedFloors, selectedFloorId, config.gridResolution, addRack, setHVACUnits, setTiles, setConfig, clearAll]);
   const totalHeatKW = useMemo(() => racks.reduce((s, r) => s + r.powerKW, 0), [racks]);
   const totalCoolingKW = useMemo(() => hvacUnits.filter(u => u.status !== 'failed').reduce((s, u) => s + u.capacityKW, 0), [hvacUnits]);
 

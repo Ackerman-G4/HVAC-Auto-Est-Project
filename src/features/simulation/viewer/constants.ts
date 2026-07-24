@@ -17,6 +17,11 @@ export const HVAC_TYPE_DEFAULTS: Record<HVACUnitType, {
 };
 
 export const HVAC_TYPES: HVACUnitType[] = ['crac', 'crah', 'ahu', 'in_row', 'rear_door', 'vent_duct'];
-export const HVAC_PLACEMENT_GRID_M = 0.25;
-export const HVAC_MIN_WALL_CLEARANCE_M = 0.2;
-export const HVAC_MIN_UNIT_GAP_M = 0.12;
+
+// HVAC placement constants (grid snap / clearances) now live with the layout
+// normalizer in the shared lib layer. Re-exported here for any legacy importer.
+export {
+  HVAC_PLACEMENT_GRID_M,
+  HVAC_MIN_WALL_CLEARANCE_M,
+  HVAC_MIN_UNIT_GAP_M,
+} from '@/lib/simulation/normalize-room-layout';

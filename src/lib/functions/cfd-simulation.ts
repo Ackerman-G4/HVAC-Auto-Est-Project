@@ -1045,7 +1045,7 @@ export function stepCFDSimulation(grid: CFDGrid, config: SimulationConfig, coeff
 
 // --- Metrics Computation ---
 
-function computeMetrics(grid: CFDGrid, racks: ServerRack[], hvacUnits: HVACUnit[], config: SimulationConfig): SimulationMetrics {
+export function computeMetrics(grid: CFDGrid, racks: ServerRack[], hvacUnits: HVACUnit[], config: SimulationConfig): SimulationMetrics {
   let maxTemp = -Infinity, minTemp = Infinity, sumTemp = 0;
   let maxHumidity = -Infinity, minHumidity = Infinity, sumHumidity = 0;
   let maxVel = 0, sumVel = 0, count = 0;
@@ -1056,6 +1056,22 @@ function computeMetrics(grid: CFDGrid, racks: ServerRack[], hvacUnits: HVACUnit[
   const TEMP_WARNING = getThermalThreshold('temp_warning', 27);
   const TEMP_CRITICAL = getThermalThreshold('temp_critical', 35);
   const TEMP_EMERGENCY = getThermalThreshold('temp_emergency', 40);
+
+  // Cells occupied by an HVAC unit footprint are supply inlets, not rack
+  // hotspots — a "warm" inlet cell must not spawn a hotspot marker inside the
+  // (semi-transparent) HVAC box. Mirrors placeHVACUnits' footprint math.
+  const hvacColumns = new Set<string>();
+  for (const unit of hvacUnits) {
+    const ux = posToGrid(unit.position.x, config.gridResolution);
+    const uy = posToGrid(unit.position.y, config.gridResolution);
+    const wCells = Math.ceil(unit.width / config.gridResolution);
+    const dCells = Math.ceil(unit.depth / config.gridResolution);
+    for (let dx = 0; dx < wCells; dx++) {
+      for (let dy = 0; dy < dCells; dy++) {
+        hvacColumns.add(`${ux + dx},${uy + dy}`);
+      }
+    }
+  }
 
   for (let x = 0; x < grid.sizeX; x++) {
     for (let y = 0; y < grid.sizeY; y++) {
@@ -1084,7 +1100,7 @@ function computeMetrics(grid: CFDGrid, racks: ServerRack[], hvacUnits: HVACUnit[
         if (cell.heatSource > 0) totalHeatLoad += cell.heatSource;
         if (cell.heatSource < 0) totalCoolingCapacity += Math.abs(cell.heatSource);
 
-        if (cell.temperature > TEMP_WARNING) {
+        if (cell.temperature > TEMP_WARNING && cell.boundaryType !== 'inlet' && !hvacColumns.has(`${x},${y}`)) {
           const severity = cell.temperature > TEMP_EMERGENCY ? 'emergency'
             : cell.temperature > TEMP_CRITICAL ? 'critical' : 'warning';
 
