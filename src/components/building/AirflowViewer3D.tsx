@@ -16,7 +16,7 @@ import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { Line, OrbitControls, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import type { SimulationResult, ServerRack, HVACUnit, InspectedCellInfo, TileFlowViewConfig, TileAirflowData, ThermalAlert, Vec3 } from '@/types/simulation';
-import { HeatmapSlice, VelocityArrows, AirflowParticles, Streamlines, TemperatureFog, TileAirflowOverlay, AlertZoneMarkers } from './CFDOverlay3D';
+import { HeatmapSlice, VelocityArrows, AirflowParticles, Streamlines, TemperatureFog, TileAirflowOverlay, AlertZoneMarkers, ContourSlicePlane } from './CFDOverlay3D';
 import { getDomainCenter, getDomainBBox, computeCameraFit } from '@/lib/simulation/scene-transform';
 import { dumpSceneDebug } from '@/lib/simulation/debug-scene-dump';
 
@@ -334,6 +334,7 @@ function Scene(props: Props) {
 
   const { config, metrics } = result;
   const { centerX, centerZ } = getDomainCenter(config);
+  const sliceIdx = Math.min(Math.max(0, Math.round(selectedSliceZ)), config.gridSizeZ - 1);
 
   // TEMPORARY (WS1): numeric scene dump for verifying the CFD fix. Removed in WS7.
   React.useEffect(() => {
@@ -523,9 +524,25 @@ function Scene(props: Props) {
         <HeatmapSlice result={result} sliceZ={selectedSliceZ} viewMode={viewMode} />
       )}
 
-      {/* Velocity arrows */}
+      {/* Velocity arrows + a visible slice plane so the slice control has
+          on-screen feedback in velocity mode (previously nothing rendered). */}
       {viewMode === 'velocity' && (
-        <VelocityArrows result={result} sliceZ={selectedSliceZ} />
+        <>
+          <VelocityArrows result={result} sliceZ={selectedSliceZ} />
+          <ContourSlicePlane
+            result={result}
+            config={{
+              id: 'velocity-slice',
+              field: 'velocity',
+              orientation: 'xy',
+              position: sliceIdx * config.gridResolution,
+              levels: 12,
+              colorMap: 'viridis',
+              opacity: 0.35,
+              showLines: false,
+            }}
+          />
+        </>
       )}
 
       {/* Animated particles */}
