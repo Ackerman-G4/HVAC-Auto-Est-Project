@@ -689,6 +689,21 @@ export function useProjectDetail(id: string) {
     }
   };
 
+  const handleDeleteRoom = async (room: ProjectData['floors'][number]['rooms'][number]) => {
+    if (!confirm(`Delete room "${room.name}"?`)) return;
+    try {
+      const res = await authFetch(`/api/projects/${id}/rooms/${room.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        showToast('success', `Room "${room.name}" deleted`);
+        fetchProject();
+      } else {
+        showToast('error', 'Failed to delete room');
+      }
+    } catch {
+      showToast('error', 'Failed to delete room');
+    }
+  };
+
   const handleEquipmentUseSuggested = async (equipment: ProjectData['selectedEquipment'][number]) => {
     setEquipmentSavingId(equipment.id);
     try {
@@ -762,6 +777,7 @@ export function useProjectDetail(id: string) {
     clearLocalSnapshot,
     // mutations
     handleAddRoom,
+    handleDeleteRoom,
     runCalculation,
     autoSizeEquipment,
     generateBOQ,
