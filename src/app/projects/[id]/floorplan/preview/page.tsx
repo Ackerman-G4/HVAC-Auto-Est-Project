@@ -21,6 +21,12 @@ import { Badge } from '@/components/ui/badge';
 import { showToast } from '@/components/ui/toast';
 import { EmptyState } from '@/components/ui/empty-state';
 import Link from 'next/link';
+import { authFetch } from '@/lib/api-client';
+import {
+  getPolygonBounds,
+  parseRoomPolygon,
+  type RoomPolygonPoint,
+} from '@/lib/utils/room-polygon';
 
 interface RoomData {
   id: string;
@@ -28,6 +34,7 @@ interface RoomData {
   spaceType: string;
   area: number;
   ceilingHeight: number;
+  polygon?: unknown;
   coolingLoad: {
     totalLoad: number;
     sensibleLoad: number;
@@ -39,8 +46,36 @@ interface FloorData {
   id: string;
   floorNumber: number;
   name: string;
+  scale?: number;
   rooms: RoomData[];
 }
+
+interface CanvasPoint {
+  x: number;
+  y: number;
+}
+
+interface LayoutRoomBase extends RoomData {
+  colorIdx: number;
+  cx: number;
+  cy: number;
+  minDim: number;
+}
+
+interface BoxLayoutRoom extends LayoutRoomBase {
+  mode: 'box';
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+interface PolygonLayoutRoom extends LayoutRoomBase {
+  mode: 'polygon';
+  points: CanvasPoint[];
+}
+
+type LayoutRoom = BoxLayoutRoom | PolygonLayoutRoom;
 
 const ROOM_COLORS = [
   'rgba(37, 99, 235, 0.20)',
@@ -68,6 +103,19 @@ const ROOM_BORDER_COLORS = [
   '#D97706',
 ];
 
+const ROOM_SWATCH_CLASSES = [
+  'bg-[rgba(37,99,235,0.2)] border-[#2563EB]',
+  'bg-[rgba(22,163,74,0.2)] border-[#16A34A]',
+  'bg-[rgba(234,179,8,0.2)] border-[#CA8A04]',
+  'bg-[rgba(239,68,68,0.2)] border-[#DC2626]',
+  'bg-[rgba(168,85,247,0.2)] border-[#9333EA]',
+  'bg-[rgba(14,165,233,0.2)] border-[#0EA5E9]',
+  'bg-[rgba(249,115,22,0.2)] border-[#EA580C]',
+  'bg-[rgba(236,72,153,0.2)] border-[#DB2777]',
+  'bg-[rgba(20,184,166,0.2)] border-[#0D9488]',
+  'bg-[rgba(245,158,11,0.2)] border-[#D97706]',
+];
+
 const SPACE_TYPE_LABELS: Record<string, string> = {
   office: 'Office',
   conference_room: 'Conference Room',
@@ -83,6 +131,49 @@ const SPACE_TYPE_LABELS: Record<string, string> = {
   theater: 'Theater',
   warehouse: 'Warehouse',
 };
+
+function polygonCentroid(points: RoomPolygonPoint[]): { x: number; y: number } {
+  if (points.length === 0) {
+    return { x: 0, y: 0 };
+  }
+
+  let signedArea = 0;
+  let cx = 0;
+  let cy = 0;
+
+  for (let i = 0; i < points.length; i++) {
+    const next = points[(i + 1) % points.length];
+    const cross = points[i].x * next.y - next.x * points[i].y;
+    signedArea += cross;
+    cx += (points[i].x + next.x) * cross;
+    cy += (points[i].y + next.y) * cross;
+  }
+
+  signedArea /= 2;
+  if (Math.abs(signedArea) < 1e-9) {
+    const avgX = points.reduce((sum, point) => sum + point.x, 0) / points.length;
+    const avgY = points.reduce((sum, point) => sum + point.y, 0) / points.length;
+    return { x: avgX, y: avgY };
+  }
+
+  return {
+    x: cx / (6 * signedArea),
+    y: cy / (6 * signedArea),
+  };
+}
+
+function tracePolygonPath(ctx: CanvasRenderingContext2D, points: CanvasPoint[]): void {
+  if (points.length === 0) {
+    return;
+  }
+
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length; i++) {
+    ctx.lineTo(points[i].x, points[i].y);
+  }
+  ctx.closePath();
+}
 
 export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -101,8 +192,8 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
   // Fetch project and room data
   useEffect(() => {
     Promise.all([
-      fetch(`/api/projects/${id}`).then(r => r.json()),
-      fetch(`/api/projects/${id}/rooms`).then(r => r.json()),
+      authFetch(`/api/projects/${id}`).then(r => r.json()),
+      authFetch(`/api/projects/${id}/rooms`).then(r => r.json()),
     ])
       .then(([project, roomData]) => {
         setProjectName(project.name || 'Unnamed Project');
@@ -118,9 +209,82 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
   const currentFloor = floors[activeFloor];
   const rooms = useMemo(() => currentFloor?.rooms || [], [currentFloor]);
 
-  // Calculate room layout positions based on area
-  const generateLayout = useCallback((roomList: RoomData[], canvasW: number, canvasH: number) => {
+  // Calculate room layout positions either from saved polygon geometry or area-based fallback boxes.
+  const generateLayout = useCallback((roomList: RoomData[], floorScale: number, canvasW: number, canvasH: number): LayoutRoom[] => {
     if (roomList.length === 0) return [];
+
+    const polygonCandidates = roomList.map((room, index) => {
+      const parsed = parseRoomPolygon(room.polygon);
+      if (!parsed) {
+        return null;
+      }
+
+      const rawBounds = getPolygonBounds(parsed.points);
+      if (!rawBounds) {
+        return null;
+      }
+
+      const autoScale = (rawBounds.width > 120 || rawBounds.height > 120) && floorScale > 0
+        ? floorScale
+        : 1;
+      const scale = parsed.scale && parsed.scale > 0 ? parsed.scale : autoScale;
+      const pointsMeters = parsed.points.map((point) => ({
+        x: point.x / scale,
+        y: point.y / scale,
+      }));
+
+      const meterBounds = getPolygonBounds(pointsMeters);
+      if (!meterBounds || meterBounds.width <= 0 || meterBounds.height <= 0) {
+        return null;
+      }
+
+      return {
+        room,
+        index,
+        pointsMeters,
+        meterBounds,
+        centroid: polygonCentroid(pointsMeters),
+      };
+    });
+
+    const validPolygonRooms = polygonCandidates.filter((value): value is NonNullable<typeof value> => Boolean(value));
+
+    if (validPolygonRooms.length === roomList.length && validPolygonRooms.length > 0) {
+      const minX = Math.min(...validPolygonRooms.map((room) => room.meterBounds.minX));
+      const minY = Math.min(...validPolygonRooms.map((room) => room.meterBounds.minY));
+      const maxX = Math.max(...validPolygonRooms.map((room) => room.meterBounds.maxX));
+      const maxY = Math.max(...validPolygonRooms.map((room) => room.meterBounds.maxY));
+
+      const padding = 60;
+      const usableW = Math.max(1, canvasW - padding * 2);
+      const usableH = Math.max(1, canvasH - padding * 2);
+      const rangeX = Math.max(0.1, maxX - minX);
+      const rangeY = Math.max(0.1, maxY - minY);
+
+      const fitScale = Math.min(usableW / rangeX, usableH / rangeY);
+      const extraX = (usableW - rangeX * fitScale) / 2;
+      const extraY = (usableH - rangeY * fitScale) / 2;
+
+      const toCanvas = (point: { x: number; y: number }): CanvasPoint => ({
+        x: padding + extraX + (point.x - minX) * fitScale,
+        y: padding + extraY + (point.y - minY) * fitScale,
+      });
+
+      return validPolygonRooms.map((polyRoom) => {
+        const points = polyRoom.pointsMeters.map(toCanvas);
+        const bounds = getPolygonBounds(points);
+        const center = toCanvas(polyRoom.centroid);
+        return {
+          ...polyRoom.room,
+          mode: 'polygon',
+          points,
+          colorIdx: polyRoom.index % ROOM_COLORS.length,
+          cx: center.x,
+          cy: center.y,
+          minDim: Math.max(16, Math.min(bounds?.width ?? 40, bounds?.height ?? 40)),
+        };
+      });
+    }
 
     const padding = 60;
     const gap = 8;
@@ -129,7 +293,7 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
 
     // Calculate proportional sizes based on room area
     const totalArea = roomList.reduce((s, r) => s + r.area, 0);
-    const avgArea = totalArea / roomList.length;
+    const avgArea = totalArea > 0 ? totalArea / roomList.length : 1;
 
     // Simple grid layout with proportional sizing
     const cols = Math.ceil(Math.sqrt(roomList.length * (usableW / usableH)));
@@ -146,7 +310,18 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
       const x = padding + col * (cellW + gap) + (cellW - w) / 2;
       const y = padding + row * (cellH + gap) + (cellH - h) / 2;
 
-      return { ...room, x, y, w, h, colorIdx: i % ROOM_COLORS.length };
+      return {
+        ...room,
+        mode: 'box',
+        x,
+        y,
+        w,
+        h,
+        colorIdx: i % ROOM_COLORS.length,
+        cx: x + w / 2,
+        cy: y + h / 2,
+        minDim: Math.max(16, Math.min(w, h)),
+      };
     });
   }, []);
 
@@ -201,7 +376,7 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
       return;
     }
 
-    const layout = generateLayout(rooms, w, h);
+    const layout = generateLayout(rooms, currentFloor?.scale || 50, w, h);
 
     ctx.save();
     ctx.translate(w / 2, h / 2);
@@ -215,7 +390,12 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
       ctx.shadowOffsetX = 2;
       ctx.shadowOffsetY = 2;
       ctx.fillStyle = ROOM_COLORS[room.colorIdx];
-      ctx.fillRect(room.x, room.y, room.w, room.h);
+      if (room.mode === 'box') {
+        ctx.fillRect(room.x, room.y, room.w, room.h);
+      } else {
+        tracePolygonPath(ctx, room.points);
+        ctx.fill();
+      }
       ctx.shadowColor = 'transparent';
     });
 
@@ -223,12 +403,22 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
     layout.forEach((room) => {
       // Fill
       ctx.fillStyle = ROOM_COLORS[room.colorIdx];
-      ctx.fillRect(room.x, room.y, room.w, room.h);
+      if (room.mode === 'box') {
+        ctx.fillRect(room.x, room.y, room.w, room.h);
+      } else {
+        tracePolygonPath(ctx, room.points);
+        ctx.fill();
+      }
 
       // Border
       ctx.strokeStyle = ROOM_BORDER_COLORS[room.colorIdx];
       ctx.lineWidth = 1.5;
-      ctx.strokeRect(room.x, room.y, room.w, room.h);
+      if (room.mode === 'box') {
+        ctx.strokeRect(room.x, room.y, room.w, room.h);
+      } else {
+        tracePolygonPath(ctx, room.points);
+        ctx.stroke();
+      }
 
       // Hatching for visual texture
       ctx.save();
@@ -236,21 +426,34 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
       ctx.strokeStyle = ROOM_BORDER_COLORS[room.colorIdx];
       ctx.lineWidth = 0.5;
       const spacing = 12;
-      ctx.beginPath();
-      for (let d = spacing; d < room.w + room.h; d += spacing) {
-        const x1 = room.x + Math.min(d, room.w);
-        const y1 = room.y + Math.max(0, d - room.w);
-        const x2 = room.x + Math.max(0, d - room.h);
-        const y2 = room.y + Math.min(d, room.h);
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
+      if (room.mode === 'box') {
+        ctx.beginPath();
+        for (let d = spacing; d < room.w + room.h; d += spacing) {
+          const x1 = room.x + Math.min(d, room.w);
+          const y1 = room.y + Math.max(0, d - room.w);
+          const x2 = room.x + Math.max(0, d - room.h);
+          const y2 = room.y + Math.min(d, room.h);
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+        }
+      } else {
+        const bounds = getPolygonBounds(room.points);
+        if (bounds) {
+          tracePolygonPath(ctx, room.points);
+          ctx.clip();
+          ctx.beginPath();
+          for (let x = bounds.minX - bounds.height; x <= bounds.maxX + bounds.height; x += spacing) {
+            ctx.moveTo(x, bounds.minY);
+            ctx.lineTo(x + bounds.height, bounds.maxY);
+          }
+        }
       }
       ctx.stroke();
       ctx.restore();
 
-      const cx = room.x + room.w / 2;
-      const cy = room.y + room.h / 2;
-      const minDim = Math.min(room.w, room.h);
+      const cx = room.cx;
+      const cy = room.cy;
+      const minDim = room.minDim;
       const fontSize = Math.max(9, Math.min(14, minDim / 6));
 
       if (showLabels) {
@@ -405,17 +608,17 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
       ) : (
         <div className="space-y-4">
           {/* Controls bar */}
-          <div className="no-print flex flex-wrap items-center gap-3 rounded-xl border border-border/65 bg-card/85 px-3 py-2 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.68)]">
+          <div className="panel-glass no-print flex flex-wrap items-center gap-3 rounded-xl border border-border/70 bg-card px-3 py-2 shadow-sm">
             {/* Floor selector */}
             {floors.length > 1 && (
-              <div className="flex items-center gap-1 rounded-lg border border-border/55 bg-card/80 p-0.5">
+              <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-0.5">
                 {floors.map((floor, idx) => (
                   <button
                     key={floor.id}
                     onClick={() => setActiveFloor(idx)}
                     className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
                       idx === activeFloor
-                        ? 'bg-accent text-accent-foreground shadow-[0_8px_18px_-14px_rgba(206,161,74,0.9)]'
+                        ? 'bg-accent text-accent-foreground shadow-md'
                         : 'text-muted-foreground hover:bg-secondary/70 hover:text-foreground'
                     }`}
                   >
@@ -426,12 +629,12 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
             )}
 
             {/* Toggle buttons */}
-            <div className="flex items-center gap-1 rounded-lg border border-border/55 bg-card/80 p-0.5">
+            <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-0.5">
               <button
                 onClick={() => setShowLabels(!showLabels)}
                 className={`px-2.5 py-1.5 text-xs rounded-md transition-colors ${
                   showLabels
-                    ? 'bg-accent text-accent-foreground shadow-[0_8px_18px_-14px_rgba(206,161,74,0.9)]'
+                    ? 'bg-accent text-accent-foreground shadow-md'
                     : 'text-muted-foreground hover:bg-secondary/70 hover:text-foreground'
                 }`}
               >
@@ -441,7 +644,7 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
                 onClick={() => setShowDimensions(!showDimensions)}
                 className={`px-2.5 py-1.5 text-xs rounded-md transition-colors ${
                   showDimensions
-                    ? 'bg-accent text-accent-foreground shadow-[0_8px_18px_-14px_rgba(206,161,74,0.9)]'
+                    ? 'bg-accent text-accent-foreground shadow-md'
                     : 'text-muted-foreground hover:bg-secondary/70 hover:text-foreground'
                 }`}
               >
@@ -451,7 +654,7 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
                 onClick={() => setShowLoads(!showLoads)}
                 className={`px-2.5 py-1.5 text-xs rounded-md transition-colors ${
                   showLoads
-                    ? 'bg-accent text-accent-foreground shadow-[0_8px_18px_-14px_rgba(206,161,74,0.9)]'
+                    ? 'bg-accent text-accent-foreground shadow-md'
                     : 'text-muted-foreground hover:bg-secondary/70 hover:text-foreground'
                 }`}
               >
@@ -489,14 +692,14 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
           </div>
 
           {/* Canvas area */}
-          <Card className="print-full overflow-hidden border border-border/65 bg-card/90 p-0 shadow-[0_16px_30px_-24px_rgba(19,32,51,0.72)]">
+          <Card className="print-full overflow-hidden border border-border bg-card p-0 shadow-sm">
             <div ref={containerRef} className="w-full h-125 relative">
               <canvas ref={canvasRef} className="w-full h-full" />
             </div>
           </Card>
 
           {/* Room summary table */}
-          <Card className="border border-border/65 bg-card/90 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.68)]">
+          <Card className="panel-glass border border-border/70 bg-card shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-sm">
                 <Layers className="w-4 h-4 text-muted-foreground" />
@@ -523,15 +726,9 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
                         ? (room.coolingLoad.totalLoad / room.area).toFixed(0)
                         : '—';
                       return (
-                        <tr key={room.id} className="border-b border-border/40 hover:bg-secondary/30 transition-colors">
+                        <tr key={room.id} className="border-b border-border hover:bg-secondary/30 transition-colors">
                           <td className="py-2.5 pr-4">
-                            <div
-                              className="w-3.5 h-3.5 rounded-sm border"
-                              style={{
-                                backgroundColor: ROOM_COLORS[idx % ROOM_COLORS.length],
-                                borderColor: ROOM_BORDER_COLORS[idx % ROOM_BORDER_COLORS.length],
-                              }}
-                            />
+                            <div className={`h-3.5 w-3.5 rounded-sm border ${ROOM_SWATCH_CLASSES[idx % ROOM_SWATCH_CLASSES.length]}`} />
                           </td>
                           <td className="py-2.5 pr-4 font-medium">{room.name}</td>
                           <td className="py-2.5 pr-4">
@@ -563,7 +760,7 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
                 </table>
               </div>
 
-              <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted-foreground pt-3 border-t border-border/40">
+              <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted-foreground pt-3 border-t border-border">
                 <span className="flex items-center gap-1.5">
                   <Building2 className="w-3.5 h-3.5" />
                   {rooms.length} rooms

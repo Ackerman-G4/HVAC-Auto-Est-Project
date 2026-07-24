@@ -4,6 +4,8 @@ import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import { signUpWithEmailPassword } from '@/lib/firebase/auth-rest';
 import { getFirebaseAuth } from '@/lib/firebase/server';
 import { getFirstZodErrorMessage, registerRequestSchema } from '@/lib/validation/auth';
+import { isLocalAuthMode, localSignUp } from '@/lib/auth/local-auth';
+import { requireJsonRequest } from '@/lib/utils/api-helpers';
 
 const REGISTER_RATE_LIMIT = {
 	windowMs: 60_000,
@@ -17,9 +19,14 @@ function resolveRole(role: unknown): 'admin' | 'engineer' {
 }
 
 function isMissingAdminCredentialError(message: string): boolean {
+	const normalized = message.toLowerCase();
+
 	return (
-		message.includes('Could not load the default credentials') ||
-		message.includes('credential implementation provided to initializeApp()')
+		normalized.includes('could not load the default credentials') ||
+		normalized.includes('credential implementation provided to initializeapp()') ||
+		normalized.includes('access_token_type_unsupported') ||
+		normalized.includes('invalid authentication credentials') ||
+		normalized.includes('unauthenticated')
 	);
 }
 
@@ -32,15 +39,24 @@ function resolveStatusFromError(message: string): number {
 
 export async function POST(req: NextRequest) {
 	try {
-		const rateLimit = evaluateRateLimit(req, 'auth-register', REGISTER_RATE_LIMIT);
-		if (!rateLimit.allowed) {
-			return NextResponse.json(
-				{ error: 'Too many attempts. Please try again later' },
-				{
-					status: 429,
-					headers: { 'Retry-After': String(rateLimit.retryAfterSec) },
-				},
-			);
+		const jsonGuard = requireJsonRequest(req);
+		if (jsonGuard) {
+			return jsonGuard;
+		}
+
+		// Skip rate limiting in local auth mode — smoke scripts register many
+		// temporary users per run and would exhaust the 6-req/min window.
+		if (!isLocalAuthMode()) {
+			const rateLimit = evaluateRateLimit(req, 'auth-register', REGISTER_RATE_LIMIT);
+			if (!rateLimit.allowed) {
+				return NextResponse.json(
+					{ error: 'Too many attempts. Please try again later' },
+					{
+						status: 429,
+						headers: { 'Retry-After': String(rateLimit.retryAfterSec) },
+					},
+				);
+			}
 		}
 
 		const payload = await req.json();
@@ -58,6 +74,16 @@ export async function POST(req: NextRequest) {
 				{ error: 'Admin role requires manual provisioning' },
 				{ status: 403 },
 			);
+		}
+
+		// Use local auth when Firebase is not configured
+		if (isLocalAuthMode()) {
+			const result = await localSignUp(email, password, name, requestedRole);
+			return createAuthResponse({
+				token: result.token,
+				refreshToken: result.refreshToken,
+				user: result.user,
+			});
 		}
 
 		const authResponse = await signUpWithEmailPassword(email, password);
@@ -79,6 +105,7 @@ export async function POST(req: NextRequest) {
 
 		return createAuthResponse({
 			token: authResponse.idToken,
+			refreshToken: authResponse.refreshToken,
 			user: {
 				id: authResponse.localId,
 				email: authResponse.email,

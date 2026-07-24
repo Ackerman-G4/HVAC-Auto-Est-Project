@@ -1,113 +1,119 @@
 @import "tailwindcss";
+@import "../styles/tokens.css";
+@import "../styles/typography.css";
+@import "../styles/spacing.css";
+
+/* ── Modern Enterprise Design System ─────────────────────── */
 
 :root {
-  --background: #f1f3ed;
-  --foreground: #132827;
-  --card: #fcfdf9;
-  --card-foreground: #132827;
+  /* HVAC Studio identity: ink (navy) primary · jade accent · copper for cost. */
+  --background: #f4f7f9;
+  --foreground: #0e1a24;
+  --card: rgba(255, 255, 255, 0.82);
+  --card-foreground: #0e1a24;
   --primary: #1f3f62;
-  --primary-foreground: #f3f8ff;
-  --secondary: #e5eae2;
-  --secondary-foreground: #32504b;
-  --muted: #d9e1d8;
-  --muted-foreground: #5b746e;
+  --primary-foreground: #ffffff;
+  --secondary: rgba(15, 23, 42, 0.06);
+  --secondary-foreground: #1e293b;
+  --muted: rgba(100, 116, 139, 0.18);
+  --muted-foreground: #4a5b6b;
   --accent: #148673;
-  --accent-light: #2ab39a;
-  --accent-dark: #0f6659;
-  --accent-foreground: #ebfffb;
-  --border: #cad5cc;
-  --input: #c3d1c8;
-  --ring: #148673;
-  --destructive: #c14b55;
-  --destructive-foreground: #fff4f5;
-  --success: #1e9b67;
-  --warning: #ca7b2e;
-  --silver: #7c9289;
-  --silver-light: #e8efea;
-  --silver-dark: #4e665f;
+  --accent-light: #1aa88f;
+  --accent-dark: #0f6b5c;
+  --accent-foreground: #ffffff;
+  --border: rgba(15, 32, 44, 0.12);
+  --input: rgba(15, 32, 44, 0.12);
+  --ring: #1f3f62;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --success: #148673;
+  --warning: #c2830c;
+  /* Copper — reserved for currency figures (plan §6.1). */
+  --copper: #b3701f;
+  --copper-foreground: #ffffff;
 
+  --glass-bg: rgba(255, 255, 255, 0.62);
+  --glass-bg-strong: rgba(255, 255, 255, 0.80);
+  --glass-border: rgba(15, 32, 44, 0.12);
+  --panel-shadow: 0 18px 42px rgba(15, 32, 44, 0.08);
+  --panel-shadow-strong: 0 28px 70px rgba(15, 32, 44, 0.14);
+
+  /* Elevation system (Phase 3): flat = recessed workspace surface,
+     raised = side panels/cards, floating = top nav / overlays. */
+  --elevation-flat: inset 0 1px 2px rgba(15, 32, 44, 0.05);
+  --elevation-raised: 0 4px 14px rgba(15, 32, 44, 0.08);
+  --elevation-floating: 0 12px 34px rgba(15, 32, 44, 0.14);
+
+  /* Brand aliases now carry their real semantics. */
+  --silver: #94a3b8;
+  --silver-light: #f1f5f9;
+  --silver-dark: #64748b;
   --brand-ink: #1f3f62;
   --brand-jade: #148673;
-  --brand-copper: #ca7b2e;
-  --brand-paper: #f8fbf5;
-
+  --brand-copper: #b3701f;
+  --brand-paper: #ffffff;
   --surface-0: var(--background);
-  --surface-1: var(--card);
-  --surface-2: #e9eee6;
-  --surface-3: #dfe8e0;
-  --layer-base: #f1f3ed;
-  --layer-surface: #fcfdf9;
-  --layer-elevated: #ffffff;
-  --layer-overlay: rgba(18, 28, 26, 0.58);
-  --text-primary: var(--foreground);
-  --text-secondary: var(--muted-foreground);
-  --text-subtle: #70877f;
+  --surface-1: var(--glass-bg-strong);
+  --surface-2: rgba(255, 255, 255, 0.55);
+  --surface-3: rgba(15, 23, 42, 0.08);
+  --text-subtle: #475569;
 
-  --bg-top: #f7faf4;
-  --bg-bottom: #e7ece5;
-  --bg-spot-a: color-mix(in oklab, var(--brand-jade) 18%, transparent);
-  --bg-spot-b: color-mix(in oklab, var(--brand-copper) 22%, transparent);
-  --bg-spot-c: color-mix(in oklab, var(--brand-ink) 14%, transparent);
-  --grid-line: color-mix(in oklab, var(--brand-jade) 9%, transparent);
-  --grain-line: color-mix(in oklab, var(--brand-ink) 6%, transparent);
-
-  --radius: 1.05rem;
-  --content-max-width: 1940px;
-  --space-page-x: clamp(1.1rem, 1.1vw + 0.8rem, 2.8rem);
-  --space-page-y: clamp(1.25rem, 1.2vw + 0.9rem, 2.5rem);
+  --radius: 1rem;
+  --radius-card: 1.25rem;
+  --content-max-width-constrained: var(--content-max-width);
   color-scheme: light;
 }
 
 [data-theme='dark'] {
-  --background: #121918;
-  --foreground: #dcebe6;
-  --card: #1a2422;
-  --card-foreground: #dcebe6;
-  --primary: #4a7095;
-  --primary-foreground: #eef6ff;
-  --secondary: #222f2c;
-  --secondary-foreground: #a9c0ba;
-  --muted: #263834;
-  --muted-foreground: #90aaa3;
-  --accent: #36b89c;
-  --accent-light: #57cfb2;
-  --accent-dark: #259a81;
-  --accent-foreground: #e7fff8;
-  --border: #31433f;
-  --input: #3b4f4a;
-  --ring: #36b89c;
-  --destructive: #df6a74;
-  --destructive-foreground: #fff4f5;
-  --success: #50bf84;
-  --warning: #e4a650;
-  --silver: #7f9992;
-  --silver-light: #2f433f;
-  --silver-dark: #a8c0ba;
+  --background: #0a141d;
+  --foreground: #e6eef5;
+  --card: rgba(255, 255, 255, 0.05);
+  --card-foreground: #e6eef5;
+  /* Ink brightened for contrast on the dark ground. */
+  --primary: #5b8fc7;
+  --primary-foreground: #06121e;
+  --secondary: rgba(148, 163, 184, 0.14);
+  --secondary-foreground: #cbd5e1;
+  --muted: rgba(148, 163, 184, 0.16);
+  --muted-foreground: #9fb1c4;
+  --accent: #2bb89d;
+  --accent-light: #46d0b5;
+  --accent-dark: #1c8f79;
+  --accent-foreground: #04140f;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.16);
+  --ring: #5b8fc7;
+  --destructive: #f2555a;
+  --destructive-foreground: #fff1f1;
+  --success: #2bb89d;
+  --warning: #f0b849;
+  --copper: #d99a4e;
+  --copper-foreground: #1a0f04;
 
-  --brand-ink: #77a7d6;
-  --brand-jade: #36b89c;
-  --brand-copper: #e4a650;
-  --brand-paper: #1c2624;
+  --glass-bg: rgba(15, 26, 38, 0.5);
+  --glass-bg-strong: rgba(15, 26, 38, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.14);
+  --panel-shadow: 0 18px 42px rgba(0, 0, 0, 0.38);
+  --panel-shadow-strong: 0 30px 78px rgba(0, 0, 0, 0.52);
 
+  /* Elevation system (Phase 3) — deeper in dark. */
+  --elevation-flat: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+  --elevation-raised: 0 6px 18px rgba(0, 0, 0, 0.4);
+  --elevation-floating: 0 16px 40px rgba(0, 0, 0, 0.55);
+
+  /* Brand aliases */
+  --silver: #94a3b8;
+  --silver-light: #334155;
+  --silver-dark: #cbd5e1;
+  --brand-ink: #5b8fc7;
+  --brand-jade: #2bb89d;
+  --brand-copper: #d99a4e;
+  --brand-paper: #16273a;
   --surface-0: var(--background);
-  --surface-1: var(--card);
-  --surface-2: #1f2b28;
-  --surface-3: #263531;
-  --layer-base: #121918;
-  --layer-surface: #1a2422;
-  --layer-elevated: #24332f;
-  --layer-overlay: rgba(7, 10, 9, 0.72);
-  --text-primary: var(--foreground);
-  --text-secondary: var(--muted-foreground);
-  --text-subtle: #88a59d;
-
-  --bg-top: #141d1b;
-  --bg-bottom: #0f1514;
-  --bg-spot-a: color-mix(in oklab, var(--brand-jade) 24%, transparent);
-  --bg-spot-b: color-mix(in oklab, var(--brand-copper) 20%, transparent);
-  --bg-spot-c: color-mix(in oklab, var(--brand-ink) 19%, transparent);
-  --grid-line: color-mix(in oklab, var(--brand-jade) 13%, transparent);
-  --grain-line: color-mix(in oklab, var(--brand-paper) 18%, transparent);
+  --surface-1: var(--glass-bg-strong);
+  --surface-2: rgba(255, 255, 255, 0.07);
+  --surface-3: rgba(255, 255, 255, 0.12);
+  --text-subtle: #a9b6d6;
 
   color-scheme: dark;
 }
@@ -134,6 +140,11 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-success: var(--success);
   --color-warning: var(--warning);
+  --color-copper: var(--copper);
+  --color-copper-foreground: var(--copper-foreground);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-jade: var(--brand-jade);
+  --color-brand-copper: var(--brand-copper);
   --color-silver: var(--silver);
   --color-silver-light: var(--silver-light);
   --color-silver-dark: var(--silver-dark);
@@ -141,13 +152,6 @@
   --color-surface-1: var(--surface-1);
   --color-surface-2: var(--surface-2);
   --color-surface-3: var(--surface-3);
-  --color-layer-base: var(--layer-base);
-  --color-layer-surface: var(--layer-surface);
-  --color-layer-elevated: var(--layer-elevated);
-  --color-layer-overlay: var(--layer-overlay);
-  --color-text-primary: var(--text-primary);
-  --color-text-secondary: var(--text-secondary);
-  --color-text-subtle: var(--text-subtle);
   --font-sans: var(--font-jakarta);
   --font-mono: var(--font-jetbrains-mono);
   --font-display: var(--font-space-grotesk);
@@ -160,107 +164,80 @@
 }
 
 body {
-  position: relative;
   min-height: 100vh;
-  background:
-    radial-gradient(circle at 12% 8%, var(--bg-spot-a) 0%, transparent 36%),
-    radial-gradient(circle at 88% 12%, var(--bg-spot-b) 0%, transparent 38%),
-    radial-gradient(circle at 52% 100%, var(--bg-spot-c) 0%, transparent 44%),
-    linear-gradient(170deg, var(--bg-top) 0%, var(--background) 45%, var(--bg-bottom) 100%);
+  background: radial-gradient(circle at 20% 12%, color-mix(in oklab, var(--primary) 16%, transparent), transparent 32%),
+    radial-gradient(circle at 82% 84%, color-mix(in oklab, var(--accent) 12%, transparent), transparent 36%),
+    var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), "Segoe UI", sans-serif;
-  font-size: clamp(15px, 0.26vw + 14px, 17px);
-  line-height: 1.58;
-  letter-spacing: 0.002em;
+  font-family: var(--font-sans), 'Segoe UI', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: 0.012em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: background-color 0.28s ease, color 0.28s ease;
-}
-
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.32;
-  background:
-    repeating-linear-gradient(
-      0deg,
-      transparent 0,
-      transparent 35px,
-      var(--grid-line) 36px
-    ),
-    repeating-linear-gradient(
-      90deg,
-      transparent 0,
-      transparent 35px,
-      var(--grid-line) 36px
-    );
-  mask-image: radial-gradient(circle at center, black 28%, transparent 84%);
-  z-index: -2;
-}
-
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.22;
-  background:
-    repeating-linear-gradient(
-      -18deg,
-      transparent 0,
-      transparent 9px,
-      var(--grain-line) 10px,
-      transparent 11px
-    );
-  z-index: -1;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 h1,
 h2,
-h3,
 .display-heading {
-  font-family: var(--font-display), var(--font-sans), sans-serif;
-  letter-spacing: -0.022em;
-  line-height: 1.08;
-  text-wrap: balance;
+  /* Display face (Poppins) — gives titles and the logo their own voice. */
+  font-family: var(--font-display), var(--font-sans), 'Segoe UI', sans-serif;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  font-weight: 700;
 }
 
-p,
-li,
-dd {
-  text-wrap: pretty;
+h3 {
+  /* Denser sub-headers stay on the Inter workhorse for legibility. */
+  font-family: var(--font-sans), 'Segoe UI', sans-serif;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+/* Currency figures are always copper (plan §6.1) with tabular numerals. */
+.text-currency {
+  color: var(--copper);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Custom select arrow (replaces inline style) */
+.select-arrow {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+
+/* Temperature gradient legend */
+.temp-gradient-legend {
+  background: linear-gradient(to right, rgb(0,255,130), rgb(128,128,90), rgb(255,0,65));
+}
+
+/* CFD heatmap gradient legend */
+.cfd-heatmap-legend {
+  background: linear-gradient(to right, rgb(0,0,255), rgb(255,255,0), rgb(255,200,0), rgb(255,0,0));
 }
 
 ::selection {
-  background: color-mix(in oklab, var(--brand-jade) 35%, var(--card));
-  color: color-mix(in oklab, var(--foreground) 90%, black);
+  background: color-mix(in oklab, var(--primary) 30%, var(--card));
+  color: var(--foreground);
 }
 
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: color-mix(in oklab, var(--silver) 72%, transparent);
+  background: var(--muted);
   border-radius: 999px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in oklab, var(--silver-dark) 78%, transparent);
-}
-
-.glass {
-  background: color-mix(in oklab, var(--card) 90%, transparent);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid color-mix(in oklab, var(--border) 84%, white);
-  box-shadow: 0 16px 36px -24px color-mix(in oklab, var(--brand-ink) 42%, transparent);
+  background: var(--muted-foreground);
 }
 
 .tabular-nums {
@@ -269,33 +246,38 @@ dd {
 }
 
 .animate-fade-rise {
-  animation: fade-rise 500ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: fade-rise 400ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.animate-soft-float {
-  animation: soft-float 8s ease-in-out infinite;
+.system-grid-bg {
+  background-image: linear-gradient(to right, color-mix(in oklab, var(--border) 55%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--border) 55%, transparent) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.glass-card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  box-shadow: var(--panel-shadow);
+}
+
+.panel-glass {
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  box-shadow: var(--panel-shadow);
 }
 
 @keyframes fade-rise {
   from {
     opacity: 0;
-    transform: translateY(12px) scale(0.985);
-    filter: blur(2px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0);
-  }
-}
-
-@keyframes soft-float {
-  0%,
-  100% {
     transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-8px);
   }
 }
 
@@ -304,12 +286,174 @@ dd {
   body { background: white; }
 }
 
-@media (max-width: 768px) {
-  body::before {
-    opacity: 0.2;
-  }
+/* Responsive spacing overrides now in ../styles/spacing.css */
 
-  body::after {
-    opacity: 0.14;
+/* ── Reduced Motion ───────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
+}
+
+/* ── Skip-to-content link ─────────────────────────────────── */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 1rem;
+  z-index: 9999;
+  padding: 0.75rem 1.25rem;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-radius: var(--radius-control);
+  font-weight: 600;
+  text-decoration: none;
+}
+.skip-link:focus {
+  top: 0.75rem;
+}
+
+/* ── Workspace Panel Enhancements ────────────────────────────── */
+
+/* react-resizable-panels handles */
+[data-panel-group-direction="horizontal"] > [data-resize-handle] {
+  width: 6px;
+  background: transparent;
+  transition: background-color 0.15s ease;
+}
+
+[data-panel-group-direction="horizontal"] > [data-resize-handle]:hover,
+[data-panel-group-direction="horizontal"] > [data-resize-handle][data-resize-handle-active] {
+  background: color-mix(in oklab, var(--accent) 20%, transparent);
+}
+
+/* Workspace panel scrollbar styling */
+.workspace-panel::-webkit-scrollbar {
+  width: 4px;
+}
+.workspace-panel::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 999px;
+}
+
+/* Pipeline stage indicator pulse */
+@keyframes stage-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.stage-running {
+  animation: stage-pulse 0.8s ease-in-out infinite;
+}
+
+/* ── Phase 1: interaction language ────────────────────────────── */
+
+/* Jade-tinted skeleton shimmer — a loading surface that reads as "this panel
+   is coming", not a dead grey box. Base tone + a sweeping jade highlight. */
+@keyframes skeleton-shimmer {
+  0% { background-position: 180% 0; }
+  100% { background-position: -180% 0; }
+}
+.skeleton {
+  background-color: color-mix(in oklab, var(--secondary) 78%, transparent);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklab, var(--accent) 13%, transparent) 42%,
+    color-mix(in oklab, var(--accent) 22%, transparent) 50%,
+    color-mix(in oklab, var(--accent) 13%, transparent) 58%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  border-radius: var(--radius-control);
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+/* Hover lift — 2px rise + shadow bloom for interactive cards/rows. Motion
+   vocabulary timing (150ms micro, cubic-bezier(0.2,0,0,1)). */
+.hover-lift {
+  transition: transform 150ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 150ms cubic-bezier(0.2, 0, 0, 1),
+    border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+  will-change: transform;
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 32px color-mix(in oklab, var(--primary) 20%, transparent);
+  border-color: color-mix(in oklab, var(--accent) 40%, var(--border));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; }
+  /* Keep the affordance (shadow/border) but drop the positional motion. */
+  .hover-lift:hover { transform: none; }
+}
+
+/* ── Phase 3: elevation + primary CTA ─────────────────────────── */
+
+.elev-flat { box-shadow: var(--elevation-flat); }
+.elev-raised { box-shadow: var(--elevation-raised); }
+.elev-floating { box-shadow: var(--elevation-floating); }
+
+/* Recessed workspace surface — the main canvas reads as a sunken instrument
+   panel the raised side panels sit above. */
+.surface-recessed {
+  background:
+    radial-gradient(120% 120% at 50% 0%, color-mix(in oklab, var(--accent) 5%, transparent) 0%, transparent 60%),
+    var(--background);
+  box-shadow: var(--elevation-flat);
+}
+
+/* Idle glow on the primary action (Run Preview) — a slow jade breathe that
+   draws the eye without shouting. Static ring under reduced motion. */
+@keyframes cta-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 40%, transparent); }
+  50% { box-shadow: 0 0 0 6px color-mix(in oklab, var(--accent) 0%, transparent); }
+}
+.cta-glow:not(:disabled) {
+  animation: cta-breathe 2.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cta-glow:not(:disabled) {
+    animation: none;
+    box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 30%, transparent);
+  }
+}
+
+/* ── Phase 4: the canvas ──────────────────────────────────────── */
+
+/* Ambient gradient-mesh backdrop for the 3D viewer — a slow jade↔ink drift so
+   an empty or transparent canvas reads as a living workspace, not a void. A
+   faint grid sits on top for spatial reference. */
+@keyframes canvas-drift {
+  0% { background-position: 0% 0%, 100% 100%; }
+  100% { background-position: 26% 18%, 74% 82%; }
+}
+.canvas-ambient {
+  position: relative;
+  background-color: var(--background);
+  background-image:
+    radial-gradient(58% 52% at 18% 14%, color-mix(in oklab, var(--accent) 18%, transparent), transparent 70%),
+    radial-gradient(54% 56% at 86% 88%, color-mix(in oklab, var(--primary) 22%, transparent), transparent 72%);
+  background-size: 180% 180%, 200% 200%;
+  animation: canvas-drift 26s ease-in-out infinite alternate;
+}
+.canvas-ambient::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, color-mix(in oklab, var(--border) 40%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--border) 40%, transparent) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: radial-gradient(80% 80% at 50% 50%, #000 40%, transparent 100%);
+  -webkit-mask-image: radial-gradient(80% 80% at 50% 50%, #000 40%, transparent 100%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .canvas-ambient { animation: none; }
 }

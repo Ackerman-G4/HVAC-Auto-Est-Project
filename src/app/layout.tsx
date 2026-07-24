@@ -1,21 +1,20 @@
 import type { Metadata, Viewport } from "next";
-import { JetBrains_Mono, Plus_Jakarta_Sans, Space_Grotesk } from "next/font/google";
+import { Inter, JetBrains_Mono, Poppins } from "next/font/google";
 import { GoogleAuthProvider } from "@/components/auth/google-auth-provider";
 import { AppShell } from "@/components/layout/app-shell";
-import { AuthProvider } from "@/lib/auth/AuthContext";
 import "./globals.css";
 
-const jakarta = Plus_Jakarta_Sans({
+const jakarta = Inter({
   variable: "--font-jakarta",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: ["400", "500", "600", "700"],
   display: "swap",
 });
 
-const spaceGrotesk = Space_Grotesk({
+const spaceGrotesk = Poppins({
   variable: "--font-space-grotesk",
   subsets: ["latin"],
-  weight: ["500", "700"],
+  weight: ["500", "600", "700"],
   display: "swap",
 });
 
@@ -27,27 +26,27 @@ const jetBrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "HVAC-AEST-EA — Engineering Automation Platform",
-  description: "Next-generation HVAC estimation platform: intelligent cooling load analysis, automated equipment sizing, BOQ generation, and construction-ready outputs.",
+  title: "HVAC Studio — Engineering Estimation Platform",
+  description: "HVAC Studio: intelligent cooling load analysis, automated equipment sizing, BOQ generation, engineering-grade CFD, and construction-ready outputs.",
   manifest: "/manifest.json",
   icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon.ico",
-    apple: "/favicon.ico",
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+    apple: "/favicon.svg",
   },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "HVAC-AEST-EA",
+    title: "HVAC Studio",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#148673",
+  themeColor: "#1f3f62",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 5,
+  userScalable: true,
 };
 
 export default function RootLayout({
@@ -60,10 +59,11 @@ export default function RootLayout({
       <body
         className={`${jakarta.variable} ${spaceGrotesk.variable} ${jetBrainsMono.variable} antialiased`}
       >
+        <a href="#main-content" className="skip-link">
+          Skip to main content
+        </a>
         <GoogleAuthProvider>
-          <AuthProvider>
-            <AppShell>{children}</AppShell>
-          </AuthProvider>
+          <AppShell>{children}</AppShell>
         </GoogleAuthProvider>
       </body>
     </html>

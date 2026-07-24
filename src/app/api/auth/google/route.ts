@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAuthResponse } from '@/lib/auth/session';
 import { evaluateRateLimit } from '@/lib/auth/rate-limit';
+import { isLocalAuthMode } from '@/lib/auth/local-auth';
 import {
   lookupAccountByIdToken,
   signInWithGoogleCredential,
@@ -10,6 +11,7 @@ import {
   getFirstZodErrorMessage,
   googleLoginRequestSchema,
 } from '@/lib/validation/auth';
+import { requireJsonRequest } from '@/lib/utils/api-helpers';
 
 const GOOGLE_LOGIN_RATE_LIMIT = {
   windowMs: 60_000,
@@ -31,6 +33,11 @@ function resolveStatusFromError(message: string): number {
 
 export async function POST(req: NextRequest) {
   try {
+    const jsonGuard = requireJsonRequest(req);
+    if (jsonGuard) {
+      return jsonGuard;
+    }
+
     const rateLimit = evaluateRateLimit(req, 'auth-google-login', GOOGLE_LOGIN_RATE_LIMIT);
     if (!rateLimit.allowed) {
       return NextResponse.json(
@@ -47,6 +54,13 @@ export async function POST(req: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json({ error: getFirstZodErrorMessage(parsed.error) }, { status: 400 });
+    }
+
+    if (isLocalAuthMode()) {
+      return NextResponse.json(
+        { error: 'Google login is not available in local development mode' },
+        { status: 501 },
+      );
     }
 
     const requestUri = req.nextUrl.origin || 'http://localhost';
@@ -68,6 +82,7 @@ export async function POST(req: NextRequest) {
 
       return createAuthResponse({
         token: authResponse.idToken,
+        refreshToken: authResponse.refreshToken,
         user: {
           id: decoded.uid,
           email: decoded.email || authResponse.email,
@@ -80,6 +95,7 @@ export async function POST(req: NextRequest) {
 
       return createAuthResponse({
         token: authResponse.idToken,
+        refreshToken: authResponse.refreshToken,
         user: {
           id: account.id,
           email: account.email || authResponse.email,

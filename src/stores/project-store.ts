@@ -1,30 +1,44 @@
 import { create } from 'zustand';
-import { 
-  ref, 
-  onValue, 
-  off, 
-  push, 
-  set as firebaseSet, 
-  update as firebaseUpdate
-} from 'firebase/database';
-import { db, auth } from '@/lib/db/firebase';
 import type { Project, ProjectFormData } from '@/types/project';
 import { showToast } from '@/components/ui/toast';
+import {
+  ApiClientError,
+  getApiClientToken,
+  projectsApi,
+  setApiClientToken,
+  setRefreshToken,
+} from '@/lib/api-client';
 
 interface ProjectStore {
   projects: Project[];
-  currentProject: Record<string, unknown> | null; // Detailed project with floors/rooms
+  currentProject: Project | null;
   isLoading: boolean;
   
-  // Real-time subscriptions
-  subscribeToProjects: () => () => void;
-  subscribeToProject: (id: string) => () => void;
-
-  // Actions
-  createProject: (data: ProjectFormData) => Promise<string | null>;
+  fetchProjects: () => Promise<void>;
+  fetchProject: (id: string) => Promise<void>;
+  createProject: (data: ProjectFormData) => Promise<Project | null>;
   updateProject: (id: string, data: Partial<Project>) => Promise<void>;
-  deleteProject: (id: string, permanent?: boolean) => Promise<void>;
-  setCurrentProject: (project: Record<string, unknown> | null) => void;
+  archiveProject: (id: string) => Promise<void>;
+  restoreProject: (id: string) => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
+  setCurrentProject: (project: Project | null) => void;
+}
+
+function clearAuthTokens() {
+  setApiClientToken(null);
+  setRefreshToken(null);
+}
+
+function describeApiError(error: ApiClientError): string {
+  if (error.status === 401) {
+    return 'Your session expired. Please sign in again.';
+  }
+
+  if (error.details) {
+    return error.details;
+  }
+
+  return error.message || 'An unexpected API error occurred.';
 }
 
 export const useProjectStore = create<ProjectStore>((set) => ({
@@ -32,114 +46,64 @@ export const useProjectStore = create<ProjectStore>((set) => ({
   currentProject: null,
   isLoading: false,
 
-  subscribeToProjects: () => {
-    const user = auth.currentUser;
-    if (!user) return () => {};
-
+  fetchProjects: async () => {
+    if (!getApiClientToken()) {
+      set({ projects: [], isLoading: false });
+      return;
+    }
     set({ isLoading: true });
-    const projectsRef = ref(db, `users/${user.uid}/projects`);
-    
-    const unsubscribe = onValue(projectsRef, (snapshot) => {
-      const data = snapshot.val() || {};
-      const projectsList = Object.keys(data)
-        .map(id => ({ id, ...data[id] }))
-        .filter(p => p.status !== 'deleted')
-        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-      
-      set({ projects: projectsList, isLoading: false });
-    }, (error) => {
-      console.error("Projects subscription error:", error);
-      set({ isLoading: false });
-      showToast('error', 'Failed to sync projects');
-    });
-
-    return () => off(projectsRef, 'value', unsubscribe);
-  },
-
-  subscribeToProject: (id: string) => {
-    const user = auth.currentUser;
-    if (!user) return () => {};
-
-    set({ isLoading: true });
-    
-    // We need both project metadata and the actual data (floors/rooms)
-    const projectMetaRef = ref(db, `users/${user.uid}/projects/${id}`);
-    const projectDataRef = ref(db, `projectData/${id}`);
-
-    const syncProject = () => {
-      onValue(projectMetaRef, (metaSnap) => {
-        if (!metaSnap.exists()) {
-          set({ currentProject: null, isLoading: false });
-          return;
+    try {
+      const data = await projectsApi.list();
+      set({ projects: (data.projects || []) as Project[], isLoading: false });
+    } catch (error) {
+      if (error instanceof ApiClientError) {
+        if (error.status === 401) {
+          clearAuthTokens();
+          set({ projects: [], currentProject: null, isLoading: false });
+        } else {
+          set({ isLoading: false });
         }
 
-        onValue(projectDataRef, (dataSnap) => {
-          const meta = metaSnap.val();
-          const data = dataSnap.val() || {};
-          
-          // Structure the data to match what the UI expects (nested floors/rooms)
-          const floorsData = data.floors || {};
-          const roomsData = data.rooms || {};
-          const coolingLoadsData = data.coolingLoads || {};
-          
-          const floors = Object.keys(floorsData).map(fId => {
-            const floorRooms = Object.keys(roomsData)
-              .filter(rId => roomsData[rId].floorId === fId)
-              .map(rId => ({
-                id: rId,
-                ...roomsData[rId],
-                coolingLoad: coolingLoadsData[rId] || null
-              }));
-            
-            return {
-              id: fId,
-              ...floorsData[fId],
-              rooms: floorRooms
-            };
-          }).sort((a, b) => (a.floorNumber || 0) - (b.floorNumber || 0));
+        showToast('error', 'Failed to load projects', describeApiError(error));
+      } else {
+        console.error(error);
+        set({ isLoading: false });
+        showToast('error', 'Failed to load projects');
+      }
+    }
+  },
 
-          set({ 
-            currentProject: { 
-              id, 
-              ...meta, 
-              floors,
-              boqItems: data.boq || {},
-              selectedEquipment: data.selectedEquipment || {}
-            }, 
-            isLoading: false 
-          });
-        });
-      });
-    };
+  fetchProject: async (id: string) => {
+    if (!getApiClientToken()) return;
+    set({ isLoading: true });
+    try {
+      const data = await projectsApi.get(id);
+      set({ currentProject: (data.project || data) as Project, isLoading: false });
+    } catch (error) {
+      if (error instanceof ApiClientError) {
+        if (error.status === 401) {
+          clearAuthTokens();
+          set({ currentProject: null, isLoading: false });
+        } else {
+          set({ isLoading: false });
+        }
 
-    syncProject();
-
-    return () => {
-      off(projectMetaRef);
-      off(projectDataRef);
-    };
+        showToast('error', 'Failed to load project', describeApiError(error));
+      } else {
+        console.error(error);
+        set({ isLoading: false });
+        showToast('error', 'Failed to load project');
+      }
+    }
   },
 
   createProject: async (data: ProjectFormData) => {
-    const user = auth.currentUser;
-    if (!user) return null;
-
     try {
-      const projectsRef = ref(db, `users/${user.uid}/projects`);
-      const newProjectRef = push(projectsRef);
-      const projectId = newProjectRef.key;
-      
-      const now = new Date().toISOString();
-      const projectData = {
-        ...data,
-        status: 'draft',
-        createdAt: now,
-        updatedAt: now,
-      };
-
-      await firebaseSet(newProjectRef, projectData);
-      showToast('success', 'Project created', data.name);
-      return projectId;
+      const result = await projectsApi.create(data);
+      const project = (result.project || result) as Project;
+      set((state) => ({ projects: [project, ...state.projects] }));
+      showToast('success', 'Project created', project.name);
+      return project;
     } catch (error) {
       console.error(error);
       showToast('error', 'Failed to create project');
@@ -148,19 +112,13 @@ export const useProjectStore = create<ProjectStore>((set) => ({
   },
 
   updateProject: async (id: string, data: Partial<Project>) => {
-    const user = auth.currentUser;
-    if (!user) return;
-
     try {
-      const now = new Date().toISOString();
-      const updates: Record<string, unknown> = {};
-      
-      Object.entries(data).forEach(([key, value]) => {
-        updates[`users/${user.uid}/projects/${id}/${key}`] = value;
-      });
-      updates[`users/${user.uid}/projects/${id}/updatedAt`] = now;
-
-      await firebaseUpdate(ref(db), updates);
+      const result = await projectsApi.update(id, data);
+      const updated = (result.project || result) as Project;
+      set((state) => ({
+        projects: state.projects.map((p) => (p.id === id ? updated : p)),
+        currentProject: state.currentProject?.id === id ? updated : state.currentProject,
+      }));
       showToast('success', 'Project updated');
     } catch (error) {
       console.error(error);
@@ -168,23 +126,43 @@ export const useProjectStore = create<ProjectStore>((set) => ({
     }
   },
 
-  deleteProject: async (id: string, permanent = false) => {
-    const user = auth.currentUser;
-    if (!user) return;
-
+  archiveProject: async (id: string) => {
     try {
-      if (permanent) {
-        const updates: Record<string, null> = {};
-        updates[`users/${user.uid}/projects/${id}`] = null;
-        updates[`projectData/${id}`] = null;
-        updates[`simulations/${id}`] = null;
-        await firebaseUpdate(ref(db), updates);
-      } else {
-        await firebaseUpdate(ref(db), {
-          [`users/${user.uid}/projects/${id}/status`]: 'deleted',
-          [`users/${user.uid}/projects/${id}/updatedAt`]: new Date().toISOString()
-        });
-      }
+      await projectsApi.update(id, { status: 'archived' });
+      set((state) => ({
+        projects: state.projects.map((p) =>
+          p.id === id ? { ...p, status: 'archived' as const } : p
+        ),
+      }));
+      showToast('success', 'Project archived');
+    } catch (error) {
+      console.error(error);
+      showToast('error', 'Failed to archive project');
+    }
+  },
+
+  restoreProject: async (id: string) => {
+    try {
+      await projectsApi.update(id, { status: 'active' });
+      set((state) => ({
+        projects: state.projects.map((p) =>
+          p.id === id ? { ...p, status: 'active' as const } : p
+        ),
+      }));
+      showToast('success', 'Project restored');
+    } catch (error) {
+      console.error(error);
+      showToast('error', 'Failed to restore project');
+    }
+  },
+
+  deleteProject: async (id: string) => {
+    try {
+      await projectsApi.delete(id);
+      set((state) => ({
+        projects: state.projects.filter((p) => p.id !== id),
+        currentProject: state.currentProject?.id === id ? null : state.currentProject,
+      }));
       showToast('success', 'Project deleted');
     } catch (error) {
       console.error(error);

@@ -4,10 +4,12 @@ import React from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { GoogleLogin } from '@react-oauth/google';
-import type { CredentialResponse } from '@react-oauth/google';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { AuthSplitHero } from '@/components/auth/auth-split-hero';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { HvacLogo } from '@/components/ui/hvac-logo';
+import { CardSkeleton } from '@/components/ui/skeleton';
 import { showToast } from '@/components/ui/toast';
 import { getZodFieldErrors, loginRequestSchema } from '@/lib/validation/auth';
 import { useAuthStore } from '@/stores/auth-store';
@@ -23,6 +25,10 @@ function LoginPageContent() {
 
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
+  const [rememberMe, setRememberMe] = React.useState(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('hvac-remember-me') === '1';
+    return false;
+  });
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
 
   const nextTarget = searchParams.get('next') || '/';
@@ -42,104 +48,139 @@ function LoginPageContent() {
 
     const ok = await loginWithEmail(parsed.data.email, parsed.data.password);
     if (ok) {
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem('hvac-show-welcome', '1');
+      }
       router.replace(nextTarget);
     }
   };
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-5xl items-center px-4 py-10 sm:px-6 lg:px-8">
-      <div className="grid w-full gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-        <section className="rounded-3xl border border-[color:var(--border)] bg-[color:var(--card)]/80 p-8 shadow-[0_24px_50px_-36px_rgba(15,28,43,0.72)]">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--muted-foreground)]">
-            HVAC Platform Access
-          </p>
-          <h1 className="mt-3 text-3xl font-black tracking-tight text-[color:var(--foreground)] sm:text-4xl">
-            Sign in to continue your engineering workflow.
-          </h1>
-          <p className="mt-4 max-w-2xl text-sm leading-6 text-[color:var(--muted-foreground)]">
-            Access project calculations, equipment sizing, BOQ generation, and reporting in one controlled workspace.
-          </p>
-        </section>
+    <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[1.12fr_minmax(0,0.88fr)]">
+      <AuthSplitHero
+        heading="Command your projects with real-time engineering clarity"
+        subtitle="Access your HVAC workspace, run validated calculations, and move from design assumptions to production-ready outputs faster."
+      />
 
-        <Card className="bg-[color:var(--card)]/95">
-          <CardHeader>
-            <CardTitle>Sign In</CardTitle>
-            <CardDescription>Use your work account to continue.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form className="space-y-4" onSubmit={handleSubmit}>
-              <Input
-                label="Email"
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                error={fieldErrors.email}
-                placeholder="engineer@company.com"
-              />
-              <Input
-                label="Password"
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                error={fieldErrors.password}
-                placeholder="Enter your password"
-              />
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-8 sm:px-8">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_18%,rgba(59,130,246,0.18),transparent_40%),radial-gradient(circle_at_78%_80%,rgba(34,197,94,0.16),transparent_42%)]" />
+        <div className="pointer-events-none absolute inset-0 system-grid-bg opacity-45" />
 
-              {serverError && (
-                <p className="rounded-lg border border-[rgba(211,91,91,0.35)] bg-[rgba(211,91,91,0.1)] px-3 py-2 text-sm font-medium text-[color:var(--destructive)]">
-                  {serverError}
-                </p>
+        <div className="relative z-10 w-full max-w-115">
+          <div className="mb-8 text-center">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-border/80 bg-card/70 px-3 py-1.5 text-xs font-medium text-muted-foreground">
+              <HvacLogo variant="color" size={16} />
+              Precision Cooling Workspace
+            </div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              HVAC Studio
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground">
+              Sign in to your account
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Continue where your last engineering session left off.
+            </p>
+          </div>
+
+          <Card className="rounded-3xl border-border/75 p-8 shadow-(--panel-shadow-strong) sm:p-10">
+            <CardContent className="p-0">
+              <form className="space-y-5" onSubmit={handleSubmit}>
+                <Input
+                  label="Email"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  error={fieldErrors.email}
+                  placeholder="engineer@company.com"
+                />
+                <Input
+                  label="Password"
+                  type="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  error={fieldErrors.password}
+                  placeholder="Enter your password"
+                />
+
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => {
+                        setRememberMe(e.target.checked);
+                        localStorage.setItem('hvac-remember-me', e.target.checked ? '1' : '0');
+                      }}
+                      className="h-4 w-4 rounded border-border accent-primary"
+                    />
+                    Remember me
+                  </label>
+                  <Link
+                    href="/auth/forgot-password"
+                    className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
+
+                {serverError && (
+                  <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">
+                    {serverError}
+                  </p>
+                )}
+
+                <Button type="submit" className="w-full" isLoading={isLoading}>
+                  Sign In
+                </Button>
+              </form>
+
+              {googleEnabled && (
+                <div className="my-6 flex items-center gap-3">
+                  <div className="h-px flex-1 bg-border" />
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    or
+                  </span>
+                  <div className="h-px flex-1 bg-border" />
+                </div>
               )}
 
-              <Button type="submit" className="w-full" isLoading={isLoading}>
-                Sign In
-              </Button>
-            </form>
+              {googleEnabled ? (
+                <div className="flex justify-center">
+                  <GoogleLogin
+                    onSuccess={async (credentialResponse) => {
+                      if (!credentialResponse.credential) {
+                        showToast('error', 'Google sign-in failed', 'No credential received from Google.');
+                        return;
+                      }
 
-            <div className="my-5 flex items-center gap-3">
-              <div className="h-px flex-1 bg-[color:var(--border)]" />
-              <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--muted-foreground)]">
-                or
-              </span>
-              <div className="h-px flex-1 bg-[color:var(--border)]" />
-            </div>
+                      clearError();
+                      const ok = await loginWithGoogle(credentialResponse.credential);
+                      if (ok) {
+                        if (typeof window !== 'undefined') {
+                          window.sessionStorage.setItem('hvac-show-welcome', '1');
+                        }
+                        router.replace(nextTarget);
+                      }
+                    }}
+                    onError={() => showToast('error', 'Google sign-in failed', 'Please try again.')}
+                    text="signin_with"
+                    shape="pill"
+                  />
+                </div>
+              ) : null}
 
-            {googleEnabled ? (
-              <div className="flex justify-center">
-                <GoogleLogin
-                  onSuccess={async (credentialResponse: CredentialResponse) => {
-                    if (!credentialResponse.credential) {
-                      showToast('error', 'Google sign-in failed', 'No credential received from Google.');
-                      return;
-                    }
-
-                    clearError();
-                    const ok = await loginWithGoogle(credentialResponse.credential);
-                    if (ok) {
-                      router.replace(nextTarget);
-                    }
-                  }}
-                  onError={() => showToast('error', 'Google sign-in failed', 'Please try again.')}
-                  text="signin_with"
-                  shape="pill"
-                />
-              </div>
-            ) : (
-              <p className="text-center text-xs text-[color:var(--muted-foreground)]">
-                Google sign-in is not configured yet. Set NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID.
+              <p className="mt-6 text-center text-sm text-muted-foreground">
+                Need an account?{' '}
+                <Link className="font-semibold text-primary hover:text-primary/80" href="/auth/register">
+                  Register
+                </Link>
               </p>
-            )}
-
-            <p className="mt-6 text-center text-sm text-[color:var(--muted-foreground)]">
-              Need an account?{' '}
-              <Link className="font-semibold text-[color:var(--accent)] hover:text-[color:var(--accent-dark)]" href="/auth/register">
-                Register
-              </Link>
-            </p>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
@@ -148,7 +189,14 @@ function LoginPageContent() {
 export default function LoginPage() {
   return (
     <React.Suspense
-      fallback={<div className="flex min-h-screen items-center justify-center text-sm text-[color:var(--muted-foreground)]">Loading sign-in screen...</div>}
+      fallback={
+        <div className="flex min-h-screen items-center justify-center px-4">
+          <div className="w-full max-w-lg space-y-3">
+            <CardSkeleton />
+            <CardSkeleton />
+          </div>
+        </div>
+      }
     >
       <LoginPageContent />
     </React.Suspense>

@@ -7,6 +7,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { canAccessProject, projectAccessDenied } from '@/lib/auth/project-access';
+import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import {
   deleteProjectRecordPermanently,
   getProjectRecord,
@@ -20,10 +22,21 @@ import {
   toInt,
   errorResponse,
   getErrorDetails,
+  requireJsonRequest,
   resourceNotFound,
 } from '@/lib/utils/api-helpers';
 
 type RouteContext = { params: Promise<{ id: string }> };
+
+const PROJECT_MUTATION_RATE_LIMIT = {
+  windowMs: 60_000,
+  maxRequests: 30,
+} as const;
+
+const PROJECT_GET_RATE_LIMIT = {
+  windowMs: 60_000,
+  maxRequests: 40,
+} as const;
 
 function toNullableNumber(value: unknown, fallback: number | null): number | null {
   if (value === null) return null;
@@ -32,8 +45,26 @@ function toNullableNumber(value: unknown, fallback: number | null): number | nul
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+async function logProjectAccessDenied(id: string, uid: string, method: string): Promise<void> {
+  await writeAuditLog({
+    projectId: id,
+    action: 'access_denied',
+    entity: 'project',
+    entityId: id,
+    details: JSON.stringify({ uid, method }),
+  });
+}
+
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
+    const rateLimit = evaluateRateLimit(request, 'projects-id-get', PROJECT_GET_RATE_LIMIT);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
+      );
+    }
+
     const auth = await requireAuth(request);
     if (!auth.authorized) {
       return auth.response;
@@ -51,6 +82,11 @@ export async function GET(request: NextRequest, context: RouteContext) {
       );
     }
 
+    if (!canAccessProject(project, auth.user)) {
+      await logProjectAccessDenied(id, auth.user.id, 'GET');
+      return projectAccessDenied();
+    }
+
     return NextResponse.json({
       project,
     });
@@ -63,12 +99,26 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
+    const rateLimit = evaluateRateLimit(request, 'projects-id-put', PROJECT_MUTATION_RATE_LIMIT);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
+      );
+    }
+
     const auth = await requireAuth(request);
     if (!auth.authorized) {
       return auth.response;
     }
 
     const { id } = await context.params;
+
+    const jsonGuard = requireJsonRequest(request);
+    if (jsonGuard) {
+      return jsonGuard;
+    }
+
     const body = await request.json();
 
     const existing = await getProjectRecord(id);
@@ -78,6 +128,11 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         'The project you are trying to update no longer exists.',
         'PROJECT_NOT_FOUND',
       );
+    }
+
+    if (!canAccessProject(existing, auth.user)) {
+      await logProjectAccessDenied(id, auth.user.id, 'PUT');
+      return projectAccessDenied();
     }
 
     const finalOutdoorDB = toNumber(body.outdoorDB, existing.outdoorDB);
@@ -166,6 +221,14 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
+    const rateLimit = evaluateRateLimit(request, 'projects-id-delete', PROJECT_MUTATION_RATE_LIMIT);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
+      );
+    }
+
     const auth = await requireAuth(request);
     if (!auth.authorized) {
       return auth.response;
@@ -183,7 +246,18 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       );
     }
 
+    if (!canAccessProject(existing, auth.user)) {
+      await logProjectAccessDenied(id, auth.user.id, 'DELETE');
+      return projectAccessDenied();
+    }
+
     if (permanent) {
+      await writeAuditLog({
+        projectId: id,
+        action: 'permanently_deleted',
+        entity: 'project',
+        entityId: id,
+      });
       await deleteProjectRecordPermanently(id);
     } else {
       await updateProjectRecord(id, { status: 'deleted' });

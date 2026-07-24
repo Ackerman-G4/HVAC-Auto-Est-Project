@@ -1,0 +1,71 @@
+{
+  "id": "duct-sizing-rules",
+  "category": "duct_sizing",
+  "version": 1,
+  "updatedAt": "2026-04-11T00:00:00Z",
+  "rules": [
+    {
+      "id": "standard_round_diameters",
+      "name": "Standard Round Duct Diameters",
+      "category": "duct_sizing",
+      "type": "constants",
+      "values": {
+        "d6": 6, "d7": 7, "d8": 8, "d9": 9, "d10": 10,
+        "d12": 12, "d14": 14, "d16": 16, "d18": 18, "d20": 20,
+        "d22": 22, "d24": 24, "d26": 26, "d28": 28, "d30": 30
+      },
+      "description": "ASHRAE standard round duct diameters in inches"
+    },
+    {
+      "id": "duct_diameter_formula",
+      "name": "Round Duct Diameter from CFM",
+      "category": "duct_sizing",
+      "type": "formula",
+      "formula": "sqrt((4 * cfm / velocity) / pi) * 12",
+      "variables": { "cfm": 0, "velocity": 1050 },
+      "unit": "inches",
+      "description": "Calculate round duct diameter: D(in) = sqrt(4A/π) × 12 where A = CFM/velocity"
+    },
+    {
+      "id": "friction_static_pressure_formula",
+      "name": "Friction Static Pressure",
+      "category": "duct_sizing",
+      "type": "formula",
+      "formula": "(friction_rate * equivalent_length) / 100",
+      "variables": { "friction_rate": 0.08, "equivalent_length": 0 },
+      "unit": "in.wg",
+      "description": "Static pressure from friction: SP = rate × length / 100"
+    },
+    {
+      "id": "fan_power_formula",
+      "name": "Fan Power",
+      "category": "duct_sizing",
+      "type": "formula",
+      "formula": "(cfm * static_pressure) / (6356 * fan_efficiency)",
+      "variables": { "cfm": 0, "static_pressure": 0, "fan_efficiency": 0.62 },
+      "unit": "HP",
+      "description": "Fan brake horsepower: HP = (CFM × SP) / (6356 × η)"
+    },
+    {
+      "id": "duct_sizing_constants",
+      "name": "Duct Sizing Constants",
+      "category": "duct_sizing",
+      "type": "constants",
+      "values": {
+        "hp_to_kw": 0.746,
+        "trunk_velocity_reduction": 0.9,
+        "min_rectangular_width": 8,
+        "min_rectangular_height": 6,
+        "rectangular_aspect_factor": 1.6,
+        "branch_first_boost": 0.06,
+        "branch_last_reduction": 0.06,
+        "max_velocity_warning_fpm": 1400,
+        "max_static_pressure_warning": 4,
+        "max_fan_power_warning_hp": 15,
+        "min_fan_efficiency": 0.4,
+        "max_fan_efficiency": 0.85
+      },
+      "description": "Standard constants for duct sizing calculations"
+    }
+  ]
+}

@@ -1,31 +1,29 @@
 import { type Variants } from 'framer-motion';
+import { MOTION_DURATION, MOTION_EASE } from '@/lib/ui/motion';
 
-// Page transition variants
+// All page/overlay transitions draw from the single motion vocabulary
+// (src/lib/ui/motion.ts): 150/250/400ms, cubic-bezier(0.2,0,0,1). No bounce.
+
+// Page transition variants — fade + slight slide, quick in / quicker out.
 export const pageVariants: Variants = {
   initial: {
     opacity: 0,
-    y: 16,
-    scale: 0.992,
-    filter: 'blur(2px)',
+    y: 10,
   },
   animate: {
     opacity: 1,
     y: 0,
-    scale: 1,
-    filter: 'blur(0px)',
     transition: {
-      duration: 0.45,
-      ease: [0.25, 0.46, 0.45, 0.94],
+      duration: MOTION_DURATION.panel,
+      ease: MOTION_EASE,
     },
   },
   exit: {
     opacity: 0,
-    y: -8,
-    scale: 0.996,
-    filter: 'blur(1px)',
+    y: -6,
     transition: {
-      duration: 0.24,
-      ease: [0.25, 0.46, 0.45, 0.94],
+      duration: MOTION_DURATION.micro,
+      ease: MOTION_EASE,
     },
   },
 };
@@ -34,21 +32,22 @@ export const pageVariants: Variants = {
 export const slideRightVariants: Variants = {
   initial: {
     opacity: 0,
-    x: 30,
+    x: 24,
   },
   animate: {
     opacity: 1,
     x: 0,
     transition: {
-      duration: 0.35,
-      ease: [0.25, 0.46, 0.45, 0.94],
+      duration: MOTION_DURATION.page,
+      ease: MOTION_EASE,
     },
   },
   exit: {
     opacity: 0,
-    x: -20,
+    x: -16,
     transition: {
-      duration: 0.2,
+      duration: MOTION_DURATION.panel,
+      ease: MOTION_EASE,
     },
   },
 };
@@ -58,11 +57,11 @@ export const fadeVariants: Variants = {
   initial: { opacity: 0 },
   animate: {
     opacity: 1,
-    transition: { duration: 0.3 },
+    transition: { duration: MOTION_DURATION.panel, ease: MOTION_EASE },
   },
   exit: {
     opacity: 0,
-    transition: { duration: 0.15 },
+    transition: { duration: MOTION_DURATION.micro, ease: MOTION_EASE },
   },
 };
 
@@ -76,15 +75,16 @@ export const scaleVariants: Variants = {
     opacity: 1,
     scale: 1,
     transition: {
-      duration: 0.2,
-      ease: [0.25, 0.46, 0.45, 0.94],
+      duration: MOTION_DURATION.panel,
+      ease: MOTION_EASE,
     },
   },
   exit: {
     opacity: 0,
-    scale: 0.95,
+    scale: 0.96,
     transition: {
-      duration: 0.15,
+      duration: MOTION_DURATION.micro,
+      ease: MOTION_EASE,
     },
   },
 };

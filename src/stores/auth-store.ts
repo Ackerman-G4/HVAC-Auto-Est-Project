@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { showToast } from '@/components/ui/toast';
-import { authApi, getApiClientToken, setApiClientToken } from '@/lib/api-client';
+import { authApi, getApiClientToken, setApiClientToken, setRefreshToken, tryRefreshToken } from '@/lib/api-client';
 
 type AuthRole = 'admin' | 'engineer';
 
@@ -84,6 +84,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const response = await authApi.login({ email, password });
       const user = normalizeUser(response.user);
       setApiClientToken(response.token);
+      if (response.refreshToken) setRefreshToken(response.refreshToken);
       set({ user, token: response.token, isLoading: false });
       showToast('success', 'Signed in', `Welcome back, ${user.name || user.email}`);
       return true;
@@ -101,6 +102,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const response = await authApi.register(input);
       const user = normalizeUser(response.user);
       setApiClientToken(response.token);
+      if (response.refreshToken) setRefreshToken(response.refreshToken);
       set({ user, token: response.token, isLoading: false });
       showToast('success', 'Account created', 'Your account is ready to use.');
       return true;
@@ -118,6 +120,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const response = await authApi.loginWithGoogle({ credential });
       const user = normalizeUser(response.user);
       setApiClientToken(response.token);
+      if (response.refreshToken) setRefreshToken(response.refreshToken);
       set({ user, token: response.token, isLoading: false });
       showToast('success', 'Signed in with Google', `Welcome, ${user.name || user.email}`);
       return true;
@@ -134,7 +137,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const user = normalizeUser(response.user);
       set({ user, error: null });
     } catch {
+      // ID token may be expired — try silent refresh
+      const refreshed = await tryRefreshToken();
+      if (refreshed) {
+        try {
+          const response = await authApi.profile();
+          const user = normalizeUser(response.user);
+          set({ user, error: null });
+          return;
+        } catch {
+          // refresh succeeded but profile still failed — fall through
+        }
+      }
+
       setApiClientToken(null);
+      setRefreshToken(null);
       set({ user: null, token: null });
       throw new Error('Profile unavailable');
     }
@@ -148,6 +165,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     setApiClientToken(null);
+    setRefreshToken(null);
     set({ user: null, token: null, error: null });
     showToast('info', 'Signed out', 'You have been logged out.');
   },

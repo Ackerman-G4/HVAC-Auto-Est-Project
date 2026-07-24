@@ -26,6 +26,8 @@ type SortOrder = 'asc' | 'desc';
 export interface FirebaseProjectRecord {
   id: string;
   name: string;
+  createdBy: string;
+  ownerId: string;
   clientName: string;
   location: string;
   city: string;
@@ -150,6 +152,7 @@ export interface ProjectListParams {
   search?: string | null;
   sortBy?: string | null;
   sortOrder?: string | null;
+  ownerId?: string | null;
 }
 
 export interface ProjectListItem extends FirebaseProjectRecord {
@@ -277,10 +280,13 @@ function stripUndefined<T extends Record<string, unknown>>(obj: T): Record<strin
 function mapProjectRecord(id: string, data: DocumentData): FirebaseProjectRecord {
   const createdAt = toIsoString(data.createdAt, nowIso()) ?? nowIso();
   const updatedAt = toIsoString(data.updatedAt, createdAt) ?? createdAt;
+  const createdBy = toStringValue(data.createdBy, '');
 
   return {
     id,
     name: toStringValue(data.name, ''),
+    createdBy,
+    ownerId: toStringValue(data.ownerId, '') || createdBy,
     clientName: toStringValue(data.clientName, PROJECT_DEFAULTS.clientName),
     location: toStringValue(data.location, PROJECT_DEFAULTS.location),
     city: toStringValue(data.city, PROJECT_DEFAULTS.city),
@@ -639,14 +645,18 @@ export async function getProjectRecord(id: string): Promise<FirebaseProjectRecor
 }
 
 export async function createProjectRecord(
-  input: Partial<FirebaseProjectRecord>,
+  input: Partial<FirebaseProjectRecord> & { ownerId?: string },
 ): Promise<FirebaseProjectRecord> {
   const id = input.id || randomUUID();
   const createdAt = nowIso();
+  const createdBy = toStringValue(input.createdBy, '');
+  const ownerId = toStringValue(input.ownerId, '') || createdBy;
 
   const project: FirebaseProjectRecord = {
     id,
     name: toStringValue(input.name, ''),
+    createdBy,
+    ownerId,
     clientName: toStringValue(input.clientName, PROJECT_DEFAULTS.clientName),
     location: toStringValue(input.location, PROJECT_DEFAULTS.location),
     city: toStringValue(input.city, PROJECT_DEFAULTS.city),
@@ -716,6 +726,10 @@ export async function listProjectsForApi(params: ProjectListParams): Promise<Pro
   const projects = await listAllProjects();
 
   let filtered = projects;
+  if (params.ownerId) {
+    filtered = filtered.filter((project) => (project.ownerId || project.createdBy) === params.ownerId);
+  }
+
   if (params.status && params.status !== 'all') {
     filtered = filtered.filter((project) => project.status === params.status);
   } else {

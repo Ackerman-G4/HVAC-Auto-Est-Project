@@ -1,0 +1,265 @@
+POST /api/projects error: Error: request to http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int failed, reason: connect ECONNREFUSED 127.0.0.1:9080
+    at <unknown> (Error: request to http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int failed, reason: connect ECONNREFUSED 127.0.0.1:9080) {
+  config: {
+    headers: Headers {
+      authorization: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+      'content-type': 'application/json',
+      'google-cloud-resource-prefix': 'projects/demo-hvac-auto/databases/(default)',
+      'x-goog-api-client': 'gax/5.0.6-fallback gapic/8.5.0 gl-node/24.14.0 rest/5.0.6 gccl/8.5.0 fire/13.8.0 fire-admin/13.8.0 grpc-web/5.0.6-fallback',
+      'x-goog-request-params': 'database=projects%2Fdemo-hvac-auto%2Fdatabases%2F(default)',
+      'User-Agent': 'google-api-nodejs-client/10.6.2'
+    },
+    body: '{"writes":[{"update":{"fields":{"id":{"stringValue":"2c7f8f2d-96cd-47a4-aea8-109a8d690ba3"},"name":{"stringValue":"Smoke DualControl 20260424083158"},"createdBy":{"stringValue":"Dv0dRc7qvUUDfiWLEtxXFBa1qBt1"},"clientName":{"stringValue":"Smoke Client"},"location":{"stringValue":"Quezon City"},"city":{"stringValue":"Manila"},"buildingType":{"stringValue":"commercial"},"status":{"stringValue":"draft"},"outputClassification":{"stringValue":"preliminary"},"totalFloorArea":{"integerValue":"120"},"floorsAboveGrade":{"integerValue":"1"},"floorsBelowGrade":{"integerValue":"0"},"outdoorDB":{"integerValue":"35"},"outdoorWB":{"doubleValue":27.175206999426916},"outdoorRH":{"integerValue":"55"},"indoorDB":{"integerValue":"24"},"indoorRH":{"integerValue":"50"},"designConditions":{"stringValue":"{}"},"safetyFactor":{"doubleValue":1.1},"diversityFactor":{"doubleValue":0.85},"notes":{"stringValue":""},"suggestedLaborMultiplier":{"doubleValue":0.35},"laborMultiplierOverride":{"nullValue":null},"suggestedOverheadPercent":{"doubleValue":0.15},"overheadPercentOverride":{"nullValue":null},"suggestedContingencyPercent":{"doubleValue":0.05},"contingencyPercentOverride":{"nullValue":null},"suggestedVatRate":{"doubleValue":0.12},"vatRateOverride":{"nullValue":null},"isEquipmentStale":{"booleanValue":false},"isBoqStale":{"booleanValue":false},"lastCoolingLoadAt":{"nullValue":null},"lastEquipmentSyncAt":{"nullValue":null},"lastBoqGeneratedAt":{"nullValue":null},"createdAt":{"stringValue":"2026-04-24T00:31:59.207Z"},"updatedAt":{"stringValue":"2026-04-24T00:31:59.207Z"},"ownerId":{"stringValue":"Dv0dRc7qvUUDfiWLEtxXFBa1qBt1"}},"name":"projects/demo-hvac-auto/databases/(default)/documents/projects/2c7f8f2d-96cd-47a4-aea8-109a8d690ba3"}}]}',
+    method: 'POST',
+    signal: AbortSignal { aborted: false },
+    responseType: 'stream',
+    agent: [Function: agentOption],
+    url: URL {
+      href: 'http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int',
+      origin: 'http://127.0.0.1:9080',
+      protocol: 'http:',
+      username: '',
+      password: '',
+      host: '127.0.0.1:9080',
+      hostname: '127.0.0.1',
+      port: '9080',
+      pathname: '/v1/projects/demo-hvac-auto/databases/(default)/documents:commit',
+      search: '?$alt=json%3Benum-encoding=int',
+      searchParams: URLSearchParams { '$alt' => 'json;enum-encoding=int' },
+      hash: ''
+    },
+    validateStatus: [Function: validateStatus],
+    errorRedactor: [Function: defaultErrorRedactor],
+    duplex: 'half'
+  },
+  response: undefined,
+  code: 'ECONNREFUSED',
+  status: undefined,
+  error: FetchError: request to http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int failed, reason: connect ECONNREFUSED 127.0.0.1:9080
+      at <unknown> (FetchError: request to http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int failed, reason: connect ECONNREFUSED 127.0.0.1:9080) {
+    type: 'system',
+    errno: 'ECONNREFUSED',
+    code: 'ECONNREFUSED',
+    erroredSysCall: 'connect'
+  },
+  note: 'Exception occurred in retry method that was not classified as transient',
+  [cause]: FetchError: request to http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int failed, reason: connect ECONNREFUSED 127.0.0.1:9080
+      at <unknown> (FetchError: request to http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int failed, reason: connect ECONNREFUSED 127.0.0.1:9080) {
+    type: 'system',
+    errno: 'ECONNREFUSED',
+    code: 'ECONNREFUSED',
+    erroredSysCall: 'connect'
+  }
+}
+POST /api/projects error: Error: request to http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int failed, reason: connect ECONNREFUSED 127.0.0.1:9080
+    at <unknown> (Error: request to http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int failed, reason: connect ECONNREFUSED 127.0.0.1:9080) {
+  config: {
+    headers: Headers {
+      authorization: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+      'content-type': 'application/json',
+      'google-cloud-resource-prefix': 'projects/demo-hvac-auto/databases/(default)',
+      'x-goog-api-client': 'gax/5.0.6-fallback gapic/8.5.0 gl-node/24.14.0 rest/5.0.6 gccl/8.5.0 fire/13.8.0 fire-admin/13.8.0 grpc-web/5.0.6-fallback',
+      'x-goog-request-params': 'database=projects%2Fdemo-hvac-auto%2Fdatabases%2F(default)',
+      'User-Agent': 'google-api-nodejs-client/10.6.2'
+    },
+    body: '{"writes":[{"update":{"fields":{"id":{"stringValue":"cb186096-dd67-4aac-abea-aca5fcb48300"},"name":{"stringValue":"Smoke DualControl 20260424083158"},"createdBy":{"stringValue":"Dv0dRc7qvUUDfiWLEtxXFBa1qBt1"},"clientName":{"stringValue":"Smoke Client"},"location":{"stringValue":"Quezon City"},"city":{"stringValue":"Manila"},"buildingType":{"stringValue":"commercial"},"status":{"stringValue":"draft"},"outputClassification":{"stringValue":"preliminary"},"totalFloorArea":{"integerValue":"120"},"floorsAboveGrade":{"integerValue":"1"},"floorsBelowGrade":{"integerValue":"0"},"outdoorDB":{"integerValue":"35"},"outdoorWB":{"doubleValue":27.175206999426916},"outdoorRH":{"integerValue":"55"},"indoorDB":{"integerValue":"24"},"indoorRH":{"integerValue":"50"},"designConditions":{"stringValue":"{}"},"safetyFactor":{"doubleValue":1.1},"diversityFactor":{"doubleValue":0.85},"notes":{"stringValue":""},"suggestedLaborMultiplier":{"doubleValue":0.35},"laborMultiplierOverride":{"nullValue":null},"suggestedOverheadPercent":{"doubleValue":0.15},"overheadPercentOverride":{"nullValue":null},"suggestedContingencyPercent":{"doubleValue":0.05},"contingencyPercentOverride":{"nullValue":null},"suggestedVatRate":{"doubleValue":0.12},"vatRateOverride":{"nullValue":null},"isEquipmentStale":{"booleanValue":false},"isBoqStale":{"booleanValue":false},"lastCoolingLoadAt":{"nullValue":null},"lastEquipmentSyncAt":{"nullValue":null},"lastBoqGeneratedAt":{"nullValue":null},"createdAt":{"stringValue":"2026-04-24T00:32:00.345Z"},"updatedAt":{"stringValue":"2026-04-24T00:32:00.345Z"},"ownerId":{"stringValue":"Dv0dRc7qvUUDfiWLEtxXFBa1qBt1"}},"name":"projects/demo-hvac-auto/databases/(default)/documents/projects/cb186096-dd67-4aac-abea-aca5fcb48300"}}]}',
+    method: 'POST',
+    signal: AbortSignal { aborted: false },
+    responseType: 'stream',
+    agent: [Function: agentOption],
+    url: URL {
+      href: 'http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int',
+      origin: 'http://127.0.0.1:9080',
+      protocol: 'http:',
+      username: '',
+      password: '',
+      host: '127.0.0.1:9080',
+      hostname: '127.0.0.1',
+      port: '9080',
+      pathname: '/v1/projects/demo-hvac-auto/databases/(default)/documents:commit',
+      search: '?$alt=json%3Benum-encoding=int',
+      searchParams: URLSearchParams { '$alt' => 'json;enum-encoding=int' },
+      hash: ''
+    },
+    validateStatus: [Function: validateStatus],
+    errorRedactor: [Function: defaultErrorRedactor],
+    duplex: 'half'
+  },
+  response: undefined,
+  code: 'ECONNREFUSED',
+  status: undefined,
+  error: FetchError: request to http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int failed, reason: connect ECONNREFUSED 127.0.0.1:9080
+      at <unknown> (FetchError: request to http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int failed, reason: connect ECONNREFUSED 127.0.0.1:9080) {
+    type: 'system',
+    errno: 'ECONNREFUSED',
+    code: 'ECONNREFUSED',
+    erroredSysCall: 'connect'
+  },
+  note: 'Exception occurred in retry method that was not classified as transient',
+  [cause]: FetchError: request to http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int failed, reason: connect ECONNREFUSED 127.0.0.1:9080
+      at <unknown> (FetchError: request to http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int failed, reason: connect ECONNREFUSED 127.0.0.1:9080) {
+    type: 'system',
+    errno: 'ECONNREFUSED',
+    code: 'ECONNREFUSED',
+    erroredSysCall: 'connect'
+  }
+}
+POST /api/projects error: Error: request to http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int failed, reason: connect ECONNREFUSED 127.0.0.1:9080
+    at <unknown> (Error: request to http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int failed, reason: connect ECONNREFUSED 127.0.0.1:9080) {
+  config: {
+    headers: Headers {
+      authorization: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+      'content-type': 'application/json',
+      'google-cloud-resource-prefix': 'projects/demo-hvac-auto/databases/(default)',
+      'x-goog-api-client': 'gax/5.0.6-fallback gapic/8.5.0 gl-node/24.14.0 rest/5.0.6 gccl/8.5.0 fire/13.8.0 fire-admin/13.8.0 grpc-web/5.0.6-fallback',
+      'x-goog-request-params': 'database=projects%2Fdemo-hvac-auto%2Fdatabases%2F(default)',
+      'User-Agent': 'google-api-nodejs-client/10.6.2'
+    },
+    body: '{"writes":[{"update":{"fields":{"id":{"stringValue":"66e80a0c-9e33-4026-afe2-984cac04c5de"},"name":{"stringValue":"Smoke DualControl 20260424083158"},"createdBy":{"stringValue":"Dv0dRc7qvUUDfiWLEtxXFBa1qBt1"},"clientName":{"stringValue":"Smoke Client"},"location":{"stringValue":"Quezon City"},"city":{"stringValue":"Manila"},"buildingType":{"stringValue":"commercial"},"status":{"stringValue":"draft"},"outputClassification":{"stringValue":"preliminary"},"totalFloorArea":{"integerValue":"120"},"floorsAboveGrade":{"integerValue":"1"},"floorsBelowGrade":{"integerValue":"0"},"outdoorDB":{"integerValue":"35"},"outdoorWB":{"doubleValue":27.175206999426916},"outdoorRH":{"integerValue":"55"},"indoorDB":{"integerValue":"24"},"indoorRH":{"integerValue":"50"},"designConditions":{"stringValue":"{}"},"safetyFactor":{"doubleValue":1.1},"diversityFactor":{"doubleValue":0.85},"notes":{"stringValue":""},"suggestedLaborMultiplier":{"doubleValue":0.35},"laborMultiplierOverride":{"nullValue":null},"suggestedOverheadPercent":{"doubleValue":0.15},"overheadPercentOverride":{"nullValue":null},"suggestedContingencyPercent":{"doubleValue":0.05},"contingencyPercentOverride":{"nullValue":null},"suggestedVatRate":{"doubleValue":0.12},"vatRateOverride":{"nullValue":null},"isEquipmentStale":{"booleanValue":false},"isBoqStale":{"booleanValue":false},"lastCoolingLoadAt":{"nullValue":null},"lastEquipmentSyncAt":{"nullValue":null},"lastBoqGeneratedAt":{"nullValue":null},"createdAt":{"stringValue":"2026-04-24T00:32:02.134Z"},"updatedAt":{"stringValue":"2026-04-24T00:32:02.134Z"},"ownerId":{"stringValue":"Dv0dRc7qvUUDfiWLEtxXFBa1qBt1"}},"name":"projects/demo-hvac-auto/databases/(default)/documents/projects/66e80a0c-9e33-4026-afe2-984cac04c5de"}}]}',
+    method: 'POST',
+    signal: AbortSignal { aborted: false },
+    responseType: 'stream',
+    agent: [Function: agentOption],
+    url: URL {
+      href: 'http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int',
+      origin: 'http://127.0.0.1:9080',
+      protocol: 'http:',
+      username: '',
+      password: '',
+      host: '127.0.0.1:9080',
+      hostname: '127.0.0.1',
+      port: '9080',
+      pathname: '/v1/projects/demo-hvac-auto/databases/(default)/documents:commit',
+      search: '?$alt=json%3Benum-encoding=int',
+      searchParams: URLSearchParams { '$alt' => 'json;enum-encoding=int' },
+      hash: ''
+    },
+    validateStatus: [Function: validateStatus],
+    errorRedactor: [Function: defaultErrorRedactor],
+    duplex: 'half'
+  },
+  response: undefined,
+  code: 'ECONNREFUSED',
+  status: undefined,
+  error: FetchError: request to http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int failed, reason: connect ECONNREFUSED 127.0.0.1:9080
+      at <unknown> (FetchError: request to http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int failed, reason: connect ECONNREFUSED 127.0.0.1:9080) {
+    type: 'system',
+    errno: 'ECONNREFUSED',
+    code: 'ECONNREFUSED',
+    erroredSysCall: 'connect'
+  },
+  note: 'Exception occurred in retry method that was not classified as transient',
+  [cause]: FetchError: request to http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int failed, reason: connect ECONNREFUSED 127.0.0.1:9080
+      at <unknown> (FetchError: request to http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int failed, reason: connect ECONNREFUSED 127.0.0.1:9080) {
+    type: 'system',
+    errno: 'ECONNREFUSED',
+    code: 'ECONNREFUSED',
+    erroredSysCall: 'connect'
+  }
+}
+POST /api/projects error: Error: request to http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int failed, reason: connect ECONNREFUSED 127.0.0.1:9080
+    at <unknown> (Error: request to http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int failed, reason: connect ECONNREFUSED 127.0.0.1:9080) {
+  config: {
+    headers: Headers {
+      authorization: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+      'content-type': 'application/json',
+      'google-cloud-resource-prefix': 'projects/demo-hvac-auto/databases/(default)',
+      'x-goog-api-client': 'gax/5.0.6-fallback gapic/8.5.0 gl-node/24.14.0 rest/5.0.6 gccl/8.5.0 fire/13.8.0 fire-admin/13.8.0 grpc-web/5.0.6-fallback',
+      'x-goog-request-params': 'database=projects%2Fdemo-hvac-auto%2Fdatabases%2F(default)',
+      'User-Agent': 'google-api-nodejs-client/10.6.2'
+    },
+    body: '{"writes":[{"update":{"fields":{"id":{"stringValue":"92837f4f-0234-463a-ab47-9fe177018bd2"},"name":{"stringValue":"Smoke DualControl 20260424083158"},"createdBy":{"stringValue":"Dv0dRc7qvUUDfiWLEtxXFBa1qBt1"},"clientName":{"stringValue":"Smoke Client"},"location":{"stringValue":"Quezon City"},"city":{"stringValue":"Manila"},"buildingType":{"stringValue":"commercial"},"status":{"stringValue":"draft"},"outputClassification":{"stringValue":"preliminary"},"totalFloorArea":{"integerValue":"120"},"floorsAboveGrade":{"integerValue":"1"},"floorsBelowGrade":{"integerValue":"0"},"outdoorDB":{"integerValue":"35"},"outdoorWB":{"doubleValue":27.175206999426916},"outdoorRH":{"integerValue":"55"},"indoorDB":{"integerValue":"24"},"indoorRH":{"integerValue":"50"},"designConditions":{"stringValue":"{}"},"safetyFactor":{"doubleValue":1.1},"diversityFactor":{"doubleValue":0.85},"notes":{"stringValue":""},"suggestedLaborMultiplier":{"doubleValue":0.35},"laborMultiplierOverride":{"nullValue":null},"suggestedOverheadPercent":{"doubleValue":0.15},"overheadPercentOverride":{"nullValue":null},"suggestedContingencyPercent":{"doubleValue":0.05},"contingencyPercentOverride":{"nullValue":null},"suggestedVatRate":{"doubleValue":0.12},"vatRateOverride":{"nullValue":null},"isEquipmentStale":{"booleanValue":false},"isBoqStale":{"booleanValue":false},"lastCoolingLoadAt":{"nullValue":null},"lastEquipmentSyncAt":{"nullValue":null},"lastBoqGeneratedAt":{"nullValue":null},"createdAt":{"stringValue":"2026-04-24T00:32:04.671Z"},"updatedAt":{"stringValue":"2026-04-24T00:32:04.671Z"},"ownerId":{"stringValue":"Dv0dRc7qvUUDfiWLEtxXFBa1qBt1"}},"name":"projects/demo-hvac-auto/databases/(default)/documents/projects/92837f4f-0234-463a-ab47-9fe177018bd2"}}]}',
+    method: 'POST',
+    signal: AbortSignal { aborted: false },
+    responseType: 'stream',
+    agent: [Function: agentOption],
+    url: URL {
+      href: 'http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int',
+      origin: 'http://127.0.0.1:9080',
+      protocol: 'http:',
+      username: '',
+      password: '',
+      host: '127.0.0.1:9080',
+      hostname: '127.0.0.1',
+      port: '9080',
+      pathname: '/v1/projects/demo-hvac-auto/databases/(default)/documents:commit',
+      search: '?$alt=json%3Benum-encoding=int',
+      searchParams: URLSearchParams { '$alt' => 'json;enum-encoding=int' },
+      hash: ''
+    },
+    validateStatus: [Function: validateStatus],
+    errorRedactor: [Function: defaultErrorRedactor],
+    duplex: 'half'
+  },
+  response: undefined,
+  code: 'ECONNREFUSED',
+  status: undefined,
+  error: FetchError: request to http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int failed, reason: connect ECONNREFUSED 127.0.0.1:9080
+      at <unknown> (FetchError: request to http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int failed, reason: connect ECONNREFUSED 127.0.0.1:9080) {
+    type: 'system',
+    errno: 'ECONNREFUSED',
+    code: 'ECONNREFUSED',
+    erroredSysCall: 'connect'
+  },
+  note: 'Exception occurred in retry method that was not classified as transient',
+  [cause]: FetchError: request to http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int failed, reason: connect ECONNREFUSED 127.0.0.1:9080
+      at <unknown> (FetchError: request to http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int failed, reason: connect ECONNREFUSED 127.0.0.1:9080) {
+    type: 'system',
+    errno: 'ECONNREFUSED',
+    code: 'ECONNREFUSED',
+    erroredSysCall: 'connect'
+  }
+}
+POST /api/projects error: Error: request to http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int failed, reason: connect ECONNREFUSED 127.0.0.1:9080
+    at <unknown> (Error: request to http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int failed, reason: connect ECONNREFUSED 127.0.0.1:9080) {
+  config: {
+    headers: Headers {
+      authorization: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+      'content-type': 'application/json',
+      'google-cloud-resource-prefix': 'projects/demo-hvac-auto/databases/(default)',
+      'x-goog-api-client': 'gax/5.0.6-fallback gapic/8.5.0 gl-node/24.14.0 rest/5.0.6 gccl/8.5.0 fire/13.8.0 fire-admin/13.8.0 grpc-web/5.0.6-fallback',
+      'x-goog-request-params': 'database=projects%2Fdemo-hvac-auto%2Fdatabases%2F(default)',
+      'User-Agent': 'google-api-nodejs-client/10.6.2'
+    },
+    body: '{"writes":[{"update":{"fields":{"id":{"stringValue":"ba8d2d96-da45-4b68-adef-5aabe8066819"},"name":{"stringValue":"Smoke DualControl 20260424083158"},"createdBy":{"stringValue":"Dv0dRc7qvUUDfiWLEtxXFBa1qBt1"},"clientName":{"stringValue":"Smoke Client"},"location":{"stringValue":"Quezon City"},"city":{"stringValue":"Manila"},"buildingType":{"stringValue":"commercial"},"status":{"stringValue":"draft"},"outputClassification":{"stringValue":"preliminary"},"totalFloorArea":{"integerValue":"120"},"floorsAboveGrade":{"integerValue":"1"},"floorsBelowGrade":{"integerValue":"0"},"outdoorDB":{"integerValue":"35"},"outdoorWB":{"doubleValue":27.175206999426916},"outdoorRH":{"integerValue":"55"},"indoorDB":{"integerValue":"24"},"indoorRH":{"integerValue":"50"},"designConditions":{"stringValue":"{}"},"safetyFactor":{"doubleValue":1.1},"diversityFactor":{"doubleValue":0.85},"notes":{"stringValue":""},"suggestedLaborMultiplier":{"doubleValue":0.35},"laborMultiplierOverride":{"nullValue":null},"suggestedOverheadPercent":{"doubleValue":0.15},"overheadPercentOverride":{"nullValue":null},"suggestedContingencyPercent":{"doubleValue":0.05},"contingencyPercentOverride":{"nullValue":null},"suggestedVatRate":{"doubleValue":0.12},"vatRateOverride":{"nullValue":null},"isEquipmentStale":{"booleanValue":false},"isBoqStale":{"booleanValue":false},"lastCoolingLoadAt":{"nullValue":null},"lastEquipmentSyncAt":{"nullValue":null},"lastBoqGeneratedAt":{"nullValue":null},"createdAt":{"stringValue":"2026-04-24T00:32:07.984Z"},"updatedAt":{"stringValue":"2026-04-24T00:32:07.984Z"},"ownerId":{"stringValue":"Dv0dRc7qvUUDfiWLEtxXFBa1qBt1"}},"name":"projects/demo-hvac-auto/databases/(default)/documents/projects/ba8d2d96-da45-4b68-adef-5aabe8066819"}}]}',
+    method: 'POST',
+    signal: AbortSignal { aborted: false },
+    responseType: 'stream',
+    agent: [Function: agentOption],
+    url: URL {
+      href: 'http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int',
+      origin: 'http://127.0.0.1:9080',
+      protocol: 'http:',
+      username: '',
+      password: '',
+      host: '127.0.0.1:9080',
+      hostname: '127.0.0.1',
+      port: '9080',
+      pathname: '/v1/projects/demo-hvac-auto/databases/(default)/documents:commit',
+      search: '?$alt=json%3Benum-encoding=int',
+      searchParams: URLSearchParams { '$alt' => 'json;enum-encoding=int' },
+      hash: ''
+    },
+    validateStatus: [Function: validateStatus],
+    errorRedactor: [Function: defaultErrorRedactor],
+    duplex: 'half'
+  },
+  response: undefined,
+  code: 'ECONNREFUSED',
+  status: undefined,
+  error: FetchError: request to http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int failed, reason: connect ECONNREFUSED 127.0.0.1:9080
+      at <unknown> (FetchError: request to http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int failed, reason: connect ECONNREFUSED 127.0.0.1:9080) {
+    type: 'system',
+    errno: 'ECONNREFUSED',
+    code: 'ECONNREFUSED',
+    erroredSysCall: 'connect'
+  },
+  note: 'Exception occurred in retry method that was not classified as transient',
+  [cause]: FetchError: request to http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int failed, reason: connect ECONNREFUSED 127.0.0.1:9080
+      at <unknown> (FetchError: request to http://127.0.0.1:9080/v1/projects/demo-hvac-auto/databases/(default)/documents:commit?$alt=json%3Benum-encoding=int failed, reason: connect ECONNREFUSED 127.0.0.1:9080) {
+    type: 'system',
+    errno: 'ECONNREFUSED',
+    code: 'ECONNREFUSED',
+    erroredSysCall: 'connect'
+  }
+}

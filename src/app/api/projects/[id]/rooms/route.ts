@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import {
   createFloorRecord,
   createRoomRecord,
@@ -22,14 +23,81 @@ import {
   getErrorDetails,
   buildCoolingLoadInput,
   coolingLoadToDbFields,
+  requireJsonRequest,
   resourceNotFound,
 } from '@/lib/utils/api-helpers';
 import { finalizeDualValue } from '@/lib/utils/dual-control';
+import {
+  parseRoomPolygon,
+  validateRoomPolygon,
+} from '@/lib/utils/room-polygon';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
+const ROOM_MUTATION_RATE_LIMIT = {
+  windowMs: 60_000,
+  maxRequests: 30,
+} as const;
+
+const ROOM_GET_RATE_LIMIT = {
+  windowMs: 60_000,
+  maxRequests: 40,
+} as const;
+
+function derivePolygonMetrics(
+  rawPolygon: unknown,
+  fallbackArea: number,
+  fallbackPerimeter: number,
+): { area: number; perimeter: number; validationError?: string } {
+  if (rawPolygon === undefined) {
+    return {
+      area: Math.max(0, fallbackArea),
+      perimeter: Math.max(0, fallbackPerimeter),
+    };
+  }
+
+  const polygon = parseRoomPolygon(rawPolygon);
+  if (!polygon) {
+    return {
+      area: Math.max(0, fallbackArea),
+      perimeter: Math.max(0, fallbackPerimeter),
+      validationError: 'Polygon payload is malformed or missing required points.',
+    };
+  }
+
+  const scale = polygon.scale && polygon.scale > 0
+    ? polygon.scale
+    : 1;
+  const pointsInMeters = polygon.points.map((point) => ({
+    x: point.x / scale,
+    y: point.y / scale,
+  }));
+
+  const validation = validateRoomPolygon(pointsInMeters, { minArea: 0.25 });
+  if (!validation.isValid) {
+    return {
+      area: Math.max(0, fallbackArea),
+      perimeter: Math.max(0, fallbackPerimeter),
+      validationError: validation.issues[0] ?? 'Polygon geometry is invalid.',
+    };
+  }
+
+  return {
+    area: validation.area > 0 ? validation.area : Math.max(0, fallbackArea),
+    perimeter: validation.perimeter > 0 ? validation.perimeter : Math.max(0, fallbackPerimeter),
+  };
+}
+
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
+    const rateLimit = evaluateRateLimit(request, 'projects-id-rooms-get', ROOM_GET_RATE_LIMIT);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
+      );
+    }
+
     const auth = await requireAuth(request);
     if (!auth.authorized) {
       return auth.response;
@@ -52,12 +120,26 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
+    const rateLimit = evaluateRateLimit(request, 'projects-id-rooms-post', ROOM_MUTATION_RATE_LIMIT);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
+      );
+    }
+
     const auth = await requireAuth(request);
     if (!auth.authorized) {
       return auth.response;
     }
 
     const { id: projectId } = await context.params;
+
+    const jsonGuard = requireJsonRequest(request);
+    if (jsonGuard) {
+      return jsonGuard;
+    }
+
     const body = await request.json();
 
     const project = await getProjectRecord(projectId);
@@ -75,13 +157,22 @@ export async function POST(request: NextRequest, context: RouteContext) {
       });
     }
 
+    const fallbackArea = typeof body.area === 'number' ? body.area : 0;
+    const fallbackPerimeter = typeof body.perimeter === 'number'
+      ? body.perimeter
+      : (fallbackArea > 0 ? Math.sqrt(fallbackArea) * 4 : 0);
+    const metrics = derivePolygonMetrics(body.polygon, fallbackArea, fallbackPerimeter);
+    if (metrics.validationError) {
+      return errorResponse(400, 'Invalid room polygon', metrics.validationError, 'INVALID_ROOM_POLYGON');
+    }
+
     // Create room
     const room = await createRoomRecord(projectId, floor.id, {
       name: body.name || 'New Room',
       spaceType: body.spaceType || 'office',
-      area: body.area || 0,
-      perimeter: body.perimeter || (body.area > 0 ? Math.sqrt(body.area) * 4 : 0),
-      polygon: body.polygon ? JSON.stringify(body.polygon) : '[]',
+      area: metrics.area,
+      perimeter: metrics.perimeter,
+      polygon: body.polygon !== undefined ? JSON.stringify(body.polygon) : '[]',
       ceilingHeight: body.ceilingHeight || floor.ceilingHeight,
       wallConstruction: body.wallConstruction || 'concrete_block_200mm',
       windowType: body.windowType || 'single_clear_6mm',

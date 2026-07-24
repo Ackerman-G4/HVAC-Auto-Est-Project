@@ -1,11 +1,11 @@
 {
-  "name": "HVAC-AEST-EA",
-  "short_name": "HVAC App",
-  "description": "HVAC Engineering Automation Platform",
+  "name": "HVAC Studio",
+  "short_name": "HVAC Studio",
+  "description": "HVAC Studio — engineering estimation & CFD platform",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0F172A",
-  "theme_color": "#3B82F6",
+  "background_color": "#0A141D",
+  "theme_color": "#1F3F62",
   "orientation": "portrait-primary",
   "icons": [
     {

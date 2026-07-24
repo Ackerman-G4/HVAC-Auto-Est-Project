@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback, use } from 'react';
+import { use } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Upload,
@@ -25,6 +25,8 @@ import {
   Eye,
   EyeOff,
   Maximize2,
+  AirVent,
+  Grid3x3 as TileIcon,
 } from 'lucide-react';
 import { PageWrapper, PageHeader } from '@/components/ui/page-wrapper';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -32,641 +34,71 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { showToast } from '@/components/ui/toast';
 import FloorPlanMultiView from '@/components/floorplan/FloorPlanMultiView';
-import { parseRoomPolygonRect } from '@/lib/utils/room-polygon';
 import Link from 'next/link';
 import Image from 'next/image';
-
-const SPACE_TYPE_OPTIONS = [
-  { value: 'office', label: 'Office' },
-  { value: 'conference_room', label: 'Conference Room' },
-  { value: 'lobby', label: 'Lobby' },
-  { value: 'retail', label: 'Retail' },
-  { value: 'restaurant', label: 'Restaurant' },
-  { value: 'kitchen', label: 'Kitchen' },
-  { value: 'server_room', label: 'Server Room' },
-  { value: 'residential', label: 'Residential' },
-  { value: 'classroom', label: 'Classroom' },
-  { value: 'warehouse', label: 'Warehouse' },
-];
-
-interface CanvasRoom {
-  id: string;
-  name: string;
-  spaceType: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  color: string;
-}
-
-interface FloorData {
-  id: string;
-  floorNumber: number;
-  name: string;
-  floorPlanImage: string | null;
-  scale: number;
-}
-
-type Tool = 'select' | 'draw' | 'measure' | 'wall';
-
-interface WallSegment {
-  id: string;
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-  thickness: number;
-}
-
-const ROOM_COLORS = [
-  'rgba(37, 99, 235, 0.15)',
-  'rgba(22, 163, 74, 0.15)',
-  'rgba(234, 179, 8, 0.15)',
-  'rgba(239, 68, 68, 0.15)',
-  'rgba(168, 85, 247, 0.15)',
-  'rgba(14, 165, 233, 0.15)',
-  'rgba(249, 115, 22, 0.15)',
-  'rgba(236, 72, 153, 0.15)',
-];
+import { SPACE_TYPE_OPTIONS } from '@/features/floorplan/constants';
+import { getRoomAreaM2 } from '@/features/floorplan/geometry';
+import type { Tool } from '@/features/floorplan/types';
+import { useFloorplan } from '@/features/floorplan/useFloorplan';
 
 export default function FloorPlanPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const {
+    floors,
+    activeFloor,
+    setActiveFloor,
+    rooms,
+    selectedRoom,
+    setSelectedRoom,
+    tool,
+    setTool,
+    scale,
+    setScale,
+    zoom,
+    setZoom,
+    bgImage,
+    showGrid,
+    setShowGrid,
+    polygonDraft,
+    draggingVertex,
+    setPan,
+    showImagePreview,
+    setShowImagePreview,
+    bgImageSrc,
+    bgFileName,
+    bgImageDims,
+    showBgOnCanvas,
+    setShowBgOnCanvas,
+    exporting,
+    showMultiView,
+    setShowMultiView,
+    layoutHVAC,
+    setLayoutHVAC,
+    layoutTiles,
+    setLayoutTiles,
+    canvasRef,
+    fileInputRef,
+    validateCanvasPolygon,
+    handleMouseDown,
+    handleMouseMove,
+    handleMouseUp,
+    handleDoubleClick,
+    handleUpload,
+    exportToPDF,
+    exportToDXF,
+    handleSaveRooms,
+    updateRoom,
+    deleteRoom,
+  } = useFloorplan(id);
 
-  const [floors, setFloors] = useState<FloorData[]>([]);
-  const [activeFloor, setActiveFloor] = useState<number>(0);
-  const [rooms, setRooms] = useState<CanvasRoom[]>([]);
-  const [selectedRoom, setSelectedRoom] = useState<CanvasRoom | null>(null);
-  const [walls, setWalls] = useState<WallSegment[]>([]);
-  const [wallDrawing, setWallDrawing] = useState<{ x1: number; y1: number } | null>(null);
-  const [tool, setTool] = useState<Tool>('select');
-  const [scale, setScale] = useState(50); // pixels per meter
-  const [zoom, setZoom] = useState(1);
-  const [bgImage, setBgImage] = useState<HTMLImageElement | null>(null);
-  const [showGrid, setShowGrid] = useState(true);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
-  const [drawCurrent, setDrawCurrent] = useState<{ x: number; y: number } | null>(null);
-  const [Pan, setPan] = useState({ x: 0, y: 0 });
-  const [showImagePreview, setShowImagePreview] = useState(false);
-  const [bgImageSrc, setBgImageSrc] = useState<string | null>(null);
-  const [bgFileName, setBgFileName] = useState<string>('');
-  const [bgImageDims, setBgImageDims] = useState<{ w: number; h: number } | null>(null);
-  const [showBgOnCanvas, setShowBgOnCanvas] = useState(true);
-  const [exporting, setExporting] = useState(false);
-  const [showMultiView, setShowMultiView] = useState(false);
 
-  // Fetch project floors AND restore persisted rooms as canvas rectangles
-  useEffect(() => {
-    fetch(`/api/projects/${id}/rooms`)
-      .then((r) => r.json())
-      .then((data) => {
-        const rawFloors = data.floors || [];
-        const floorData: FloorData[] = rawFloors.map((f: FloorData) => ({
-          id: f.id,
-          floorNumber: f.floorNumber,
-          name: f.name,
-          floorPlanImage: f.floorPlanImage,
-          scale: f.scale || 50,
-        }));
-        setFloors(floorData);
-        const floorScale = floorData.length > 0 ? floorData[0].scale : 50;
-        if (floorData.length > 0) setScale(floorScale);
-
-        // Restore rooms from DB as CanvasRooms on the active floor
-        interface DbRoom {
-          id: string;
-          name: string;
-          spaceType: string;
-          polygon: string;
-          area: number;
-          perimeter: number;
-        }
-        interface DbFloor {
-          floorNumber: number;
-          rooms: DbRoom[];
-        }
-        const activeFloorData = rawFloors.find((f: DbFloor) => f.floorNumber === (floorData[0]?.floorNumber ?? 1));
-        if (activeFloorData && activeFloorData.rooms) {
-          const restored: CanvasRoom[] = [];
-          activeFloorData.rooms.forEach((r: DbRoom, idx: number) => {
-            const poly = parseRoomPolygonRect(r.polygon);
-            if (poly) {
-              restored.push({
-                id: r.id,
-                name: r.name,
-                spaceType: r.spaceType,
-                x: poly.x,
-                y: poly.y,
-                width: poly.width,
-                height: poly.height,
-                color: ROOM_COLORS[idx % ROOM_COLORS.length],
-              });
-            }
-          });
-          if (restored.length > 0) setRooms(restored);
-        }
-      })
-      .catch(() => {
-        showToast('error', 'Failed to load floor data');
-      });
-  }, [id]);
-
-  // Canvas rendering
-  const render = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const w = canvas.width;
-    const h = canvas.height;
-    ctx.clearRect(0, 0, w, h);
-
-    ctx.save();
-    ctx.translate(Pan.x, Pan.y);
-    ctx.scale(zoom, zoom);
-
-    // Background
-    if (bgImage && showBgOnCanvas) {
-      ctx.drawImage(bgImage, 0, 0, bgImage.width, bgImage.height);
-    } else {
-      ctx.fillStyle = '#F8F9FA';
-      ctx.fillRect(0, 0, w / zoom, h / zoom);
-    }
-
-    // Grid
-    if (showGrid) {
-      const gridSize = scale;
-      ctx.strokeStyle = '#DEE2E6';
-      ctx.lineWidth = 0.5;
-      const startX = 0;
-      const startY = 0;
-      const endX = w / zoom;
-      const endY = h / zoom;
-
-      for (let x = startX; x <= endX; x += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(x, startY);
-        ctx.lineTo(x, endY);
-        ctx.stroke();
-      }
-      for (let y = startY; y <= endY; y += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(startX, y);
-        ctx.lineTo(endX, y);
-        ctx.stroke();
-      }
-
-      // Scale label
-      ctx.fillStyle = '#495057';
-      ctx.font = '11px sans-serif';
-      ctx.fillText(`1m = ${scale}px`, 10, h / zoom - 10);
-    }
-
-    // Rooms
-    rooms.forEach((room) => {
-          // Walls
-          walls.forEach((wall) => {
-            ctx.save();
-            ctx.strokeStyle = '#222';
-            ctx.lineWidth = wall.thickness;
-            ctx.beginPath();
-            ctx.moveTo(wall.x1, wall.y1);
-            ctx.lineTo(wall.x2, wall.y2);
-            ctx.stroke();
-            ctx.restore();
-          });
-      const isSelected = selectedRoom?.id === room.id;
-
-      // Fill
-      ctx.fillStyle = room.color;
-      ctx.fillRect(room.x, room.y, room.width, room.height);
-
-      // Border
-      ctx.strokeStyle = isSelected ? '#2563EB' : '#343A40';
-      ctx.lineWidth = isSelected ? 2 : 1;
-      ctx.strokeRect(room.x, room.y, room.width, room.height);
-
-      // Label
-      ctx.fillStyle = '#212529';
-      ctx.font = `${Math.max(10, Math.min(14, room.width / 8))}px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      const label = room.name;
-      ctx.fillText(label, room.x + room.width / 2, room.y + room.height / 2 - 8);
-
-      // Dimensions
-      const widthM = (room.width / scale).toFixed(1);
-      const heightM = (room.height / scale).toFixed(1);
-      const areaM2 = ((room.width / scale) * (room.height / scale)).toFixed(1);
-      ctx.font = '10px sans-serif';
-      ctx.fillStyle = '#495057';
-      ctx.fillText(`${widthM}m × ${heightM}m`, room.x + room.width / 2, room.y + room.height / 2 + 6);
-      ctx.fillText(`${areaM2} m²`, room.x + room.width / 2, room.y + room.height / 2 + 18);
-    });
-
-    // Drawing preview
-    if (isDrawing && drawStart && drawCurrent) {
-      const x = Math.min(drawStart.x, drawCurrent.x);
-      const y = Math.min(drawStart.y, drawCurrent.y);
-      const w2 = Math.abs(drawCurrent.x - drawStart.x);
-      const h2 = Math.abs(drawCurrent.y - drawStart.y);
-
-      ctx.fillStyle = 'rgba(37, 99, 235, 0.1)';
-      ctx.fillRect(x, y, w2, h2);
-      ctx.strokeStyle = '#2563EB';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([5, 3]);
-      ctx.strokeRect(x, y, w2, h2);
-      ctx.setLineDash([]);
-
-      // Preview dimensions
-      ctx.fillStyle = '#2563EB';
-      ctx.font = '12px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(
-        `${(w2 / scale).toFixed(1)}m × ${(h2 / scale).toFixed(1)}m`,
-        x + w2 / 2,
-        y + h2 / 2
-      );
-    }
-
-    ctx.restore();
-  }, [rooms, selectedRoom, bgImage, showBgOnCanvas, showGrid, scale, zoom, Pan, isDrawing, drawStart, drawCurrent, walls]);
-
-  useEffect(() => {
-    render();
-  }, [render]);
-
-  // Resize canvas
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const parent = canvas.parentElement;
-    if (!parent) return;
-
-    const resize = () => {
-      canvas.width = parent.clientWidth;
-      canvas.height = parent.clientHeight;
-      render();
-    };
-
-    resize();
-    window.addEventListener('resize', resize);
-    return () => window.removeEventListener('resize', resize);
-  }, [render]);
-
-  // Mouse handlers
-  const getCanvasPos = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-    const rect = canvas.getBoundingClientRect();
-    return {
-      x: (e.clientX - rect.left - Pan.x) / zoom,
-      y: (e.clientY - rect.top - Pan.y) / zoom,
-    };
-  };
-
-  const snapToGrid = (val: number) => Math.round(val / (scale / 4)) * (scale / 4);
-
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const pos = getCanvasPos(e);
-
-    if (tool === 'draw') {
-      setIsDrawing(true);
-      setDrawStart({ x: snapToGrid(pos.x), y: snapToGrid(pos.y) });
-      setDrawCurrent({ x: snapToGrid(pos.x), y: snapToGrid(pos.y) });
-      return;
-    }
-    if (tool === 'wall') {
-      if (!wallDrawing) {
-        setWallDrawing({ x1: snapToGrid(pos.x), y1: snapToGrid(pos.y) });
-      } else {
-        // Complete wall segment
-        const x1 = wallDrawing.x1;
-        const y1 = wallDrawing.y1;
-        const x2 = snapToGrid(pos.x);
-        const y2 = snapToGrid(pos.y);
-        setWalls([...walls, { id: `wall_${Date.now()}`, x1, y1, x2, y2, thickness: 6 }]);
-        setWallDrawing(null);
-      }
-      return;
-    }
-
-    if (tool === 'select') {
-      // Check if clicking on a room
-      const room = [...rooms].reverse().find(
-        (r) => pos.x >= r.x && pos.x <= r.x + r.width && pos.y >= r.y && pos.y <= r.y + r.height
-      );
-      setSelectedRoom(room || null);
-    }
-  };
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (tool === 'draw') {
-      if (!isDrawing || !drawStart) return;
-      const pos = getCanvasPos(e);
-      setDrawCurrent({ x: snapToGrid(pos.x), y: snapToGrid(pos.y) });
-    }
-  };
-
-  const handleMouseUp = () => {
-    if (tool === 'draw') {
-      if (!isDrawing || !drawStart || !drawCurrent) {
-        setIsDrawing(false);
-        return;
-      }
-
-      const x = Math.min(drawStart.x, drawCurrent.x);
-      const y = Math.min(drawStart.y, drawCurrent.y);
-      const width = Math.abs(drawCurrent.x - drawStart.x);
-      const height = Math.abs(drawCurrent.y - drawStart.y);
-
-      // Minimum 0.5m x 0.5m
-      if (width >= scale * 0.5 && height >= scale * 0.5) {
-        const newRoom: CanvasRoom = {
-          id: `room_${Date.now()}`,
-          name: `Room ${rooms.length + 1}`,
-          spaceType: 'office',
-          x,
-          y,
-          width,
-          height,
-          color: ROOM_COLORS[rooms.length % ROOM_COLORS.length],
-        };
-        setRooms([...rooms, newRoom]);
-        setSelectedRoom(newRoom);
-        showToast('success', `Room added: ${((width / scale) * (height / scale)).toFixed(1)} m²`);
-      }
-
-      setIsDrawing(false);
-      setDrawStart(null);
-      setDrawCurrent(null);
-    }
-  };
-
-  // Image upload
-  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setBgFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const dataUrl = ev.target?.result as string;
-      setBgImageSrc(dataUrl);
-      const img = new window.Image();
-      img.onload = () => {
-        setBgImage(img);
-        setBgImageDims({ w: img.width, h: img.height });
-        setShowImagePreview(true);
-        showToast('success', 'Floor plan uploaded — click canvas to draw rooms on top');
-      };
-      img.src = dataUrl;
-    };
-    reader.readAsDataURL(file);
-  };
-
-  // ── Export to PDF ────────────────────────────────────────────────────────
-  const exportToPDF = async () => {
-    setExporting(true);
-    try {
-      const { createAndDownloadPdf, boldText } = await import('@/lib/utils/pdf-make');
-      type Content = import('pdfmake/interfaces').Content;
-      const canvas = canvasRef.current;
-      if (!canvas) throw new Error('Canvas not ready');
-
-      // Render canvas to data URL
-      const imgData = canvas.toDataURL('image/png', 1.0);
-      const cw = canvas.width;
-      const ch = canvas.height;
-      const orientation = cw >= ch ? 'landscape' : 'portrait';
-
-      // Calculate image fit within A3 margins
-      const pageW = orientation === 'landscape' ? 420 : 297;
-      const pageH = orientation === 'landscape' ? 297 : 420;
-      const margin = 14;
-      const topOffset = 28;
-      const maxW = (pageW - margin * 2) * 2.83465; // mm to pt
-      const maxH = (pageH - topOffset - margin) * 2.83465;
-      const ratio = Math.min(maxW / cw, maxH / ch);
-      const imgW = cw * ratio;
-
-      const bold = boldText;
-
-      // Room schedule table (second page)
-      const roomSchedule: Content[] = [];
-      if (rooms.length > 0) {
-        roomSchedule.push({ text: '', pageBreak: 'before' as const });
-        roomSchedule.push(bold('Room Schedule', { fontSize: 14, margin: [0, 0, 0, 8] }));
-        roomSchedule.push({
-          table: {
-            headerRows: 1,
-            widths: ['*', 80, 50, 50, 50],
-            body: [
-              ['Room', 'Type', 'Width (m)', 'Depth (m)', 'Area (m²)'].map((h) => bold(h, { fontSize: 8 })),
-              ...rooms.map((room) => {
-                const wM = (room.width / scale).toFixed(2);
-                const hM = (room.height / scale).toFixed(2);
-                const aM = ((room.width / scale) * (room.height / scale)).toFixed(2);
-                return [room.name, room.spaceType, wM, hM, aM];
-              }),
-            ],
-          },
-          layout: 'lightHorizontalLines',
-          fontSize: 8,
-        });
-      }
-
-      await createAndDownloadPdf(
-        {
-          content: [
-            bold('HVAC Floor Plan', { fontSize: 16, margin: [0, 0, 0, 4] }),
-            { text: `Scale: 1m = ${scale}px  |  Rooms: ${rooms.length}  |  Generated: ${new Date().toLocaleDateString('en-PH')}`, fontSize: 9, margin: [0, 0, 0, 8] },
-            { image: imgData, width: imgW / 2.83465 } as Content,
-            ...roomSchedule,
-          ],
-          pageSize: 'A3',
-          pageOrientation: orientation as 'landscape' | 'portrait',
-          defaultStyle: { font: 'Roboto' },
-        },
-        `FloorPlan-${id}.pdf`,
-      );
-      showToast('success', 'PDF exported with floor plan and room schedule');
-    } catch (err) {
-      console.error(err);
-      showToast('error', 'Failed to export PDF');
-    }
-    setExporting(false);
-  };
-
-  // ── Export to DXF (AutoCAD) ─────────────────────────────────────────────
-  const exportToDXF = () => {
-    if (rooms.length === 0) {
-      showToast('warning', 'No rooms to export');
-      return;
-    }
-
-    // Build DXF R12 text file
-    const lines: string[] = [];
-    const push = (...args: string[]) => args.forEach((l) => lines.push(l));
-
-    // ── HEADER section
-    push('0', 'SECTION', '2', 'HEADER');
-    push('9', '$ACADVER', '1', 'AC1009');  // R12
-    push('9', '$INSUNITS', '70', '6');      // meters
-    push('0', 'ENDSEC');
-
-    // ── TABLES section (layers)
-    push('0', 'SECTION', '2', 'TABLES');
-    push('0', 'TABLE', '2', 'LAYER', '70', '3');
-    // Layer: ROOMS
-    push('0', 'LAYER', '2', 'ROOMS', '70', '0', '62', '7', '6', 'CONTINUOUS');
-    // Layer: DIMENSIONS
-    push('0', 'LAYER', '2', 'DIMENSIONS', '70', '0', '62', '3', '6', 'CONTINUOUS');
-    // Layer: LABELS
-    push('0', 'LAYER', '2', 'LABELS', '70', '0', '62', '5', '6', 'CONTINUOUS');
-    push('0', 'ENDTAB');
-    push('0', 'ENDSEC');
-
-    // ── ENTITIES section
-    push('0', 'SECTION', '2', 'ENTITIES');
-
-    rooms.forEach((room) => {
-      // Convert px to meters
-      const x1 = room.x / scale;
-      const y1 = -(room.y + room.height) / scale; // flip Y for CAD (Y-up)
-      const x2 = (room.x + room.width) / scale;
-      const y2 = -room.y / scale;
-      const wM = room.width / scale;
-      const hM = room.height / scale;
-      const aM = wM * hM;
-
-      // Room outline as LWPOLYLINE (closed rectangle)
-      push('0', 'LINE', '8', 'ROOMS');
-      push('10', x1.toFixed(4), '20', y1.toFixed(4), '30', '0');
-      push('11', x2.toFixed(4), '21', y1.toFixed(4), '31', '0');
-      push('0', 'LINE', '8', 'ROOMS');
-      push('10', x2.toFixed(4), '20', y1.toFixed(4), '30', '0');
-      push('11', x2.toFixed(4), '21', y2.toFixed(4), '31', '0');
-      push('0', 'LINE', '8', 'ROOMS');
-      push('10', x2.toFixed(4), '20', y2.toFixed(4), '30', '0');
-      push('11', x1.toFixed(4), '21', y2.toFixed(4), '31', '0');
-      push('0', 'LINE', '8', 'ROOMS');
-      push('10', x1.toFixed(4), '20', y2.toFixed(4), '30', '0');
-      push('11', x1.toFixed(4), '21', y1.toFixed(4), '31', '0');
-
-      // Room label (TEXT entity)
-      const cx = ((x1 + x2) / 2).toFixed(4);
-      const cy = ((y1 + y2) / 2).toFixed(4);
-      const textH = Math.max(0.15, Math.min(0.4, wM / 12));
-      push('0', 'TEXT', '8', 'LABELS');
-      push('10', cx, '20', cy, '30', '0');
-      push('40', textH.toFixed(2));  // text height
-      push('1', `${room.name} (${room.spaceType})`);
-      push('72', '1'); // center horizontally
-      push('11', cx, '21', cy, '31', '0');
-
-      // Dimensions text
-      const dimY = (parseFloat(cy) - textH - 0.15).toFixed(4);
-      push('0', 'TEXT', '8', 'DIMENSIONS');
-      push('10', cx, '20', dimY, '30', '0');
-      push('40', (textH * 0.7).toFixed(2));
-      push('1', `${wM.toFixed(2)}m x ${hM.toFixed(2)}m = ${aM.toFixed(2)}m2`);
-      push('72', '1');
-      push('11', cx, '21', dimY, '31', '0');
-    });
-
-    push('0', 'ENDSEC');
-    push('0', 'EOF');
-
-    // Download
-    const content = lines.join('\n');
-    const blob = new Blob([content], { type: 'application/dxf' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `FloorPlan-${id}.dxf`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast('success', 'DXF exported — open in AutoCAD, BricsCAD, or any CAD viewer');
-  };
-
-  // Save rooms to project — persists polygon geometry for 3D/floorplan sync
-  const handleSaveRooms = async () => {
-    if (rooms.length === 0) {
-      showToast('warning', 'No rooms to save');
-      return;
-    }
-
-    try {
-      let saved = 0;
-      for (const room of rooms) {
-        const widthM = room.width / scale;
-        const heightM = room.height / scale;
-        const areaSqM = widthM * heightM;
-        const perimeterM = 2 * (widthM + heightM);
-        // Store pixel-coordinate rectangle as polygon for later reload
-        const polygon = { x: room.x, y: room.y, width: room.width, height: room.height, scale };
-
-        // If room already has a DB id (loaded from DB), update it
-        const isExisting = !room.id.startsWith('room_');
-        if (isExisting) {
-          await fetch(`/api/projects/${id}/rooms/${room.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              name: room.name,
-              spaceType: room.spaceType,
-              area: areaSqM,
-              perimeter: perimeterM,
-              polygon,
-            }),
-          });
-        } else {
-          await fetch(`/api/projects/${id}/rooms`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              name: room.name,
-              spaceType: room.spaceType,
-              area: areaSqM,
-              perimeter: perimeterM,
-              polygon,
-              floorNumber: floors[activeFloor]?.floorNumber || 1,
-              ceilingHeight: 2.7,
-              occupantCount: Math.max(1, Math.round(areaSqM / 10)),
-            }),
-          });
-        }
-        saved++;
-      }
-      showToast('success', `${saved} rooms saved with geometry and cooling loads`);
-    } catch {
-      showToast('error', 'Failed to save rooms');
-    }
-  };
-
-  // Room editor
-  const updateRoom = (field: keyof CanvasRoom, value: string | number) => {
-    if (!selectedRoom) return;
-    const updated = rooms.map((r) =>
-      r.id === selectedRoom.id ? { ...r, [field]: value } : r
-    );
-    setRooms(updated);
-    setSelectedRoom({ ...selectedRoom, [field]: value });
-  };
-
-  const deleteRoom = () => {
-    if (!selectedRoom) return;
-    setRooms(rooms.filter((r) => r.id !== selectedRoom.id));
-    setSelectedRoom(null);
-  };
+  const selectedPolygonValidationIssue = selectedRoom?.polygonPoints && selectedRoom.polygonPoints.length >= 3
+    ? (() => {
+        const validation = validateCanvasPolygon(selectedRoom.polygonPoints ?? []);
+        return validation.isValid ? null : (validation.issues[0] ?? 'Polygon geometry is invalid');
+      })()
+    : null;
 
   return (
     <PageWrapper>
@@ -705,19 +137,22 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
               <FileText className="w-4 h-4 mr-1" /> PDF
             </Button>
             <Button variant="accent" size="sm" onClick={handleSaveRooms}>
-              <Save className="w-4 h-4 mr-1" /> Save Rooms ({rooms.length})
+              <Save className="w-4 h-4 mr-1" /> Save All ({rooms.length}R / {layoutHVAC.length}H / {layoutTiles.length}T)
             </Button>
           </div>
         }
       />
 
-      <div className="flex gap-4 h-[calc(100vh-200px)]">
+      <div className="flex h-auto min-h-[70vh] flex-col gap-4 xl:h-[calc(100vh-200px)] xl:flex-row">
         {/* Toolbar */}
-        <div className="w-12 flex flex-col gap-1 bg-secondary rounded-lg p-1.5">
+        <div className="panel-glass flex w-full flex-row gap-1 overflow-x-auto rounded-xl border border-border/70 p-1.5 xl:w-12 xl:flex-col xl:overflow-visible">
           {([
             { t: 'select' as Tool, icon: MousePointer, label: 'Select' },
             { t: 'draw' as Tool, icon: Square, label: 'Draw Room' },
+            { t: 'polygon' as Tool, icon: Pencil, label: 'Draw Polygon Room' },
             { t: 'measure' as Tool, icon: Ruler, label: 'Measure' },
+            { t: 'hvac' as Tool, icon: AirVent, label: 'Place HVAC Unit' },
+            { t: 'tile' as Tool, icon: TileIcon, label: 'Place Airflow Tile' },
           ]).map(({ t, icon: Icon, label }) => (
             <button
               key={t}
@@ -732,7 +167,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
               <Icon className="w-4 h-4" />
             </button>
           ))}
-          <div className="border-t border-border/50 my-1" />
+          <div className="border-t border-border my-1" />
           <button
             onClick={() => fileInputRef.current?.click()}
             title="Upload Floor Plan"
@@ -760,7 +195,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
               {showBgOnCanvas ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
             </button>
           )}
-          <div className="border-t border-border/50 my-1" />
+          <div className="border-t border-border my-1" />
           <button
             onClick={() => setZoom((z) => Math.min(3, z + 0.25))}
             title="Zoom In"
@@ -785,20 +220,21 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
         </div>
 
         {/* Canvas */}
-        <div className="relative flex-1 overflow-hidden rounded-lg border border-border/60 bg-card/80 shadow-[0_12px_24px_-22px_rgba(19,32,51,0.72)]">
+        <div className="panel-glass relative min-h-112 flex-1 overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm">
           <canvas
             ref={canvasRef}
             className={`w-full h-full ${
-              tool === 'draw' ? 'cursor-crosshair' : tool === 'measure' ? 'cursor-crosshair' : 'cursor-default'
+              tool === 'draw' || tool === 'polygon' || tool === 'measure' || tool === 'hvac' || tool === 'tile' ? 'cursor-crosshair' : 'cursor-default'
             }`}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
+            onDoubleClick={handleDoubleClick}
           />
 
           {/* Status bar */}
-          <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between border-t border-border/55 bg-background/90 px-3 py-1.5 text-xs text-muted-foreground backdrop-blur">
+          <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between border-t border-border bg-background px-3 py-1.5 text-xs text-muted-foreground backdrop-blur">
             <div className="flex items-center gap-4">
               <span>Scale: 1m = {scale}px</span>
               <span>Zoom: {(zoom * 100).toFixed(0)}%</span>
@@ -806,8 +242,36 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
             </div>
             <div className="flex items-center gap-2">
               <Badge size="sm" variant={tool === 'select' ? 'accent' : 'outline'}>
-                {tool === 'select' ? 'Select' : tool === 'draw' ? 'Draw Room' : 'Measure'}
+                {tool === 'select'
+                  ? 'Select'
+                  : tool === 'draw'
+                    ? 'Draw Room'
+                    : tool === 'polygon'
+                      ? 'Draw Polygon'
+                      : tool === 'hvac'
+                        ? 'Place HVAC'
+                        : tool === 'tile'
+                          ? 'Place Tile'
+                          : 'Measure'}
               </Badge>
+              {tool === 'select' && selectedRoom?.polygonPoints && selectedRoom.polygonPoints.length >= 3 && (
+                <span className="hidden text-[11px] text-muted-foreground md:inline">
+                  {selectedPolygonValidationIssue
+                    ? `Polygon issue: ${selectedPolygonValidationIssue}`
+                    : draggingVertex
+                      ? 'Dragging vertex…'
+                      : 'Tip: drag points, Alt+click edge to insert, Shift+click point to delete'}
+                </span>
+              )}
+                {tool === 'polygon' && (
+                  <span className="hidden text-[11px] text-muted-foreground md:inline">
+                    {polygonDraft.length === 0
+                      ? 'Click to add vertices'
+                      : polygonDraft.length < 3
+                        ? `${polygonDraft.length}/3 points`
+                        : `${polygonDraft.length} points · Enter/Double-click to close · Esc to cancel`}
+                  </span>
+                )}
             </div>
           </div>
 
@@ -830,7 +294,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
               <ImageIcon className="w-3.5 h-3.5" />
               <span className="truncate max-w-45">{bgFileName}</span>
               {bgImageDims && <span className="text-white/60">{bgImageDims.w}×{bgImageDims.h}</span>}
-              <button onClick={() => setShowImagePreview(true)} className="transition-colors hover:text-[color:var(--gold)]" title="View full image">
+              <button onClick={() => setShowImagePreview(true)} className="transition-colors hover:text-accent" title="View full image">
                 <Maximize2 className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -838,7 +302,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
         </div>
 
         {/* Right Panel */}
-        <div className="w-72 flex flex-col gap-3 overflow-y-auto">
+        <div className="flex w-full flex-col gap-3 overflow-y-auto xl:w-72">
           {/* Floor selector */}
           <Card>
             <CardHeader className="py-3 px-4">
@@ -890,7 +354,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
           </Card>
 
           {/* Room list */}
-          <Card className="flex-1">
+          <Card className="panel-glass flex-1 border-border/70">
             <CardHeader className="py-3 px-4">
               <CardTitle className="text-sm flex items-center justify-between">
                 <span className="flex items-center gap-2">
@@ -909,7 +373,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
               ) : (
                 <div className="flex flex-col gap-1">
                   {rooms.map((room) => {
-                    const areaM2 = ((room.width / scale) * (room.height / scale)).toFixed(1);
+                    const areaM2 = getRoomAreaM2(room, scale).toFixed(1);
                     return (
                       <button
                         key={room.id}
@@ -938,7 +402,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              <Card className="border-accent">
+              <Card className="panel-glass border-accent/50">
                 <CardHeader className="py-3 px-4">
                   <CardTitle className="text-sm flex items-center justify-between">
                     <span className="flex items-center gap-2">
@@ -950,6 +414,16 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-3 pt-0 space-y-2">
+                  {selectedRoom.polygonPoints && selectedRoom.polygonPoints.length >= 3 && (
+                    <p className="rounded-md border border-accent/40 bg-accent/8 px-2 py-1 text-[11px] text-accent">
+                      Polygon room: drag points to reshape, Alt+click edge to insert a vertex, Shift+click point to remove.
+                    </p>
+                  )}
+                  {selectedPolygonValidationIssue && (
+                    <p className="rounded-md border border-destructive/45 bg-destructive/10 px-2 py-1 text-[11px] text-destructive">
+                      {selectedPolygonValidationIssue}
+                    </p>
+                  )}
                   <Input
                     label="Name"
                     value={selectedRoom.name}
@@ -967,6 +441,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
                       type="number"
                       step={0.1}
                       value={((selectedRoom.width / scale)).toFixed(1)}
+                      disabled={Boolean(selectedRoom.polygonPoints && selectedRoom.polygonPoints.length >= 3)}
                       onChange={(e) => updateRoom('width', parseFloat(e.target.value) * scale)}
                     />
                     <Input
@@ -974,15 +449,65 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
                       type="number"
                       step={0.1}
                       value={((selectedRoom.height / scale)).toFixed(1)}
+                      disabled={Boolean(selectedRoom.polygonPoints && selectedRoom.polygonPoints.length >= 3)}
                       onChange={(e) => updateRoom('height', parseFloat(e.target.value) * scale)}
                     />
                   </div>
                   <p className="text-xs text-muted-foreground text-center">
-                    Area: {((selectedRoom.width / scale) * (selectedRoom.height / scale)).toFixed(1)} m²
+                    Area: {getRoomAreaM2(selectedRoom, scale).toFixed(1)} m²
                   </p>
                 </CardContent>
               </Card>
             </motion.div>
+          )}
+
+          {/* Layout Entities */}
+          {(layoutHVAC.length > 0 || layoutTiles.length > 0) && (
+            <Card className="panel-glass border-border/70">
+              <CardHeader className="py-3 px-4">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <AirVent className="w-4 h-4" /> Layout Entities
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-3 pt-0 space-y-2">
+                {layoutHVAC.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">HVAC Units ({layoutHVAC.length})</p>
+                    <div className="flex flex-col gap-1 max-h-30 overflow-y-auto">
+                      {layoutHVAC.map((h) => (
+                        <div key={h.id} className="flex items-center justify-between rounded-lg bg-secondary/50 px-2 py-1 text-xs">
+                          <span className="font-medium">{h.label}</span>
+                          <button
+                            onClick={() => setLayoutHVAC(layoutHVAC.filter((x) => x.id !== h.id))}
+                            className="text-red-400 hover:text-red-500"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {layoutTiles.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">Airflow Tiles ({layoutTiles.length})</p>
+                    <div className="flex flex-col gap-1 max-h-30 overflow-y-auto">
+                      {layoutTiles.map((t) => (
+                        <div key={t.id} className="flex items-center justify-between rounded-lg bg-secondary/50 px-2 py-1 text-xs">
+                          <span className="font-medium">({t.x.toFixed(1)}, {t.y.toFixed(1)}) m — {(t.openArea * 100).toFixed(0)}%</span>
+                          <button
+                            onClick={() => setLayoutTiles(layoutTiles.filter((x) => x.id !== t.id))}
+                            className="text-red-400 hover:text-red-500"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           )}
         </div>
       </div>
@@ -1011,11 +536,11 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="relative flex max-h-[90vh] max-w-[90vw] flex-col overflow-hidden rounded-xl border border-border/70 bg-background shadow-2xl"
+              className="relative flex max-h-[90vh] max-w-[90vw] flex-col overflow-hidden rounded-xl border border-border bg-background shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="flex items-center justify-between border-b border-border/55 bg-card/85 px-5 py-3">
+              <div className="flex items-center justify-between border-b border-border bg-card px-5 py-3">
                 <div className="flex items-center gap-3">
                   <ImageIcon className="w-5 h-5 text-muted-foreground" />
                   <div>
@@ -1045,7 +570,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
               </div>
 
               {/* Image view */}
-              <div className="flex-1 overflow-auto p-4 bg-[#1a1a1a] flex items-center justify-center min-h-75">
+              <div className="flex-1 overflow-auto p-4 bg-slate-900 flex items-center justify-center min-h-75">
                 <Image
                   src={bgImageSrc}
                   alt="Floor Plan"
@@ -1058,13 +583,13 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
               </div>
 
               {/* Footer info */}
-              <div className="flex items-center justify-between border-t border-border/55 bg-card/85 px-5 py-2.5 text-xs text-muted-foreground">
+              <div className="flex items-center justify-between border-t border-border bg-card px-5 py-2.5 text-xs text-muted-foreground">
                 <div className="flex items-center gap-4">
                   <span>Rooms drawn: {rooms.length}</span>
                   <span>Scale: 1m = {scale}px</span>
                   {rooms.length > 0 && (
                     <span>
-                      Total area: {rooms.reduce((s, r) => s + (r.width / scale) * (r.height / scale), 0).toFixed(1)} m²
+                      Total area: {rooms.reduce((s, r) => s + getRoomAreaM2(r, scale), 0).toFixed(1)} m²
                     </span>
                   )}
                 </div>

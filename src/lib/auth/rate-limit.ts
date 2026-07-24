@@ -35,7 +35,7 @@ function getBucketStore(): BucketStore {
 function getClientAddress(request: NextRequest): string {
   const forwarded = request.headers.get('x-forwarded-for');
   if (forwarded) {
-    return forwarded.split(',')[0]?.trim() || 'unknown';
+    return forwarded.split(',')[0]?.trim() || '127.0.0.1';
   }
 
   const realIp = request.headers.get('x-real-ip');
@@ -43,7 +43,9 @@ function getClientAddress(request: NextRequest): string {
     return realIp.trim();
   }
 
-  return request.headers.get('cf-connecting-ip') || 'unknown';
+  // cf-connecting-ip or fall back to loopback so local dev requests share a
+  // consistent per-IP bucket instead of all collapsing into 'unknown'.
+  return request.headers.get('cf-connecting-ip') || '127.0.0.1';
 }
 
 function cleanupExpiredBuckets(store: BucketStore, now: number) {

@@ -1,0 +1,364 @@
+{
+  "id": "cooling-load-rules",
+  "category": "cooling_load",
+  "version": 1,
+  "updatedAt": "2026-04-11T00:00:00Z",
+  "rules": [
+    {
+      "id": "sqm_per_tr",
+      "name": "Area per TR by Space Type",
+      "category": "cooling_load",
+      "type": "lookup",
+      "table": {
+        "office": 15,
+        "conference": 12,
+        "lobby": 18,
+        "retail": 12,
+        "restaurant": 10,
+        "kitchen": 8,
+        "hotel_room": 18,
+        "server_room": 8,
+        "corridor": 25,
+        "restroom": 25,
+        "storage": 30,
+        "residential": 18,
+        "classroom": 12,
+        "hospital_ward": 12,
+        "operating_room": 8,
+        "gym": 10,
+        "theater": 10,
+        "warehouse": 35,
+        "parking": 40
+      },
+      "unit": "m²/TR",
+      "description": "Philippine HVAC Rule of Thumb — m² per TR by space type"
+    },
+    {
+      "id": "envelope_btu_per_m2",
+      "name": "Envelope BTU per m² by Space Type",
+      "category": "cooling_load",
+      "type": "lookup",
+      "table": {
+        "office": 120,
+        "retail": 140,
+        "residential": 95,
+        "server_room": 220,
+        "conference_room": 135,
+        "restaurant": 180
+      },
+      "unit": "BTU/(h·m²)",
+      "description": "Space-specific envelope load factors used in simplified calc"
+    },
+    {
+      "id": "wall_u_values",
+      "name": "Wall U-Values by Construction",
+      "category": "cooling_load",
+      "type": "lookup",
+      "table": {
+        "concrete_200mm": 3.42,
+        "concrete_150mm": 3.85,
+        "concrete_block_200mm": 2.87,
+        "concrete_block_150mm": 3.14,
+        "brick_200mm": 2.56,
+        "drywall_metal_stud": 2.20,
+        "curtain_wall": 5.80,
+        "insulated_panel": 0.45
+      },
+      "unit": "W/(m²·K)",
+      "description": "ASHRAE wall thermal transmittance values"
+    },
+    {
+      "id": "roof_u_values",
+      "name": "Roof U-Values by Construction",
+      "category": "cooling_load",
+      "type": "lookup",
+      "table": {
+        "concrete_slab_150mm": 3.52,
+        "concrete_slab_200mm": 3.18,
+        "metal_deck_insulated": 0.50,
+        "metal_deck_uninsulated": 7.50,
+        "concrete_tile": 2.80
+      },
+      "unit": "W/(m²·K)",
+      "description": "ASHRAE roof thermal transmittance values"
+    },
+    {
+      "id": "glass_u_values",
+      "name": "Glass U-Values by Type",
+      "category": "cooling_load",
+      "type": "lookup",
+      "table": {
+        "single_clear_6mm": 5.80,
+        "single_tinted_6mm": 5.80,
+        "double_clear": 2.90,
+        "double_tinted": 2.90,
+        "double_low_e": 1.70,
+        "triple_low_e": 1.00
+      },
+      "unit": "W/(m²·K)",
+      "description": "ASHRAE glass thermal transmittance values"
+    },
+    {
+      "id": "glass_sc_values",
+      "name": "Glass Shading Coefficients",
+      "category": "cooling_load",
+      "type": "lookup",
+      "table": {
+        "single_clear_6mm": 0.95,
+        "single_tinted_6mm": 0.70,
+        "double_clear": 0.81,
+        "double_tinted": 0.55,
+        "double_low_e": 0.37,
+        "triple_low_e": 0.25
+      },
+      "unit": "dimensionless",
+      "description": "ASHRAE glass shading coefficients"
+    },
+    {
+      "id": "shgf_by_orientation",
+      "name": "Solar Heat Gain Factor by Orientation",
+      "category": "cooling_load",
+      "type": "lookup",
+      "table": {
+        "N": 118,
+        "NE": 340,
+        "E": 545,
+        "SE": 460,
+        "S": 250,
+        "SW": 460,
+        "W": 545,
+        "NW": 340
+      },
+      "unit": "W/m²",
+      "description": "Peak solar heat gain factors for 14°N latitude (Philippines)"
+    },
+    {
+      "id": "cltd_wall",
+      "name": "CLTD for Walls by Orientation",
+      "category": "cooling_load",
+      "type": "lookup",
+      "table": {
+        "N": 8.3,
+        "NE": 10.5,
+        "E": 13.9,
+        "SE": 11.7,
+        "S": 8.9,
+        "SW": 11.7,
+        "W": 13.9,
+        "NW": 10.5
+      },
+      "unit": "°C",
+      "description": "CLTD for Group D walls, Philippine latitude, July, 15:00 peak"
+    },
+    {
+      "id": "heat_gain_per_person",
+      "name": "Heat Gain per Person by Space Type",
+      "category": "cooling_load",
+      "type": "lookup",
+      "table": {
+        "office": { "sensible": 75, "latent": 55 },
+        "conference": { "sensible": 75, "latent": 55 },
+        "lobby": { "sensible": 75, "latent": 55 },
+        "retail": { "sensible": 75, "latent": 55 },
+        "restaurant": { "sensible": 75, "latent": 95 },
+        "kitchen": { "sensible": 115, "latent": 200 },
+        "hotel_room": { "sensible": 65, "latent": 30 },
+        "server_room": { "sensible": 75, "latent": 55 },
+        "corridor": { "sensible": 75, "latent": 55 },
+        "restroom": { "sensible": 75, "latent": 55 },
+        "storage": { "sensible": 100, "latent": 80 },
+        "residential": { "sensible": 65, "latent": 30 },
+        "classroom": { "sensible": 75, "latent": 55 },
+        "hospital_ward": { "sensible": 60, "latent": 40 },
+        "operating_room": { "sensible": 100, "latent": 80 },
+        "gym": { "sensible": 210, "latent": 315 },
+        "theater": { "sensible": 75, "latent": 55 },
+        "warehouse": { "sensible": 130, "latent": 130 },
+        "parking": { "sensible": 100, "latent": 80 }
+      },
+      "unit": "W/person",
+      "description": "ASHRAE sensible and latent heat gain per occupant"
+    },
+    {
+      "id": "fresh_air_requirements",
+      "name": "Fresh Air Requirements by Space Type",
+      "category": "cooling_load",
+      "type": "lookup",
+      "table": {
+        "office": { "perPerson": 2.5, "perArea": 0.3 },
+        "conference": { "perPerson": 2.5, "perArea": 0.3 },
+        "lobby": { "perPerson": 2.5, "perArea": 0.3 },
+        "retail": { "perPerson": 3.8, "perArea": 0.3 },
+        "restaurant": { "perPerson": 3.8, "perArea": 0.9 },
+        "kitchen": { "perPerson": 3.8, "perArea": 0.9 },
+        "hotel_room": { "perPerson": 2.5, "perArea": 0.3 },
+        "server_room": { "perPerson": 2.5, "perArea": 0.3 },
+        "corridor": { "perPerson": 0.0, "perArea": 0.3 },
+        "restroom": { "perPerson": 0.0, "perArea": 0.3 },
+        "storage": { "perPerson": 0.0, "perArea": 0.3 },
+        "residential": { "perPerson": 2.5, "perArea": 0.3 },
+        "classroom": { "perPerson": 3.8, "perArea": 0.3 },
+        "hospital_ward": { "perPerson": 2.5, "perArea": 0.3 },
+        "operating_room": { "perPerson": 7.5, "perArea": 0.3 },
+        "gym": { "perPerson": 10.0, "perArea": 0.3 },
+        "theater": { "perPerson": 2.5, "perArea": 0.3 },
+        "warehouse": { "perPerson": 2.5, "perArea": 0.3 },
+        "parking": { "perPerson": 0.0, "perArea": 0.3 }
+      },
+      "unit": "L/s",
+      "description": "ASHRAE 62.1 ventilation requirements (perPerson in L/s, perArea in L/s·m²)"
+    },
+    {
+      "id": "cooling_load_constants",
+      "name": "Cooling Load Calculation Constants",
+      "category": "cooling_load",
+      "type": "constants",
+      "values": {
+        "cltd_roof": 28,
+        "cltd_glass": 5.0,
+        "clf_lighting": 1.0,
+        "clf_equipment": 1.0,
+        "people_btu_per_person": 245,
+        "watt_to_btu_per_hr": 3.412,
+        "cfm_constant": 1.08,
+        "btu_per_tr": 12000,
+        "watts_per_tr": 3517,
+        "infiltration_ach": 0.5,
+        "daily_range_philippines": 8,
+        "cltd_correction_indoor_ref": 25.5,
+        "cltd_correction_outdoor_ref": 29.4,
+        "supply_delta_t_default": 20
+      },
+      "description": "Standard constants used in cooling load calculations"
+    },
+    {
+      "id": "occupancy_density",
+      "name": "Occupancy Density by Space Type",
+      "category": "cooling_load",
+      "type": "lookup",
+      "table": {
+        "office": 0.1,
+        "conference": 0.5,
+        "lobby": 0.15,
+        "retail": 0.15,
+        "restaurant": 0.7,
+        "kitchen": 0.2,
+        "hotel_room": 0.05,
+        "server_room": 0.02,
+        "corridor": 0.05,
+        "restroom": 0.1,
+        "storage": 0.02,
+        "residential": 0.05,
+        "classroom": 0.5,
+        "hospital_ward": 0.1,
+        "operating_room": 0.15,
+        "gym": 0.3,
+        "theater": 0.65,
+        "warehouse": 0.02,
+        "parking": 0.01
+      },
+      "unit": "people/m²",
+      "description": "ASHRAE default occupancy density"
+    },
+    {
+      "id": "envelope_load_formula",
+      "name": "Envelope Heat Load",
+      "category": "cooling_load",
+      "type": "formula",
+      "formula": "area * factor",
+      "variables": { "area": 0, "factor": 120 },
+      "unit": "BTU/h",
+      "description": "Simplified envelope load = area × space-specific factor"
+    },
+    {
+      "id": "people_load_formula",
+      "name": "People Heat Load",
+      "category": "cooling_load",
+      "type": "formula",
+      "formula": "occupants * btu_per_person",
+      "variables": { "occupants": 0, "btu_per_person": 245 },
+      "unit": "BTU/h",
+      "description": "Occupant sensible heat gain"
+    },
+    {
+      "id": "lighting_load_formula",
+      "name": "Lighting Heat Load",
+      "category": "cooling_load",
+      "type": "formula",
+      "formula": "area * density * watt_to_btu",
+      "variables": { "area": 0, "density": 12, "watt_to_btu": 3.412 },
+      "unit": "BTU/h",
+      "description": "Lighting heat gain = area × W/m² × 3.412"
+    },
+    {
+      "id": "equipment_load_formula",
+      "name": "Equipment Heat Load",
+      "category": "cooling_load",
+      "type": "formula",
+      "formula": "watts * watt_to_btu",
+      "variables": { "watts": 0, "watt_to_btu": 3.412 },
+      "unit": "BTU/h",
+      "description": "Equipment heat gain = watts × 3.412"
+    },
+    {
+      "id": "ventilation_sensible_formula",
+      "name": "Ventilation Sensible Load",
+      "category": "cooling_load",
+      "type": "formula",
+      "formula": "cfm_constant * cfm * delta_t",
+      "variables": { "cfm_constant": 1.08, "cfm": 0, "delta_t": 0 },
+      "unit": "BTU/h",
+      "description": "Ventilation sensible load = 1.08 × CFM × ΔT(°F)"
+    },
+    {
+      "id": "ventilation_latent_formula",
+      "name": "Ventilation Latent Load",
+      "category": "cooling_load",
+      "type": "formula",
+      "formula": "0.68 * cfm * delta_w * 7000",
+      "variables": { "cfm": 0, "delta_w": 0 },
+      "unit": "BTU/h",
+      "description": "Ventilation latent load = 0.68 × CFM × ΔW × 7000"
+    },
+    {
+      "id": "design_load_formula",
+      "name": "Design Load with Factors",
+      "category": "cooling_load",
+      "type": "formula",
+      "formula": "raw_total * safety_factor * diversity_factor",
+      "variables": { "raw_total": 0, "safety_factor": 1.1, "diversity_factor": 0.95 },
+      "unit": "BTU/h",
+      "description": "Final design load = raw × safety × diversity"
+    },
+    {
+      "id": "cfm_from_btu_formula",
+      "name": "CFM from BTU Load",
+      "category": "cooling_load",
+      "type": "formula",
+      "formula": "total_btu / (cfm_constant * supply_delta_t)",
+      "variables": { "total_btu": 0, "cfm_constant": 1.08, "supply_delta_t": 20 },
+      "unit": "CFM",
+      "description": "Required airflow = BTU / (1.08 × supply ΔT°F)"
+    },
+    {
+      "id": "wall_cltd_formula",
+      "name": "Wall Conduction Load",
+      "category": "cooling_load",
+      "type": "formula",
+      "formula": "u_value * wall_area * corrected_cltd",
+      "variables": { "u_value": 3.42, "wall_area": 0, "corrected_cltd": 10 },
+      "unit": "W",
+      "description": "ASHRAE wall conduction: Q = U × A × CLTD_corrected"
+    },
+    {
+      "id": "glass_solar_formula",
+      "name": "Glass Solar Load",
+      "category": "cooling_load",
+      "type": "formula",
+      "formula": "window_area * sc * shgf",
+      "variables": { "window_area": 0, "sc": 0.95, "shgf": 300 },
+      "unit": "W",
+      "description": "Solar heat gain through glass: Q = A × SC × SHGF"
+    }
+  ]
+}

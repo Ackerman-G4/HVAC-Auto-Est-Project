@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -45,6 +46,10 @@ yarn-error.log*
 # sqlite database
 *.db
 *.db-journal
+
+# local dev auth store
+.local-users.json
+.local-firestore.json
 next-env.d.ts
 
 /src/generated/prisma
@@ -54,4 +59,12 @@ next-env.d.ts
 
 # local pglite database
 .pglite-hvac/
+
+# python bytecode (cfd-solver wrapper)
+__pycache__/
+*.pyc
+
+# generated docx parity artifacts
+/.logs/docx-parity-*/
+/HVAC_Accuracy_Improvement_Plan.docx
 

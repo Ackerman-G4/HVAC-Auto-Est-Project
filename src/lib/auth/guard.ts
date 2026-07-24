@@ -3,6 +3,7 @@ import { lookupAccountByIdToken } from '@/lib/firebase/auth-rest';
 import { getFirebaseAuth } from '@/lib/firebase/server';
 import { AuthUser, AuthUserRole, getTokenFromRequest } from '@/lib/auth/session';
 import { resolveLocalFallbackRole } from '@/lib/auth/fallback-role';
+import { isLocalAuthMode, localVerifyToken } from '@/lib/auth/local-auth';
 
 interface RequireAuthOptions {
   allowedRoles?: AuthUserRole[];
@@ -44,28 +45,38 @@ export async function requireAuth(
 
   let user: AuthUser | null = null;
 
-  try {
-    const auth = getFirebaseAuth();
-    const decoded = await auth.verifyIdToken(token);
-    const userRecord = await auth.getUser(decoded.uid);
-
-    user = {
-      id: decoded.uid,
-      email: userRecord.email || decoded.email || '',
-      name: userRecord.displayName || '',
-      role: resolveRole(decoded.role ?? userRecord.customClaims?.role),
-    };
-  } catch {
+  // Use local auth when Firebase is not configured
+  if (isLocalAuthMode()) {
     try {
-      const account = await lookupAccountByIdToken(token);
-      user = {
-        id: account.id,
-        email: account.email,
-        name: account.name,
-        role: resolveLocalFallbackRole(account.email),
-      };
+      const localUser = localVerifyToken(token);
+      user = localUser;
     } catch {
       return { authorized: false, response: unauthorizedResponse('Invalid token') };
+    }
+  } else {
+    try {
+      const auth = getFirebaseAuth();
+      const decoded = await auth.verifyIdToken(token);
+      const userRecord = await auth.getUser(decoded.uid);
+
+      user = {
+        id: decoded.uid,
+        email: userRecord.email || decoded.email || '',
+        name: userRecord.displayName || '',
+        role: resolveRole(decoded.role ?? userRecord.customClaims?.role),
+      };
+    } catch {
+      try {
+        const account = await lookupAccountByIdToken(token);
+        user = {
+          id: account.id,
+          email: account.email,
+          name: account.name,
+          role: resolveLocalFallbackRole(account.email),
+        };
+      } catch {
+        return { authorized: false, response: unauthorizedResponse('Invalid token') };
+      }
     }
   }
 

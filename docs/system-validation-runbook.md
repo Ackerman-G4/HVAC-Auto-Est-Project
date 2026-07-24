@@ -1,6 +1,33 @@
+Run CFD feature flags validation:
+
+```powershell
+npm run validate:cfd:feature-flags
+```
+
 # System Validation Runbook
 
-This runbook operationalizes the validation plan into repeatable command steps.
+This runbook operationalizes the validation plan into repeatable command steps, including new CFD SMOKE validation scripts for physics and geometry.
+## Phase 3 - CFD SMOKE Validation
+
+Run CFD physics validation:
+
+```powershell
+npm run validate:cfd:physics
+```
+
+Run building geometry validation:
+
+```powershell
+npm run validate:building-geometry
+```
+
+Run building simulation smoke (with multi-override):
+
+```powershell
+npm run validate:building-simulation
+```
+
+Review logs for convergence, mass/energy balance, geometry, and override scenario results.
 
 ## Phase 1 - Environment And Credentials
 
@@ -118,13 +145,75 @@ Manual equivalent checklist:
 
 - docs/dual-control-smoke-checklist.md
 
-## Phase 5 - Quality And Security Gates
+## Phase 5 - Snapshot Playback Smoke Validation
+
+Run snapshot playback smoke:
+
+```bash
+npm run validate:snapshot:playback
+```
+
+What it validates:
+
+- Creates a room-scope simulation case and completes two internal runs
+- Verifies run history and per-run snapshot listing endpoints
+- Verifies partial snapshot field fetch (`?fields=temperature,velocity`)
+- Verifies full snapshot + single-field fetch (`pressure`)
+- Verifies invalid iteration/field requests return 400
+
+Note:
+
+- Browser localStorage persistence and timeline UI hydration are UI concerns and should be verified manually in the Simulation Engine page.
+
+## Phase 6 - Building Simulation Smoke Validation
+
+Run building simulation smoke directly:
+
+```bash
+npm run validate:building-simulation
+```
+
+Note:
+
+- This smoke check requires building simulation feature flags (`ENABLE_BUILDING_SIMULATION=true` and `NEXT_PUBLIC_ENABLE_BUILDING_SIMULATION=true`) in the app process.
+- `validate:system:local` and `validate:system:strict:local` set these flags automatically before starting the local validation app.
+- Local validation wrappers also set `AUTH_RATE_LIMIT_DISABLED=true` to prevent auth endpoint 429 throttling during automated smoke sequences.
+
+## Phase 7 - Quality And Security Gates
 
 Run quality gates:
 
 ```bash
 npm run validate:quality
 ```
+
+## Phase 8 - Plan Document Parity Validation
+
+Run DOCX to markdown parity validation:
+
+```bash
+npm run validate:docx:parity
+```
+
+Run strict parity profile:
+
+```bash
+npm run validate:docx:parity:strict
+```
+
+Expected result:
+
+- PASS for section heading sequence parity
+- PASS for equation token parity
+- PASS for normalized body similarity at or above threshold
+
+Artifacts:
+
+- Each run writes extracted XML, normalized text outputs, and `summary.json` under `.logs/docx-parity-<timestamp>/`
+
+Note:
+
+- This phase is manual/optional and is intentionally not included in `validate:system` by default.
 
 ## One-Command Pipeline
 
@@ -134,11 +223,33 @@ Run all phases in sequence:
 npm run validate:system
 ```
 
+`validate:system` now runs: preflight -> auth -> RBAC -> dual-control -> snapshot playback -> building simulation -> catalog admin -> quality.
+
+Optional manual gate:
+
+```bash
+npm run validate:docx:parity
+```
+
 For local Firestore emulator workflows:
 
 ```bash
 npm run validate:system:local
 ```
+
+For strict chain routing (raw when credentials exist, strict-local fallback otherwise):
+
+```bash
+npm run validate:system:strict
+```
+
+Strict local wrapper (always local app/emulator orchestration):
+
+```bash
+npm run validate:system:strict:local
+```
+
+All local wrappers that start an app process set building simulation feature flags automatically.
 
 ## Reporting Template
 

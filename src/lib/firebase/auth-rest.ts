@@ -26,9 +26,9 @@ interface IdentityToolkitLookupResponse {
 }
 
 function getFirebaseWebApiKey(): string {
-  const key = process.env.FIREBASE_WEB_API_KEY || process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+  const key = process.env.FIREBASE_WEB_API_KEY;
   if (!key || !key.trim()) {
-    throw new Error('Missing Firebase Web API key. Set FIREBASE_WEB_API_KEY or NEXT_PUBLIC_FIREBASE_API_KEY.');
+    throw new Error('Missing Firebase Web API key. Set FIREBASE_WEB_API_KEY.');
   }
   return key;
 }
@@ -103,6 +103,13 @@ export function signInWithGoogleCredential(
     requestUri,
     returnSecureToken: true,
     returnIdpCredential: false,
+  });
+}
+
+export function sendPasswordResetEmail(email: string) {
+  return postIdentityToolkit<{ email: string }>('accounts:sendOobCode', {
+    requestType: 'PASSWORD_RESET',
+    email,
   });
 }
 

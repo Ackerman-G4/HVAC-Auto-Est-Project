@@ -4,52 +4,8 @@
  * building so every route uses the same logic.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import type { DecodedIdToken } from 'firebase-admin/auth';
-import { getFirebaseAuth } from '@/lib/firebase/server';
+import { NextResponse } from 'next/server';
 import type { CoolingLoadInput } from '@/types/calculation';
-
-/**
- * Shared utility to verify Firebase ID token from Authorization header.
- * Returns the decoded token or null if verification fails.
- */
-export async function getAuthToken(request: NextRequest): Promise<DecodedIdToken | null> {
-  const authHeader = request.headers.get('Authorization') || request.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return null;
-  }
-
-  const token = authHeader.slice('Bearer '.length).trim();
-  if (!token) {
-    return null;
-  }
-
-  try {
-    return await getFirebaseAuth().verifyIdToken(token);
-  } catch (error) {
-    console.error('Token verification error:', error);
-    return null;
-  }
-}
-
-/**
- * Check if the decoded token has admin claims.
- */
-export function isAdmin(token: DecodedIdToken | null): boolean {
-  if (!token) {
-    return false;
-  }
-
-  return token.admin === true || token.role === 'admin';
-}
-
-/**
- * Legacy wrapper for getAuthToken to maintain compatibility while returning just the UID.
- */
-export async function getUserId(request: NextRequest): Promise<string | null> {
-  const decodedToken = await getAuthToken(request);
-  return decodedToken ? decodedToken.uid : null;
-}
 
 // ── Type‑safe coercion ──────────────────────────────────────
 
@@ -76,6 +32,16 @@ interface ApiErrorBody {
   code: string;
 }
 
+interface ErrorDetailsOptions {
+  classifySyntaxErrorAsInvalidJson?: boolean;
+}
+
+interface HeaderCarrier {
+  headers: {
+    get(name: string): string | null;
+  };
+}
+
 /** Return a consistent JSON error response. */
 export function errorResponse(
   status: number,
@@ -86,6 +52,36 @@ export function errorResponse(
   return NextResponse.json(
     { error, description, code: code ?? `API_${status}` } satisfies ApiErrorBody,
     { status },
+  );
+}
+
+/** Return true when Content-Type includes application/json. */
+export function isJsonRequest(request: HeaderCarrier): boolean {
+  const contentType = request.headers.get('content-type')?.toLowerCase() ?? '';
+  return contentType.includes('application/json');
+}
+
+/** Return a standardized 415 response when JSON content-type is required. */
+export function requireJsonRequest(request: HeaderCarrier) {
+  if (isJsonRequest(request)) {
+    return null;
+  }
+
+  return errorResponse(
+    415,
+    'Unsupported media type',
+    'Content-Type must be application/json.',
+    'UNSUPPORTED_CONTENT_TYPE',
+  );
+}
+
+/** Return a standardized generic 500 response without leaking exception details. */
+export function internalServerError(fallbackError = 'Internal server error') {
+  return errorResponse(
+    500,
+    fallbackError,
+    'An unexpected server error occurred.',
+    'INTERNAL_SERVER_ERROR',
   );
 }
 
@@ -125,6 +121,19 @@ export function parseBoundedInt(
   return Math.min(max, Math.max(min, value));
 }
 
+function isLikelyJsonParseSyntaxError(error: SyntaxError): boolean {
+  const message = error.message.toLowerCase();
+  const stack = (error.stack ?? '').toLowerCase();
+
+  return (
+    message.includes('unexpected end of json input') ||
+    message.includes('json') ||
+    stack.includes('json.parse') ||
+    stack.includes('request.json') ||
+    stack.includes('parsejsonfrombytes')
+  );
+}
+
 /**
  * Extract a structured error from an unknown catch value.
  * Handles known database error codes (P2002 / P2003 / P2025),
@@ -133,8 +142,15 @@ export function parseBoundedInt(
 export function getErrorDetails(
   error: unknown,
   fallbackMessage: string,
+  options: ErrorDetailsOptions = {},
 ): ApiErrorBody {
-  if (error instanceof SyntaxError) {
+  const classifySyntaxErrorAsInvalidJson = options.classifySyntaxErrorAsInvalidJson ?? true;
+
+  if (
+    classifySyntaxErrorAsInvalidJson &&
+    error instanceof SyntaxError &&
+    isLikelyJsonParseSyntaxError(error)
+  ) {
     return {
       error: 'Invalid request payload',
       description: 'The request body is not valid JSON.',

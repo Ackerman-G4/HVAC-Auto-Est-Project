@@ -61,7 +61,7 @@ export function InputField({
 
   return (
     <div className="space-y-2">
-      <label className="text-[12px] font-bold uppercase tracking-[0.14em] text-[color:var(--muted-foreground)]">
+      <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
         {label}
       </label>
       <div className="relative">
@@ -72,6 +72,7 @@ export function InputField({
           max={max}
           step={step}
           disabled={disabled}
+          aria-label={label}
           onChange={(event) => {
             if (type === 'number') {
               const parsed = Number(event.target.value);
@@ -81,18 +82,18 @@ export function InputField({
 
             onValueChange(event.target.value);
           }}
-          className={`h-12 w-full rounded-[1rem] border bg-[linear-gradient(125deg,color-mix(in_oklab,var(--surface-1)_92%,transparent),color-mix(in_oklab,var(--surface-2)_66%,transparent))] px-4 text-[15px] text-[color:var(--foreground)] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)] ${inlineError ? 'border-[color:var(--destructive)] focus-visible:ring-[color:var(--destructive)]' : 'border-[color:var(--input)] focus-visible:border-[color:var(--ring)]'} ${disabled ? 'cursor-not-allowed opacity-60' : ''} ${unit ? 'pr-16' : ''}`}
+          className={`h-10 w-full rounded-xl border bg-card/85 px-3 text-sm text-foreground backdrop-blur-sm transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/55 ${inlineError ? 'border-destructive focus-visible:ring-destructive/45' : 'border-input focus-visible:border-primary'} ${disabled ? 'cursor-not-allowed opacity-60' : ''} ${unit ? 'pr-14' : ''}`}
         />
         {unit && (
-          <span className="pointer-events-none absolute inset-y-0 right-4 inline-flex items-center text-sm font-semibold text-[color:var(--muted-foreground)]">
+          <span className="pointer-events-none absolute inset-y-0 right-3 inline-flex items-center text-sm text-muted-foreground">
             {unit}
           </span>
         )}
       </div>
       {inlineError ? (
-        <p className="text-[12px] font-medium text-[color:var(--destructive)]">{inlineError}</p>
+        <p className="text-xs font-medium text-destructive">{inlineError}</p>
       ) : helperText ? (
-        <p className="text-[12px] text-[color:var(--muted-foreground)]">{helperText}</p>
+        <p className="text-xs text-muted-foreground">{helperText}</p>
       ) : null}
     </div>
   );

@@ -6,7 +6,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import { sizeEquipment } from '@/lib/functions/equipment-sizing';
+import { resolveUnitPrice, resolveManualSelection } from '@/lib/functions/equipment-pricing';
+import { getPriceOverridesByModel, type PriceOverrideRecord } from '@/lib/firebase/price-override-store';
 import {
   clearSelectedEquipmentForProject,
   createSelectedEquipmentRecord,
@@ -14,12 +17,30 @@ import {
   toApiEquipment,
 } from '@/lib/firebase/project-estimation-store';
 import { getFloorsWithRooms, updateProjectRecord } from '@/lib/firebase/projects-store';
-import { errorResponse, getErrorDetails, resourceNotFound, toNumber } from '@/lib/utils/api-helpers';
+import { errorResponse, getErrorDetails, requireJsonRequest, resourceNotFound, toNumber } from '@/lib/utils/api-helpers';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
+const EQUIPMENT_MUTATION_RATE_LIMIT = {
+  windowMs: 60_000,
+  maxRequests: 30,
+} as const;
+
+const EQUIPMENT_GET_RATE_LIMIT = {
+  windowMs: 60_000,
+  maxRequests: 40,
+} as const;
+
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
+    const rateLimit = evaluateRateLimit(request, 'projects-id-equipment-get', EQUIPMENT_GET_RATE_LIMIT);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
+      );
+    }
+
     const auth = await requireAuth(request);
     if (!auth.authorized) {
       return auth.response;
@@ -40,12 +61,26 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
+    const rateLimit = evaluateRateLimit(request, 'projects-id-equipment-post', EQUIPMENT_MUTATION_RATE_LIMIT);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
+      );
+    }
+
     const auth = await requireAuth(request);
     if (!auth.authorized) {
       return auth.response;
     }
 
     const { id: projectId } = await context.params;
+
+    const jsonGuard = requireJsonRequest(request);
+    if (jsonGuard) {
+      return jsonGuard;
+    }
+
     const body = await request.json();
 
     if (body.autoSize) {
@@ -65,6 +100,14 @@ export async function POST(request: NextRequest, context: RouteContext) {
       }
 
       const results: { room: string; equipment: { id: string; brand: string; model: string; type: string; capacityTR: number; quantity: number }; alternatives: ReturnType<typeof sizeEquipment>['alternatives'] }[] = [];
+
+      // Admin price overrides are authoritative over the catalog price (Wave 8).
+      let overrides = new Map<string, PriceOverrideRecord>();
+      try {
+        overrides = await getPriceOverridesByModel();
+      } catch (overrideError) {
+        console.error('auto-size price override lookup failed:', overrideError);
+      }
 
       await clearSelectedEquipmentForProject(projectId);
 
@@ -88,7 +131,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
           if (sizing.recommended.length === 0) continue;
 
           const top = sizing.recommended[0];
-          const avgPrice = (top.equipment.priceMin + top.equipment.priceMax) / 2;
+          const catalogPrice = (top.equipment.priceMin + top.equipment.priceMax) / 2;
+          // Apply an admin override if one exists for this model.
+          const { unitPrice, overridden } = resolveUnitPrice(top.equipment.model, overrides, catalogPrice);
           const eer = top.equipment.eer || 10;
 
           const selection = await createSelectedEquipmentRecord({
@@ -96,9 +141,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
             roomId: room.id,
             quantity: top.quantity,
             suggestedQuantity: top.quantity,
-            suggestedUnitPrice: avgPrice,
-            finalUnitPrice: avgPrice,
-            isOverridden: false,
+            suggestedUnitPrice: unitPrice,
+            finalUnitPrice: unitPrice,
+            isOverridden: overridden,
             equipment: {
               manufacturer: top.equipment.brand,
               model: top.equipment.model,
@@ -106,7 +151,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
               capacityTR: top.equipment.capacityTR,
               capacityBTU: top.equipment.capacityBTU,
               capacityKW: top.equipment.capacityKW,
-              unitPricePHP: avgPrice,
+              unitPricePHP: unitPrice,
               eer,
               refrigerant: top.equipment.refrigerant || 'R32',
               powerSupply: top.equipment.powerSupply || '',
@@ -148,25 +193,48 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return resourceNotFound('Room', 'The room does not exist in this project.', 'ROOM_NOT_FOUND');
     }
 
-    const eer = body.eer || 10;
+    // Resolve price + capacity SERVER-SIDE for real catalog SKUs; the client's
+    // unitPrice/capacityBTU are ignored unless the item is genuinely off-catalog
+    // (unknown model, or explicit custom: true). Admin overrides win (Wave 8).
+    let manualOverrides = new Map<string, PriceOverrideRecord>();
+    try {
+      manualOverrides = await getPriceOverridesByModel();
+    } catch (overrideError) {
+      console.error('manual-selection price override lookup failed:', overrideError);
+    }
+    const resolved = resolveManualSelection(
+      {
+        model: body.model,
+        brand: body.brand,
+        type: body.type,
+        capacityBTU: body.capacityBTU,
+        capacityTR: body.capacityTR,
+        eer: body.eer,
+        refrigerant: body.refrigerant,
+        unitPrice: body.unitPrice,
+        custom: body.custom === true,
+      },
+      manualOverrides,
+    );
+
     const selection = await createSelectedEquipmentRecord({
       projectId,
       roomId: body.roomId,
       quantity: body.quantity || 1,
       suggestedQuantity: body.quantity || 1,
-      suggestedUnitPrice: body.unitPrice || 0,
-      finalUnitPrice: body.unitPrice || 0,
-      isOverridden: false,
+      suggestedUnitPrice: resolved.unitPricePHP,
+      finalUnitPrice: resolved.unitPricePHP,
+      isOverridden: resolved.overridden,
       equipment: {
-        manufacturer: body.brand || '',
-        model: body.model || '',
-        type: body.type || 'wall_split',
-        capacityTR: body.capacityTR || body.capacityBTU / 12000,
-        capacityBTU: body.capacityBTU || 0,
-        capacityKW: (body.capacityBTU || 0) * 0.000293,
-        unitPricePHP: body.unitPrice || 0,
-        eer,
-        refrigerant: body.refrigerant || 'R32',
+        manufacturer: resolved.manufacturer,
+        model: resolved.model,
+        type: resolved.type,
+        capacityTR: resolved.capacityTR,
+        capacityBTU: resolved.capacityBTU,
+        capacityKW: resolved.capacityKW,
+        unitPricePHP: resolved.unitPricePHP,
+        eer: resolved.eer,
+        refrigerant: resolved.refrigerant,
         powerSupply: body.powerSupply || '',
       },
     });

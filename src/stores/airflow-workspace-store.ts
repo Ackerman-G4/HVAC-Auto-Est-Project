@@ -7,6 +7,7 @@ import {
   calculateAirflowScenario,
   defaultAirflowInputs,
   defaultAirflowOverrides,
+  hasCriticalAirflowValidationIssues,
 } from '@/lib/engine/hvac/airflow-duct-engine';
 
 interface AirflowWorkspaceStore {
@@ -109,12 +110,22 @@ export const useAirflowWorkspaceStore = create<AirflowWorkspaceStore>()(
 
       simulateRun: async () => {
         set({ loading: true });
-        await new Promise((resolve) => setTimeout(resolve, 180));
 
         const current = get();
+        const nextResult = calculateAirflowScenario(current.inputs, current.overrides);
+
+        if (hasCriticalAirflowValidationIssues(nextResult.validationIssues)) {
+          set({
+            loading: false,
+            result: nextResult,
+          });
+          return;
+        }
+
+        await Promise.resolve();
         set({
           loading: false,
-          result: calculateAirflowScenario(current.inputs, current.overrides),
+          result: nextResult,
         });
       },
     }),

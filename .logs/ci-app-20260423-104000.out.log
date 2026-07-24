@@ -1,0 +1,21 @@
+
+> hvac-app@0.1.0 dev:raw:no-turbo
+> next dev --port 3000
+
+▲ Next.js 16.2.3 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.7:3000
+- Environments: .env.local, .env
+✓ Ready in 382ms
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+
+ GET /auth/login 200 in 832ms (next.js: 577ms, application-code: 255ms)
+ POST /api/auth/register 200 in 4.3s (next.js: 509ms, application-code: 3.8s)
+ POST /api/auth/login 400 in 32ms (next.js: 26ms, application-code: 6ms)
+ POST /api/auth/register 400 in 7ms (next.js: 2ms, application-code: 5ms)
+ GET /api/auth/profile 401 in 36ms (next.js: 32ms, application-code: 4ms)
+ GET /api/auth/profile 401 in 307ms (next.js: 1787µs, application-code: 305ms)

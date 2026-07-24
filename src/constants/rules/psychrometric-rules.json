@@ -1,0 +1,102 @@
+{
+  "id": "psychrometric-rules",
+  "category": "psychrometric",
+  "version": 1,
+  "updatedAt": "2026-04-11T00:00:00Z",
+  "rules": [
+    {
+      "id": "psychrometric_constants",
+      "name": "Psychrometric Constants",
+      "category": "psychrometric",
+      "type": "constants",
+      "values": {
+        "p_atm": 101325,
+        "r_da": 287.055,
+        "magnus_a": 17.27,
+        "magnus_b": 237.3,
+        "saturation_base": 610.78,
+        "cp_air": 1.006,
+        "cp_water": 4.186,
+        "air_density_std": 1.2,
+        "latent_heat_vaporization": 2501,
+        "cp_vapor": 1.86,
+        "cp_liquid": 4.186,
+        "grains_per_lb": 7000,
+        "kj_to_btu": 0.4299
+      },
+      "description": "Standard psychrometric and thermodynamic constants"
+    },
+    {
+      "id": "saturation_pressure_formula",
+      "name": "Saturation Vapor Pressure (Magnus-Tetens)",
+      "category": "psychrometric",
+      "type": "formula",
+      "formula": "base * exp((a * tdb) / (tdb + b))",
+      "variables": { "base": 610.78, "a": 17.27, "b": 237.3, "tdb": 0 },
+      "unit": "Pa",
+      "description": "Magnus-Tetens formula for saturation pressure"
+    },
+    {
+      "id": "humidity_ratio_formula",
+      "name": "Humidity Ratio",
+      "category": "psychrometric",
+      "type": "formula",
+      "formula": "0.62198 * pw / (patm - pw)",
+      "variables": { "pw": 0, "patm": 101325 },
+      "unit": "kg/kg",
+      "description": "W = 0.62198 × Pw / (Patm − Pw)"
+    },
+    {
+      "id": "enthalpy_formula",
+      "name": "Moist Air Enthalpy",
+      "category": "psychrometric",
+      "type": "formula",
+      "formula": "cp_air * tdb + w * (hfg + cp_vapor * tdb)",
+      "variables": { "cp_air": 1.006, "tdb": 0, "w": 0, "hfg": 2501, "cp_vapor": 1.86 },
+      "unit": "kJ/kg",
+      "description": "h = Cp_air × Tdb + W × (2501 + 1.86 × Tdb)"
+    },
+    {
+      "id": "specific_volume_formula",
+      "name": "Specific Volume of Moist Air",
+      "category": "psychrometric",
+      "type": "formula",
+      "formula": "r_da * (tdb + 273.15) / (patm - pw)",
+      "variables": { "r_da": 287.055, "tdb": 0, "patm": 101325, "pw": 0 },
+      "unit": "m³/kg",
+      "description": "v = Ra × T(K) / (Patm − Pw)"
+    },
+    {
+      "id": "derating_thresholds",
+      "name": "AC Derating Temperature Thresholds",
+      "category": "psychrometric",
+      "type": "constants",
+      "values": {
+        "extreme_temp": 43,
+        "extreme_derating": 0.82,
+        "hot_temp": 38,
+        "hot_derating": 0.90,
+        "moderate_temp": 33,
+        "moderate_derating": 0.95,
+        "high_rh_threshold": 80,
+        "high_rh_derating": 0.97
+      },
+      "description": "Temperature and humidity thresholds for AC capacity derating"
+    },
+    {
+      "id": "comfort_zone",
+      "name": "ASHRAE 55 Comfort Zone",
+      "category": "psychrometric",
+      "type": "constants",
+      "values": {
+        "min_db": 20,
+        "max_db": 26,
+        "min_rh": 30,
+        "max_rh": 60,
+        "min_wb": 17,
+        "max_wb": 20
+      },
+      "description": "ASHRAE Standard 55 thermal comfort boundaries"
+    }
+  ]
+}

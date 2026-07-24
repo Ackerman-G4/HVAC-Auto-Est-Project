@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getRoleFromToken } from '@/lib/auth/jwt-claims';
 import { AUTH_COOKIE_NAME } from '@/lib/auth/session';
 
 function toNextParam(pathname: string, search: string): string {
@@ -26,6 +27,10 @@ export function middleware(request: NextRequest) {
     const loginUrl = new URL('/auth/login', request.url);
     loginUrl.searchParams.set('next', toNextParam(pathname, search));
     return NextResponse.redirect(loginUrl);
+  }
+
+  if (pathname.startsWith('/admin') && getRoleFromToken(token) !== 'admin') {
+    return NextResponse.redirect(new URL('/', request.url));
   }
 
   return NextResponse.next();

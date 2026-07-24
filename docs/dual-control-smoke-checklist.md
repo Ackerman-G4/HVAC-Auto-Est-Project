@@ -1,3 +1,5 @@
+- [ ] Run `npm run validate:building-simulation` for override and simulation workflow
++- [ ] Run `npm run validate:cfd:feature-flags` for feature flag and rollout validation
 # Dual-Control Smoke Checklist
 
 Scope: Suggested -> Override -> Final behavior across pricing, room loads, equipment, and BOQ.
@@ -22,5 +24,18 @@ Scope: Suggested -> Override -> Final behavior across pricing, room loads, equip
 - [ ] Confirm BOQ API still reports pricing policy override state
 - [ ] Cleanup test project
 
+
 ## Automated Runner
 Use the script at scripts/smoke-dual-control.ps1 to execute the same checks against local API endpoints.
+
+## Related CFD SMOKE Validation
+- [ ] Run `npm run validate:cfd:physics` for physics/convergence checks
+- [ ] Run `npm run validate:building-geometry` for geometry/adjacency checks
+- [ ] Run `npm run validate:building-simulation` for override and simulation workflow
+
+## Related Snapshot Playback Validation
+- [ ] Run `npm run validate:snapshot:playback`
+- [ ] Confirm run history returns at least 2 completed runs for the smoke case
+- [ ] Confirm per-run snapshot lists are available and non-empty
+- [ ] Confirm partial snapshot fetch returns exactly temperature and velocity fields
+- [ ] Confirm invalid snapshot iteration and invalid field requests return 400

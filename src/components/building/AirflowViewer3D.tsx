@@ -1,620 +1,668 @@
 'use client';
 
-import React, { useRef, useEffect } from 'react';
-import type { SimulationResult, ServerRack, HVACUnit } from '@/types/simulation';
+/**
+ * AirflowViewer3D — Three.js-powered CFD visualization
+ *
+ * Uses React Three Fiber (@react-three/fiber) with:
+ * - GPU-instanced heatmap cells for temperature/pressure/humidity
+ * - Instanced arrow helpers for velocity vectors
+ * - GPU-instanced animated particles for airflow visualization
+ * - Orbit controls for camera interaction
+ * - Equipment boxes (racks + HVAC units) with labels
+ * - Pulsing hotspot indicators
+ */
+import React, { Suspense, useMemo, useRef, useCallback, useState, forwardRef, useImperativeHandle } from 'react';
+import { Canvas, useFrame, type ThreeEvent } from '@react-three/fiber';
+import { Line, OrbitControls, Text } from '@react-three/drei';
+import * as THREE from 'three';
+import type { SimulationResult, ServerRack, HVACUnit, InspectedCellInfo, TileFlowViewConfig, TileAirflowData, ThermalAlert, Vec3 } from '@/types/simulation';
+import { HeatmapSlice, VelocityArrows, AirflowParticles, Streamlines, TemperatureFog, TileAirflowOverlay, AlertZoneMarkers } from './CFDOverlay3D';
 
-/* ------------------------------------------------------------------ */
-/*  Types                                                              */
-/* ------------------------------------------------------------------ */
+// ─── Types ──────────────────────────────────────────────────────────
+
 interface Props {
   result: SimulationResult;
   racks: ServerRack[];
   hvacUnits: HVACUnit[];
+  roomBoundaries?: RoomBoundaryOverlay[];
+  editableHVAC?: boolean;
+  selectedHVACId?: string | null;
+  onSelectHVAC?: (unitId: string | null) => void;
+  onHVACDragPreview?: (unitId: string, proposedPosition: Vec3) => HVACDragPreviewResult;
+  onHVACDragCommit?: (unitId: string, position: Vec3) => void;
+  onHVACDragInvalid?: (unitId: string, reason: string) => void;
   showHotspots?: boolean;
   showAirflow?: boolean;
   selectedSliceZ?: number;
-  viewMode?: 'temperature' | 'velocity' | 'pressure';
+  viewMode?: 'temperature' | 'velocity' | 'pressure' | 'humidity';
+  onInspect?: (cell: InspectedCellInfo | null) => void;
+  // TileFlow overlays
+  tileFlowView?: TileFlowViewConfig;
+  streamlineSeedPoints?: Vec3[];
+  tileAirflowData?: TileAirflowData[];
+  alerts?: ThermalAlert[];
 }
 
-type V3 = [number, number, number];
-type V2 = [number, number];
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
+export interface AirflowViewerHandle {
+  captureSnapshot: () => string | null;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Color Mapping                                                      */
-/* ------------------------------------------------------------------ */
-function valueToRGB(value: number, minValue: number, maxValue: number): string {
-  const range = maxValue - minValue || 1;
-  const ratio = clamp((value - minValue) / range, 0, 1);
-
-  // Blue → Cyan → Green → Yellow → Red
-  let r: number, g: number, b: number;
-  if (ratio < 0.25) {
-    const f = ratio / 0.25;
-    r = 0; g = Math.round(255 * f); b = 255;
-  } else if (ratio < 0.5) {
-    const f = (ratio - 0.25) / 0.25;
-    r = 0; g = 255; b = Math.round(255 * (1 - f));
-  } else if (ratio < 0.75) {
-    const f = (ratio - 0.5) / 0.25;
-    r = Math.round(255 * f); g = 255; b = 0;
-  } else {
-    const f = (ratio - 0.75) / 0.25;
-    r = 255; g = Math.round(255 * (1 - f)); b = 0;
-  }
-  return `rgb(${r},${g},${b})`;
+export interface RoomBoundaryOverlay {
+  id: string;
+  name: string;
+  points: Array<{ x: number; y: number }>;
+  centroid?: { x: number; y: number };
 }
 
-function toRgba(color: string, alpha: number): string {
-  return color.replace('rgb', 'rgba').replace(')', `,${alpha})`);
+export interface HVACDragPreviewResult {
+  position: Vec3;
+  valid: boolean;
+  reason?: string;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Geometry Helpers                                                   */
-/* ------------------------------------------------------------------ */
-function rotY(p: V3, a: number): V3 {
-  const c = Math.cos(a), s = Math.sin(a);
-  return [p[0] * c + p[2] * s, p[1], -p[0] * s + p[2] * c];
-}
-function rotX(p: V3, a: number): V3 {
-  const c = Math.cos(a), s = Math.sin(a);
-  return [p[0], p[1] * c - p[2] * s, p[1] * s + p[2] * c];
-}
-function project(p: V3, cx: number, cy: number, sc: number): V2 {
-  return [cx + p[0] * sc, cy - p[1] * sc];
-}
-
-/* ------------------------------------------------------------------ */
-/*  Airflow Particle System                                            */
-/* ------------------------------------------------------------------ */
-interface Particle {
-  pos: V3;
-  vel: V3;
-  life: number;
-  maxLife: number;
-  temp: number;
-}
-
-function createParticles(result: SimulationResult, count: number): Particle[] {
-  const particles: Particle[] = [];
-  const { gridSizeX, gridSizeY, gridSizeZ, gridResolution } = result.config;
-
-  for (let i = 0; i < count; i++) {
-    const gx = Math.floor(Math.random() * gridSizeX);
-    const gy = Math.floor(Math.random() * gridSizeY);
-    const gz = Math.floor(Math.random() * gridSizeZ);
-
-    const vel = result.velocityField[gx]?.[gy]?.[gz] || { x: 0, y: 0, z: 0 };
-    const temp = result.temperatureField[gx]?.[gy]?.[gz] || result.config.ambientTempC;
-    const speed = Math.sqrt(vel.x ** 2 + vel.y ** 2 + vel.z ** 2);
-
-    // Focus particles on areas with airflow
-    if (speed < 0.01 && Math.random() > 0.3) {
-      i--;
-      continue;
-    }
-    particles.push({
-      pos: [
-        gx * gridResolution,
-        gz * gridResolution + Math.random() * gridResolution,
-        gy * gridResolution,
-      ],
-      vel: [vel.x, vel.z, vel.y],
-      life: Math.random() * 60,
-      maxLife: 60 + Math.random() * 40,
-      temp: temp
-    });
-  }
-  return particles;
-}
-
-/* ------------------------------------------------------------------ */
-/*  Component                                                          */
-/* ------------------------------------------------------------------ */
-export default function AirflowViewer3D(props: Props) {
-  const {
-    result,
-    racks,
-    hvacUnits,
-    showHotspots = true,
-    showAirflow = true,
-    selectedSliceZ = 1,
-    viewMode = 'temperature',
-  } = props;
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const animRef = useRef<number | null>(null);
-  const viewportRef = useRef<{ w: number; h: number; dpr: number }>({ w: 0, h: 0, dpr: 1 });
-  const cam = useRef({ ry: -0.6, rx: 0.45, sc: 30, drag: false, mx: 0, my: 0 });
-  const particlesRef = useRef<Particle[]>([]);
-
-  const config = result.config;
-  const metrics = result.metrics;
-
-  // Center offset
-  const cx = (config.gridSizeX * config.gridResolution) / 2;
-  const cz = (config.gridSizeY * config.gridResolution) / 2;
-
-  // Initialize particles
-  useEffect(() => {
-    if (showAirflow) {
-      particlesRef.current = createParticles(result, 200);
-    } else {
-      particlesRef.current = [];
-    }
-  }, [result, showAirflow]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const wrap = wrapRef.current;
-    if (!canvas || !wrap) return;
-    const canvasElement: HTMLCanvasElement = canvas;
-
-    const context = canvas.getContext('2d');
-    if (!context) return;
-    const ctx: CanvasRenderingContext2D = context;
-
-    function resize() {
-      const currentWrap = wrapRef.current;
-      if (!currentWrap) return;
-
-      const rect = currentWrap.getBoundingClientRect();
-      const w = rect.width;
-      const h = rect.height;
-      const dpr = Math.min(window.devicePixelRatio, 2);
-      viewportRef.current = { w, h, dpr };
-
-      canvasElement.width = w * dpr;
-      canvasElement.height = h * dpr;
-      canvasElement.style.width = `${w}px`;
-      canvasElement.style.height = `${h}px`;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    }
-
-    function projectWorld(point: V3, ry: number, rx: number, midX: number, midY: number, scale: number): V2 {
-      return project(rotX(rotY(point, ry), rx), midX, midY, scale);
-    }
-
-    function draw(w: number, h: number) {
-      const ry = cam.current.ry;
-      const rx = cam.current.rx;
-      const scale = cam.current.sc;
-      const midX = w / 2;
-      const midY = h / 2;
-      const resolution = config.gridResolution;
-      const centerX = (config.gridSizeX * resolution) / 2;
-      const centerZ = (config.gridSizeY * resolution) / 2;
-      const maxSlice = Math.max(0, config.gridSizeZ - 1);
-      const sliceIndex = clamp(Math.round(selectedSliceZ), 0, maxSlice);
-      const sliceHeight = sliceIndex * resolution;
-
-      ctx.clearRect(0, 0, w, h);
-      ctx.fillStyle = '#0f172a';
-      ctx.fillRect(0, 0, w, h);
-
-      const floorCorners: V3[] = [
-        [-centerX, 0, -centerZ],
-        [centerX, 0, -centerZ],
-        [centerX, 0, centerZ],
-        [-centerX, 0, centerZ],
-      ];
-      const projectedFloor = floorCorners.map((point) => projectWorld(point, ry, rx, midX, midY, scale));
-      ctx.beginPath();
-      ctx.moveTo(projectedFloor[0][0], projectedFloor[0][1]);
-      projectedFloor.forEach((point) => ctx.lineTo(point[0], point[1]));
-      ctx.closePath();
-      ctx.fillStyle = 'rgba(30,41,59,0.6)';
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(71,85,105,0.75)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      if (viewMode === 'temperature' || viewMode === 'pressure') {
-        const scalarField = viewMode === 'temperature' ? result.temperatureField : result.pressureField;
-
-        let minValue = Number.POSITIVE_INFINITY;
-        let maxValue = Number.NEGATIVE_INFINITY;
-        for (let gx = 0; gx < config.gridSizeX; gx++) {
-          for (let gy = 0; gy < config.gridSizeY; gy++) {
-            const value = scalarField[gx]?.[gy]?.[sliceIndex];
-            if (typeof value === 'number' && Number.isFinite(value)) {
-              minValue = Math.min(minValue, value);
-              maxValue = Math.max(maxValue, value);
-            }
-          }
-        }
-
-        if (!Number.isFinite(minValue) || !Number.isFinite(maxValue)) {
-          minValue = viewMode === 'temperature' ? config.ambientTempC : 101325;
-          maxValue = minValue + 1;
-        }
-
-        for (let gx = 0; gx < config.gridSizeX - 1; gx++) {
-          for (let gy = 0; gy < config.gridSizeY - 1; gy++) {
-            const value = scalarField[gx]?.[gy]?.[sliceIndex];
-            if (typeof value !== 'number' || !Number.isFinite(value)) continue;
-
-            const color = valueToRGB(value, minValue, maxValue);
-            const corners: V3[] = [
-              [gx * resolution - centerX, sliceHeight, gy * resolution - centerZ],
-              [(gx + 1) * resolution - centerX, sliceHeight, gy * resolution - centerZ],
-              [(gx + 1) * resolution - centerX, sliceHeight, (gy + 1) * resolution - centerZ],
-              [gx * resolution - centerX, sliceHeight, (gy + 1) * resolution - centerZ],
-            ];
-            const projected = corners.map((point) => projectWorld(point, ry, rx, midX, midY, scale));
-
-            ctx.beginPath();
-            ctx.moveTo(projected[0][0], projected[0][1]);
-            projected.forEach((point) => ctx.lineTo(point[0], point[1]));
-            ctx.closePath();
-            ctx.fillStyle = toRgba(color, 0.35);
-            ctx.fill();
-            ctx.strokeStyle = 'rgba(15,23,42,0.2)';
-            ctx.lineWidth = 0.5;
-            ctx.stroke();
-          }
-        }
-      }
-
-      if (viewMode === 'velocity') {
-        const maxVelocity = Math.max(metrics.maxVelocity, 0.1);
-        for (let gx = 0; gx < config.gridSizeX; gx += 2) {
-          for (let gy = 0; gy < config.gridSizeY; gy += 2) {
-            const vel = result.velocityField[gx]?.[gy]?.[sliceIndex];
-            if (!vel) continue;
-
-            const speed = Math.sqrt(vel.x ** 2 + vel.y ** 2 + vel.z ** 2);
-            if (speed < 0.03) continue;
-
-            const start: V3 = [
-              (gx + 0.5) * resolution - centerX,
-              sliceHeight,
-              (gy + 0.5) * resolution - centerZ,
-            ];
-            const end: V3 = [
-              start[0] + vel.x * 0.8,
-              start[1],
-              start[2] + vel.y * 0.8,
-            ];
-
-            const p0 = projectWorld(start, ry, rx, midX, midY, scale);
-            const p1 = projectWorld(end, ry, rx, midX, midY, scale);
-            const color = valueToRGB(speed, 0, maxVelocity);
-
-            ctx.strokeStyle = toRgba(color, 0.9);
-            ctx.lineWidth = 1.2;
-            ctx.beginPath();
-            ctx.moveTo(p0[0], p0[1]);
-            ctx.lineTo(p1[0], p1[1]);
-            ctx.stroke();
-
-            const angle = Math.atan2(p1[1] - p0[1], p1[0] - p0[0]);
-            const head = 5;
-            ctx.fillStyle = toRgba(color, 0.9);
-            ctx.beginPath();
-            ctx.moveTo(p1[0], p1[1]);
-            ctx.lineTo(
-              p1[0] - head * Math.cos(angle - Math.PI / 6),
-              p1[1] - head * Math.sin(angle - Math.PI / 6),
-            );
-            ctx.lineTo(
-              p1[0] - head * Math.cos(angle + Math.PI / 6),
-              p1[1] - head * Math.sin(angle + Math.PI / 6),
-            );
-            ctx.closePath();
-            ctx.fill();
-          }
-        }
-      }
-
-      for (const unit of hvacUnits) {
-        const ux = unit.position.x - centerX;
-        const uz = unit.position.y - centerZ;
-        const uy = 0;
-        const colorPrefix = unit.status === 'failed' ? 'rgba(239,68,68,' : 'rgba(16,185,129,';
-
-        const top = [
-          [ux, uy + unit.height, uz],
-          [ux + unit.width, uy + unit.height, uz],
-          [ux + unit.width, uy + unit.height, uz + unit.depth],
-          [ux, uy + unit.height, uz + unit.depth],
-        ].map((point) => projectWorld(point as V3, ry, rx, midX, midY, scale));
-
-        ctx.beginPath();
-        ctx.moveTo(top[0][0], top[0][1]);
-        top.forEach((point) => ctx.lineTo(point[0], point[1]));
-        ctx.closePath();
-        ctx.fillStyle = `${colorPrefix}0.6)`;
-        ctx.fill();
-        ctx.strokeStyle = `${colorPrefix}0.9)`;
-        ctx.lineWidth = 1;
-        ctx.stroke();
-
-        const front = [
-          [ux, uy, uz],
-          [ux + unit.width, uy, uz],
-          [ux + unit.width, uy + unit.height, uz],
-          [ux, uy + unit.height, uz],
-        ].map((point) => projectWorld(point as V3, ry, rx, midX, midY, scale));
-
-        ctx.beginPath();
-        ctx.moveTo(front[0][0], front[0][1]);
-        front.forEach((point) => ctx.lineTo(point[0], point[1]));
-        ctx.closePath();
-        ctx.fillStyle = `${colorPrefix}0.42)`;
-        ctx.fill();
-        ctx.stroke();
-
-        const labelPoint = projectWorld(
-          [ux + unit.width / 2, uy + unit.height + 0.3, uz + unit.depth / 2],
-          ry,
-          rx,
-          midX,
-          midY,
-          scale,
-        );
-        ctx.fillStyle = '#d1fae5';
-        ctx.font = 'bold 10px system-ui';
-        ctx.textAlign = 'center';
-        ctx.fillText(unit.name, labelPoint[0], labelPoint[1]);
-      }
-
-      for (const rack of racks) {
-        const rx1 = rack.position.x - centerX;
-        const rz1 = rack.position.y - centerZ;
-        const ry1 = 0;
-
-        const top = [
-          [rx1, ry1 + rack.height, rz1],
-          [rx1 + rack.width, ry1 + rack.height, rz1],
-          [rx1 + rack.width, ry1 + rack.height, rz1 + rack.depth],
-          [rx1, ry1 + rack.height, rz1 + rack.depth],
-        ].map((point) => projectWorld(point as V3, ry, rx, midX, midY, scale));
-
-        ctx.beginPath();
-        ctx.moveTo(top[0][0], top[0][1]);
-        top.forEach((point) => ctx.lineTo(point[0], point[1]));
-        ctx.closePath();
-        ctx.fillStyle = 'rgba(99,102,241,0.6)';
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(99,102,241,0.9)';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-
-        const front = [
-          [rx1, ry1, rz1],
-          [rx1 + rack.width, ry1, rz1],
-          [rx1 + rack.width, ry1 + rack.height, rz1],
-          [rx1, ry1 + rack.height, rz1],
-        ].map((point) => projectWorld(point as V3, ry, rx, midX, midY, scale));
-
-        ctx.beginPath();
-        ctx.moveTo(front[0][0], front[0][1]);
-        front.forEach((point) => ctx.lineTo(point[0], point[1]));
-        ctx.closePath();
-        ctx.fillStyle = 'rgba(79,70,229,0.48)';
-        ctx.fill();
-        ctx.stroke();
-
-        const side = [
-          [rx1 + rack.width, ry1, rz1],
-          [rx1 + rack.width, ry1, rz1 + rack.depth],
-          [rx1 + rack.width, ry1 + rack.height, rz1 + rack.depth],
-          [rx1 + rack.width, ry1 + rack.height, rz1],
-        ].map((point) => projectWorld(point as V3, ry, rx, midX, midY, scale));
-
-        ctx.beginPath();
-        ctx.moveTo(side[0][0], side[0][1]);
-        side.forEach((point) => ctx.lineTo(point[0], point[1]));
-        ctx.closePath();
-        ctx.fillStyle = 'rgba(67,56,202,0.38)';
-        ctx.fill();
-        ctx.stroke();
-
-        const labelPoint = projectWorld(
-          [rx1 + rack.width / 2, ry1 + rack.height + 0.25, rz1 + rack.depth / 2],
-          ry,
-          rx,
-          midX,
-          midY,
-          scale,
-        );
-        ctx.fillStyle = '#e0e7ff';
-        ctx.font = 'bold 10px system-ui';
-        ctx.textAlign = 'center';
-        ctx.fillText(rack.name, labelPoint[0], labelPoint[1]);
-        ctx.fillText(`${rack.powerKW}kW`, labelPoint[0], labelPoint[1] + 12);
-      }
-
-      if (showHotspots) {
-        for (const hotspot of metrics.hotspots) {
-          const point = projectWorld(
-            [hotspot.position.x - centerX, hotspot.position.z, hotspot.position.y - centerZ],
-            ry,
-            rx,
-            midX,
-            midY,
-            scale,
-          );
-          const pulse = 8 + 3 * Math.sin(Date.now() / 300);
-          const colorPrefix = hotspot.severity === 'emergency'
-            ? 'rgba(239,68,68,'
-            : hotspot.severity === 'critical'
-              ? 'rgba(245,158,11,'
-              : 'rgba(234,179,8,';
-
-          ctx.beginPath();
-          ctx.arc(point[0], point[1], pulse + 6, 0, Math.PI * 2);
-          ctx.fillStyle = `${colorPrefix}0.2)`;
-          ctx.fill();
-
-          ctx.beginPath();
-          ctx.arc(point[0], point[1], pulse, 0, Math.PI * 2);
-          ctx.fillStyle = `${colorPrefix}0.8)`;
-          ctx.fill();
-
-          ctx.fillStyle = '#ffffff';
-          ctx.font = 'bold 9px system-ui';
-          ctx.textAlign = 'center';
-          ctx.fillText(`${hotspot.temperature.toFixed(0)}°`, point[0], point[1] - pulse - 4);
-        }
-      }
-
-      if (showAirflow && viewMode !== 'velocity') {
-        const particles = particlesRef.current;
-        const maxX = config.gridSizeX * resolution;
-        const maxY = config.gridSizeY * resolution;
-        const maxZ = config.gridSizeZ * resolution;
-        const minTemp = metrics.minTemperature ?? config.ambientTempC;
-        const maxTemp = metrics.maxTemperature ?? config.ambientTempC + 10;
-
-        for (const particle of particles) {
-          const gx = clamp(Math.floor(particle.pos[0] / resolution), 0, config.gridSizeX - 1);
-          const gy = clamp(Math.floor(particle.pos[2] / resolution), 0, config.gridSizeY - 1);
-          const gz = clamp(Math.floor(particle.pos[1] / resolution), 0, config.gridSizeZ - 1);
-          const velocity = result.velocityField[gx]?.[gy]?.[gz] || { x: 0, y: 0, z: 0 };
-
-          particle.vel = [velocity.x, velocity.z, velocity.y];
-          particle.pos[0] += particle.vel[0] * 0.02;
-          particle.pos[1] += particle.vel[1] * 0.02;
-          particle.pos[2] += particle.vel[2] * 0.02;
-          particle.temp = result.temperatureField[gx]?.[gy]?.[gz] || config.ambientTempC;
-          particle.life += 1;
-
-          if (
-            particle.life > particle.maxLife ||
-            particle.pos[0] < 0 ||
-            particle.pos[0] > maxX ||
-            particle.pos[1] < 0 ||
-            particle.pos[1] > maxZ ||
-            particle.pos[2] < 0 ||
-            particle.pos[2] > maxY
-          ) {
-            const nx = Math.floor(Math.random() * config.gridSizeX);
-            const ny = Math.floor(Math.random() * config.gridSizeY);
-            const nz = Math.floor(Math.random() * config.gridSizeZ);
-            const nextVelocity = result.velocityField[nx]?.[ny]?.[nz] || { x: 0, y: 0, z: 0 };
-
-            particle.pos = [
-              nx * resolution,
-              nz * resolution + Math.random() * resolution,
-              ny * resolution,
-            ];
-            particle.vel = [nextVelocity.x, nextVelocity.z, nextVelocity.y];
-            particle.temp = result.temperatureField[nx]?.[ny]?.[nz] || config.ambientTempC;
-            particle.life = 0;
-          }
-
-          const projected = projectWorld(
-            [particle.pos[0] - centerX, particle.pos[1], particle.pos[2] - centerZ],
-            ry,
-            rx,
-            midX,
-            midY,
-            scale,
-          );
-          const alpha = Math.max(0, 1 - particle.life / particle.maxLife) * 0.7;
-          const color = valueToRGB(particle.temp, minTemp, maxTemp);
-
-          ctx.beginPath();
-          ctx.arc(projected[0], projected[1], 2, 0, Math.PI * 2);
-          ctx.fillStyle = toRgba(color, alpha);
-          ctx.fill();
-        }
-      }
-
-      ctx.fillStyle = 'rgba(255,255,255,0.82)';
-      ctx.font = 'bold 12px system-ui';
-      ctx.textAlign = 'left';
-      ctx.fillText(
-        `Mode: ${viewMode.toUpperCase()} | Slice Z: ${sliceIndex} (${sliceHeight.toFixed(1)}m) | Max: ${metrics.maxTemperature.toFixed(1)}°C | Avg: ${metrics.avgTemperature.toFixed(1)}°C | PUE: ${metrics.pue.toFixed(2)}`,
-        16,
-        h - 16,
-      );
-    }
-
-    function animate() {
-      const { w, h } = viewportRef.current;
-      if (w > 0 && h > 0) {
-        draw(w, h);
-      }
-      animRef.current = window.requestAnimationFrame(animate);
-    }
-
-    resize();
-    animRef.current = window.requestAnimationFrame(animate);
-    window.addEventListener('resize', resize);
-
-    const handleMouseDown = (event: MouseEvent) => {
-      cam.current.drag = true;
-      cam.current.mx = event.clientX;
-      cam.current.my = event.clientY;
-    };
-
-    const handleMouseMove = (event: MouseEvent) => {
-      if (!cam.current.drag) return;
-      cam.current.ry += (event.clientX - cam.current.mx) * 0.005;
-      cam.current.rx += (event.clientY - cam.current.my) * 0.005;
-      cam.current.rx = clamp(cam.current.rx, -1.5, 1.5);
-      cam.current.mx = event.clientX;
-      cam.current.my = event.clientY;
-    };
-
-    const handleMouseUp = () => {
-      cam.current.drag = false;
-    };
-
-    const handleWheel = (event: WheelEvent) => {
-      event.preventDefault();
-      cam.current.sc = clamp(cam.current.sc - event.deltaY * 0.05, 5, 100);
-    };
-
-    canvasElement.addEventListener('mousedown', handleMouseDown);
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    canvasElement.addEventListener('wheel', handleWheel, { passive: false });
-
-    return () => {
-      if (animRef.current !== null) {
-        window.cancelAnimationFrame(animRef.current);
-      }
-      window.removeEventListener('resize', resize);
-      canvasElement.removeEventListener('mousedown', handleMouseDown);
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-      canvasElement.removeEventListener('wheel', handleWheel);
-    };
-  }, [result, racks, hvacUnits, showHotspots, showAirflow, selectedSliceZ, viewMode, config, metrics, cx, cz]);
+// ─── Equipment Meshes ───────────────────────────────────────────────
+
+function RackMesh({ rack, centerX, centerZ }: { rack: ServerRack; centerX: number; centerZ: number }) {
+  // Solver uses x/y as floor-plane coordinates and z as elevation.
+  const x = rack.position.x - centerX + rack.width / 2;
+  const z = rack.position.y - centerZ + rack.depth / 2;
+  const y = rack.position.z + rack.height / 2;
 
   return (
-    <div ref={wrapRef} className="relative w-full h-[500px] rounded-xl overflow-hidden border border-slate-700 bg-slate-900">
-      <canvas ref={canvasRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
+    <group position={[x, y, z]}>
+      <mesh>
+        <boxGeometry args={[rack.width, rack.height, rack.depth]} />
+        <meshStandardMaterial color="#6366f1" transparent opacity={0.6} />
+      </mesh>
+      <lineSegments>
+        <edgesGeometry args={[new THREE.BoxGeometry(rack.width, rack.height, rack.depth)]} />
+        <lineBasicMaterial color="#818cf8" />
+      </lineSegments>
+      <Text
+        position={[0, rack.height / 2 + 0.3, 0]}
+        fontSize={0.25}
+        color="#e0e7ff"
+        anchorX="center"
+        anchorY="bottom"
+        font={undefined}
+      >
+        {rack.name}
+      </Text>
+      <Text
+        position={[0, rack.height / 2 + 0.05, 0]}
+        fontSize={0.18}
+        color="#a5b4fc"
+        anchorX="center"
+        anchorY="bottom"
+        font={undefined}
+      >
+        {`${rack.powerKW}kW`}
+      </Text>
+    </group>
+  );
+}
 
-      {/* Legend */}
-      <div className="absolute top-4 left-4 bg-slate-800/80 backdrop-blur-sm rounded-lg p-3 text-xs text-white">
+function HVACMesh({
+  unit,
+  centerX,
+  centerZ,
+  isSelected = false,
+  isDragging = false,
+  isInvalid = false,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+}: {
+  unit: HVACUnit;
+  centerX: number;
+  centerZ: number;
+  isSelected?: boolean;
+  isDragging?: boolean;
+  isInvalid?: boolean;
+  onPointerDown?: (event: ThreeEvent<PointerEvent>) => void;
+  onPointerMove?: (event: ThreeEvent<PointerEvent>) => void;
+  onPointerUp?: (event: ThreeEvent<PointerEvent>) => void;
+}) {
+  // Solver uses x/y as floor-plane coordinates and z as elevation.
+  const x = unit.position.x - centerX + unit.width / 2;
+  const z = unit.position.y - centerZ + unit.depth / 2;
+  const y = unit.position.z + unit.height / 2;
+  const baseColor = unit.status === 'failed' ? '#ef4444' : '#10b981';
+  const color = isInvalid
+    ? '#ef4444'
+    : isDragging
+      ? '#f59e0b'
+      : isSelected
+        ? '#22d3ee'
+        : baseColor;
+  const edgeColor = isInvalid
+    ? '#fecaca'
+    : isDragging
+      ? '#fde68a'
+      : isSelected
+        ? '#67e8f9'
+        : unit.status === 'failed'
+          ? '#fca5a5'
+          : '#6ee7b7';
+
+  return (
+    <group position={[x, y, z]}>
+      <mesh onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp}>
+        <boxGeometry args={[unit.width, unit.height, unit.depth]} />
+        <meshStandardMaterial color={color} transparent opacity={isDragging ? 0.78 : 0.55} />
+      </mesh>
+      <lineSegments>
+        <edgesGeometry args={[new THREE.BoxGeometry(unit.width, unit.height, unit.depth)]} />
+        <lineBasicMaterial color={edgeColor} />
+      </lineSegments>
+      <Text
+        position={[0, unit.height / 2 + 0.3, 0]}
+        fontSize={0.22}
+        color="#d1fae5"
+        anchorX="center"
+        anchorY="bottom"
+        font={undefined}
+      >
+        {unit.name}
+      </Text>
+    </group>
+  );
+}
+
+// ─── Hotspot Indicators ─────────────────────────────────────────────
+
+function HotspotMarker({ position, temperature, severity }: {
+  position: THREE.Vector3; temperature: number; severity: string;
+}) {
+  const meshRef = useRef<THREE.Mesh>(null);
+  const color = severity === 'emergency' ? '#ef4444' : severity === 'critical' ? '#f59e0b' : '#eab308';
+
+  useFrame(({ clock }) => {
+    if (meshRef.current) {
+      const scale = 0.15 + 0.05 * Math.sin(clock.elapsedTime * 3);
+      meshRef.current.scale.setScalar(scale);
+    }
+  });
+
+  return (
+    <group position={position}>
+      <mesh ref={meshRef}>
+        <sphereGeometry args={[1, 16, 16]} />
+        <meshBasicMaterial color={color} transparent opacity={0.8} />
+      </mesh>
+      {/* Glow ring */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.2, 0.35, 32]} />
+        <meshBasicMaterial color={color} transparent opacity={0.3} side={THREE.DoubleSide} />
+      </mesh>
+      <Text
+        position={[0, 0.4, 0]}
+        fontSize={0.15}
+        color="white"
+        anchorX="center"
+        anchorY="bottom"
+        font={undefined}
+      >
+        {`${temperature.toFixed(0)}°C`}
+      </Text>
+    </group>
+  );
+}
+
+// ─── Inspect Click Plane ────────────────────────────────────────────
+
+function InspectPlane({ result, sliceZ, centerX, centerZ, onInspect }: {
+  result: SimulationResult;
+  sliceZ: number;
+  centerX: number;
+  centerZ: number;
+  onInspect: (cell: InspectedCellInfo | null) => void;
+}) {
+  const { config, temperatureField, velocityField, pressureField, humidityField } = result;
+  const planeW = config.gridSizeX * config.gridResolution;
+  const planeH = config.gridSizeY * config.gridResolution;
+  const y = sliceZ * config.gridResolution;
+
+  const handleClick = useCallback((e: ThreeEvent<MouseEvent>) => {
+    e.stopPropagation();
+    const pt = e.point;
+    const ix = Math.floor((pt.x + centerX) / config.gridResolution);
+    const iz = Math.floor((pt.z + centerZ) / config.gridResolution);
+    const iy = Math.min(Math.max(sliceZ, 0), config.gridSizeZ - 1);
+
+    if (ix < 0 || ix >= config.gridSizeX || iz < 0 || iz >= config.gridSizeY) {
+      onInspect(null);
+      return;
+    }
+
+    const temp = temperatureField?.[ix]?.[iz]?.[iy] ?? 0;
+    const vel = velocityField?.[ix]?.[iz]?.[iy] ?? { x: 0, y: 0, z: 0 };
+    const pres = pressureField?.[ix]?.[iz]?.[iy] ?? 0;
+    const hum = humidityField?.[ix]?.[iz]?.[iy] ?? 0;
+
+    onInspect({
+      position: { x: ix * config.gridResolution, y: iz * config.gridResolution, z: iy * config.gridResolution },
+      temperature: temp,
+      velocity: vel,
+      pressure: pres,
+      humidity: hum,
+    });
+  }, [sliceZ, centerX, centerZ, config, temperatureField, velocityField, pressureField, humidityField, onInspect]);
+
+  return (
+    <mesh position={[0, y + 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} onClick={handleClick}>
+      <planeGeometry args={[planeW, planeH]} />
+      <meshBasicMaterial transparent opacity={0} side={THREE.DoubleSide} />
+    </mesh>
+  );
+}
+
+// ─── Floor Grid ─────────────────────────────────────────────────────
+
+function FloorGrid({ sizeX, sizeY, resolution }: { sizeX: number; sizeY: number; resolution: number }) {
+  return (
+    <gridHelper
+      args={[Math.max(sizeX, sizeY) * resolution, Math.max(sizeX, sizeY), '#1e293b', '#1e293b']}
+      position={[0, 0, 0]}
+    />
+  );
+}
+
+// ─── Scene ──────────────────────────────────────────────────────────
+
+function Scene(props: Props) {
+  const {
+    result, racks, hvacUnits,
+    roomBoundaries = [],
+    editableHVAC = false,
+    selectedHVACId = null,
+    onSelectHVAC,
+    onHVACDragPreview,
+    onHVACDragCommit,
+    onHVACDragInvalid,
+    showHotspots = true, showAirflow = true,
+    selectedSliceZ = 1, viewMode = 'temperature',
+    onInspect,
+    tileFlowView, streamlineSeedPoints, tileAirflowData, alerts,
+  } = props;
+
+  const { config, metrics } = result;
+  const centerX = (config.gridSizeX * config.gridResolution) / 2;
+  const centerZ = (config.gridSizeY * config.gridResolution) / 2;
+
+  const handleInspect = useCallback((cell: InspectedCellInfo | null) => {
+    onInspect?.(cell);
+  }, [onInspect]);
+
+  const [dragState, setDragState] = useState<{
+    unitId: string;
+    preview: Vec3;
+    valid: boolean;
+    reason?: string;
+  } | null>(null);
+
+  const dragUnit = useMemo(() => {
+    if (!dragState) return null;
+    return hvacUnits.find((unit) => unit.id === dragState.unitId) ?? null;
+  }, [dragState, hvacUnits]);
+  const dragProjectionPlane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), []);
+
+  const roomOutlines = useMemo(() => roomBoundaries
+    .map((room) => {
+      if (!room.points || room.points.length < 3) {
+        return null;
+      }
+
+      const linePoints: [number, number, number][] = room.points.map((point) => [
+        point.x - centerX,
+        0.03,
+        point.y - centerZ,
+      ]);
+      linePoints.push(linePoints[0]);
+
+      const centroid = room.centroid
+        ? room.centroid
+        : room.points.reduce((acc, point) => ({
+          x: acc.x + point.x,
+          y: acc.y + point.y,
+        }), { x: 0, y: 0 });
+      const centroidDivisor = room.points.length || 1;
+
+      return {
+        id: room.id,
+        name: room.name,
+        linePoints,
+        centroid: {
+          x: room.centroid ? centroid.x : centroid.x / centroidDivisor,
+          y: room.centroid ? centroid.y : centroid.y / centroidDivisor,
+        },
+      };
+    })
+    .filter((room): room is {
+      id: string;
+      name: string;
+      linePoints: [number, number, number][];
+      centroid: { x: number; y: number };
+    } => Boolean(room)), [roomBoundaries, centerX, centerZ]);
+
+  const domainSpanM = Math.max(config.gridSizeX, config.gridSizeY) * config.gridResolution;
+  const dragPlaneSize = Math.max(20, domainSpanM * 2.2);
+
+  const hotspotPositions = useMemo(() =>
+    metrics.hotspots.map(h => ({
+      position: new THREE.Vector3(
+        h.position.x - centerX,
+        h.position.z,
+        h.position.y - centerZ,
+      ),
+      temperature: h.temperature,
+      severity: h.severity,
+    })),
+    [metrics.hotspots, centerX, centerZ],
+  );
+
+  const handleHVACPointerDown = useCallback((unitId: string, event: ThreeEvent<PointerEvent>) => {
+    event.stopPropagation();
+    onSelectHVAC?.(unitId);
+    if (!editableHVAC) {
+      return;
+    }
+
+    const unit = hvacUnits.find((item) => item.id === unitId);
+    if (!unit) {
+      return;
+    }
+
+    setDragState({
+      unitId,
+      preview: { ...unit.position },
+      valid: true,
+    });
+  }, [editableHVAC, hvacUnits, onSelectHVAC]);
+
+  const handleDragPointerMove = useCallback((event: ThreeEvent<PointerEvent>) => {
+    if (!dragState) {
+      return;
+    }
+
+    event.stopPropagation();
+    const activeUnit = hvacUnits.find((item) => item.id === dragState.unitId);
+    if (!activeUnit) {
+      return;
+    }
+
+    const projected = new THREE.Vector3();
+    if (!event.ray.intersectPlane(dragProjectionPlane, projected)) {
+      return;
+    }
+
+    const proposed: Vec3 = {
+      x: projected.x + centerX,
+      y: projected.z + centerZ,
+      z: activeUnit.position.z,
+    };
+
+    const feedback = onHVACDragPreview
+      ? onHVACDragPreview(dragState.unitId, proposed)
+      : { position: proposed, valid: true };
+
+    setDragState((current) => {
+      if (!current || current.unitId !== dragState.unitId) {
+        return current;
+      }
+      return {
+        ...current,
+        preview: feedback.position,
+        valid: feedback.valid,
+        reason: feedback.reason,
+      };
+    });
+  }, [dragState, hvacUnits, centerX, centerZ, onHVACDragPreview, dragProjectionPlane]);
+
+  const clearDragState = useCallback(() => {
+    setDragState(null);
+  }, []);
+
+  const handleDragPointerUp = useCallback((event: ThreeEvent<PointerEvent>) => {
+    if (!dragState) {
+      return;
+    }
+
+    event.stopPropagation();
+    if (dragState.valid) {
+      onHVACDragCommit?.(dragState.unitId, dragState.preview);
+    } else {
+      onHVACDragInvalid?.(dragState.unitId, dragState.reason ?? 'Invalid placement');
+    }
+    clearDragState();
+  }, [dragState, onHVACDragCommit, onHVACDragInvalid, clearDragState]);
+
+  return (
+    <>
+      <ambientLight intensity={0.4} />
+      <directionalLight position={[10, 15, 10]} intensity={0.6} />
+      <pointLight position={[0, 8, 0]} intensity={0.3} />
+
+      <FloorGrid sizeX={config.gridSizeX} sizeY={config.gridSizeY} resolution={config.gridResolution} />
+
+      {/* Actual room outlines from floorplan polygons */}
+      {roomOutlines.map((room) => (
+        <group key={room.id}>
+          <Line
+            points={room.linePoints}
+            color="#e2e8f0"
+            transparent
+            opacity={0.82}
+            lineWidth={1}
+          />
+          <Text
+            position={[room.centroid.x - centerX, 0.08, room.centroid.y - centerZ]}
+            fontSize={0.2}
+            color="#cbd5e1"
+            anchorX="center"
+            anchorY="bottom"
+            font={undefined}
+          >
+            {room.name}
+          </Text>
+        </group>
+      ))}
+
+      {/* Heatmap overlay */}
+      {(viewMode === 'temperature' || viewMode === 'pressure' || viewMode === 'humidity') && (
+        <HeatmapSlice result={result} sliceZ={selectedSliceZ} viewMode={viewMode} />
+      )}
+
+      {/* Velocity arrows */}
+      {viewMode === 'velocity' && (
+        <VelocityArrows result={result} sliceZ={selectedSliceZ} />
+      )}
+
+      {/* Animated particles */}
+      {showAirflow && (
+        <AirflowParticles result={result} count={config.mode === 'fast' ? 200 : config.mode === 'engineering' ? 800 : 400} />
+      )}
+
+      {/* Equipment */}
+      {racks.map(rack => (
+        <RackMesh key={rack.id} rack={rack} centerX={centerX} centerZ={centerZ} />
+      ))}
+      {hvacUnits.map((unit) => {
+        const isDragging = dragState?.unitId === unit.id;
+        const renderedUnit = isDragging && dragState
+          ? { ...unit, position: dragState.preview }
+          : unit;
+
+        return (
+          <HVACMesh
+            key={unit.id}
+            unit={renderedUnit}
+            centerX={centerX}
+            centerZ={centerZ}
+            isSelected={selectedHVACId === unit.id}
+            isDragging={isDragging}
+            isInvalid={Boolean(isDragging && dragState && !dragState.valid)}
+            onPointerDown={(event) => handleHVACPointerDown(unit.id, event)}
+            onPointerMove={dragState ? handleDragPointerMove : undefined}
+            onPointerUp={dragState ? handleDragPointerUp : undefined}
+          />
+        );
+      })}
+
+      {/* Drag projection plane (x-z in scene, x-y in solver) */}
+      {editableHVAC && dragState && (
+        <mesh
+          position={[0, 0.02, 0]}
+          rotation={[-Math.PI / 2, 0, 0]}
+          onPointerMove={handleDragPointerMove}
+          onPointerUp={handleDragPointerUp}
+        >
+          <planeGeometry args={[dragPlaneSize, dragPlaneSize]} />
+          <meshBasicMaterial transparent opacity={0} side={THREE.DoubleSide} />
+        </mesh>
+      )}
+
+      {dragState && dragUnit && !dragState.valid && (
+        <Text
+          position={[
+            dragState.preview.x - centerX + dragUnit.width / 2,
+            dragUnit.position.z + dragUnit.height + 0.35,
+            dragState.preview.y - centerZ + dragUnit.depth / 2,
+          ]}
+          fontSize={0.16}
+          color="#fca5a5"
+          anchorX="center"
+          anchorY="bottom"
+          font={undefined}
+        >
+          {(dragState.reason ?? 'Invalid placement').slice(0, 84)}
+        </Text>
+      )}
+
+      {/* Hotspots */}
+      {showHotspots && hotspotPositions.map((hs, i) => (
+        <HotspotMarker key={i} position={hs.position} temperature={hs.temperature} severity={hs.severity} />
+      ))}
+
+      {/* Inspect click plane */}
+      {!dragState && (
+        <InspectPlane
+          result={result}
+          sliceZ={selectedSliceZ}
+          centerX={centerX}
+          centerZ={centerZ}
+          onInspect={handleInspect}
+        />
+      )}
+
+      {/* TileFlow: Streamlines */}
+      {tileFlowView?.showStreamlines && (
+        <Streamlines
+          result={result}
+          config={tileFlowView.streamlineConfig}
+          sliceZ={selectedSliceZ}
+          seedPoints={streamlineSeedPoints}
+        />
+      )}
+
+      {/* TileFlow: Volumetric fog */}
+      {tileFlowView?.showFog && (
+        <TemperatureFog result={result} opacity={tileFlowView.fogOpacity} />
+      )}
+
+      {/* TileFlow: Tile airflow overlay */}
+      {tileFlowView?.showTileOverlay && tileAirflowData && tileAirflowData.length > 0 && (
+        <TileAirflowOverlay
+          tileData={tileAirflowData}
+          gridResolution={config.gridResolution}
+          gridSizeX={config.gridSizeX}
+          gridSizeY={config.gridSizeY}
+        />
+      )}
+
+      {/* TileFlow: Alert zone markers */}
+      {tileFlowView?.showAlerts && alerts && alerts.length > 0 && (
+        <AlertZoneMarkers alerts={alerts} gridResolution={config.gridResolution} />
+      )}
+
+      <OrbitControls
+        makeDefault
+        enabled={!dragState}
+        enableDamping
+        dampingFactor={0.1}
+        maxPolarAngle={Math.PI / 2}
+        minDistance={Math.max(2, domainSpanM * 0.2)}
+        maxDistance={Math.max(50, domainSpanM * 4)}
+      />
+    </>
+  );
+}
+
+// ─── Main Component ─────────────────────────────────────────────────
+
+const AirflowViewer3D = forwardRef<AirflowViewerHandle, Props>(function AirflowViewer3D(props, ref) {
+  const { result, viewMode = 'temperature', selectedSliceZ = 1 } = props;
+  const { metrics, config } = result;
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const domainSpanM = Math.max(config.gridSizeX, config.gridSizeY) * config.gridResolution;
+  const cameraDistance = Math.max(8, domainSpanM * 1.15);
+
+  useImperativeHandle(ref, () => ({
+    captureSnapshot: () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return null;
+      return canvas.toDataURL('image/png');
+    },
+  }), []);
+
+  return (
+    <div className="relative w-full h-125 rounded-xl overflow-hidden border border-slate-700 bg-slate-900">
+      <Canvas
+        ref={canvasRef}
+        camera={{ position: [cameraDistance, cameraDistance * 0.72, cameraDistance], fov: 50, near: 0.1, far: 600 }}
+        gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, preserveDrawingBuffer: true }}
+        style={{ background: '#0f172a' }}
+      >
+        <Suspense fallback={null}>
+          <Scene {...props} />
+        </Suspense>
+      </Canvas>
+
+      {/* Legend overlay */}
+      <div className="absolute top-4 left-4 bg-slate-800/80 backdrop-blur-sm rounded-lg p-3 text-xs text-white pointer-events-none">
         <div className="mb-1.5 text-[10px] uppercase tracking-[0.08em] text-slate-300">
-          {viewMode} mode · Slice {Math.round(selectedSliceZ)}
+          {viewMode} mode · Slice {Math.round(selectedSliceZ)} · {config.mode ?? 'balanced'}
         </div>
-        <div className="flex items-center gap-2 mb-1.5">
+        <div className="flex items-center gap-2 mb-1">
           <div className="w-3 h-3 rounded-sm bg-indigo-500" /> Server Racks
         </div>
-        <div className="flex items-center gap-2 mb-1.5">
+        <div className="flex items-center gap-2 mb-1">
           <div className="w-3 h-3 rounded-sm bg-emerald-500" /> HVAC Units
         </div>
-        {showHotspots && (
+        {!!props.roomBoundaries?.length && (
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-3 h-[2px] bg-slate-200" /> Room Boundaries
+          </div>
+        )}
+        {props.showHotspots !== false && (
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-red-500" /> Hotspots
           </div>
         )}
       </div>
 
+      {/* Status bar */}
+      <div className="absolute bottom-4 left-4 right-4 flex justify-between bg-slate-800/80 backdrop-blur-sm rounded-lg px-3 py-2 text-xs text-slate-300 pointer-events-none">
+        <span>Max: {metrics.maxTemperature.toFixed(1)}°C | Avg: {metrics.avgTemperature.toFixed(1)}°C | PUE: {metrics.pue.toFixed(2)}</span>
+        <span>CFL dt: {result.effectiveTimeStep?.toFixed(4) ?? '—'}s | Iter: {result.iteration}</span>
+      </div>
+
       {/* Controls hint */}
-      <div className="absolute bottom-4 right-4 bg-slate-800/80 backdrop-blur-sm rounded-lg px-3 py-2 text-xs text-slate-400">
-        Drag to rotate • Scroll to zoom
+      <div className="absolute bottom-4 right-4 bg-slate-800/80 backdrop-blur-sm rounded-lg px-3 py-2 text-xs text-slate-400 pointer-events-none">
+        Drag to orbit • Scroll to zoom • Right-drag to pan
       </div>
     </div>
   );
-}
+});
+
+export default AirflowViewer3D;

@@ -46,46 +46,51 @@ export function Input({ className, label, error, hint, unit, prefix, showRangeHi
   const helperText = hint || rangeHint;
   const hasLeading = !!prefix;
   const hasTrailing = !!unit;
+  const errorId = activeError ? `${inputId}-error` : undefined;
+  const hintId = helperText && !activeError ? `${inputId}-hint` : undefined;
+  const describedBy = [errorId, hintId].filter(Boolean).join(' ') || undefined;
 
   return (
     <div className="w-full">
       {label && (
-        <label htmlFor={inputId} className="mb-2 block text-[12px] font-bold uppercase tracking-[0.14em] text-[color:var(--muted-foreground)]">
+        <label htmlFor={inputId} className="mb-2 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
           {label}
         </label>
       )}
       <div className="relative">
         {hasLeading && (
-          <span className="pointer-events-none absolute inset-y-0 left-4 inline-flex items-center text-sm font-semibold text-[color:var(--text-subtle)]">
+          <span className="pointer-events-none absolute inset-y-0 left-3 inline-flex items-center text-sm text-muted-foreground">
             {prefix}
           </span>
         )}
         <input
           ref={ref}
           id={inputId}
+          aria-invalid={activeError ? true : undefined}
+          aria-describedby={describedBy}
           className={cn(
-            'h-12 w-full rounded-[1rem] border border-[color:var(--input)] bg-[linear-gradient(125deg,color-mix(in_oklab,var(--card)_94%,transparent),color-mix(in_oklab,var(--brand-paper)_62%,transparent))] px-4 text-[15px] text-[color:var(--foreground)] shadow-[0_12px_20px_-20px_rgba(31,63,98,0.9)]',
-            hasLeading && 'pl-10',
-            hasTrailing && 'pr-16',
-            'placeholder:text-[rgba(91,116,110,0.85)]',
-            'focus:outline-none focus:ring-2 focus:ring-[rgba(20,134,115,0.24)] focus:border-[color:var(--ring)] focus:shadow-[0_18px_28px_-22px_rgba(20,134,115,0.74)]',
-            'transition-all duration-200',
-            'disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-[color:var(--secondary)]',
+            'h-10 w-full rounded-xl border border-input bg-card/85 px-3 text-sm text-foreground backdrop-blur-sm',
+            hasLeading && 'pl-9',
+            hasTrailing && 'pr-14',
+            'placeholder:text-muted-foreground/60',
+            'focus:outline-none focus:ring-2 focus:ring-ring/55 focus:border-primary focus:shadow-[0_0_0_4px_color-mix(in_oklab,var(--primary)_22%,transparent)]',
+            'transition-colors duration-150',
+            'disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-secondary',
             activeError
-              ? 'border-[color:var(--destructive)] focus:border-[color:var(--destructive)] focus:ring-[rgba(216,77,87,0.2)]'
-              : 'hover:border-[color:var(--silver)] hover:shadow-[0_16px_24px_-20px_rgba(31,63,98,0.82)]',
+              ? 'border-destructive focus:border-destructive focus:ring-destructive/45'
+              : 'hover:border-muted-foreground/55',
             className
           )}
           {...props}
         />
         {hasTrailing && (
-          <span className="pointer-events-none absolute inset-y-0 right-4 inline-flex items-center text-sm font-semibold text-[color:var(--text-subtle)]">
+          <span className="pointer-events-none absolute inset-y-0 right-3 inline-flex items-center text-sm text-muted-foreground">
             {unit}
           </span>
         )}
       </div>
-      {activeError && <p className="mt-2 text-[13px] font-medium text-[color:var(--destructive)]">{activeError}</p>}
-      {helperText && !activeError && <p className="mt-2 text-[13px] text-[color:var(--muted-foreground)]">{helperText}</p>}
+      {activeError && <p id={errorId} className="mt-1.5 text-xs font-medium text-destructive">{activeError}</p>}
+      {helperText && !activeError && <p id={hintId} className="mt-1.5 text-xs text-muted-foreground">{helperText}</p>}
     </div>
   );
 }
@@ -101,7 +106,7 @@ export function Textarea({ className, label, error, id, ref, ...props }: Textare
   return (
     <div className="w-full">
       {label && (
-        <label htmlFor={inputId} className="mb-2 block text-[12px] font-bold uppercase tracking-[0.14em] text-[color:var(--muted-foreground)]">
+        <label htmlFor={inputId} className="mb-2 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
           {label}
         </label>
       )}
@@ -109,19 +114,19 @@ export function Textarea({ className, label, error, id, ref, ...props }: Textare
         ref={ref}
         id={inputId}
         className={cn(
-          'min-h-[120px] w-full resize-y rounded-[1rem] border border-[color:var(--input)] bg-[linear-gradient(125deg,color-mix(in_oklab,var(--card)_94%,transparent),color-mix(in_oklab,var(--brand-paper)_62%,transparent))] px-4 py-3.5 text-[15px] text-[color:var(--foreground)] shadow-[0_12px_20px_-20px_rgba(31,63,98,0.9)]',
-          'placeholder:text-[rgba(91,116,110,0.85)]',
-          'focus:outline-none focus:ring-2 focus:ring-[rgba(20,134,115,0.24)] focus:border-[color:var(--ring)] focus:shadow-[0_18px_28px_-22px_rgba(20,134,115,0.74)]',
-          'transition-all duration-200',
-          'disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-[color:var(--secondary)]',
+          'min-h-30 w-full resize-y rounded-xl border border-input bg-card/85 px-3 py-3 text-sm text-foreground backdrop-blur-sm',
+          'placeholder:text-muted-foreground/60',
+          'focus:outline-none focus:ring-2 focus:ring-ring/55 focus:border-primary',
+          'transition-colors duration-150',
+          'disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-secondary',
           error
-            ? 'border-[color:var(--destructive)] focus:border-[color:var(--destructive)] focus:ring-[rgba(216,77,87,0.2)]'
-            : 'hover:border-[color:var(--silver)] hover:shadow-[0_16px_24px_-20px_rgba(31,63,98,0.82)]',
+            ? 'border-destructive focus:border-destructive focus:ring-destructive/45'
+            : 'hover:border-muted-foreground/55',
           className
         )}
         {...props}
       />
-      {error && <p className="mt-2 text-[13px] font-medium text-[color:var(--destructive)]">{error}</p>}
+      {error && <p className="mt-1.5 text-xs font-medium text-destructive">{error}</p>}
     </div>
   );
 }

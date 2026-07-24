@@ -6,20 +6,25 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import {
   listBoqItemsForProject,
   listSelectedEquipmentForProject,
   replaceBoqItemsForProject,
 } from '@/lib/firebase/project-estimation-store';
+import { createBoqSnapshot, getLatestBoqSnapshot } from '@/lib/firebase/boq-snapshot-store';
 import {
   getFloorsWithRooms,
   getProjectRecord,
   updateProjectRecord,
   writeAuditLog,
 } from '@/lib/firebase/projects-store';
-import { compileBOQ } from '@/lib/functions/cost-engine';
+import { buildBoqVerification, computeBoqHash } from '@/lib/functions/boq-integrity';
+import { compileBOQ, estimateDiffusersFromDucts } from '@/lib/functions/cost-engine';
 import { sizeRefrigerantPipe, sizeCondensatePipe } from '@/lib/functions/pipe-sizing';
 import { sizeElectrical } from '@/lib/functions/electrical';
+import { sizeDuct } from '@/lib/functions/duct-sizing';
+import { CFM_PER_TR } from '@/lib/utils/constants';
 import { errorResponse, getErrorDetails, resourceNotFound } from '@/lib/utils/api-helpers';
 import { finalizeDualValue } from '@/lib/utils/dual-control';
 import type { BOQItem } from '@/types/material';
@@ -29,6 +34,20 @@ const DEFAULT_REFRIGERANT_RUN_M = 10;
 const DEFAULT_ELEVATION_DIFF_M = 3;
 const DEFAULT_ELECTRICAL_RUN_M = 15;
 const DEFAULT_CONDENSATE_RUN_M = 5;
+const DEFAULT_DUCT_RUN_M = 8;
+
+/** Equipment types that require sheet-metal ductwork (vs ductless splits/cassettes) */
+const DUCTED_EQUIPMENT_TYPES = new Set([
+  'ducted_split',
+  'ducted',
+  'ahu',
+  'fcu',
+  'concealed',
+]);
+
+function requiresDuctwork(type: string): boolean {
+  return DUCTED_EQUIPMENT_TYPES.has(type) || type.toLowerCase().includes('duct');
+}
 
 const DEFAULT_PRICING_POLICY = {
   laborMultiplier: 0.35,
@@ -38,6 +57,16 @@ const DEFAULT_PRICING_POLICY = {
 } as const;
 
 type RouteContext = { params: Promise<{ id: string }> };
+
+const BOQ_GENERATION_RATE_LIMIT = {
+  windowMs: 60_000,
+  maxRequests: 10,
+} as const;
+
+const BOQ_GET_RATE_LIMIT = {
+  windowMs: 60_000,
+  maxRequests: 20,
+} as const;
 
 type ProjectPricing = {
   suggestedLaborMultiplier: number;
@@ -75,15 +104,24 @@ function resolvePricingPolicy(project: ProjectPricing | null) {
 
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
+    const rateLimit = evaluateRateLimit(request, 'projects-id-boq-get', BOQ_GET_RATE_LIMIT);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
+      );
+    }
+
     const auth = await requireAuth(request);
     if (!auth.authorized) {
       return auth.response;
     }
 
     const { id } = await context.params;
-    const [project, items] = await Promise.all([
+    const [project, items, latestSnapshot] = await Promise.all([
       getProjectRecord(id),
       listBoqItemsForProject(id),
+      getLatestBoqSnapshot(id),
     ]);
 
     if (!project) {
@@ -185,6 +223,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
           isOverridden: pricingPolicy.vatRate.isOverridden,
         },
       },
+      verification: buildBoqVerification(items, latestSnapshot),
     });
   } catch (error) {
     console.error('GET BOQ error:', error);
@@ -212,7 +251,26 @@ interface SelEquip {
 }
 
 function buildBOQInputs(selections: SelEquip[]) {
+  const ducts = selections
+    .filter((s) => requiresDuctwork(s.equipment.type))
+    .map((s) => ({
+      result: sizeDuct({ cfm: Math.max(1, s.equipment.capacityTR * CFM_PER_TR * s.quantity) }),
+      runLengthM: DEFAULT_DUCT_RUN_M * s.quantity,
+    }));
+
+  // Controls (BOQ Section G, plan §7): one thermostat per cooled unit, a CO₂
+  // sensor per selection for demand-controlled ventilation, and ~3 BMS points
+  // per unit (supply temp, return temp, status).
+  const totalUnits = selections.reduce((sum, s) => sum + s.quantity, 0);
+
   return {
+    diffusers: estimateDiffusersFromDucts(ducts),
+    controls: {
+      zones: totalUnits,
+      co2Sensors: selections.length,
+      bmsPoints: totalUnits * 3,
+    },
+    ducts,
     equipment: selections.map((s) => ({
       brand: s.equipment.manufacturer,
       model: s.equipment.model,
@@ -254,6 +312,14 @@ function buildBOQInputs(selections: SelEquip[]) {
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
+    const rateLimit = evaluateRateLimit(request, 'projects-id-boq-post', BOQ_GENERATION_RATE_LIMIT);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
+      );
+    }
+
     const auth = await requireAuth(request);
     if (!auth.authorized) {
       return auth.response;
@@ -357,6 +423,17 @@ export async function POST(request: NextRequest, context: RouteContext) {
       lastBoqGeneratedAt: new Date().toISOString(),
     });
 
+    const storedItems = await listBoqItemsForProject(projectId);
+    const boqHash = computeBoqHash(storedItems);
+    const snapshot = await createBoqSnapshot({
+      projectId,
+      eventType: 'generated',
+      boqHash,
+      itemCount: storedItems.length,
+      grandTotalPhp: boqSummary.grandTotal,
+      triggeredBy: auth.user.id,
+    });
+
     await writeAuditLog({
       projectId,
       action: 'generated',
@@ -370,6 +447,15 @@ export async function POST(request: NextRequest, context: RouteContext) {
           overheadPercent: pricingPolicy.overheadPercent.final,
           contingencyPercent: pricingPolicy.contingencyPercent.final,
           vatRate: pricingPolicy.vatRate.final,
+        },
+        boqHash,
+        snapshot: {
+          id: snapshot.id,
+          algorithm: snapshot.algorithm,
+          itemCount: snapshot.itemCount,
+          grandTotalPhp: snapshot.grandTotalPhp,
+          deltaPhp: snapshot.deltaPhp,
+          createdAt: snapshot.createdAt,
         },
       }),
     });

@@ -1,0 +1,104 @@
+{
+  "id": "equipment-rules",
+  "category": "equipment",
+  "version": 1,
+  "updatedAt": "2026-04-11T00:00:00Z",
+  "rules": [
+    {
+      "id": "scoring_weights_capex",
+      "name": "Scoring Weights — CAPEX Priority",
+      "category": "equipment",
+      "type": "constants",
+      "values": {
+        "capacity_weight": 0.3,
+        "efficiency_weight": 0.2,
+        "capex_weight": 0.5
+      },
+      "description": "Equipment scoring weights when optimizing for capital cost"
+    },
+    {
+      "id": "scoring_weights_efficiency",
+      "name": "Scoring Weights — Efficiency Priority",
+      "category": "equipment",
+      "type": "constants",
+      "values": {
+        "capacity_weight": 0.3,
+        "efficiency_weight": 0.5,
+        "capex_weight": 0.2
+      },
+      "description": "Equipment scoring weights when optimizing for efficiency"
+    },
+    {
+      "id": "scoring_weights_balanced",
+      "name": "Scoring Weights — Balanced Priority",
+      "category": "equipment",
+      "type": "constants",
+      "values": {
+        "capacity_weight": 0.4,
+        "efficiency_weight": 0.3,
+        "capex_weight": 0.3
+      },
+      "description": "Equipment scoring weights for balanced optimization"
+    },
+    {
+      "id": "equipment_score_formula",
+      "name": "Equipment Candidate Score",
+      "category": "equipment",
+      "type": "formula",
+      "formula": "capacity_score * capacity_weight + efficiency_score * efficiency_weight + capex_score * capex_weight",
+      "variables": {
+        "capacity_score": 0,
+        "efficiency_score": 0,
+        "capex_score": 0,
+        "capacity_weight": 0.4,
+        "efficiency_weight": 0.3,
+        "capex_weight": 0.3
+      },
+      "unit": "score",
+      "description": "Weighted equipment score"
+    },
+    {
+      "id": "capacity_score_formula",
+      "name": "Capacity Match Score",
+      "category": "equipment",
+      "type": "formula",
+      "formula": "100 - abs(100 - utilization_pct) * penalty",
+      "variables": { "utilization_pct": 100, "penalty": 1.2 },
+      "unit": "score",
+      "description": "Score based on how closely capacity matches demand"
+    },
+    {
+      "id": "energy_use_formula",
+      "name": "Annual Energy Use",
+      "category": "equipment",
+      "type": "formula",
+      "formula": "(provided_tr * 12000 * hours) / (eer * 1000)",
+      "variables": { "provided_tr": 0, "hours": 3200, "eer": 12, "btu_per_tr": 12000 },
+      "unit": "kWh",
+      "description": "Annual energy consumption: kWh = (TR × 12000 × hours) / (EER × 1000)"
+    },
+    {
+      "id": "lifecycle_cost_formula",
+      "name": "5-Year Lifecycle Cost",
+      "category": "equipment",
+      "type": "formula",
+      "formula": "capex + annual_energy_cost * lifecycle_years",
+      "variables": { "capex": 0, "annual_energy_cost": 0, "lifecycle_years": 5 },
+      "unit": "PHP",
+      "description": "Total lifecycle cost = CAPEX + (annual energy cost × years)"
+    },
+    {
+      "id": "equipment_constants",
+      "name": "Equipment Selection Constants",
+      "category": "equipment",
+      "type": "constants",
+      "values": {
+        "redundancy_multiplier": 1.15,
+        "max_candidates_display": 12,
+        "efficiency_reference_kwh": 250000,
+        "utilization_penalty": 1.2
+      },
+      "description": "Standard constants used in equipment selection"
+    }
+  ]
+}

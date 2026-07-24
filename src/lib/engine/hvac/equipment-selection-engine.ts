@@ -1,5 +1,26 @@
+import { EQUIPMENT_CATALOG } from '@/constants/equipment-catalog';
+import { BRAND_TIERS, type BrandTier } from '@/constants/pricing-engine';
+import { getRuleSetSync } from '@/lib/engine/rules';
+import { constantFromRuleSet, lookupFromRuleSet } from '@/lib/engine/rules/rule-evaluator';
+import type { EquipmentType } from '@/types/equipment';
+
 export type BudgetBand = 'economy' | 'balanced' | 'premium';
 export type OptimizationPriority = 'capex' | 'efficiency' | 'balanced';
+
+// ─── Rules-driven constants ─────────────────────────────────────────
+
+function getEquipmentConstant(name: string, fallback: number): number {
+  try {
+    return constantFromRuleSet(getRuleSetSync('equipment'), 'equipment_constants', name);
+  } catch { return fallback; }
+}
+
+function getScoringWeight(priority: OptimizationPriority, weightName: string, fallback: number): number {
+  try {
+    const ruleId = `scoring_weights_${priority}`;
+    return lookupFromRuleSet(getRuleSetSync('equipment'), ruleId, weightName);
+  } catch { return fallback; }
+}
 
 export interface EquipmentSelectionInputs {
   requiredTr: number;
@@ -51,48 +72,44 @@ interface CatalogItem {
   budgetBand: BudgetBand;
 }
 
-const CATALOG: CatalogItem[] = [
-  {
-    model: 'AeroCore Split 2.0TR',
-    type: 'inverter_split',
-    capacityTr: 2,
-    eer: 12.8,
-    capexPhp: 54000,
-    budgetBand: 'economy',
-  },
-  {
-    model: 'AeroCore Cassette 3.0TR',
-    type: 'cassette',
-    capacityTr: 3,
-    eer: 12.1,
-    capexPhp: 92000,
-    budgetBand: 'balanced',
-  },
-  {
-    model: 'AeroCore Ducted 5.0TR',
-    type: 'ducted',
-    capacityTr: 5,
-    eer: 11.5,
-    capexPhp: 168000,
-    budgetBand: 'balanced',
-  },
-  {
-    model: 'AeroCore VRF 8.0TR',
-    type: 'vrf',
-    capacityTr: 8,
-    eer: 13.2,
-    capexPhp: 296000,
-    budgetBand: 'premium',
-  },
-  {
-    model: 'AeroCore VRF 12.0TR',
-    type: 'vrf',
-    capacityTr: 12,
-    eer: 13.7,
-    capexPhp: 412000,
-    budgetBand: 'premium',
-  },
-];
+const CATALOG_TYPE_MAP: Partial<Record<EquipmentType, CatalogItem['type']>> = {
+  wall_split: 'inverter_split',
+  ceiling_cassette: 'cassette',
+  ducted_split: 'ducted',
+  vrf_indoor: 'vrf',
+  vrf_outdoor: 'vrf',
+};
+
+const TIER_BUDGET_BANDS: Record<BrandTier, BudgetBand> = {
+  high: 'premium',
+  mid: 'balanced',
+  entry: 'economy',
+};
+
+function formatCapacityTr(capacityTr: number): string {
+  return Number.isInteger(capacityTr) ? capacityTr.toFixed(1) : `${capacityTr}`;
+}
+
+function resolveBudgetBand(manufacturer: string): BudgetBand {
+  const tier: BrandTier | undefined = BRAND_TIERS[manufacturer] ?? BRAND_TIERS[manufacturer.split(' ')[0]];
+  return tier ? TIER_BUDGET_BANDS[tier] : 'balanced';
+}
+
+const CATALOG: CatalogItem[] = EQUIPMENT_CATALOG.flatMap((entry) => {
+  const type = CATALOG_TYPE_MAP[entry.type];
+  if (!type) {
+    return [];
+  }
+
+  return [{
+    model: `${entry.manufacturer} ${entry.model} ${formatCapacityTr(entry.capacityTR)}TR`,
+    type,
+    capacityTr: entry.capacityTR,
+    eer: entry.eer,
+    capexPhp: entry.unitPricePHP,
+    budgetBand: resolveBudgetBand(entry.manufacturer),
+  }];
+});
 
 function round(value: number, digits = 2) {
   const factor = 10 ** digits;
@@ -114,15 +131,11 @@ function scoreCandidate(
   const capexSpan = Math.max(1, maxCapex - minCapex);
   const capexScore = 100 - (((candidate.capexPhp - minCapex) / capexSpan) * 100);
 
-  let score = 0;
+  const wCapacity = getScoringWeight(inputs.optimizationPriority, 'capacity', inputs.optimizationPriority === 'balanced' ? 0.4 : 0.3);
+  const wEfficiency = getScoringWeight(inputs.optimizationPriority, 'efficiency', inputs.optimizationPriority === 'efficiency' ? 0.5 : inputs.optimizationPriority === 'capex' ? 0.2 : 0.3);
+  const wCapex = getScoringWeight(inputs.optimizationPriority, 'capex', inputs.optimizationPriority === 'capex' ? 0.5 : inputs.optimizationPriority === 'efficiency' ? 0.2 : 0.3);
 
-  if (inputs.optimizationPriority === 'capex') {
-    score = capacityScore * 0.3 + efficiencyScore * 0.2 + capexScore * 0.5;
-  } else if (inputs.optimizationPriority === 'efficiency') {
-    score = capacityScore * 0.3 + efficiencyScore * 0.5 + capexScore * 0.2;
-  } else {
-    score = capacityScore * 0.4 + efficiencyScore * 0.3 + capexScore * 0.3;
-  }
+  const score = capacityScore * wCapacity + efficiencyScore * wEfficiency + capexScore * wCapex;
 
   return round(clamp(score, 0, 100));
 }
@@ -140,7 +153,9 @@ export function calculateEquipmentSelection(
   overrides: EquipmentSelectionOverrides,
 ): EquipmentSelectionResult {
   const filtered = filterCatalog(inputs);
-  const targetTr = inputs.redundancyNPlusOne ? inputs.requiredTr * 1.15 : inputs.requiredTr;
+  const redundancyMultiplier = getEquipmentConstant('redundancy_multiplier', 1.15);
+  const maxCandidates = getEquipmentConstant('max_candidates', 12);
+  const targetTr = inputs.redundancyNPlusOne ? inputs.requiredTr * redundancyMultiplier : inputs.requiredTr;
 
   const candidates: EquipmentCandidate[] = filtered.flatMap((item) => {
     const minQty = Math.max(1, Math.ceil(targetTr / item.capacityTr));
@@ -183,7 +198,7 @@ export function calculateEquipmentSelection(
       score: scoreCandidate(item, inputs, maxCapex, minCapex),
     }))
     .sort((a, b) => b.score - a.score)
-    .slice(0, 12);
+    .slice(0, maxCandidates);
 
   const selectedCandidateId = overrides.lockOptionId && scored.some((item) => item.id === overrides.lockOptionId)
     ? overrides.lockOptionId
@@ -193,7 +208,7 @@ export function calculateEquipmentSelection(
     {
       label: 'Capacity Target',
       expression: 'Target TR = Required TR x Redundancy Factor',
-      value: `${inputs.requiredTr.toFixed(2)} x ${inputs.redundancyNPlusOne ? '1.15' : '1.00'} = ${targetTr.toFixed(2)} TR`,
+      value: `${inputs.requiredTr.toFixed(2)} x ${inputs.redundancyNPlusOne ? redundancyMultiplier.toFixed(2) : '1.00'} = ${targetTr.toFixed(2)} TR`,
     },
     {
       label: 'Energy Use',

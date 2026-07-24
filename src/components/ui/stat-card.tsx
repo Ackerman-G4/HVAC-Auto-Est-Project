@@ -3,6 +3,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils/cn';
 import { LucideIcon } from 'lucide-react';
+import { CountUp } from '@/components/ui/count-up';
 
 interface StatCardProps {
   title: string;
@@ -10,32 +11,44 @@ interface StatCardProps {
   subtitle?: string;
   icon?: LucideIcon;
   trend?: { value: number; label: string };
+  /** Disable the count-up animation for numeric values. */
+  animate?: boolean;
+  /** 'currency' renders the value in the copper money tone (plan §C6). */
+  tone?: 'default' | 'currency';
   className?: string;
 }
 
-export function StatCard({ title, value, subtitle, icon: Icon, trend, className }: StatCardProps) {
+export function StatCard({ title, value, subtitle, icon: Icon, trend, animate = true, tone = 'default', className }: StatCardProps) {
+  const numericValue = typeof value === 'number' && Number.isFinite(value) ? value : null;
   return (
     <div className={cn(
-      'group rounded-[1.2rem] border border-[color:var(--border)] bg-[linear-gradient(140deg,color-mix(in_oklab,var(--card)_95%,transparent),color-mix(in_oklab,var(--brand-paper)_72%,transparent))] p-6 shadow-[0_18px_34px_-24px_rgba(31,63,98,0.56)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[rgba(20,134,115,0.44)] hover:shadow-[0_22px_40px_-24px_rgba(20,134,115,0.72)]',
+      'glass-card hover-lift rounded-2xl border border-border/70 p-(--space-card-padding) shadow-[var(--panel-shadow)]',
       className
     )}>
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
-          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[color:var(--muted-foreground)]">{title}</p>
-          <p className="mt-2 truncate text-[2.25rem] font-extrabold leading-none tabular-nums text-[color:var(--foreground)]">{value}</p>
-          {subtitle && <p className="mt-2.5 text-sm font-medium text-[color:var(--muted-foreground)]">{subtitle}</p>}
+          <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">{title}</p>
+          <p className={cn(
+            'mt-3 truncate text-3xl font-bold leading-none tabular-nums',
+            tone === 'currency' ? 'text-currency' : 'text-foreground',
+          )}>
+            {animate && numericValue !== null
+              ? <CountUp value={numericValue} format={(n) => Math.round(n).toLocaleString()} />
+              : value}
+          </p>
+          {subtitle && <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>}
           {trend && (
             <p className={cn(
-              'mt-2.5 text-sm font-bold tabular-nums',
-              trend.value >= 0 ? 'text-[color:var(--success)]' : 'text-[color:var(--destructive)]'
+              'mt-2 text-sm font-semibold tabular-nums',
+              trend.value >= 0 ? 'text-success' : 'text-destructive'
             )}>
               {trend.value >= 0 ? '+' : ''}{trend.value} {trend.label}
             </p>
           )}
         </div>
         {Icon && (
-          <div className="h-12 w-12 shrink-0 rounded-2xl border border-[rgba(20,134,115,0.28)] bg-[linear-gradient(145deg,rgba(20,134,115,0.14),rgba(31,63,98,0.1))] flex items-center justify-center transition-all duration-300 group-hover:scale-105 group-hover:bg-[linear-gradient(145deg,rgba(20,134,115,0.2),rgba(31,63,98,0.14))]">
-            <Icon size={21} className="text-[color:var(--accent-dark)]" />
+          <div className="h-12 w-12 shrink-0 rounded-xl border border-border/70 bg-primary/10 flex items-center justify-center">
+            <Icon size={20} className="text-primary" />
           </div>
         )}
       </div>

@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import {
   deleteMaterialRecord,
   getMaterialRecord,
@@ -13,7 +14,7 @@ import {
   updateMaterialRecord,
 } from '@/lib/firebase/catalog-store';
 import { writeAuditLog } from '@/lib/firebase/projects-store';
-import { errorResponse, getErrorDetails, resourceNotFound } from '@/lib/utils/api-helpers';
+import { errorResponse, getErrorDetails, requireJsonRequest, resourceNotFound } from '@/lib/utils/api-helpers';
 import {
   getCatalogValidationError,
   materialUpdateSchema,
@@ -21,8 +22,26 @@ import {
 
 type RouteContext = { params: Promise<{ id: string }> };
 
+const MATERIAL_MUTATION_RATE_LIMIT = {
+  windowMs: 60_000,
+  maxRequests: 20,
+} as const;
+
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
+    const rateLimit = evaluateRateLimit(request, 'materials-id-put', MATERIAL_MUTATION_RATE_LIMIT);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
+      );
+    }
+
+    const jsonGuard = requireJsonRequest(request);
+    if (jsonGuard) {
+      return jsonGuard;
+    }
+
     const auth = await requireAuth(request, { allowedRoles: ['admin'] });
     if (!auth.authorized) {
       return auth.response;
@@ -82,6 +101,14 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
+    const rateLimit = evaluateRateLimit(request, 'materials-id-delete', MATERIAL_MUTATION_RATE_LIMIT);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
+      );
+    }
+
     const auth = await requireAuth(request, { allowedRoles: ['admin'] });
     if (!auth.authorized) {
       return auth.response;
