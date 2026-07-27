@@ -36,9 +36,13 @@ documents the contract.
   collision (`result`) was renamed `caseResult`/`resetEngine` (unread by any
   consumer); the engine page migrated to `useSimulationStore`; the standalone
   engine store is deleted. One source of truth for viewer/workspace/engine.
-- ⬜ **Deferred**: 3 pages → 1 unified route. Now lower-risk (shared store), but
-  a large UI consolidation (viewer 1672 + engine 1641 + workspace 700, feature
-  matrix + redirects) — best as its own focused pass.
+- ✅ **Navigation unified.** A shared `simulation/layout.tsx` tab bar
+  (Overview / Workspace / 3D Viewer / Engine) makes the three views read as one
+  workspace.
+- ⬜ **Deferred**: merging the three view *bodies* into a single `page.tsx`
+  (viewer 1672 + engine 1641 + workspace 700). The structural intent (one store,
+  one workspace nav) is met; the remaining body-merge is a large cosmetic
+  consolidation with layout-nesting risk — best done with visual verification.
 
 ### Phase 1.2 — Monolith decomposition ✅
 materials 1098→174, reports 1077→125, projects/[id] 2202→357, floorplan
@@ -100,8 +104,10 @@ reduced-motion aware. Remaining: retire a few inline variant objects.
   `/diagnostics`: backend connectivity + latency, an in-browser engine self-test
   (runs the pure equipment + airflow engines, asserts sane output), and
   online status.
-- ✅ 7.3 `npm run check` one-command gate.
-- ⬜ Deferred: README refresh, in-UI user management mutations.
+- ✅ 7.3 `npm run check` one-command gate + developer-docs refresh (README stack
+  & scripts, new `docs/architecture-v3.md` with directory/store/route maps).
+- ⬜ Deferred: in-UI user management mutations (lockout/unlock/role change) —
+  needs a new, security-sensitive admin endpoint.
 
 ## Recommended next session
 1. **Phase 1.1 page unification** — the store is now merged, so the 3 simulation
