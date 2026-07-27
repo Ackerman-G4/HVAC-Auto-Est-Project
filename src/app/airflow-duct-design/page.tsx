@@ -1,19 +1,17 @@
 'use client';
 
 import React from 'react';
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Legend,
-  Line,
-  LineChart,
-  ReferenceLine,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import dynamic from 'next/dynamic';
+import { ChartSkeleton } from '@/components/charts/ChartSkeleton';
+// Keep recharts out of this route's first-load JS.
+const VelocityPressureChart = dynamic(
+  () => import('@/components/charts/AirflowCharts').then((m) => m.VelocityPressureChart),
+  { ssr: false, loading: () => <ChartSkeleton height="100%" /> },
+);
+const CfmDistributionChart = dynamic(
+  () => import('@/components/charts/AirflowCharts').then((m) => m.CfmDistributionChart),
+  { ssr: false, loading: () => <ChartSkeleton height="100%" /> },
+);
 import { Info, RefreshCcw, WandSparkles } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -166,19 +164,7 @@ export default function AirflowDuctDesignPage() {
           </h3>
           <div className="h-75 w-full">
             {result.branchRows.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={result.branchRows} margin={{ top: 6, right: 14, bottom: 6, left: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="color-mix(in oklab,var(--border) 78%,transparent)" />
-                  <XAxis dataKey="branch" tick={{ fontSize: 11 }} stroke="color-mix(in oklab,var(--muted-foreground) 80%,transparent)" />
-                  <YAxis yAxisId="left" tick={{ fontSize: 11 }} stroke="color-mix(in oklab,var(--muted-foreground) 80%,transparent)" />
-                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} stroke="color-mix(in oklab,var(--muted-foreground) 80%,transparent)" />
-                  <Tooltip />
-                  <Legend />
-                  <ReferenceLine yAxisId="left" y={1400} stroke="var(--warning)" strokeDasharray="4 4" />
-                  <Line yAxisId="left" type="monotone" dataKey="velocityFpm" name="Velocity (FPM)" stroke="var(--warning)" strokeWidth={2.4} dot={{ r: 4 }} />
-                  <Line yAxisId="right" type="monotone" dataKey="pressureDropInWg" name="Pressure Drop (in.wg)" stroke="var(--accent)" strokeWidth={2.4} dot={{ r: 4 }} />
-                </LineChart>
-              </ResponsiveContainer>
+              <VelocityPressureChart data={result.branchRows} />
             ) : (
               <div className="flex h-full items-center justify-center text-xs text-muted-foreground">No branch data available.</div>
             )}
@@ -191,15 +177,7 @@ export default function AirflowDuctDesignPage() {
           </h3>
           <div className="h-75 w-full">
             {result.branchRows.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={result.branchRows} margin={{ top: 6, right: 14, bottom: 6, left: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="color-mix(in oklab,var(--border) 78%,transparent)" />
-                  <XAxis dataKey="branch" tick={{ fontSize: 11 }} stroke="color-mix(in oklab,var(--muted-foreground) 80%,transparent)" />
-                  <YAxis tick={{ fontSize: 11 }} stroke="color-mix(in oklab,var(--muted-foreground) 80%,transparent)" />
-                  <Tooltip />
-                  <Bar dataKey="designCfm" name="Design CFM" fill="var(--accent)" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              <CfmDistributionChart data={result.branchRows} />
             ) : (
               <div className="flex h-full items-center justify-center text-xs text-muted-foreground">No branch data available.</div>
             )}

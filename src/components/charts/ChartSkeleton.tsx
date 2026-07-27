@@ -5,7 +5,7 @@
  * dynamically imported so the (large) charting library never blocks a route's
  * first paint — this keeps the layout stable while it streams in.
  */
-export function ChartSkeleton({ height = 280 }: { height?: number }) {
+export function ChartSkeleton({ height = 280 }: { height?: number | string }) {
   return (
     <div
       className="flex w-full animate-pulse items-center justify-center rounded-lg bg-secondary/40"

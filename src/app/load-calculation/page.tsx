@@ -1,19 +1,17 @@
 'use client';
 
 import React from 'react';
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Legend,
-  Line,
-  LineChart,
-  ReferenceLine,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import dynamic from 'next/dynamic';
+import { ChartSkeleton } from '@/components/charts/ChartSkeleton';
+// Keep recharts out of this route's first-load JS.
+const LoadBreakdownChart = dynamic(
+  () => import('@/components/charts/LoadCalcCharts').then((m) => m.LoadBreakdownChart),
+  { ssr: false, loading: () => <ChartSkeleton height="100%" /> },
+);
+const AirflowProfileChart = dynamic(
+  () => import('@/components/charts/LoadCalcCharts').then((m) => m.AirflowProfileChart),
+  { ssr: false, loading: () => <ChartSkeleton height="100%" /> },
+);
 import { Info, MapPin, Plus, RefreshCcw, WandSparkles } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -311,15 +309,7 @@ export default function LoadCalculationPage() {
             </div>
             <div className="h-75 w-full">
               {chartsReady ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={breakdownData} margin={{ top: 6, right: 14, bottom: 6, left: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="color-mix(in oklab,var(--border) 78%,transparent)" />
-                    <XAxis dataKey="item" tick={{ fontSize: 11 }} stroke="color-mix(in oklab,var(--muted-foreground) 80%,transparent)" />
-                    <YAxis tick={{ fontSize: 11 }} stroke="color-mix(in oklab,var(--muted-foreground) 80%,transparent)" />
-                    <Tooltip />
-                    <Bar dataKey="btu" fill="var(--accent)" radius={[6, 6, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                <LoadBreakdownChart data={breakdownData} />
               ) : (
                 <div className="flex h-full items-center justify-center text-xs text-muted-foreground">Preparing chart...</div>
               )}
@@ -337,19 +327,7 @@ export default function LoadCalculationPage() {
             <CardContent>
             <div className="h-75 w-full">
               {chartsReady ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={result.airflowMap} margin={{ top: 6, right: 14, bottom: 6, left: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="color-mix(in oklab,var(--border) 78%,transparent)" />
-                    <XAxis dataKey="zone" tick={{ fontSize: 11 }} stroke="color-mix(in oklab,var(--muted-foreground) 80%,transparent)" />
-                    <YAxis yAxisId="left" tick={{ fontSize: 11 }} stroke="color-mix(in oklab,var(--muted-foreground) 80%,transparent)" />
-                    <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} stroke="color-mix(in oklab,var(--muted-foreground) 80%,transparent)" />
-                    <Tooltip />
-                    <Legend />
-                    <ReferenceLine yAxisId="right" y={950} stroke="var(--warning)" strokeDasharray="4 4" />
-                    <Line yAxisId="left" type="monotone" dataKey="cfm" name="CFM" stroke="var(--accent)" strokeWidth={2.4} dot={{ r: 4 }} />
-                    <Line yAxisId="right" type="monotone" dataKey="velocityFpm" name="Velocity (FPM)" stroke="var(--warning)" strokeWidth={2.4} dot={{ r: 4 }} />
-                  </LineChart>
-                </ResponsiveContainer>
+                <AirflowProfileChart data={result.airflowMap} />
               ) : (
                 <div className="flex h-full items-center justify-center text-xs text-muted-foreground">Preparing chart...</div>
               )}
