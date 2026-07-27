@@ -10,7 +10,11 @@ const nextConfig: NextConfig = {
 
   // Opt out of anonymous telemetry
   // https://nextjs.org/telemetry
-  experimental: {},
+  experimental: {
+    // Modularize large barrel-file packages so a route only bundles the
+    // components/icons it actually uses (smaller first-load JS app-wide).
+    optimizePackageImports: ['recharts', 'lucide-react', 'framer-motion'],
+  },
 
   // Strict React mode catches common bugs early
   reactStrictMode: true,

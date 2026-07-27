@@ -4,7 +4,13 @@ import { useReportsWorkspace } from '@/features/reports/useReportsWorkspace';
 import { ReportsHeader } from '@/features/reports/components/ReportsHeader';
 import { SimulationExportHistoryPanel } from '@/features/reports/components/SimulationExportHistoryPanel';
 import { ReportsKpiRow } from '@/features/reports/components/ReportsKpiRow';
-import { ReportsCharts } from '@/features/reports/components/ReportsCharts';
+import dynamic from 'next/dynamic';
+import { ChartSkeleton } from '@/components/charts/ChartSkeleton';
+// recharts is heavy and the chart row is below the header — stream it in.
+const ReportsCharts = dynamic(
+  () => import('@/features/reports/components/ReportsCharts').then((m) => m.ReportsCharts),
+  { ssr: false, loading: () => <ChartSkeleton height={340} /> },
+);
 import { CrossModuleSnapshot } from '@/features/reports/components/CrossModuleSnapshot';
 import { FormulaTransparency } from '@/features/reports/components/FormulaTransparency';
 import { AdvisoriesCard } from '@/features/reports/components/AdvisoriesCard';
