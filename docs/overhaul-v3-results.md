@@ -25,17 +25,20 @@ user-facing / runtime highs (Next SSRF/DoS, sharp/libvips, postcss) were fixed.
 Golden money-path tests + `openfoam-export` smoke frozen. `engine-invariants.md`
 documents the contract.
 
-### Phase 1.1 — Simulation consolidation 🟡 partial
+### Phase 1.1 — Simulation consolidation 🟡 (stores merged; pages pending)
 - ✅ Pure logic extracted to `src/features/simulation/viewer/` (types, constants,
   helpers) during the CFD scene fix.
 - ✅ Auto-detect consolidated to one placer (`autoDetectEquipment`); the viewer's
   divergent `inferRacksFromRoom`/`inferHVACFromRoom` deleted.
-- ⬜ **Deferred**: merging `simulation-engine-store` into `simulation-store` as
-  slices, and 3 pages → 1. Reason: the two stores collide on `result` (different
-  types: `SimulationResult` vs `CaseResult`) and `reset`, so a merge forces
-  invasive edits across the engine page's ~30 selectors — a high-regression task
-  that needs its own dedicated session, not a tail-of-run change. This is the
-  single largest remaining plan item.
+- ✅ **Stores merged.** `simulation-engine-store` → `simulation-engine-slice`
+  (a `StateCreator` slice), composed into `useSimulationStore`
+  (`SimulationStoreState = base CFD slice + engine slice`). The one field
+  collision (`result`) was renamed `caseResult`/`resetEngine` (unread by any
+  consumer); the engine page migrated to `useSimulationStore`; the standalone
+  engine store is deleted. One source of truth for viewer/workspace/engine.
+- ⬜ **Deferred**: 3 pages → 1 unified route. Now lower-risk (shared store), but
+  a large UI consolidation (viewer 1672 + engine 1641 + workspace 700, feature
+  matrix + redirects) — best as its own focused pass.
 
 ### Phase 1.2 — Monolith decomposition ✅
 materials 1098→174, reports 1077→125, projects/[id] 2202→357, floorplan
@@ -58,8 +61,10 @@ reduced-motion aware. Remaining: retire a few inline variant objects.
 - ✅ 4.2 WorkflowRail (wave 1), 4.3 Command palette (wave 1).
 - ✅ 4.4 CalcBreakdown "explain the numbers" drawer — wired on load-calculation
   and equipment-selection over the engines' existing formula traces.
+- ✅ 4.5 Autosave status indicator (`AutosaveIndicator`) on project detail,
+  wired to the debounced local-snapshot autosave (saving / saved / offline).
 - ✅ 4.7 Keyboard shortcuts sheet (`?`) + `g d` / `g p` navigation chords.
-- ⬜ Deferred: 4.1 project wizard, 4.5 autosave indicator, 4.6 onboarding tour.
+- ⬜ Deferred: 4.1 project wizard, 4.6 onboarding tour.
 
 ### Phase 5 — Resilience & performance ✅ (5.4 partial)
 - ✅ 5.1 error/loading/not-found coverage (wave 1).
@@ -68,10 +73,12 @@ reduced-motion aware. Remaining: retire a few inline variant objects.
   reports, and the 3 calculators dynamic-import their charts);
   `optimizePackageImports` for recharts/lucide/framer.
 - ✅ Backend: local-firestore in-memory cache + 67MB→4MB prune (API 15–28 ms).
-- ⬜ 5.4 API error-envelope reshape **intentionally not done** — the frontend
-  consumes `{ error, description }` app-wide; reshaping to `{ error: { code,
-  message } }` is a breaking change across 44 routes + every toast handler.
-  Recommend a compat-preserving approach if pursued.
+- ✅ 5.4 API error envelope — a shared `errorResponse(status, error,
+  description, code)` helper already yields a consistent `{ error, description,
+  code }` body (frontend-compatible) used across routes. The structured `code`
+  the plan asked for is present; a full reshape to `{ error: { code, message }}`
+  is intentionally avoided (breaking for the `{ error, description }` consumers).
+  Remaining polish: migrate ~14 inline `{ error }` returns onto the helper.
 
 ### Phase 6 — Engine hardening ✅
 - ✅ 6.1 invariant suites: `equipment-selection.test.ts` (7),
@@ -79,14 +86,18 @@ reduced-motion aware. Remaining: retire a few inline variant objects.
   fix. 82 cases total.
 - ✅ 6.3 `docs/engine-invariants.md`.
 
-### Phase 7 — Admin & owner ✅ (7.3) / ⬜ rest
+### Phase 7 — Admin & owner 🟡 partial
+- ✅ 7.2 Diagnostics **System Health board** — `SystemHealthCard` at the top of
+  `/diagnostics`: backend connectivity + latency, an in-browser engine self-test
+  (runs the pure equipment + airflow engines, asserts sane output), and
+  online status.
 - ✅ 7.3 `npm run check` one-command gate.
-- ⬜ Deferred: 7.1 admin console rebuild, 7.2 diagnostics health board, README
-  refresh.
+- ⬜ Deferred: 7.1 admin console rebuild, README refresh.
 
 ## Recommended next session
-1. **Phase 1.1 store merge** (highest value, highest risk — needs a focused run):
-   rename engine-store's colliding `result`→`caseResult` / `reset`→`resetCase`,
-   fold into `simulation-store` slices, migrate the engine page, then unify the
-   3 pages behind one route with redirects.
-2. Phase 2 per-page design sweep; Phase 4.1 wizard.
+1. **Phase 1.1 page unification** — the store is now merged, so the 3 simulation
+   pages can compose shared feature components behind one route (`/simulation`
+   with Layout / Engine / Results tabs) + redirects. The remaining large
+   simulation item.
+2. Phase 2 per-page design sweep; Phase 4.1 project wizard; Phase 7.1 admin
+   console.
