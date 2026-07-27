@@ -37,7 +37,7 @@ const SimulationCanvas = dynamic(() => import('@/components/simulation/r3f/Simul
 const AmbientWireframe = dynamic(() => import('@/components/simulation/r3f/AmbientWireframe'), {
   ssr: false,
 });
-import { useSimulationEngineStore } from '@/stores/simulation-engine-store';
+import { useSimulationStore } from '@/stores/simulation-store';
 import { useProjectStore } from '@/stores/project-store';
 import type {
   GeometryInput,
@@ -245,7 +245,7 @@ export default function SimulationEnginePage() {
     loadSnapshotIteration, loadSnapshotField,
     exportOpenFOAM, importResults, isExporting, isImporting,
     contourSlices, addContourSlice, removeContourSlice, updateContourSlice,
-  } = useSimulationEngineStore();
+  } = useSimulationStore();
 
   const [selectedProjectId, setSelectedProjectId] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
