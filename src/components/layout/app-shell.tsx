@@ -11,6 +11,7 @@ import { SystemLoadingScreen } from '@/components/layout/system-loading-screen';
 import { WelcomeOverlay } from '@/components/layout/welcome-overlay';
 import { PageTransition } from '@/components/ui/page-transition';
 import { CommandPalette } from '@/components/ui/command-palette';
+import { ShortcutsSheet } from '@/components/ui/shortcuts-sheet';
 import { useAuthStore } from '@/stores/auth-store';
 import { useUIStore } from '@/stores/ui-store';
 import { getRouteMeta } from '@/config/routes';
@@ -245,6 +246,7 @@ export function AppShell({ children }: AppShellProps) {
       />
 
       <CommandPalette />
+      <ShortcutsSheet />
       <ToastContainer />
     </div>
   );
