@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { PageWrapper, PageHeader } from '@/components/ui/page-wrapper';
 import { Card, CardContent } from '@/components/ui/card';
+import { SystemHealthCard } from '@/components/diagnostics/SystemHealthCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -263,6 +264,8 @@ export default function DiagnosticsPage() {
           </div>
         }
       />
+
+      <SystemHealthCard />
 
       <Card className="panel-glass border-border/70 bg-primary/5 shadow-sm">
         <CardContent className="py-4">
