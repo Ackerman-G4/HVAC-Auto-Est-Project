@@ -1,19 +1,17 @@
 'use client';
 
 import React from 'react';
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Legend,
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import dynamic from 'next/dynamic';
+import { ChartSkeleton } from '@/components/charts/ChartSkeleton';
+// Keep recharts out of this route's first-load JS.
+const CostDistributionChart = dynamic(
+  () => import('@/components/charts/EquipmentCharts').then((m) => m.CostDistributionChart),
+  { ssr: false, loading: () => <ChartSkeleton height={260} /> },
+);
+const CandidateScoresChart = dynamic(
+  () => import('@/components/charts/EquipmentCharts').then((m) => m.CandidateScoresChart),
+  { ssr: false, loading: () => <ChartSkeleton height={260} /> },
+);
 import { RefreshCcw, WandSparkles } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -232,16 +230,7 @@ export default function EquipmentSelectionPage() {
               </h3>
               {costPieData.length > 0 ? (
                 <>
-                  <ResponsiveContainer width="100%" height={260}>
-                    <PieChart>
-                      <Pie data={costPieData} cx="50%" cy="50%" innerRadius={55} outerRadius={90} dataKey="value" paddingAngle={2} stroke="none">
-                        {costPieData.map((_entry, i) => (
-                          <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value) => `₱${Number(value).toLocaleString()}`} contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13 }} />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  <CostDistributionChart data={costPieData} colors={CHART_COLORS} />
                   <div className="mt-2 flex flex-wrap gap-3">
                     {costPieData.map((d, i) => (
                       <span key={d.name} className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -261,17 +250,7 @@ export default function EquipmentSelectionPage() {
                 Candidate Scores
               </h3>
               {chartsReady && result.candidates.length > 0 ? (
-                <ResponsiveContainer width="100%" height={260}>
-                  <BarChart data={result.candidates} margin={{ top: 6, right: 14, bottom: 6, left: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="color-mix(in oklab,var(--border) 78%,transparent)" />
-                    <XAxis dataKey="model" tick={{ fontSize: 10 }} stroke="color-mix(in oklab,var(--muted-foreground) 80%,transparent)" />
-                    <YAxis tick={{ fontSize: 11 }} stroke="color-mix(in oklab,var(--muted-foreground) 80%,transparent)" />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="score" name="Score" fill="var(--accent)" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="utilizationPct" name="Util %" fill="var(--warning)" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                <CandidateScoresChart data={result.candidates} />
               ) : (
                 <div className="flex h-65 items-center justify-center text-sm text-muted-foreground">Preparing chart...</div>
               )}
