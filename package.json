@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "check": "tsc --noEmit && eslint src && vitest run",
     "dev": "powershell -ExecutionPolicy Bypass -File ./scripts/dev-app.ps1",
     "dev:no-turbo": "powershell -ExecutionPolicy Bypass -File ./scripts/dev-app.ps1 -NoTurbo",
     "dev:raw": "next dev --turbopack",
