@@ -16,6 +16,7 @@ import { RefreshCcw, WandSparkles } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatCard } from '@/components/ui/stat-card';
+import { CalcBreakdown } from '@/components/ui/calc-breakdown';
 import { Stagger, StaggerItem } from '@/components/ui/reveal';
 import { CollapsiblePanel } from '@/components/rebuild/CollapsiblePanel';
 import { DenseDataTable, DenseColumn } from '@/components/rebuild/DenseDataTable';
@@ -246,9 +247,16 @@ export default function EquipmentSelectionPage() {
             </Card>
 
             <Card className="panel-glass border-border/70 p-6 lg:p-8">
-              <h3 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Candidate Scores
-              </h3>
+              <div className="mb-4 flex items-center gap-1.5">
+                <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Candidate Scores
+                </h3>
+                <CalcBreakdown
+                  title="Equipment Selection Breakdown"
+                  formulas={result.formulas}
+                  note="Scores weigh capacity match, efficiency (EER), and lifecycle cost per the selected optimization priority."
+                />
+              </div>
               {chartsReady && result.candidates.length > 0 ? (
                 <CandidateScoresChart data={result.candidates} />
               ) : (

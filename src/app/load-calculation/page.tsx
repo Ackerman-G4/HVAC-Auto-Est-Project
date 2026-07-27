@@ -16,6 +16,7 @@ import { Info, MapPin, Plus, RefreshCcw, WandSparkles } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatCard } from '@/components/ui/stat-card';
+import { CalcBreakdown } from '@/components/ui/calc-breakdown';
 import { Stagger, StaggerItem } from '@/components/ui/reveal';
 import LoadBreakdownBar, { segmentsFromEntries } from '@/components/load/LoadBreakdownBar';
 import { CollapsiblePanel } from '@/components/rebuild/CollapsiblePanel';
@@ -283,6 +284,15 @@ export default function LoadCalculationPage() {
 
         {/* Right Column — Outputs */}
         <div className="space-y-(--space-component-gap)">
+          {/* Results header + explain-the-numbers affordance (plan §4.4) */}
+          <div className="flex items-center gap-1.5">
+            <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Calculation Results</h3>
+            <CalcBreakdown
+              title="Cooling Load Breakdown"
+              formulas={result.formulas}
+              note="Values are derived from envelope, people, lighting, equipment, and ventilation gains per the ASHRAE-based cooling-load engine."
+            />
+          </div>
           {/* KPI Summary */}
           <Stagger className="grid gap-(--space-component-gap) sm:grid-cols-3">
             <StaggerItem><StatCard title="Design Load" value={`${result.breakdown.totalBtuAfterFactors.toLocaleString()} BTU/h`} /></StaggerItem>
