@@ -61,10 +61,14 @@ reduced-motion aware. Remaining: retire a few inline variant objects.
 - ✅ 4.2 WorkflowRail (wave 1), 4.3 Command palette (wave 1).
 - ✅ 4.4 CalcBreakdown "explain the numbers" drawer — wired on load-calculation
   and equipment-selection over the engines' existing formula traces.
+- ✅ 4.1 Guided project wizard — `projects/new` rebuilt as a 4-step stepper
+  (Basics → Building → Conditions → Review) with per-step validation and a
+  localStorage-persisted draft.
 - ✅ 4.5 Autosave status indicator (`AutosaveIndicator`) on project detail,
   wired to the debounced local-snapshot autosave (saving / saved / offline).
+- ✅ 4.6 First-run onboarding tour (`OnboardingTour`) — dismissible 4-step tour,
+  "don't show again" persisted.
 - ✅ 4.7 Keyboard shortcuts sheet (`?`) + `g d` / `g p` navigation chords.
-- ⬜ Deferred: 4.1 project wizard, 4.6 onboarding tour.
 
 ### Phase 5 — Resilience & performance ✅ (5.4 partial)
 - ✅ 5.1 error/loading/not-found coverage (wave 1).
@@ -86,13 +90,18 @@ reduced-motion aware. Remaining: retire a few inline variant objects.
   fix. 82 cases total.
 - ✅ 6.3 `docs/engine-invariants.md`.
 
-### Phase 7 — Admin & owner 🟡 partial
+### Phase 7 — Admin & owner ✅ (7.1 mostly)
+- ✅ 7.1 Admin console — already a real console: Dashboard (stats), Users, All
+  Projects, Audit Log (action + search filters), Price Controls (override editor
+  with catalog-price diff), behind an RBAC guard. Gap: in-UI user
+  lockout/unlock is still CLI-provisioned (needs a new, security-sensitive admin
+  mutation endpoint — deliberately deferred).
 - ✅ 7.2 Diagnostics **System Health board** — `SystemHealthCard` at the top of
   `/diagnostics`: backend connectivity + latency, an in-browser engine self-test
   (runs the pure equipment + airflow engines, asserts sane output), and
   online status.
 - ✅ 7.3 `npm run check` one-command gate.
-- ⬜ Deferred: 7.1 admin console rebuild, README refresh.
+- ⬜ Deferred: README refresh, in-UI user management mutations.
 
 ## Recommended next session
 1. **Phase 1.1 page unification** — the store is now merged, so the 3 simulation
