@@ -115,7 +115,7 @@
     "gaxios": "7.1.4",
     "retry-request": "8.0.2",
     "teeny-request": "10.1.2",
-    "postcss": "8.5.14",
+    "postcss": "^8.5.23",
     "uuid": "14.0.0",
     "sharp": "^0.35.0",
     "esbuild": "^0.28.1"
