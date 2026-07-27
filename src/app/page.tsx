@@ -3,17 +3,19 @@
 import React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import {
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import dynamic from 'next/dynamic';
+import { ChartSkeleton } from '@/components/charts/ChartSkeleton';
+
+// recharts is large and both charts are secondary content — load them after
+// the page is interactive instead of blocking first paint.
+const LoadDistributionChart = dynamic(
+  () => import('@/components/charts/DashboardCharts').then((m) => m.LoadDistributionChart),
+  { ssr: false, loading: () => <ChartSkeleton /> },
+);
+const CostBreakdownChart = dynamic(
+  () => import('@/components/charts/DashboardCharts').then((m) => m.CostBreakdownChart),
+  { ssr: false, loading: () => <ChartSkeleton /> },
+);
 import {
   Activity,
   ChevronRight,
@@ -131,33 +133,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
           {loadDistData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={280}>
-              <PieChart>
-                <Pie
-                  data={loadDistData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  dataKey="value"
-                  paddingAngle={2}
-                  stroke="none"
-                >
-                  {loadDistData.map((_entry, i) => (
-                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(value) => `${Number(value).toLocaleString()} BTU/h`}
-                  contentStyle={{
-                    background: 'var(--card)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 8,
-                    fontSize: 13,
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+            <LoadDistributionChart data={loadDistData} colors={CHART_COLORS} />
           ) : (
             <div className="flex h-70 items-center justify-center text-sm text-muted-foreground">
               Run a load calculation to see distribution
@@ -185,33 +161,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
           {costData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={costData} barGap={4}>
-                <XAxis
-                  dataKey="name"
-                  tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={(v: number) => `₱${(v / 1000).toFixed(0)}k`}
-                />
-                <Tooltip
-                  formatter={(value) => `₱${Number(value).toLocaleString()}`}
-                  contentStyle={{
-                    background: 'var(--card)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 8,
-                    fontSize: 13,
-                  }}
-                />
-                <Bar dataKey="capex" name="CAPEX" fill="var(--accent)" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="energy" name="Annual Energy" fill="var(--warning)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <CostBreakdownChart data={costData} />
           ) : (
             <div className="flex h-70 items-center justify-center text-sm text-muted-foreground">
               Select equipment to see cost comparison
