@@ -9,15 +9,31 @@ Rolling status of the MASTER-PLAN-v3 phases as landed on `main` /
 | Metric | Baseline | Now |
 |---|---|---|
 | Pages > 1000 lines | 8 | **2** (only `simulation/viewer` 1672, `simulation/engine` 1641) |
-| Test cases | 6 | **91** |
-| Vulnerabilities (high) | 12 | **19*** |
+| Test cases | 6 | **96** |
+| Vulnerabilities (high) | 12 | **9*** |
 | `npm run check` one-command gate | — | ✅ added |
 
-\* The 19 are one `brace-expansion <=5.0.7` DoS chain reached only via eslint
-tooling + exceljs/firebase-admin's internal glob usage (dev-time / non-user-
-facing). The only fix is a major bump that breaks `@eslint/config-array`'s path
-matcher — attempted and reverted. Accepted-risk transitive dep. All
-user-facing / runtime highs (Next SSRF/DoS, sharp/libvips, postcss) were fixed.
+\* Down from 19. All remaining are the same `brace-expansion <=5.0.7` DoS
+(GHSA-mh99-v99m-4gvg), now confined to **dev-only lint tooling**
+(`eslint` → `@eslint/eslintrc`, and eslint-config-next's
+import/jsx-a11y/react plugins → `minimatch@3`).
+
+**Why the rest can't be fixed today** (verified, not assumed): the patch exists
+only from `brace-expansion@3.0.4`/`5.0.8`, and that line changed its export from
+a callable function to a plain object. `minimatch@3.x`/`5.x` call
+`require('brace-expansion')(…)`, so *any* override to a patched version is a
+guaranteed `TypeError` — this is what broke `@eslint/config-array` in the
+earlier attempt. No patched release keeps the callable CommonJS API. Upgrading
+`eslint`→10 was also tried and reverted: `eslint-plugin-react/import/jsx-a11y`
+are all already at their latest versions and none support eslint 10 (peer `^9`
+max), so eslint 10 crashes the lint run outright.
+
+**What was fixed:** the two chains that touch runtime/user-facing code are gone
+— `exceljs` (via `archiver@8`, whose `readdir-glob@3` → `minimatch@10` →
+patched `brace-expansion@5`) and `firebase-admin` (via `rimraf@6` → `glob@11` →
+`minimatch@10`). Because `archiver@8` is three majors above what exceljs
+declares and no test covers it, XLSX export was verified by generating a real
+workbook and round-tripping the bytes.
 
 ## Phase status
 
