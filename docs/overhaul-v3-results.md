@@ -9,7 +9,7 @@ Rolling status of the MASTER-PLAN-v3 phases as landed on `main` /
 | Metric | Baseline | Now |
 |---|---|---|
 | Pages > 1000 lines | 8 | **2** (only `simulation/viewer` 1672, `simulation/engine` 1641) |
-| Test cases | 6 | **82** |
+| Test cases | 6 | **91** |
 | Vulnerabilities (high) | 12 | **19*** |
 | `npm run check` one-command gate | — | ✅ added |
 
@@ -39,10 +39,15 @@ documents the contract.
 - ✅ **Navigation unified.** A shared `simulation/layout.tsx` tab bar
   (Overview / Workspace / 3D Viewer / Engine) makes the three views read as one
   workspace.
-- ⬜ **Deferred**: merging the three view *bodies* into a single `page.tsx`
-  (viewer 1672 + engine 1641 + workspace 700). The structural intent (one store,
-  one workspace nav) is met; the remaining body-merge is a large cosmetic
-  consolidation with layout-nesting risk — best done with visual verification.
+- ⬜ **Still deferred**: merging the three view *bodies* into a single `page.tsx`
+  (viewer 1672 + engine 1641 + workspace 700). Re-evaluated this session and
+  confirmed (not just assumed) that visual verification isn't possible in this
+  environment: these routes are auth-gated client-side, so the dev server
+  serves an empty shell to any non-interactive fetch — a merge of ~4,000 lines
+  of 3D/canvas state could silently ship broken and no automated check
+  (tsc/eslint/vitest/build) would catch it. The structural intent (one store,
+  one workspace nav) is met; the body-merge stays parked until it can be
+  reviewed in a browser.
 
 ### Phase 1.2 — Monolith decomposition ✅
 materials 1098→174, reports 1077→125, projects/[id] 2202→357, floorplan
@@ -53,8 +58,22 @@ components). Only the 2 simulation pages remain large (see 1.1).
 - ✅ Dark theme fully in place (tokens under `[data-theme="dark"]`, `ui-store`
   toggle, applied to `<html>`, theme toggle in the command palette).
 - ✅ `PageHeader` + breadcrumbs pattern, `panel-glass`/elevation used broadly.
-- ⬜ **Deferred**: the full per-page visual redesign sweep across all 23 pages —
-  large subjective design work, out of scope for a verified-increment run.
+- ✅ **Consistency audit + mechanical fixes.** Audited all 22 route pages against
+  the PageHeader/skeleton/EmptyState/token checklist. Fixed the concrete,
+  objectively-verifiable gaps: added `PageHeader` to the dashboard and
+  load-calculation (the only two pages with no title at all); swapped
+  hand-rolled empty-state markup for the shared `EmptyState` component
+  (dashboard recent-activity, simulation viewer results/TileFlow panels);
+  replaced two hardcoded non-token colors with `warning`/`success` tokens
+  (materials read-only banner, reports backfill status) that were silently
+  wrong under dark theme. Left the "Command Deck" in-card header pattern
+  alone (equipment-selection, airflow-duct-design, diagnostics, simulation
+  launcher/workspace/viewer) — it's a deliberate, already-consistent design,
+  not a gap; the audit's own comparison would have looked worse stacking a
+  second header on top of it.
+- ⬜ **Deferred**: the full subjective per-page visual redesign sweep (spacing,
+  hierarchy, information density judgment calls) — still out of scope without
+  browser-based visual review.
 
 ### Phase 3 — Motion system 🟡 mostly done
 Shared system already exists (`src/lib/ui/motion.ts`, `src/animations/`). New
@@ -91,28 +110,33 @@ reduced-motion aware. Remaining: retire a few inline variant objects.
 ### Phase 6 — Engine hardening ✅
 - ✅ 6.1 invariant suites: `equipment-selection.test.ts` (7),
   `airflow-duct.test.ts` (7), plus scene/hotspot/normalize suites from the CFD
-  fix. 82 cases total.
+  fix. 91 cases total (incl. the 7.1 admin-mutation guard suite).
 - ✅ 6.3 `docs/engine-invariants.md`.
 
-### Phase 7 — Admin & owner ✅ (7.1 mostly)
-- ✅ 7.1 Admin console — already a real console: Dashboard (stats), Users, All
-  Projects, Audit Log (action + search filters), Price Controls (override editor
-  with catalog-price diff), behind an RBAC guard. Gap: in-UI user
-  lockout/unlock is still CLI-provisioned (needs a new, security-sensitive admin
-  mutation endpoint — deliberately deferred).
+### Phase 7 — Admin & owner ✅
+- ✅ 7.1 Admin console — Dashboard (stats), Users, All Projects, Audit Log
+  (action + search filters), Price Controls (override editor with
+  catalog-price diff), behind an RBAC guard. **In-UI user mutations now
+  shipped**: `PATCH /api/admin/users/[id]` (admin-only, rate-limited,
+  audit-logged) backed by a pure `assertAdminMutationAllowed` guard (9 unit
+  tests) that blocks self-lockout and removing the last enabled admin; works
+  in both firebase and local-auth modes (local store gained a `disabled` flag
+  enforced at sign-in). Lock/unlock and promote/demote buttons + a confirm
+  dialog are wired into the Users panel. Password resets and new-account
+  provisioning remain CLI-only by design.
 - ✅ 7.2 Diagnostics **System Health board** — `SystemHealthCard` at the top of
   `/diagnostics`: backend connectivity + latency, an in-browser engine self-test
   (runs the pure equipment + airflow engines, asserts sane output), and
   online status.
 - ✅ 7.3 `npm run check` one-command gate + developer-docs refresh (README stack
   & scripts, new `docs/architecture-v3.md` with directory/store/route maps).
-- ⬜ Deferred: in-UI user management mutations (lockout/unlock/role change) —
-  needs a new, security-sensitive admin endpoint.
 
 ## Recommended next session
-1. **Phase 1.1 page unification** — the store is now merged, so the 3 simulation
-   pages can compose shared feature components behind one route (`/simulation`
-   with Layout / Engine / Results tabs) + redirects. The remaining large
-   simulation item.
-2. Phase 2 per-page design sweep; Phase 4.1 project wizard; Phase 7.1 admin
-   console.
+1. **Phase 1.1 page unification** — the only item left that needs a human in a
+   browser. Store, nav, and equipment-placement pipeline are already unified;
+   the remaining work is merging 3 large, stateful 3D/canvas page bodies
+   (~4,000 lines total) where an automated gate cannot catch a layout or
+   wiring regression. Do this with a live dev server and visual review.
+2. Phase 2 full subjective redesign sweep (spacing/hierarchy/density) — the
+   objective consistency gaps (headers, empty states, color tokens) are closed;
+   what's left is genuine design judgment.
