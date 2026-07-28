@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { PageWrapper, PageHeader } from '@/components/ui/page-wrapper';
 import { StatCard } from '@/components/ui/stat-card';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Tabs, TabPanel } from '@/components/ui/tabs';
 import { useSimulationStore } from '@/stores/simulation-store';
 import type {
@@ -510,11 +511,12 @@ function ResultsPanel() {
 
   if (!result) {
     return (
-      <div className="panel-glass flex h-64 flex-col items-center justify-center rounded-xl border border-border/70 bg-card shadow-sm">
-        <Wind size={48} className="mb-4 text-muted-foreground/45" />
-        <p className="text-lg font-bold text-foreground">No simulation results yet</p>
-        <p className="mt-1 text-sm text-muted-foreground">Place equipment and run a CFD simulation</p>
-      </div>
+      <EmptyState
+        className="panel-glass h-64"
+        icon={<Wind size={28} />}
+        title="No simulation results yet"
+        description="Place equipment and run a CFD simulation"
+      />
     );
   }
 
@@ -1653,11 +1655,12 @@ export default function SimulationPage() {
               />
             </div>
           ) : (
-            <div className="panel-glass flex h-64 flex-col items-center justify-center rounded-xl border border-border/70 bg-card shadow-sm">
-              <Layers size={48} className="mb-4 text-muted-foreground/45" />
-              <p className="text-lg font-bold text-foreground">No simulation results yet</p>
-              <p className="mt-1 text-sm text-muted-foreground">Run a CFD simulation to view TileFlow analysis</p>
-            </div>
+            <EmptyState
+              className="panel-glass h-64"
+              icon={<Layers size={28} />}
+              title="No simulation results yet"
+              description="Run a CFD simulation to view TileFlow analysis"
+            />
           )}
         </TabPanel>
         <TabPanel tabId="failure" activeTab={activeTab}>

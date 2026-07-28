@@ -14,6 +14,7 @@ const AirflowProfileChart = dynamic(
 );
 import { Info, MapPin, Plus, RefreshCcw, WandSparkles } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { PageHeader } from '@/components/ui/page-wrapper';
 import { Button } from '@/components/ui/button';
 import { StatCard } from '@/components/ui/stat-card';
 import { CalcBreakdown } from '@/components/ui/calc-breakdown';
@@ -102,6 +103,10 @@ export default function LoadCalculationPage() {
 
   return (
     <div className="space-y-(--space-section-gap)">
+      <PageHeader
+        title="Load Calculation"
+        description="Estimate cooling load, airflow, and equipment sizing for a space."
+      />
       {/* 2-Column Layout — Project Info & Inputs (left), Outputs (right) */}
       <section className="grid gap-(--space-component-gap) xl:grid-cols-[420px_minmax(0,1fr)]">
         {/* Left Column — Project Info + Room Parameters */}
