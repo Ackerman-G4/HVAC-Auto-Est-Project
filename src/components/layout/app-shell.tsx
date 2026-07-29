@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { MotionConfig } from 'framer-motion';
 import { usePathname, useRouter } from 'next/navigation';
 import { MoonStar, Sun, UserCircle2, Gauge, GraduationCap, Search } from 'lucide-react';
 import { Sidebar } from './sidebar';
@@ -24,7 +25,24 @@ interface AppShellProps {
 
 const UI_THEME_STORAGE_KEY = 'hvac-ui-theme';
 
+/**
+ * Honour the OS "reduce motion" setting globally (WCAG 2.3.3).
+ *
+ * Most shared overlays already call usePrefersReducedMotion, but ~26 inline
+ * `initial={{…}}` / `animate={{…}}` props scattered across 14 files bypassed it
+ * entirely. framer-motion's MotionConfig applies the preference to every motion
+ * component beneath it, which fixes the whole class in one place instead of
+ * rewriting each call site.
+ */
 export function AppShell({ children }: AppShellProps) {
+  return (
+    <MotionConfig reducedMotion="user">
+      <AppShellContent>{children}</AppShellContent>
+    </MotionConfig>
+  );
+}
+
+function AppShellContent({ children }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const routeMeta = getRouteMeta(pathname);
