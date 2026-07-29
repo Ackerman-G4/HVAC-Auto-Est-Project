@@ -8,8 +8,8 @@ Rolling status of the MASTER-PLAN-v3 phases as landed on `main` /
 
 | Metric | Baseline | Now |
 |---|---|---|
-| Pages > 1000 lines | 8 | **2** (only `simulation/viewer` 1672, `simulation/engine` 1641) |
-| Test cases | 6 | **96** |
+| Pages > 1000 lines | 8 | **0** |
+| Test cases | 6 | **101** |
 | Vulnerabilities (high) | 12 | **9*** |
 | `npm run check` one-command gate | — | ✅ added |
 
@@ -41,7 +41,7 @@ workbook and round-tripping the bytes.
 Golden money-path tests + `openfoam-export` smoke frozen. `engine-invariants.md`
 documents the contract.
 
-### Phase 1.1 — Simulation consolidation 🟡 (stores merged; pages pending)
+### Phase 1.1 — Simulation consolidation ✅
 - ✅ Pure logic extracted to `src/features/simulation/viewer/` (types, constants,
   helpers) during the CFD scene fix.
 - ✅ Auto-detect consolidated to one placer (`autoDetectEquipment`); the viewer's
@@ -51,24 +51,39 @@ documents the contract.
   (`SimulationStoreState = base CFD slice + engine slice`). The one field
   collision (`result`) was renamed `caseResult`/`resetEngine` (unread by any
   consumer); the engine page migrated to `useSimulationStore`; the standalone
-  engine store is deleted. One source of truth for viewer/workspace/engine.
+  engine store is deleted. One source of truth for viewer/engine.
 - ✅ **Navigation unified.** A shared `simulation/layout.tsx` tab bar
-  (Overview / Workspace / 3D Viewer / Engine) makes the three views read as one
-  workspace.
-- ⬜ **Still deferred**: merging the three view *bodies* into a single `page.tsx`
-  (viewer 1672 + engine 1641 + workspace 700). Re-evaluated this session and
-  confirmed (not just assumed) that visual verification isn't possible in this
-  environment: these routes are auth-gated client-side, so the dev server
-  serves an empty shell to any non-interactive fetch — a merge of ~4,000 lines
-  of 3D/canvas state could silently ship broken and no automated check
-  (tsc/eslint/vitest/build) would catch it. The structural intent (one store,
-  one workspace nav) is met; the body-merge stays parked until it can be
-  reviewed in a browser.
+  (Overview / 3D Viewer / Engine) makes the views read as one workspace.
+- ✅ **Workspace absorbed, both pages decomposed.** Structural research found the
+  three routes were not three views of one thing: `workspace` (700 lines) was a
+  *strict subset* of `viewer` — its store reads and its config/3D/results panels
+  all had equivalents there — while `engine` is a genuinely different tool
+  (OpenFOAM batch case management, not live interactive simulation). A literal
+  one-page merge would have stacked 10+ tabs across two unrelated workflows, so
+  instead:
+  - `/simulation/workspace` now `redirect()`s to `/simulation/viewer` (bookmarks
+    keep working); its Workspace tab, sidebar entry, launcher CTA and route-meta
+    are gone, and `WorkspaceLayout`/`InputPanel`/`ViewerPanel`/`ResultsPanel`
+    (single-consumer, confirmed by grep) are deleted.
+  - Its two capabilities viewer lacked were **ported, not dropped**: the
+    PDF/CSV/JSON engineering report export (now in the viewer's header toolbar)
+    and the `runtimeMode` / `config.dimensionMode` solver controls (now in the
+    Configuration tab). `dimensionMode` is a real switch consumed by
+    `cfd.worker.ts`'s `force2DFast`, independent of the fast/balanced selector.
+  - Both remaining pages are now composition shells over
+    `features/simulation/{viewer,engine}/`: **viewer 1675 → 268**, **engine
+    1641 → 226**.
+- ⚠️ **Not yet verified in a browser.** tsc/eslint/vitest/build are green and
+  every route serves 200, but these pages render client-side behind auth, so no
+  automated check here can confirm the UI behaves. Needs a hands-on pass —
+  especially the layout autosave (open a project → expect zero PUTs; drag one
+  HVAC unit → expect exactly one debounced PUT).
 
 ### Phase 1.2 — Monolith decomposition ✅
 materials 1098→174, reports 1077→125, projects/[id] 2202→357, floorplan
-1921→617. All logic moved into `src/features/<domain>/` (hooks + presentational
-components). Only the 2 simulation pages remain large (see 1.1).
+1921→617, simulation/viewer 1675→268, simulation/engine 1641→226. All logic
+moved into `src/features/<domain>/` (hooks + presentational components).
+No page over 1000 lines remains.
 
 ### Phase 2 — Design system 2.0 🟡 partial
 - ✅ Dark theme fully in place (tokens under `[data-theme="dark"]`, `ui-store`
@@ -84,17 +99,27 @@ components). Only the 2 simulation pages remain large (see 1.1).
   (materials read-only banner, reports backfill status) that were silently
   wrong under dark theme. Left the "Command Deck" in-card header pattern
   alone (equipment-selection, airflow-duct-design, diagnostics, simulation
-  launcher/workspace/viewer) — it's a deliberate, already-consistent design,
+  launcher/viewer) — it's a deliberate, already-consistent design,
   not a gap; the audit's own comparison would have looked worse stacking a
   second header on top of it.
 - ⬜ **Deferred**: the full subjective per-page visual redesign sweep (spacing,
   hierarchy, information density judgment calls) — still out of scope without
   browser-based visual review.
 
-### Phase 3 — Motion system 🟡 mostly done
+### Phase 3 — Motion system ✅
 Shared system already exists (`src/lib/ui/motion.ts`, `src/animations/`). New
 overlays (command palette, shortcuts sheet, CalcBreakdown) consume it and are
-reduced-motion aware. Remaining: retire a few inline variant objects.
+reduced-motion aware.
+
+The remaining item was logged as "retire a few inline variant objects", but the
+audit found the real defect underneath it: ~26 inline `initial={{…}}` props
+across 14 files bypassed `usePrefersReducedMotion`, and there was **no global
+`MotionConfig`** — so those animations ignored the OS "reduce motion" setting
+outright (WCAG 2.3.3), which is an accessibility bug rather than a style
+inconsistency. Fixed at the root instead of at 26 call sites: `AppShell` now
+wraps the tree in `<MotionConfig reducedMotion="user">`, which applies the
+preference to every motion component beneath it. Retiring the inline objects is
+now cosmetic only.
 
 ### Phase 4 — UX flows 🟡 partial
 - ✅ 4.2 WorkflowRail (wave 1), 4.3 Command palette (wave 1).
@@ -121,7 +146,32 @@ reduced-motion aware. Remaining: retire a few inline variant objects.
   code }` body (frontend-compatible) used across routes. The structured `code`
   the plan asked for is present; a full reshape to `{ error: { code, message }}`
   is intentionally avoided (breaking for the `{ error, description }` consumers).
-  Remaining polish: migrate ~14 inline `{ error }` returns onto the helper.
+  Remaining polish (migrating ~25 inline `{ error }` returns in 14 files onto
+  the helper) was investigated and **deliberately not done**: grep shows nothing
+  reads the `code` field — zero frontend consumers, zero literal comparisons —
+  while both `error` and `description` *are* rendered to users. The migration
+  would therefore add an unread field while touching auth routes (login,
+  register, refresh, profile), risking user-visible message changes for no
+  payoff. Worth revisiting only when a consumer for `code` actually exists.
+
+### CFD follow-ups (parked by the scene audit) ✅
+The CFD/3D scene fix deliberately left three items out of scope. All now closed:
+- ✅ **Solver ignored `rack.position.z`.** `placeRacks` hard-coded every rack to
+  grid layer 1, so an elevated rack rendered in the air while its heat load
+  stayed on the floor — renderer/solver desync. Now offsets by
+  `posToGrid(position.z)`. Backward-compatible by construction:
+  `normalizeRoomLayout` floor-snaps racks to z=0 and `posToGrid(0) === 0`, so
+  every existing placement is byte-identical (locked in by a regression test
+  asserting a floor rack still occupies layers [1,2]). 5 tests cover elevation,
+  heat co-location, heat conservation, and out-of-domain clamping.
+- ✅ **Orphaned `BuildingSimulationViewer3D`** (216 lines, zero references)
+  deleted.
+- ✅ **Dead `DenseVelocityArrows`** export (63 lines, exported but never
+  imported) deleted from `CFDOverlay3D`.
+
+TileFlow was also listed as out of scope; it was reviewed and needs no change —
+`placePerforatedTiles` already places tiles by integer grid index on the floor
+plane (z=0), consistent with the placement pipeline.
 
 ### Phase 6 — Engine hardening ✅
 - ✅ 6.1 invariant suites: `equipment-selection.test.ts` (7),
@@ -148,11 +198,12 @@ reduced-motion aware. Remaining: retire a few inline variant objects.
   & scripts, new `docs/architecture-v3.md` with directory/store/route maps).
 
 ## Recommended next session
-1. **Phase 1.1 page unification** — the only item left that needs a human in a
-   browser. Store, nav, and equipment-placement pipeline are already unified;
-   the remaining work is merging 3 large, stateful 3D/canvas page bodies
-   (~4,000 lines total) where an automated gate cannot catch a layout or
-   wiring regression. Do this with a live dev server and visual review.
+1. **Browser-verify the simulation consolidation** — the code is landed and the
+   gate is green, but nothing in tsc/eslint/vitest/build can catch a JSX or
+   wiring regression on these client-rendered, auth-gated pages. Highest-risk
+   spots: viewer's layout autosave (hydration must fire no PUT; one drag must
+   fire exactly one debounced PUT) and engine's per-case snapshot timeline
+   restore from localStorage.
 2. Phase 2 full subjective redesign sweep (spacing/hierarchy/density) — the
    objective consistency gaps (headers, empty states, color tokens) are closed;
    what's left is genuine design judgment.

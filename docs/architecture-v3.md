@@ -29,7 +29,8 @@ src/
     reports/                 # useReportsWorkspace hook + components
     project-detail/          # useProjectDetail hook + RoomsTab/BoqTab/...
     floorplan/               # useFloorplan hook + geometry/types/constants
-    simulation/viewer/       # CFD viewer helpers/types/constants
+    simulation/viewer/       # useSimulationViewer hook + panels/tab content
+    simulation/engine/       # useSimulationEngine hook + case/run/snapshot panels
   components/
     ui/                      # primitives (button, dialog, command-palette,
                              #   shortcuts-sheet, calc-breakdown, autosave-indicator, …)
@@ -72,8 +73,10 @@ rewrite — the golden money-path tests stay green across it.
   `/projects/[id]` detail · `/projects/[id]/floorplan` (+ `/preview`)
 - Calculators: `/load-calculation` · `/equipment-selection` ·
   `/airflow-duct-design` · `/quotation` · `/materials` · `/reports`
-- Simulation: `/simulation` (launcher) · `/simulation/workspace` ·
-  `/simulation/viewer` · `/simulation/engine`
+- Simulation: `/simulation` (launcher) · `/simulation/viewer` (the CFD
+  workspace) · `/simulation/engine` (OpenFOAM case management).
+  `/simulation/workspace` redirects to `/simulation/viewer` — it was a subset of
+  it; its report export and solver runtime/dimension controls were ported over.
 - Ops: `/admin` (RBAC) · `/diagnostics` · `/settings`
 - Auth: `/auth`, `/auth/login`, `/auth/register`, `/auth/forgot-password`
 
