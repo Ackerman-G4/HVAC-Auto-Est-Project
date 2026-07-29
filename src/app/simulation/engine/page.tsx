@@ -41,195 +41,33 @@ import { useSimulationStore } from '@/stores/simulation-store';
 import { useProjectStore } from '@/stores/project-store';
 import type {
   GeometryInput,
-  CaseStatus,
   ContourSliceConfig,
   FieldName,
-  RunFieldSnapshot,
   SimulationResult,
   TileFlowViewConfig,
   Vec3,
 } from '@/types/simulation';
 
-const SNAPSHOT_FIELD_OPTIONS: FieldName[] = [
-  'temperature',
-  'velocity',
-  'pressure',
-  'humidity',
-  'turbulentViscosity',
-];
+import {
+  SNAPSHOT_FIELD_OPTIONS,
+  SNAPSHOT_PREVIEW_MODES,
+  SNAPSHOT_UI_PREFS_STORAGE_KEY,
+} from '@/features/simulation/engine/constants';
+import type {
+  SnapshotPreviewMode,
+  SnapshotTimelinePreference,
+  SnapshotUiPreferences,
+} from '@/features/simulation/engine/types';
+import {
+  isSnapshotPreviewMode,
+  parseSnapshotTimelineByCase,
+  resolveSnapshotScalarField,
+  resolveSnapshotVelocityField,
+  summarizeScalarField,
+  summarizeVelocityField,
+} from '@/features/simulation/engine/helpers';
+import { CaseStatusBadge } from '@/features/simulation/engine/components/CaseStatusBadge';
 
-const SNAPSHOT_PREVIEW_MODES: Array<'temperature' | 'velocity' | 'pressure' | 'humidity'> = [
-  'temperature',
-  'velocity',
-  'pressure',
-  'humidity',
-];
-
-const SNAPSHOT_UI_PREFS_STORAGE_KEY = 'hvac-simulation-engine-snapshot-ui:v1';
-
-type SnapshotPreviewMode = (typeof SNAPSHOT_PREVIEW_MODES)[number];
-
-interface SnapshotUiPreferences {
-  previewMode: SnapshotPreviewMode;
-  autoLoadPreviewField: boolean;
-  timelineByCase?: Record<string, SnapshotTimelinePreference>;
-  hideTimelineHelpNote?: boolean;
-}
-
-interface SnapshotTimelinePreference {
-  runId: string | null;
-  iteration: number | null;
-}
-
-function isSnapshotPreviewMode(value: unknown): value is SnapshotPreviewMode {
-  return SNAPSHOT_PREVIEW_MODES.includes(value as SnapshotPreviewMode);
-}
-
-function parseSnapshotTimelineByCase(value: unknown): Record<string, SnapshotTimelinePreference> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return {};
-  }
-
-  const parsed: Record<string, SnapshotTimelinePreference> = {};
-
-  for (const [caseId, preference] of Object.entries(value as Record<string, unknown>)) {
-    if (!preference || typeof preference !== 'object' || Array.isArray(preference)) {
-      continue;
-    }
-
-    const candidate = preference as { runId?: unknown; iteration?: unknown };
-    const runId = typeof candidate.runId === 'string' && candidate.runId.length > 0
-      ? candidate.runId
-      : null;
-    const iteration = typeof candidate.iteration === 'number'
-      && Number.isInteger(candidate.iteration)
-      && candidate.iteration > 0
-      ? candidate.iteration
-      : null;
-
-    if (runId !== null || iteration !== null) {
-      parsed[caseId] = { runId, iteration };
-    }
-  }
-
-  return parsed;
-}
-
-// ─── Status Badges ──────────────────────────────────────────────────
-
-const STATUS_CONFIG: Record<CaseStatus, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-  draft: { label: 'Draft', variant: 'secondary' },
-  meshed: { label: 'Meshed', variant: 'outline' },
-  queued: { label: 'Queued', variant: 'default' },
-  running: { label: 'Running', variant: 'default' },
-  completed: { label: 'Completed', variant: 'default' },
-  failed: { label: 'Failed', variant: 'destructive' },
-  imported: { label: 'Imported', variant: 'outline' },
-};
-
-function CaseStatusBadge({ status }: { status: CaseStatus }) {
-  const cfg = STATUS_CONFIG[status];
-  return <Badge variant={cfg.variant}>{cfg.label}</Badge>;
-}
-
-type SnapshotDims = { nx: number; ny: number; nz: number };
-
-function createScalarField(dims: SnapshotDims, fallback: number): number[][][] {
-  const out: number[][][] = new Array(dims.nx);
-  for (let x = 0; x < dims.nx; x += 1) {
-    const yz: number[][] = new Array(dims.ny);
-    for (let y = 0; y < dims.ny; y += 1) {
-      yz[y] = new Array(dims.nz).fill(fallback);
-    }
-    out[x] = yz;
-  }
-  return out;
-}
-
-function createVectorField(dims: SnapshotDims): Vec3[][][] {
-  const out: Vec3[][][] = new Array(dims.nx);
-  for (let x = 0; x < dims.nx; x += 1) {
-    const yz: Vec3[][] = new Array(dims.ny);
-    for (let y = 0; y < dims.ny; y += 1) {
-      const zValues: Vec3[] = new Array(dims.nz);
-      for (let z = 0; z < dims.nz; z += 1) {
-        zValues[z] = { x: 0, y: 0, z: 0 };
-      }
-      yz[y] = zValues;
-    }
-    out[x] = yz;
-  }
-  return out;
-}
-
-function resolveSnapshotScalarField(
-  snapshot: RunFieldSnapshot,
-  fieldName: 'temperature' | 'pressure' | 'humidity',
-  dims: SnapshotDims,
-  fallback: number,
-): number[][][] {
-  const payload = snapshot.fields.find((field) => field.name === fieldName);
-  return payload?.scalarData ?? createScalarField(dims, fallback);
-}
-
-function resolveSnapshotVelocityField(snapshot: RunFieldSnapshot, dims: SnapshotDims): Vec3[][][] {
-  const payload = snapshot.fields.find((field) => field.name === 'velocity');
-  return payload?.vectorData ?? createVectorField(dims);
-}
-
-function summarizeScalarField(field: number[][][]): { min: number; max: number; avg: number } {
-  let min = Number.POSITIVE_INFINITY;
-  let max = Number.NEGATIVE_INFINITY;
-  let sum = 0;
-  let count = 0;
-
-  for (const yz of field) {
-    for (const zValues of yz) {
-      for (const value of zValues) {
-        min = Math.min(min, value);
-        max = Math.max(max, value);
-        sum += value;
-        count += 1;
-      }
-    }
-  }
-
-  if (count === 0) {
-    return { min: 0, max: 0, avg: 0 };
-  }
-
-  return {
-    min,
-    max,
-    avg: sum / count,
-  };
-}
-
-function summarizeVelocityField(field: Vec3[][][]): { max: number; avg: number } {
-  let max = 0;
-  let sum = 0;
-  let count = 0;
-
-  for (const yz of field) {
-    for (const zValues of yz) {
-      for (const vec of zValues) {
-        const speed = Math.sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z);
-        max = Math.max(max, speed);
-        sum += speed;
-        count += 1;
-      }
-    }
-  }
-
-  if (count === 0) {
-    return { max: 0, avg: 0 };
-  }
-
-  return {
-    max,
-    avg: sum / count,
-  };
-}
 
 // ─── Main Page ──────────────────────────────────────────────────────
 
