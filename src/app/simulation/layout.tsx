@@ -8,12 +8,11 @@
  */
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Columns3, Box, Cpu, LayoutGrid } from 'lucide-react';
+import { Box, Cpu, LayoutGrid } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
 const TABS = [
   { href: '/simulation', label: 'Overview', icon: LayoutGrid, exact: true },
-  { href: '/simulation/workspace', label: 'Workspace', icon: Columns3 },
   { href: '/simulation/viewer', label: '3D Viewer', icon: Box },
   { href: '/simulation/engine', label: 'Engine', icon: Cpu },
 ];

@@ -20,10 +20,10 @@ export default function SimulationLauncherPage() {
           Run server-room airflow studies with dedicated high-performance visualization. Configure rack densities, HVAC assets, and failure scenarios, then inspect thermal behavior across both 3D and analytics views.
         </p>
         <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center">
-          <Link href="/simulation/workspace">
+          <Link href="/simulation/viewer">
             <Button>
               <Columns3 size={14} className="mr-1.5" />
-              Open Workspace
+              Open Viewer
             </Button>
           </Link>
           <Button
