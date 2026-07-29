@@ -173,6 +173,26 @@ TileFlow was also listed as out of scope; it was reviewed and needs no change �
 `placePerforatedTiles` already places tiles by integer grid index on the floor
 plane (z=0), consistent with the placement pipeline.
 
+### Lint / React-correctness ✅
+`eslint-plugin-react-hooks` had been pinned to 7.0.1 during the security work
+to keep that commit scoped. Unpinning to 7.1.1 surfaced 51 findings, now
+resolved:
+
+- **19 `static-components`, all real.** `Pill` and `NumField` were declared
+  inside `DiagnosticsPage`, so React rebuilt and remounted them every render.
+  For `NumField` (which wraps an `<Input>`) that meant **losing focus after one
+  keystroke** — a user-facing bug the pin was hiding. Both hoisted to module
+  scope.
+- **1 `immutability`** on `OrbitControls.min/maxDistance` — a false positive;
+  three.js exposes those only as mutable properties. Disabled inline with the
+  reason.
+- **31 `set-state-in-effect`**, all the same shape: a mount effect starting an
+  async fetch where `load` flips `loading` before its first `await`. The rule
+  can't see past the await. Fixing them for real means restructuring data
+  fetching across ~20 files to save one render on mount, so the rule is a
+  **warning** with that rationale in `eslint.config.mjs` — visible rather than
+  hidden behind a version pin.
+
 ### Phase 6 — Engine hardening ✅
 - ✅ 6.1 invariant suites: `equipment-selection.test.ts` (7),
   `airflow-duct.test.ts` (7), plus scene/hotspot/normalize suites from the CFD

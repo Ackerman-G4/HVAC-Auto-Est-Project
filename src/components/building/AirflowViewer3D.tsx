@@ -80,7 +80,12 @@ function AutoFitCamera({
     camera.position.set(fit.position[0], fit.position[1], fit.position[2]);
     if (controls) {
       controls.target.set(fit.target[0], fit.target[1], fit.target[2]);
+      // react-hooks/immutability flags assigning to a hook-returned value, but
+      // OrbitControls only exposes these as mutable properties — there is no
+      // setter API to move the modification into.
+      // eslint-disable-next-line react-hooks/immutability
       controls.minDistance = fit.minDistance;
+      // eslint-disable-next-line react-hooks/immutability
       controls.maxDistance = fit.maxDistance;
       controls.update();
     } else {
