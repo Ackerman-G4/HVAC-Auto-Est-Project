@@ -8,7 +8,6 @@ import {
 	Printer,
 	Building2,
 	Snowflake,
-	Loader2,
 	FolderOpen,
 	ArrowLeft,
 	CheckCircle2,
@@ -24,6 +23,7 @@ import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { showToast } from '@/components/ui/toast';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Skeleton, TableSkeleton } from '@/components/ui/skeleton';
 import { formatPHP } from '@/lib/utils/format-currency';
 import Link from 'next/link';
 import { authFetch } from '@/lib/api-client';
@@ -77,6 +77,69 @@ interface BOQData {
 	vat: number;
 	grandTotal: number;
 	costPerTR: number;
+}
+
+/**
+ * Loading placeholder shaped like the rendered quotation document (header band,
+ * client/project meta, BOQ line items, totals) so the wait reads as "the
+ * document is coming" rather than a bare spinner.
+ */
+function QuotationSkeleton() {
+	return (
+		<div role="status" aria-busy="true" aria-label="Loading quotation" className="max-w-none">
+			<Card className="print-card overflow-hidden border-border bg-card shadow-sm">
+				<CardContent className="p-0">
+					{/* Document header band */}
+					<div className="bg-linear-to-r from-accent/25 to-primary/25 px-8 py-6">
+						<div className="flex items-start justify-between gap-6">
+							<div className="flex-1 space-y-2">
+								<Skeleton className="h-6 w-64 rounded-lg" />
+								<Skeleton className="h-3.5 w-80 rounded-md" />
+								<Skeleton className="h-3.5 w-48 rounded-md" />
+							</div>
+							<div className="space-y-2 text-right">
+								<Skeleton className="ml-auto h-5 w-32 rounded-lg" />
+								<Skeleton className="ml-auto h-3.5 w-24 rounded-md" />
+							</div>
+						</div>
+					</div>
+
+					{/* Client / project meta */}
+					<div className="grid gap-6 border-b border-border/70 px-8 py-6 sm:grid-cols-2">
+						{Array.from({ length: 4 }).map((_, i) => (
+							<div key={i} className="space-y-2">
+								<Skeleton className="h-3 w-24 rounded-md" />
+								<Skeleton className="h-4 w-40 rounded-md" />
+							</div>
+						))}
+					</div>
+
+					{/* BOQ line items */}
+					<div className="px-8 py-6">
+						<Skeleton className="mb-4 h-4 w-40 rounded-md" />
+						<TableSkeleton rows={6} cols={5} />
+					</div>
+
+					{/* Totals block */}
+					<div className="flex justify-end border-t border-border/70 px-8 py-6">
+						<div className="w-full max-w-xs space-y-3">
+							{Array.from({ length: 3 }).map((_, i) => (
+								<div key={i} className="flex items-center justify-between gap-4">
+									<Skeleton className="h-3.5 w-24 rounded-md" />
+									<Skeleton className="h-3.5 w-28 rounded-md" />
+								</div>
+							))}
+							<div className="flex items-center justify-between gap-4 border-t border-border/70 pt-3">
+								<Skeleton className="h-5 w-20 rounded-md" />
+								<Skeleton className="h-5 w-36 rounded-md" />
+							</div>
+						</div>
+					</div>
+				</CardContent>
+			</Card>
+			<span className="sr-only">Loading quotation…</span>
+		</div>
+	);
 }
 
 export default function QuotationPage() {
@@ -319,9 +382,12 @@ export default function QuotationPage() {
 	if (loading) {
 		return (
 			<PageWrapper>
-				<div className="flex items-center justify-center h-64">
-					<Loader2 className="w-8 h-8 animate-spin text-accent" />
-				</div>
+				<PageHeader
+					title="Quotation Preview"
+					description="Generate and preview professional HVAC quotation documents"
+				/>
+				<Skeleton className="mb-6 h-24 w-full" />
+				<QuotationSkeleton />
 			</PageWrapper>
 		);
 	}
@@ -410,12 +476,7 @@ export default function QuotationPage() {
 						/>
 					)}
 
-					{generating && (
-						<div className="flex items-center justify-center h-40">
-							<Loader2 className="w-6 h-6 animate-spin text-accent mr-2" />
-							<span className="text-muted-foreground">Loading quotation data...</span>
-						</div>
-					)}
+					{generating && <QuotationSkeleton />}
 
 					{boqData && project && !generating && (
 						<motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="quotation-doc max-w-none">

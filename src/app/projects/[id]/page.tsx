@@ -13,6 +13,7 @@ import {
   Download,
 } from 'lucide-react';
 import { PageWrapper, PageHeader } from '@/components/ui/page-wrapper';
+import { AutosaveIndicator } from '@/components/ui/autosave-indicator';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs } from '@/components/ui/tabs';
@@ -56,6 +57,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     equipmentDrafts,
     equipmentSavingId,
     snapshotSavedAt,
+    snapshotStatus,
     roomForm,
     setRoomForm,
     numVal,
@@ -197,7 +199,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           { label: project.name },
         ]}
         actions={
-          <div className="panel-glass flex flex-wrap gap-2.5 rounded-xl border border-border/70 bg-card p-2">
+          <div className="flex flex-wrap items-center gap-3">
+            <AutosaveIndicator status={snapshotStatus} savedAt={snapshotSavedAt} />
+            <div className="panel-glass flex flex-wrap gap-2.5 rounded-xl border border-border/70 bg-card p-2">
             <Button variant="secondary" size="md" onClick={runCalculation} isLoading={calculating}>
               <Calculator className="w-4 h-4 mr-1" /> Calculate
             </Button>
@@ -207,6 +211,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             <Button variant="accent" size="md" onClick={generateBOQ} isLoading={generatingBOQ}>
               <FileText className="w-4 h-4 mr-1" /> Generate BOQ
             </Button>
+            </div>
           </div>
         }
       />

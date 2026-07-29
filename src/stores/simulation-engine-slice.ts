@@ -6,7 +6,7 @@
  * the existing useSimulationStore (which manages the baseline legacy flow).
  */
 
-import { create } from 'zustand';
+import type { StateCreator } from 'zustand';
 import { showToast } from '@/components/ui/toast';
 import { authFetch } from '@/lib/api-client';
 import type {
@@ -24,6 +24,7 @@ import type {
   ContourSliceConfig,
   RunSource,
 } from '@/types/simulation';
+import type { SimulationStoreState } from './simulation-store';
 
 const SNAPSHOT_PREFETCH_FIELDS: FieldName[] = ['temperature', 'velocity'];
 const SNAPSHOT_STREAMLINE_SEED_LIMIT = 48;
@@ -88,7 +89,7 @@ function buildStreamlineSeedsFromVelocityField(
 
 // ─── Store Interface ────────────────────────────────────────
 
-interface SimulationEngineStore {
+export interface SimulationEngineSlice {
   // ── Case State ──────────────────────────────────────────
   projectId: string | null;
   cases: SimulationCase[];
@@ -109,7 +110,7 @@ interface SimulationEngineStore {
   snapshotStreamlineSeeds: Record<number, Vec3[]>;
 
   // ── Results ─────────────────────────────────────────────
-  result: CaseResult | null;
+  caseResult: CaseResult | null;
   loadedFieldNames: FieldName[];
 
   // ── Visualization ───────────────────────────────────────
@@ -158,7 +159,7 @@ interface SimulationEngineStore {
   setActiveContour: (id: string | null) => void;
 
   // ── Cleanup ─────────────────────────────────────────────
-  reset: () => void;
+  resetEngine: () => void;
 }
 
 // ─── Initial State ──────────────────────────────────────────
@@ -179,7 +180,7 @@ const INITIAL_STATE = {
   isLoadingSnapshots: false,
   isLoadingSnapshotDetail: false,
   snapshotStreamlineSeeds: {} as Record<number, Vec3[]>,
-  result: null as CaseResult | null,
+  caseResult: null as CaseResult | null,
   loadedFieldNames: [] as FieldName[],
   fieldSource: 'internal' as const,
   contourSlices: [] as ContourSliceConfig[],
@@ -190,7 +191,12 @@ const INITIAL_STATE = {
 
 // ─── Store Implementation ───────────────────────────────────
 
-export const useSimulationEngineStore = create<SimulationEngineStore>((set, get) => ({
+export const createSimulationEngineSlice: StateCreator<
+  SimulationStoreState,
+  [],
+  [],
+  SimulationEngineSlice
+> = (set, get) => ({
   ...INITIAL_STATE,
 
   // ── Cases ───────────────────────────────────────────────
@@ -275,7 +281,7 @@ export const useSimulationEngineStore = create<SimulationEngineStore>((set, get)
       isLoadingSnapshots: false,
       isLoadingSnapshotDetail: false,
       snapshotStreamlineSeeds: {},
-      result: null,
+      caseResult: null,
       loadedFieldNames: [],
     });
 
@@ -844,9 +850,9 @@ export const useSimulationEngineStore = create<SimulationEngineStore>((set, get)
 
   // ── Cleanup ─────────────────────────────────────────────
 
-  reset: () => {
+  resetEngine: () => {
     const { pollIntervalId } = get();
     if (pollIntervalId) clearInterval(pollIntervalId);
     set(INITIAL_STATE);
   },
-}));
+});

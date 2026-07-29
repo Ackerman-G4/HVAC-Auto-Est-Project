@@ -44,6 +44,7 @@ interface LocalUser {
   passwordHash: string;
   role: 'admin' | 'engineer';
   createdAt: string;
+  disabled?: boolean;
 }
 
 interface LocalUsersStore {
@@ -131,6 +132,10 @@ export async function localSignIn(email: string, password: string) {
     throw new Error('Account not found');
   }
 
+  if (user.disabled) {
+    throw new Error('This account has been disabled. Contact an administrator.');
+  }
+
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
     throw new Error('Email or password is invalid');
@@ -169,6 +174,7 @@ export function localListUsers(): Array<{
   name: string;
   role: 'admin' | 'engineer';
   createdAt: string;
+  disabled: boolean;
 }> {
   const store = readUsers();
   return store.users.map((u) => ({
@@ -177,7 +183,28 @@ export function localListUsers(): Array<{
     name: u.name,
     role: u.role === 'admin' ? 'admin' : 'engineer',
     createdAt: u.createdAt,
+    disabled: Boolean(u.disabled),
   }));
+}
+
+export function localSetUserDisabled(id: string, disabled: boolean): void {
+  const store = readUsers();
+  const user = store.users.find((u) => u.id === id);
+  if (!user) {
+    throw new Error('User not found');
+  }
+  user.disabled = disabled;
+  writeUsers(store);
+}
+
+export function localSetUserRole(id: string, role: 'admin' | 'engineer'): void {
+  const store = readUsers();
+  const user = store.users.find((u) => u.id === id);
+  if (!user) {
+    throw new Error('User not found');
+  }
+  user.role = role;
+  writeUsers(store);
 }
 
 export function localRefreshToken(refreshTokenStr: string) {

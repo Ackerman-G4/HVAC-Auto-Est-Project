@@ -29,7 +29,7 @@ export default function MaterialsPage() {
       />
 
       {!c.canManageCatalog && (
-        <Card className="mb-6 border-[rgba(206,161,74,0.45)] bg-[rgba(206,161,74,0.12)]">
+        <Card className="mb-6 border-warning/45 bg-warning/10">
           <CardContent className="py-3">
             <div className="flex items-start gap-2 text-sm text-foreground">
               <ShieldAlert className="mt-0.5 h-4 w-4 text-accent" />

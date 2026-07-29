@@ -69,7 +69,7 @@ const mainNav: NavEntry[] = [
     label: 'CFD Simulation',
     icon: Waves,
     children: [
-      { href: '/simulation/workspace', label: 'Workspace', icon: Box },
+      { href: '/simulation/viewer', label: 'Viewer', icon: Box },
       { href: '/simulation/engine', label: 'Engine', icon: Cpu },
     ],
   },

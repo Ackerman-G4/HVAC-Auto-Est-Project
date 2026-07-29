@@ -377,6 +377,27 @@ class LocalFirestore {
     return new LocalCollectionRef(name);
   }
 
+  /**
+   * Resolve a slash-separated document path, matching the real Firestore
+   * `db.doc('projects/{id}/simulationLayouts/{floorId}')` signature. Subcollection
+   * paths are flattened onto the backing store by using every segment except the
+   * trailing document id as the collection key, so nested docs stay namespaced
+   * per parent. Firestore requires an even segment count for a document path.
+   */
+  doc(path: string): LocalDocRef {
+    const segments = path.split('/').filter(Boolean);
+
+    if (segments.length < 2 || segments.length % 2 !== 0) {
+      throw new Error(
+        `Invalid Firestore document path "${path}": expected an even number of segments (collection/doc[/collection/doc…]).`,
+      );
+    }
+
+    const id = segments[segments.length - 1];
+    const collectionPath = segments.slice(0, -1).join('/');
+    return new LocalDocRef(collectionPath, id);
+  }
+
   batch(): LocalBatch {
     return new LocalBatch();
   }

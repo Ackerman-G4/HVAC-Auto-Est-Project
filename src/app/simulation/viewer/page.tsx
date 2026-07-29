@@ -1,1229 +1,85 @@
 'use client';
 
-import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 import {
-  Wind, Thermometer, Plus, Trash2, Play, ShieldCheck,
-  AlertTriangle, Zap, TrendingUp, Server, AirVent, Grid3x3,
-  RotateCcw, Settings2, BarChart3, Box, Wand2, Building2,
-  Gauge, Sliders, Activity, Layers, Crosshair,
+  Wind, Thermometer, Play, ShieldCheck, AlertTriangle, Zap, TrendingUp, Server, AirVent, RotateCcw, Settings2, BarChart3, Box, Activity, Layers, Crosshair, Download,
 } from 'lucide-react';
 import { PageWrapper, PageHeader } from '@/components/ui/page-wrapper';
 import { StatCard } from '@/components/ui/stat-card';
 import { Tabs, TabPanel } from '@/components/ui/tabs';
-import { useSimulationStore } from '@/stores/simulation-store';
-import type {
-  RackDensity, HVACUnitType, FailureScenario,
-  ServerRack, HVACUnit, PerforatedTile, Vec3,
-} from '@/types/simulation';
-import type { Project } from '@/types/project';
-import { authFetch } from '@/lib/api-client';
-import { showToast } from '@/components/ui/toast';
-import { HVAC_TYPE_DEFAULTS } from '@/features/simulation/viewer/constants';
-import type { DetectedFloor, DetectedRoom, ViewerRoomBoundary } from '@/features/simulation/viewer/types';
-import {
-  mapLayoutHVACToUnit,
-  mapLayoutTile,
-  buildLayoutPayload,
-  buildLayoutPayloadHash,
-  buildRoomBoundariesForFloor,
-  snapHVACUnit,
-  validateHVACPlacement,
-} from '@/features/simulation/viewer/helpers';
-import { autoDetectEquipment } from '@/lib/functions/auto-detect-equipment';
-import { normalizeRoomLayout } from '@/lib/simulation/normalize-room-layout';
-
-const AirflowViewer3D = dynamic(
-  () => import('@/components/building/AirflowViewer3D').then(mod => mod.default),
-  { ssr: false, loading: () => <div className="panel-glass flex h-125 items-center justify-center rounded-xl border border-border/70 bg-card text-sm font-medium text-muted-foreground shadow-sm">Loading 3D viewer...</div> }
-);
-
-const TileFlowDashboard = dynamic(
-  () => import('@/components/building/TileFlowDashboard').then(mod => mod.default),
-  { ssr: false, loading: () => <div className="panel-glass flex h-64 items-center justify-center rounded-xl border border-border/70 bg-card text-sm font-medium text-muted-foreground shadow-sm">Loading dashboard...</div> }
-);
+import { useSimulationViewer } from '@/features/simulation/viewer/useSimulationViewer';
+import { SimulationTabContent } from '@/features/simulation/viewer/components/SimulationTabContent';
+import { ThreeDTabContent } from '@/features/simulation/viewer/components/ThreeDTabContent';
+import { TileFlowTabContent } from '@/features/simulation/viewer/components/TileFlowTabContent';
+import { EquipmentPanel } from '@/features/simulation/viewer/components/EquipmentPanel';
+import { ConfigPanel } from '@/features/simulation/viewer/components/ConfigPanel';
+import { ResultsPanel } from '@/features/simulation/viewer/components/ResultsPanel';
+import { FailurePanel } from '@/features/simulation/viewer/components/FailurePanel';
+import { ProjectDropdown } from '@/features/simulation/viewer/components/ProjectDropdown';
 
 const CalibrationPanel = dynamic(
   () => import('@/components/building/CalibrationPanel').then(mod => mod.default),
   { ssr: false, loading: () => <div className="panel-glass flex h-64 items-center justify-center rounded-xl border border-border/70 bg-card text-sm font-medium text-muted-foreground shadow-sm">Loading calibration...</div> }
 );
 
-// ─── Temperature Heatmap Component ──────────────────────────────────
-
-function TemperatureHeatmap() {
-  const { result, selectedSliceZ, setSelectedSliceZ, config } = useSimulationStore();
-
-  if (!result) {
-    return (
-      <div className="panel-glass flex h-64 items-center justify-center rounded-xl border border-border/70 bg-card shadow-sm">
-        <p className="text-sm font-medium text-muted-foreground">Run a simulation to see temperature distribution</p>
-      </div>
-    );
-  }
-
-  const slice = result.temperatureField.map(row =>
-    row.map(col => col[selectedSliceZ] ?? 24)
-  );
-
-  const minT = Math.min(...slice.flat());
-  const maxT = Math.max(...slice.flat());
-  const range = maxT - minT || 1;
-
-  function tempToColor(t: number): string {
-    const ratio = (t - minT) / range;
-    if (ratio < 0.25) return `rgb(${Math.round(ratio * 4 * 255)}, ${Math.round(ratio * 4 * 200)}, 255)`;
-    if (ratio < 0.5) return `rgb(255, 255, ${Math.round((1 - (ratio - 0.25) * 4) * 255)})`;
-    if (ratio < 0.75) return `rgb(255, ${Math.round((1 - (ratio - 0.5) * 4) * 200)}, 0)`;
-    return `rgb(${Math.round((1 - (ratio - 0.75) * 4) * 255)}, 0, 0)`;
-  }
-
-  const cellSize = Math.min(24, Math.floor(600 / Math.max(config.gridSizeX, config.gridSizeY)));
-  const gridPixelWidth = config.gridSizeX * cellSize;
-  const gridPixelHeight = config.gridSizeY * cellSize;
-
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-base font-semibold text-foreground">Temperature Distribution (Z = {selectedSliceZ})</h3>
-        <div className="flex items-center gap-2">
-          <label className="text-sm font-medium text-muted-foreground">Height Layer:</label>
-          <input
-            type="range"
-            min={0}
-            max={config.gridSizeZ - 1}
-            value={selectedSliceZ}
-            onChange={e => setSelectedSliceZ(Number(e.target.value))}
-            className="w-32"
-            aria-label="Height Layer"
-          />
-          <span className="w-20 text-sm font-semibold tabular-nums text-foreground">
-            {(selectedSliceZ * config.gridResolution).toFixed(1)}m
-          </span>
-        </div>
-      </div>
-
-      <div className="overflow-auto rounded-xl border border-border bg-slate-900 p-4 shadow-sm">
-        <svg
-          width={gridPixelWidth}
-          height={gridPixelHeight}
-          viewBox={`0 0 ${gridPixelWidth} ${gridPixelHeight}`}
-          role="img"
-          aria-label="Temperature heatmap"
-        >
-          {slice.map((row, x) =>
-            row.map((temp, y) => (
-              <g key={`${x}-${y}`}>
-                <title>{`(${x},${y}) ${temp.toFixed(1)}°C`}</title>
-                <rect
-                  x={x * cellSize}
-                  y={y * cellSize}
-                  width={Math.max(1, cellSize - 1)}
-                  height={Math.max(1, cellSize - 1)}
-                  rx={2}
-                  ry={2}
-                  fill={tempToColor(temp)}
-                  fillOpacity={0.85}
-                />
-              </g>
-            ))
-          )}
-        </svg>
-      </div>
-
-      {/* Color legend */}
-      <div className="panel-glass mt-4 flex items-center gap-3 rounded-xl border border-border/70 bg-card px-4 py-3">
-        <span className="text-sm font-medium text-muted-foreground">{minT.toFixed(1)}°C</span>
-        <div className="flex-1 h-3 rounded-full cfd-heatmap-legend" />
-        <span className="text-sm font-medium text-muted-foreground">{maxT.toFixed(1)}°C</span>
-      </div>
-    </div>
-  );
-}
-
-// ─── Equipment Setup Panel ──────────────────────────────────────────
-
-function EquipmentPanel({ floors, selectedFloorId, roomBoundaries, onFloorChange, onAutoDetect, isDetecting }: {
-  floors: DetectedFloor[];
-  selectedFloorId: string;
-  roomBoundaries: ViewerRoomBoundary[];
-  onFloorChange: (id: string) => void;
-  onAutoDetect: () => void;
-  isDetecting: boolean;
-}) {
-  const { racks, hvacUnits, tiles, addRack, removeRack, addHVACUnit, removeHVACUnit, addTile, removeTile } = useSimulationStore();
-
-  const selectedFloor = floors.find(f => f.id === selectedFloorId);
-  const roomSummary = selectedFloor?.rooms ?? [];
-
-  const [rackForm, setRackForm] = useState({
-    name: '', posX: 0, posY: 0, powerKW: 5, density: 'medium' as RackDensity,
-  });
-  const [hvacForm, setHvacForm] = useState({
-    name: '', type: 'crac' as HVACUnitType, posX: 0, posY: 0, capacityKW: 30, airflowCFM: 5000, supplyTempC: 13,
-  });
-
-  const handleAddRack = () => {
-    addRack({
-      name: rackForm.name || `Rack ${racks.length + 1}`,
-      position: { x: rackForm.posX, y: rackForm.posY, z: 0 },
-      width: 0.6, depth: 1.2, height: 2.0,
-      powerDensity: rackForm.density,
-      powerKW: rackForm.powerKW,
-      airflowCFM: 300,
-      orientation: 0,
-      rackUnits: 42,
-      filledUnits: 30,
-    });
-    setRackForm({ name: '', posX: rackForm.posX + 1, posY: rackForm.posY, powerKW: 5, density: 'medium' });
-  };
-
-  const handleAddHVAC = () => {
-    const defaults = HVAC_TYPE_DEFAULTS[hvacForm.type];
-    const candidate: HVACUnit = snapHVACUnit({
-      id: `preview-${Date.now()}`,
-      type: hvacForm.type,
-      name: hvacForm.name || `${hvacForm.type.toUpperCase()} ${hvacUnits.length + 1}`,
-      position: { x: hvacForm.posX, y: hvacForm.posY, z: 0 },
-      width: defaults.width,
-      depth: defaults.depth,
-      height: defaults.height,
-      capacityKW: hvacForm.capacityKW,
-      capacityTR: hvacForm.capacityKW / 3.517,
-      airflowCFM: hvacForm.airflowCFM,
-      supplyTempC: hvacForm.supplyTempC,
-      returnTempC: 24,
-      orientation: 0,
-      powerInputKW: hvacForm.capacityKW / 3,
-      status: 'active',
-    });
-
-    const validation = validateHVACPlacement(candidate, hvacUnits, roomBoundaries);
-    if (!validation.valid) {
-      showToast('warning', 'Invalid HVAC placement', validation.reason ?? 'Placement validation failed');
-      return;
-    }
-
-    addHVACUnit({
-      type: candidate.type,
-      name: candidate.name,
-      position: candidate.position,
-      width: candidate.width,
-      depth: candidate.depth,
-      height: candidate.height,
-      capacityKW: candidate.capacityKW,
-      capacityTR: candidate.capacityTR,
-      airflowCFM: candidate.airflowCFM,
-      supplyTempC: candidate.supplyTempC,
-      returnTempC: candidate.returnTempC,
-      orientation: candidate.orientation,
-      powerInputKW: candidate.powerInputKW,
-      status: candidate.status,
-    });
-
-    setHvacForm((form) => ({
-      ...form,
-      posX: candidate.position.x,
-      posY: candidate.position.y,
-    }));
-  };
-
-  return (
-    <div className="space-y-8">
-      {/* Auto-Detect from Project Rooms */}
-      <div className="rounded-xl border border-accent/30 bg-accent/5 p-5">
-        <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
-          <Wand2 size={20} className="text-accent" /> Auto-Detect from Room Specs
-        </h3>
-        <p className="mb-4 text-sm text-muted-foreground">
-          Automatically populate server racks, HVAC units, and grid size from the selected floor&apos;s room specifications.
-        </p>
-
-        {floors.length > 0 ? (
-          <div className="space-y-4">
-            {/* Floor Selector */}
-            <div className="flex flex-wrap items-end gap-4">
-              <div className="flex-1 min-w-50">
-                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Select Floor</label>
-                <select
-                  className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm"
-                  value={selectedFloorId}
-                  onChange={e => onFloorChange(e.target.value)}
-                  aria-label="Select Floor"
-                >
-                  {floors.map(f => (
-                    <option key={f.id} value={f.id}>
-                      {f.name} (Floor {f.floorNumber}) — {f.rooms.length} room{f.rooms.length !== 1 ? 's' : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <button
-                onClick={onAutoDetect}
-                disabled={isDetecting || !selectedFloorId}
-                className="flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-accent-foreground shadow-md transition-colors hover:bg-accent/90 disabled:opacity-50"
-              >
-                {isDetecting ? (
-                  <><RotateCcw size={16} className="animate-spin" /> Detecting...</>
-                ) : (
-                  <><Wand2 size={16} /> Auto-Detect Equipment</>
-                )}
-              </button>
-            </div>
-
-            {/* Room Summary Cards */}
-            {roomSummary.length > 0 && (
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {roomSummary.map(room => {
-                  const isServer = room.spaceType === 'server_room';
-                  return (
-                    <div key={room.id} className={`rounded-xl border p-3.5 text-sm ${isServer
-                      ? 'border-warning/30 bg-warning/5'
-                      : 'border-border bg-card'
-                    }`}>
-                      <div className="flex items-center gap-2 mb-2">
-                        {isServer ? <Server size={14} className="text-warning" /> : <Building2 size={14} className="text-muted-foreground" />}
-                        <span className="font-semibold text-foreground truncate">{room.name}</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-muted-foreground">
-                        <span>Type:</span>
-                        <span className="font-medium text-foreground">{room.spaceType.replace(/_/g, ' ')}</span>
-                        <span>Area:</span>
-                        <span className="font-medium text-foreground">{room.area.toFixed(1)} m²</span>
-                        <span>Occupants:</span>
-                        <span className="font-medium text-foreground">{room.occupantCount}</span>
-                        <span>Equip. Load:</span>
-                        <span className="font-medium text-foreground">{room.equipmentLoad > 0 ? `${(room.equipmentLoad / 1000).toFixed(1)} kW` : '—'}</span>
-                        <span>Lighting:</span>
-                        <span className="font-medium text-foreground">{room.lightingDensity > 0 ? `${room.lightingDensity} W/m²` : '—'}</span>
-                        {room.coolingLoad?.trValue ? <>
-                          <span>Cooling:</span>
-                          <span className="font-medium text-accent">{room.coolingLoad.trValue.toFixed(2)} TR</span>
-                        </> : null}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="text-sm text-muted-foreground italic">
-            Select a project above to see available floors and rooms.
-          </div>
-        )}
-      </div>
-
-      {/* Server Racks */}
-      <div>
-        <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
-          <Server size={20} className="text-accent" /> Server Racks
-        </h3>
-        <div className="panel-glass mb-5 grid grid-cols-2 gap-4 rounded-xl border border-border/70 bg-card p-4 md:grid-cols-5">
-          <input className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" placeholder="Name" value={rackForm.name} onChange={e => setRackForm(f => ({ ...f, name: e.target.value }))} />
-          <input className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="X (m)" value={rackForm.posX} onChange={e => setRackForm(f => ({ ...f, posX: +e.target.value }))} />
-          <input className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="Y (m)" value={rackForm.posY} onChange={e => setRackForm(f => ({ ...f, posY: +e.target.value }))} />
-          <input className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="Power (kW)" value={rackForm.powerKW} onChange={e => setRackForm(f => ({ ...f, powerKW: +e.target.value }))} />
-          <button onClick={handleAddRack} className="flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/90">
-            <Plus size={16} /> Add Rack
-          </button>
-        </div>
-        {racks.length > 0 && (
-          <div className="panel-glass overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm">
-            <table className="w-full text-sm">
-              <thead className="border-b border-border bg-secondary/50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Name</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Position</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Power</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">BTU/hr</th>
-                  <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-muted-foreground"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {racks.map(rack => (
-                  <tr key={rack.id} className="hover:bg-secondary/50">
-                    <td className="px-4 py-3 font-medium">{rack.name}</td>
-                    <td className="px-4 py-3 text-muted-foreground">({rack.position.x}, {rack.position.y})</td>
-                    <td className="px-4 py-3 font-bold text-warning">{rack.powerKW} kW</td>
-                    <td className="px-4 py-3 text-muted-foreground">{(rack.powerKW * 3412).toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right">
-                      <button onClick={() => removeRack(rack.id)} aria-label="Remove rack" className="rounded-lg p-1.5 text-destructive/70 transition-colors hover:bg-[rgba(216,77,87,0.12)] hover:text-destructive">
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* HVAC Units */}
-      <div>
-        <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
-          <AirVent size={20} className="text-accent" /> HVAC Cooling Units
-        </h3>
-        <div className="panel-glass mb-5 grid grid-cols-2 gap-4 rounded-xl border border-border/70 bg-card p-4 md:grid-cols-6">
-          <select className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" value={hvacForm.type} onChange={e => setHvacForm(f => ({ ...f, type: e.target.value as HVACUnitType }))} aria-label="HVAC unit type">
-            <option value="crac">CRAC</option>
-            <option value="crah">CRAH</option>
-            <option value="ahu">AHU</option>
-            <option value="in_row">In-Row</option>
-            <option value="rear_door">Rear Door HX</option>
-          </select>
-          <input className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="X (m)" value={hvacForm.posX} onChange={e => setHvacForm(f => ({ ...f, posX: +e.target.value }))} />
-          <input className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="Y (m)" value={hvacForm.posY} onChange={e => setHvacForm(f => ({ ...f, posY: +e.target.value }))} />
-          <input className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="Capacity (kW)" value={hvacForm.capacityKW} onChange={e => setHvacForm(f => ({ ...f, capacityKW: +e.target.value }))} />
-          <input className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="Airflow (CFM)" value={hvacForm.airflowCFM} onChange={e => setHvacForm(f => ({ ...f, airflowCFM: +e.target.value }))} />
-          <button onClick={handleAddHVAC} className="flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/90">
-            <Plus size={16} /> Add Unit
-          </button>
-        </div>
-        <p className="-mt-2 mb-4 text-xs text-muted-foreground">
-          Placement snaps to 0.25m grid and enforces room-boundary clearance plus no-overlap with existing units.
-        </p>
-        {hvacUnits.length > 0 && (
-          <div className="panel-glass overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm">
-            <table className="w-full text-sm">
-              <thead className="border-b border-border bg-secondary/50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Name</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Type</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Position</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Capacity</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Airflow</th>
-                  <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-muted-foreground"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {hvacUnits.map(unit => (
-                  <tr key={unit.id} className="hover:bg-secondary/50">
-                    <td className="px-4 py-3 font-medium">{unit.name}</td>
-                    <td className="px-4 py-3"><span className="rounded-md border border-accent/30 bg-[rgba(15,139,141,0.12)] px-2.5 py-1 text-sm font-semibold text-accent">{unit.type.toUpperCase()}</span></td>
-                    <td className="px-4 py-3 text-muted-foreground">({unit.position.x}, {unit.position.y})</td>
-                    <td className="px-4 py-3 font-bold text-success">{unit.capacityKW} kW</td>
-                    <td className="px-4 py-3 text-muted-foreground">{unit.airflowCFM.toLocaleString()} CFM</td>
-                    <td className="px-4 py-3 text-right">
-                      <button onClick={() => removeHVACUnit(unit.id)} aria-label="Remove HVAC unit" className="rounded-lg p-1.5 text-destructive/70 transition-colors hover:bg-[rgba(216,77,87,0.12)] hover:text-destructive">
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Perforated Tiles */}
-      <div>
-        <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
-          <Grid3x3 size={20} className="text-accent" /> Perforated Floor Tiles
-        </h3>
-        <div className="panel-glass mb-5 flex gap-3 rounded-xl border border-border/70 bg-card p-4">
-          <input id="tileX" className="w-24 rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="Grid X" defaultValue={5} />
-          <input id="tileY" className="w-24 rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="Grid Y" defaultValue={5} />
-          <input id="tileOpen" className="w-32 rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" step="0.05" placeholder="Open Area (0-1)" defaultValue={0.25} />
-          <button
-            onClick={() => {
-              const x = parseInt((document.getElementById('tileX') as HTMLInputElement).value);
-              const y = parseInt((document.getElementById('tileY') as HTMLInputElement).value);
-              const openArea = parseFloat((document.getElementById('tileOpen') as HTMLInputElement).value);
-              if (!isNaN(x) && !isNaN(y) && openArea >= 0 && openArea <= 1) {
-                addTile({ x, y, openArea, tileSize: 0.6 });
-              }
-            }}
-            className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/90"
-          >
-            <Plus size={16} /> Add Tile
-          </button>
-        </div>
-        {tiles.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {tiles.map((tile, i) => (
-              <div key={i} className="flex items-center gap-2 rounded-xl border border-border bg-secondary/50 px-3.5 py-2.5 text-sm">
-                <Grid3x3 size={14} className="text-muted-foreground" />
-                <span>({tile.x}, {tile.y})</span>
-                <span className="text-muted-foreground">{(tile.openArea * 100).toFixed(0)}%</span>
-                <button onClick={() => removeTile(tile.x, tile.y)} aria-label="Remove tile" className="text-destructive/70 hover:text-destructive">
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Simulation Config Panel ────────────────────────────────────────
-
-function ConfigPanel() {
-  const { config, setConfig } = useSimulationStore();
-
-  return (
-    <div className="panel-glass grid grid-cols-2 gap-5 rounded-xl border border-border/70 bg-card p-6 shadow-sm md:grid-cols-4">
-      <div>
-        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Grid Resolution (m)</label>
-        <input className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" step="0.1" value={config.gridResolution} onChange={e => setConfig({ gridResolution: +e.target.value })} aria-label="Grid Resolution" />
-      </div>
-      <div>
-        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Grid Size X</label>
-        <input className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" value={config.gridSizeX} onChange={e => setConfig({ gridSizeX: +e.target.value })} aria-label="Grid Size X" />
-      </div>
-      <div>
-        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Grid Size Y</label>
-        <input className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" value={config.gridSizeY} onChange={e => setConfig({ gridSizeY: +e.target.value })} aria-label="Grid Size Y" />
-      </div>
-      <div>
-        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Grid Size Z</label>
-        <input className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" value={config.gridSizeZ} onChange={e => setConfig({ gridSizeZ: +e.target.value })} aria-label="Grid Size Z" />
-      </div>
-      <div>
-        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Iterations</label>
-        <input className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" value={config.iterations} onChange={e => setConfig({ iterations: +e.target.value })} aria-label="Iterations" />
-      </div>
-      <div>
-        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Convergence</label>
-        <input className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" step="0.001" value={config.convergence} onChange={e => setConfig({ convergence: +e.target.value })} aria-label="Convergence" />
-      </div>
-      <div>
-        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Time Step (s)</label>
-        <input className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" step="0.01" value={config.timeStep} onChange={e => setConfig({ timeStep: +e.target.value })} aria-label="Time Step" />
-      </div>
-      <div>
-        <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Ambient Temp (°C)</label>
-        <input className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" value={config.ambientTempC} onChange={e => setConfig({ ambientTempC: +e.target.value })} aria-label="Ambient Temperature" />
-      </div>
-    </div>
-  );
-}
-
-// ─── Results Panel ──────────────────────────────────────────────────
-
-function ResultsPanel() {
-  const { result, complianceReport, failureResult, pueAnalysis, optimizationResult } = useSimulationStore();
-
-  if (!result) {
-    return (
-      <div className="panel-glass flex h-64 flex-col items-center justify-center rounded-xl border border-border/70 bg-card shadow-sm">
-        <Wind size={48} className="mb-4 text-muted-foreground/45" />
-        <p className="text-lg font-bold text-foreground">No simulation results yet</p>
-        <p className="mt-1 text-sm text-muted-foreground">Place equipment and run a CFD simulation</p>
-      </div>
-    );
-  }
-
-  const m = result.metrics;
-
-  return (
-    <div className="space-y-8">
-      {/* Metrics Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard title="Max Temperature" value={`${m.maxTemperature.toFixed(1)}°C`} icon={Thermometer} />
-        <StatCard title="Avg Temperature" value={`${m.avgTemperature.toFixed(1)}°C`} icon={Thermometer} />
-        <StatCard title="Hotspots" value={m.hotspots.length} subtitle={m.hotspots.filter(h => h.severity === 'critical').length + ' critical'} icon={AlertTriangle} />
-        <StatCard title="PUE" value={m.pue.toFixed(2)} subtitle={m.pue <= 1.5 ? 'Good' : m.pue <= 2.0 ? 'Average' : 'Poor'} icon={Zap} />
-      </div>
-
-      {/* Temperature Heatmap */}
-        <div className="panel-glass rounded-xl border border-border/70 bg-card p-6 shadow-sm">
-        <TemperatureHeatmap />
-      </div>
-
-      {/* Rack Inlet Temperatures */}
-      {m.rackInletTemps.length > 0 && (
-        <div className="panel-glass rounded-xl border border-border/70 bg-card p-6 shadow-sm">
-          <h3 className="mb-4 text-lg font-semibold text-foreground">Rack Inlet Temperatures</h3>
-          <div className="space-y-2">
-            {m.rackInletTemps.map(rack => {
-              const pct = ((rack.avgTemp - 15) / 30) * 100;
-              const barColor = rack.avgTemp > 35 ? 'bg-red-500' : rack.avgTemp > 27 ? 'bg-amber-500' : 'bg-emerald-500';
-              const filledSegments = Math.max(1, Math.min(20, Math.round(pct / 5)));
-              return (
-                <div key={rack.rackId} className="flex items-center gap-4">
-                  <span className="w-32 truncate text-sm font-medium text-muted-foreground">{rack.rackId.slice(0, 8)}</span>
-                  <div className="grid h-3 flex-1 grid-cols-20 gap-0.5 overflow-hidden rounded-full bg-secondary/70 p-0.5">
-                    {Array.from({ length: 20 }).map((_, index) => (
-                      <span
-                        key={`${rack.rackId}-seg-${index}`}
-                        className={`rounded-sm ${index < filledSegments ? barColor : 'bg-secondary/40'}`}
-                      />
-                    ))}
-                  </div>
-                  <span className="w-16 text-right text-sm font-bold text-foreground">{rack.avgTemp.toFixed(1)}°C</span>
-                  <span className="w-24 text-sm text-muted-foreground">(max {rack.maxTemp.toFixed(1)}°C)</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Hotspots Detail */}
-      {m.hotspots.length > 0 && (
-        <div className="panel-glass rounded-xl border border-border/70 bg-card p-6 shadow-sm">
-          <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
-            <AlertTriangle size={20} className="text-amber-500" /> Detected Hotspots
-          </h3>
-          <div className="space-y-3">
-            {m.hotspots.map((hs, i) => (
-              <div key={i} className={`flex items-center justify-between p-4 rounded-xl border ${
-                hs.severity === 'emergency' ? 'bg-[rgba(216,77,87,0.1)] border-[rgba(216,77,87,0.3)]' :
-                hs.severity === 'critical' ? 'bg-[rgba(219,142,47,0.14)] border-[rgba(219,142,47,0.35)]' :
-                'bg-[rgba(206,161,74,0.14)] border-[rgba(206,161,74,0.35)]'
-              }`}>
-                <div>
-                  <span className={`rounded-md px-2.5 py-1 text-sm font-bold uppercase ${
-                    hs.severity === 'emergency' ? 'bg-[rgba(216,77,87,0.18)] text-destructive' :
-                    hs.severity === 'critical' ? 'bg-[rgba(219,142,47,0.18)] text-warning' :
-                    'bg-[rgba(206,161,74,0.2)] text-accent'
-                  }`}>{hs.severity}</span>
-                  <span className="ml-3 text-sm text-foreground/90">
-                    Position: ({hs.position.x.toFixed(1)}, {hs.position.y.toFixed(1)}, {hs.position.z.toFixed(1)})m
-                  </span>
-                </div>
-                <span className="text-lg font-semibold text-foreground">{hs.temperature.toFixed(1)}°C</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ASHRAE Compliance */}
-      {complianceReport && (
-        <div className="panel-glass rounded-xl border border-border/70 bg-card p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-              <ShieldCheck size={20} className={complianceReport.overallPass ? 'text-emerald-500' : 'text-red-500'} />
-              ASHRAE TC 9.9 Compliance — Class {complianceReport.thermalClass}
-            </h3>
-            <div className={`px-4 py-2 rounded-xl text-sm font-bold ${
-              complianceReport.overallPass ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'
-            }`}>
-              Score: {complianceReport.score}/100
-            </div>
-          </div>
-          <div className="space-y-2">
-            {complianceReport.checks.map((check, i) => (
-              <div key={i} className={`flex items-center justify-between rounded-lg border p-3 ${
-                check.passed
-                  ? 'border-border bg-secondary/50'
-                  : check.severity === 'critical'
-                    ? 'border-[rgba(216,77,87,0.32)] bg-[rgba(216,77,87,0.1)]'
-                    : 'border-[rgba(219,142,47,0.32)] bg-[rgba(219,142,47,0.12)]'
-              }`}>
-                <div className="flex items-center gap-3">
-                  <span className={`w-2 h-2 rounded-full ${check.passed ? 'bg-emerald-500' : check.severity === 'critical' ? 'bg-red-500' : 'bg-amber-500'}`} />
-                  <span className="text-sm font-medium text-foreground">{check.description}</span>
-                </div>
-                <span className="text-sm font-bold text-muted-foreground">{check.value} {check.unit}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* PUE Analysis */}
-      {pueAnalysis && (
-        <div className="panel-glass rounded-xl border border-border/70 bg-card p-6 shadow-sm">
-          <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
-            <Zap size={20} className="text-accent" /> Energy Efficiency (PUE)
-          </h3>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
-            <div className="rounded-xl border border-border bg-background p-4 text-center">
-              <p className="text-3xl font-semibold text-accent">{pueAnalysis.pue}</p>
-              <p className="mt-1 text-sm font-semibold text-muted-foreground">PUE</p>
-            </div>
-            <div className="rounded-xl border border-border bg-secondary/50 p-4 text-center">
-              <p className="text-xl font-bold text-foreground">{pueAnalysis.itEquipmentPower} kW</p>
-              <p className="mt-1 text-sm font-semibold text-muted-foreground">IT Power</p>
-            </div>
-            <div className="rounded-xl border border-border bg-secondary/50 p-4 text-center">
-              <p className="text-xl font-bold text-foreground">{pueAnalysis.coolingPower} kW</p>
-              <p className="mt-1 text-sm font-semibold text-muted-foreground">Cooling Power</p>
-            </div>
-            <div className="rounded-xl border border-border bg-secondary/50 p-4 text-center">
-              <p className="text-xl font-bold text-foreground">{pueAnalysis.totalFacilityPower} kW</p>
-              <p className="mt-1 text-sm font-semibold text-muted-foreground">Total Power</p>
-            </div>
-            <div className="rounded-xl border border-border bg-background p-4 text-center">
-              <p className={`text-xl font-bold ${
-                pueAnalysis.rating === 'excellent' ? 'text-emerald-600' :
-                pueAnalysis.rating === 'good' ? 'text-accent' :
-                pueAnalysis.rating === 'average' ? 'text-amber-600' : 'text-red-600'
-              }`}>{pueAnalysis.rating.toUpperCase()}</p>
-              <p className="mt-1 text-sm font-semibold text-muted-foreground">Rating</p>
-            </div>
-          </div>
-          {pueAnalysis.recommendations.length > 0 && (
-            <div className="mt-4 rounded-xl border border-accent/30 bg-accent/10 p-4">
-              <p className="mb-2 text-sm font-bold text-accent">Recommendations:</p>
-              <ul className="space-y-1">
-                {pueAnalysis.recommendations.map((rec, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-foreground">
-                    <span className="mt-0.5 text-accent">•</span> {rec}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Failure Simulation */}
-      {failureResult && (
-        <div className="panel-glass rounded-xl border border-border/70 bg-card p-6 shadow-sm">
-          <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
-            <AlertTriangle size={20} className="text-red-500" /> Failure Analysis: {failureResult.scenario.replace(/_/g, ' ').toUpperCase()}
-          </h3>
-          <div className="grid grid-cols-3 gap-4 mb-4">
-            <div className="rounded-xl border border-[rgba(219,142,47,0.35)] bg-[rgba(219,142,47,0.14)] p-4 text-center">
-              <p className="text-2xl font-semibold text-yellow-700">{failureResult.timeToWarning >= 0 ? `${Math.round(failureResult.timeToWarning / 60)}m` : 'N/A'}</p>
-              <p className="mt-1 text-sm font-semibold text-yellow-600">Time to Warning</p>
-            </div>
-            <div className="rounded-xl border border-[rgba(216,77,87,0.35)] bg-[rgba(216,77,87,0.1)] p-4 text-center">
-              <p className="text-2xl font-semibold text-red-700">{failureResult.timeToCritical >= 0 ? `${Math.round(failureResult.timeToCritical / 60)}m` : 'N/A'}</p>
-              <p className="mt-1 text-sm font-semibold text-red-600">Time to Critical</p>
-            </div>
-            <div className="rounded-xl border border-border bg-background p-4 text-center">
-              <p className="text-2xl font-semibold text-foreground">{failureResult.affectedRacks.length}</p>
-              <p className="mt-1 text-sm font-semibold text-muted-foreground">Affected Racks</p>
-            </div>
-          </div>
-          {failureResult.recommendations.length > 0 && (
-            <div className="rounded-xl border border-red-500/20 bg-red-500/8 p-4">
-              <ul className="space-y-1">
-                {failureResult.recommendations.map((rec, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-destructive">
-                    <span className="text-red-400 mt-0.5">•</span> {rec}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Optimization Results */}
-      {optimizationResult && (
-        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-          <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
-            <TrendingUp size={20} className="text-emerald-500" /> Optimization Results
-          </h3>
-          <div className="flex items-center gap-4 mb-6">
-            <div className="text-center p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
-              <p className="text-3xl font-semibold text-emerald-600">{optimizationResult.improvement}%</p>
-              <p className="mt-1 text-sm font-semibold text-emerald-600">Improvement</p>
-            </div>
-            <div className="flex-1 grid grid-cols-2 gap-4">
-              <div className="rounded-lg border border-border bg-secondary/50 p-3">
-                <p className="text-sm font-semibold text-muted-foreground">Before: Max Temp</p>
-                <p className="text-lg font-bold text-foreground">{optimizationResult.initialMetrics.maxTemperature.toFixed(1)}°C</p>
-              </div>
-              <div className="rounded-lg border border-border bg-secondary/50 p-3">
-                <p className="text-sm font-semibold text-muted-foreground">After: Max Temp</p>
-                <p className="text-lg font-bold text-emerald-600">{optimizationResult.optimizedMetrics.maxTemperature.toFixed(1)}°C</p>
-              </div>
-            </div>
-          </div>
-          <h4 className="mb-3 text-sm font-bold text-foreground">Suggestions ({optimizationResult.suggestions.length})</h4>
-          <div className="space-y-2">
-            {optimizationResult.suggestions.map((sug, i) => (
-              <div key={i} className="flex items-center justify-between rounded-lg border border-border bg-secondary/50 p-3">
-                <span className="text-sm text-foreground">{sug.description}</span>
-                <span className="rounded-md bg-emerald-100 px-2.5 py-1 text-sm font-semibold text-emerald-700">{sug.impact}% impact</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Failure Simulation Panel ───────────────────────────────────────
-
-function FailurePanel() {
-  const { hvacUnits, runFailure, isRunning } = useSimulationStore();
-  const [scenario, setScenario] = useState<FailureScenario>('crac_failure');
-  const [duration, setDuration] = useState(3600);
-  const [selectedUnits, setSelectedUnits] = useState<string[]>([]);
-
-  const handleRun = () => {
-    runFailure({
-      scenario,
-      failedUnitIds: selectedUnits,
-      duration,
-      timeStep: 10,
-      rackMass: 500,
-      specificHeat: 900,
-    });
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="panel-glass grid grid-cols-2 gap-5 rounded-xl border border-border/70 bg-card p-5 md:grid-cols-3">
-        <div>
-          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Failure Scenario</label>
-          <select className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" value={scenario} onChange={e => setScenario(e.target.value as FailureScenario)} aria-label="Failure Scenario">
-            <option value="crac_failure">CRAC Unit Failure</option>
-            <option value="power_loss">Total Power Loss</option>
-            <option value="cooling_restart">Cooling Restart</option>
-            <option value="partial_cooling">Partial Cooling Loss</option>
-          </select>
-        </div>
-        <div>
-          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Duration (seconds)</label>
-          <input className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" value={duration} onChange={e => setDuration(+e.target.value)} aria-label="Duration" />
-        </div>
-        <div className="flex items-end">
-          <button
-            onClick={handleRun}
-            disabled={isRunning}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-destructive px-4 py-2.5 text-sm font-semibold text-destructive-foreground transition-colors hover:bg-destructive/90 disabled:opacity-50"
-          >
-            <AlertTriangle size={16} /> Run Failure Sim
-          </button>
-        </div>
-      </div>
-      {scenario !== 'power_loss' && hvacUnits.length > 0 && (
-        <div>
-          <label className="mb-2 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Select Failed Units</label>
-          <div className="panel-glass flex flex-wrap gap-2 rounded-xl border border-border/70 bg-card p-4">
-            {hvacUnits.map(unit => (
-              <button
-                key={unit.id}
-                onClick={() => {
-                  setSelectedUnits(prev =>
-                    prev.includes(unit.id) ? prev.filter(id => id !== unit.id) : [...prev, unit.id]
-                  );
-                }}
-                className={`rounded-lg border px-3.5 py-2.5 text-sm font-medium transition-colors ${
-                  selectedUnits.includes(unit.id)
-                    ? 'border-red-500/35 bg-red-500/10 text-destructive'
-                    : 'border-border bg-background text-muted-foreground hover:border-border'
-                }`}
-              >
-                {unit.name}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ─── Main Page ──────────────────────────────────────────────────────
 
-function ProjectDropdown({ projects, onSelect, selectedId }: ProjectDropdownProps) {
-  return (
-    <div className="panel-glass mb-6 rounded-xl border border-border/70 bg-card p-4 shadow-sm">
-      <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Choose Project</label>
-      <select
-        className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm"
-        value={selectedId}
-        onChange={e => onSelect(e.target.value)}
-        aria-label="Choose Project"
-      >
-        {projects.map((p: Project) => (
-          <option key={p.id} value={p.id}>{p.name}</option>
-        ))}
-      </select>
-    </div>
-  );
-}
-
-interface ProjectDropdownProps {
-  projects: Project[];
-  onSelect: (id: string) => void;
-  selectedId: string;
-}
-// Project dropdown now fetches from API
-
 export default function SimulationPage() {
-  const [simError, setSimError] = useState<string | null>(null);
-  const [projectList, setProjectList] = useState<Project[]>([]);
-  const [loadingProjects, setLoadingProjects] = useState(true);
-  const [activeTab, setActiveTab] = useState('equipment');
-  const [selectedHVACId, setSelectedHVACId] = useState<string | null>(null);
-  const [layoutSaveState, setLayoutSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-
-  const layoutHydratingRef = useRef(false);
-  const layoutSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastLayoutPayloadHashRef = useRef('');
-
   const {
+    simError,
+    projectList,
+    loadingProjects,
+    activeTab,
+    setActiveTab,
+    selectedHVACId,
+    setSelectedHVACId,
+    layoutSaveState,
+    tileFlowViewerRef,
     racks,
     hvacUnits,
-    tiles,
     isRunning,
     result,
-    runSimulation, runCompliance, runPUE, runOptimization,
-    activeView, showHotspots, showAirflow, selectedSliceZ,
-    setActiveView, setShowHotspots, setShowAirflow, setSelectedSliceZ,
-    addRack, updateHVACUnit, setHVACUnits, setTiles, setConfig, setMode, config, clearAll,
-    inspectedCell, setInspectedCell,
-    tileFlowView, setTileFlowView, alerts, tileAirflowData,
-  } = useSimulationStore();
-
-  const [selectedProjectId, setSelectedProjectId] = useState('');
-  const [detectedFloors, setDetectedFloors] = useState<DetectedFloor[]>([]);
-  const [selectedFloorId, setSelectedFloorId] = useState('');
-  const [isDetecting, setIsDetecting] = useState(false);
-  const tileFlowViewerRef = useRef<import('@/components/building/AirflowViewer3D').AirflowViewerHandle>(null);
-  const selectedFloor = useMemo(
-    () => detectedFloors.find((floor) => floor.id === selectedFloorId) ?? null,
-    [detectedFloors, selectedFloorId],
-  );
-
-  // Fetch projects
-  useEffect(() => {
-    authFetch('/api/projects')
-      .then(res => res.json())
-      .then(data => {
-        if (data.projects && Array.isArray(data.projects)) {
-          setProjectList(data.projects);
-          if (data.projects.length > 0) {
-            setSelectedProjectId(data.projects[0].id);
-          }
-        }
-        setLoadingProjects(false);
-      })
-      .catch((err) => {
-        setLoadingProjects(false);
-        setSimError('Failed to load projects: ' + err?.message);
-      });
-  }, []);
-
-  // Fetch floors+rooms when project changes
-  useEffect(() => {
-    if (!selectedProjectId) {
-      return;
-    }
-    authFetch(`/api/projects/${selectedProjectId}`)
-      .then(res => res.json())
-      .then(data => {
-        const project = data.project || data;
-        if (project.floors && Array.isArray(project.floors)) {
-          const floors: DetectedFloor[] = project.floors.map((f: Record<string, unknown>) => ({
-            id: f.id as string,
-            floorNumber: (f.floorNumber as number) ?? 0,
-            name: (f.name as string) ?? `Floor ${f.floorNumber}`,
-            scale: Number(f.scale) > 0 ? Number(f.scale) : 50,
-            ceilingHeight: (f.ceilingHeight as number) ?? 3.0,
-            rooms: Array.isArray(f.rooms) ? (f.rooms as Record<string, unknown>[]).map((r: Record<string, unknown>) => ({
-              id: r.id as string,
-              name: (r.name as string) ?? 'Room',
-              area: (r.area as number) ?? 0,
-              ceilingHeight: (r.ceilingHeight as number) ?? 3.0,
-              spaceType: (r.spaceType as string) ?? 'office',
-              occupantCount: (r.occupantCount as number) ?? 0,
-              lightingDensity: (r.lightingDensity as number) ?? 0,
-              equipmentLoad: (r.equipmentLoad as number) ?? 0,
-              coolingLoad: r.coolingLoad as DetectedRoom['coolingLoad'],
-              polygon: typeof r.polygon === 'string' ? r.polygon : undefined,
-            })) : [],
-          }));
-          setDetectedFloors(floors);
-          if (floors.length > 0) setSelectedFloorId(floors[0].id);
-        }
-      })
-      .catch(() => { /* ignore */ });
-  }, [selectedProjectId]);
-
-  // Sync HVAC/tile placements from saved floorplan layout.
-  useEffect(() => {
-    if (!selectedProjectId || !selectedFloorId) {
-      return;
-    }
-
-    let cancelled = false;
-    layoutHydratingRef.current = true;
-
-    authFetch(`/api/projects/${selectedProjectId}/simulation-layout?floorId=${encodeURIComponent(selectedFloorId)}`)
-      .then(async (response) => {
-        if (!response.ok) {
-          return null;
-        }
-        const data = await response.json();
-        return (data?.layout ?? null) as Record<string, unknown> | null;
-      })
-      .then((layout) => {
-        if (cancelled) {
-          return;
-        }
-
-        const hvacPlacements = Array.isArray(layout?.hvacPlacements)
-          ? (layout?.hvacPlacements as Record<string, unknown>[])
-          : [];
-        const tilePlacements = Array.isArray(layout?.tilePlacements)
-          ? (layout?.tilePlacements as Record<string, unknown>[])
-          : [];
-
-        const mappedHVAC = hvacPlacements
-          .map((placement, index) => mapLayoutHVACToUnit(placement, index))
-          .filter((unit): unit is HVACUnit => unit !== null);
-        const mappedTiles = tilePlacements
-          .map(mapLayoutTile)
-          .filter((tile): tile is PerforatedTile => tile !== null);
-
-        // Single normalization pass: floor-snap, drop NaN, validate, one grid
-        // size. Same pipeline as auto-detect so a hydrated layout and a freshly
-        // detected one are grounded and framed identically.
-        const normalized = normalizeRoomLayout({
-          roomBoundaries: buildRoomBoundariesForFloor(selectedFloor),
-          racks: [],
-          hvacUnits: mappedHVAC,
-          tiles: mappedTiles,
-          gridResolution: config.gridResolution,
-          ceilingHeightM: selectedFloor?.ceilingHeight,
-        });
-
-        setHVACUnits(normalized.hvacUnits);
-        setTiles(normalized.tiles);
-        if (selectedHVACId && !normalized.hvacUnits.some((unit) => unit.id === selectedHVACId)) {
-          setSelectedHVACId(null);
-        }
-
-        // Seed the autosave baseline from the NORMALIZED payload so opening a
-        // project never triggers a PUT /simulation-layout — render-time sanitize
-        // only, storage is never silently mutated.
-        const hydratedPayload = buildLayoutPayload(
-          selectedFloorId,
-          selectedFloor,
-          normalized.hvacUnits,
-          normalized.tiles,
-        );
-        lastLayoutPayloadHashRef.current = buildLayoutPayloadHash(hydratedPayload);
-
-        if (normalized.warnings.length > 0) {
-          showToast(
-            'warning',
-            'Layout adjusted on load',
-            `${normalized.hvacUnits.length} unit(s) placed; ${normalized.warnings.length} adjusted or skipped by placement validation.`,
-          );
-        }
-
-        const currentConfig = useSimulationStore.getState().config;
-        if (
-          normalized.gridSize.gridSizeX !== currentConfig.gridSizeX
-          || normalized.gridSize.gridSizeY !== currentConfig.gridSizeY
-          || normalized.gridSize.gridSizeZ !== currentConfig.gridSizeZ
-        ) {
-          setConfig(normalized.gridSize);
-        }
-      })
-      .catch(() => { /* ignore layout sync errors */ })
-      .finally(() => {
-        if (!cancelled) {
-          layoutHydratingRef.current = false;
-        }
-      });
-
-    return () => {
-      cancelled = true;
-      layoutHydratingRef.current = false;
-    };
-  }, [
-    selectedProjectId,
-    selectedFloorId,
-    selectedFloor,
-    selectedHVACId,
-    config.gridResolution,
+    runSimulation,
+    runCompliance,
+    runPUE,
+    runOptimization,
+    activeView,
+    showHotspots,
+    showAirflow,
+    selectedSliceZ,
+    setActiveView,
+    setShowHotspots,
+    setShowAirflow,
+    setSelectedSliceZ,
     setConfig,
-    setHVACUnits,
-    setTiles,
-  ]);
-
-  const viewerRoomBoundaries = useMemo<ViewerRoomBoundary[]>(
-    () => buildRoomBoundariesForFloor(selectedFloor),
-    [selectedFloor],
-  );
-
-  const canEditHVACIn3D = viewerRoomBoundaries.length > 0;
-
-  const handleHVACDragPreview = useCallback((unitId: string, proposedPosition: Vec3) => {
-    const unit = hvacUnits.find((item) => item.id === unitId);
-    if (!unit) {
-      return {
-        position: proposedPosition,
-        valid: false,
-        reason: 'Selected HVAC unit no longer exists.',
-      };
-    }
-
-    const snappedCandidate = snapHVACUnit({
-      ...unit,
-      position: {
-        x: proposedPosition.x,
-        y: proposedPosition.y,
-        z: unit.position.z,
-      },
-    });
-    const validation = validateHVACPlacement(
-      snappedCandidate,
-      hvacUnits.filter((item) => item.id !== unitId),
-      viewerRoomBoundaries,
-    );
-
-    return {
-      position: snappedCandidate.position,
-      valid: validation.valid,
-      reason: validation.reason,
-    };
-  }, [hvacUnits, viewerRoomBoundaries]);
-
-  const handleHVACDragCommit = useCallback((unitId: string, position: Vec3) => {
-    const unit = hvacUnits.find((item) => item.id === unitId);
-    if (!unit) {
-      return;
-    }
-
-    const snappedCandidate = snapHVACUnit({
-      ...unit,
-      position: {
-        x: position.x,
-        y: position.y,
-        z: unit.position.z,
-      },
-    });
-    const validation = validateHVACPlacement(
-      snappedCandidate,
-      hvacUnits.filter((item) => item.id !== unitId),
-      viewerRoomBoundaries,
-    );
-
-    if (!validation.valid) {
-      showToast('warning', 'Invalid HVAC placement', validation.reason ?? 'Placement failed validation.');
-      return;
-    }
-
-    setSelectedHVACId(unitId);
-    updateHVACUnit(unitId, { position: snappedCandidate.position });
-  }, [hvacUnits, updateHVACUnit, viewerRoomBoundaries]);
-
-  const handleHVACDragInvalid = useCallback((_: string, reason: string) => {
-    showToast('warning', 'Invalid HVAC placement', reason || 'Placement failed validation.');
-  }, []);
-
-  // Persist committed HVAC/tile layout changes back to the floor simulation layout.
-  useEffect(() => {
-    if (!selectedProjectId || !selectedFloorId || layoutHydratingRef.current) {
-      return;
-    }
-
-    const payload = buildLayoutPayload(selectedFloorId, selectedFloor, hvacUnits, tiles);
-    const nextHash = buildLayoutPayloadHash(payload);
-
-    if (nextHash === lastLayoutPayloadHashRef.current) {
-      return;
-    }
-
-    if (layoutSaveTimerRef.current) {
-      clearTimeout(layoutSaveTimerRef.current);
-      layoutSaveTimerRef.current = null;
-    }
-
-    layoutSaveTimerRef.current = setTimeout(() => {
-      setLayoutSaveState('saving');
-      authFetch(`/api/projects/${selectedProjectId}/simulation-layout`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      })
-        .then(async (response) => {
-          if (!response.ok) {
-            const details = await response.text().catch(() => '');
-            throw new Error(details || 'Failed to save simulation layout.');
-          }
-          lastLayoutPayloadHashRef.current = nextHash;
-          setLayoutSaveState('saved');
-        })
-        .catch(() => {
-          setLayoutSaveState('error');
-          showToast(
-            'error',
-            'Simulation layout save failed',
-            'Recent HVAC or tile changes were not persisted. Move the unit again to retry.',
-          );
-        });
-    }, 650);
-
-    return () => {
-      if (layoutSaveTimerRef.current) {
-        clearTimeout(layoutSaveTimerRef.current);
-        layoutSaveTimerRef.current = null;
-      }
-    };
-  }, [selectedProjectId, selectedFloorId, selectedFloor, hvacUnits, tiles]);
-
-  useEffect(() => {
-    if (layoutSaveState !== 'saved') {
-      return;
-    }
-    const clearSavedStateTimer = setTimeout(() => {
-      setLayoutSaveState('idle');
-    }, 1200);
-    return () => {
-      clearTimeout(clearSavedStateTimer);
-    };
-  }, [layoutSaveState]);
-
-  const layoutSaveStatusText = useMemo(() => {
-    if (layoutSaveState === 'saving') return 'Layout saving...';
-    if (layoutSaveState === 'saved') return 'Layout saved';
-    if (layoutSaveState === 'error') return 'Layout save failed';
-    return 'Layout synced';
-  }, [layoutSaveState]);
-
-  // Auto-detect handler: one implementation (autoDetectEquipment) routed
-  // through normalizeRoomLayout so racks, HVAC, and the grid share one frame.
-  const handleAutoDetect = useCallback(() => {
-    const floor = detectedFloors.find(f => f.id === selectedFloorId);
-    if (!floor || floor.rooms.length === 0) {
-      showToast('error', 'No rooms found', 'This floor has no rooms to auto-detect from.');
-      return;
-    }
-
-    setIsDetecting(true);
-    clearAll();
-    setSelectedHVACId(null);
-
-    const detected = autoDetectEquipment({ floors: [floor], gridResolution: config.gridResolution });
-    const seededRacks: ServerRack[] = detected.racks.map((r, i) => ({ ...r, id: `auto-rack-${i + 1}-${crypto.randomUUID()}` }));
-    const seededHVAC: HVACUnit[] = detected.hvacUnits.map((u, i) => ({ ...u, id: `auto-hvac-${i + 1}-${crypto.randomUUID()}` }));
-
-    const normalized = normalizeRoomLayout({
-      roomBoundaries: buildRoomBoundariesForFloor(floor),
-      racks: seededRacks,
-      hvacUnits: seededHVAC,
-      tiles: detected.tiles,
-      gridResolution: config.gridResolution,
-      ceilingHeightM: floor.ceilingHeight,
-    });
-
-    for (const rack of normalized.racks) addRack(rack);
-    setHVACUnits(normalized.hvacUnits);
-    setTiles(normalized.tiles);
-    setConfig(normalized.gridSize);
-
-    setIsDetecting(false);
-    const rejectedCount = normalized.warnings.length;
-    const message = rejectedCount > 0
-      ? `Placed ${normalized.racks.length} rack(s) and ${normalized.hvacUnits.length} HVAC unit(s); ${rejectedCount} adjusted/skipped by placement validation.`
-      : `Placed ${normalized.racks.length} rack(s) and ${normalized.hvacUnits.length} HVAC unit(s) from ${floor.rooms.length} room(s).`;
-    showToast(rejectedCount > 0 ? 'warning' : 'success', 'Equipment auto-detected', message);
-  }, [detectedFloors, selectedFloorId, config.gridResolution, addRack, setHVACUnits, setTiles, setConfig, clearAll]);
-  const totalHeatKW = useMemo(() => racks.reduce((s, r) => s + r.powerKW, 0), [racks]);
-  const totalCoolingKW = useMemo(() => hvacUnits.filter(u => u.status !== 'failed').reduce((s, u) => s + u.capacityKW, 0), [hvacUnits]);
+    setMode,
+    config,
+    inspectedCell,
+    setInspectedCell,
+    tileFlowView,
+    setTileFlowView,
+    alerts,
+    tileAirflowData,
+    selectedProjectId,
+    setSelectedProjectId,
+    detectedFloors,
+    setDetectedFloors,
+    selectedFloorId,
+    setSelectedFloorId,
+    isDetecting,
+    viewerRoomBoundaries,
+    handleHVACDragPreview,
+    handleHVACDragCommit,
+    handleHVACDragInvalid,
+    layoutSaveStatusText,
+    handleAutoDetect,
+    totalHeatKW,
+    totalCoolingKW,
+    canEditHVACIn3D,
+    reportExporting,
+    handleExportReport,
+  } = useSimulationViewer();
 
   const tabs = [
     { id: 'equipment', label: 'Equipment', icon: <Server size={16} />, badge: racks.length + hvacUnits.length },
@@ -1268,6 +124,19 @@ export default function SimulationPage() {
             >
               <TrendingUp size={16} /> Optimize
             </button>
+            {/* Engineering report export — carried over from the retired
+                /simulation/workspace view. */}
+            {(['pdf', 'csv', 'json'] as const).map((format) => (
+              <button
+                key={format}
+                onClick={() => { void handleExportReport(format); }}
+                disabled={!result || reportExporting !== null}
+                className="flex items-center gap-2 rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary/70 disabled:opacity-50"
+              >
+                <Download size={16} />
+                {reportExporting === format ? 'Exporting…' : format.toUpperCase()}
+              </button>
+            ))}
             <button
               onClick={() => runSimulation(selectedProjectId || '', selectedFloorId || '')}
               disabled={racks.length === 0 || isRunning}
@@ -1344,321 +213,63 @@ export default function SimulationPage() {
           <ConfigPanel />
         </TabPanel>
         <TabPanel tabId="simulation" activeTab={activeTab}>
-          <div className="space-y-5">
-            {/* Run Simulation */}
-            <div className="panel-glass rounded-xl border border-border/70 bg-card p-5 shadow-sm">
-              <h3 className="mb-4 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Run Simulation</h3>
-              <button
-                onClick={() => runSimulation(selectedProjectId || '', selectedFloorId || '')}
-                disabled={racks.length === 0 || isRunning}
-                className="flex w-full items-center justify-center gap-2.5 rounded-xl bg-accent px-5 py-3.5 text-sm font-semibold text-accent-foreground shadow-md transition-colors hover:bg-accent/90 disabled:opacity-50"
-              >
-                {isRunning ? <><RotateCcw size={18} className="animate-spin" /> Running Simulation...</> : <><Play size={18} /> Run CFD Simulation</>}
-              </button>
-              {racks.length === 0 && (
-                <p className="mt-2 text-xs text-muted-foreground">Add equipment in the Equipment tab or auto-detect from project to enable simulation.</p>
-              )}
-            </div>
-
-            {/* Mesh Density */}
-            <div className="panel-glass rounded-xl border border-border/70 bg-card p-5 shadow-sm">
-              <h3 className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-                <Sliders size={14} /> Mesh Density
-              </h3>
-              <div className="mb-3 flex items-center gap-3">
-                <span className="text-xs text-muted-foreground">Coarse</span>
-                <input
-                  type="range"
-                  min={0.25}
-                  max={2.0}
-                  step={0.25}
-                  value={config.gridResolution}
-                  onChange={(e) => setConfig({ gridResolution: Number(e.target.value) })}
-                  className="w-full"
-                  aria-label="Grid resolution"
-                />
-                <span className="text-xs text-muted-foreground">Fine</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-medium text-foreground">{config.gridResolution} m/cell</span>
-                <span className="text-xs text-muted-foreground">
-                  Grid: {config.gridSizeX}×{config.gridSizeY}×{config.gridSizeZ}
-                </span>
-              </div>
-              <div className="mt-3 flex gap-2">
-                {(['fast', 'balanced', 'engineering'] as const).map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setMode(m)}
-                    className={`flex-1 rounded-lg border px-3 py-2 text-xs font-semibold capitalize transition-colors ${
-                      config.mode === m
-                        ? 'border-accent bg-accent/15 text-accent'
-                        : 'border-border bg-background text-muted-foreground hover:border-border'
-                    }`}
-                  >
-                    {m}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Accuracy Indicator */}
-            <div className="panel-glass rounded-xl border border-border/70 bg-card p-5 shadow-sm">
-              <h3 className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-                <Gauge size={14} /> Accuracy Indicator
-              </h3>
-              {result ? (() => {
-                const converged = result.metrics.converged;
-                const residual = result.metrics.energyResidual;
-                const iterPct = Math.min(100, Math.round((result.iteration / result.config.iterations) * 100));
-                const qualityLabel = converged ? 'Converged' : residual < 0.01 ? 'Near-converged' : 'Not converged';
-                const qualityColor = converged ? 'text-green-500' : residual < 0.01 ? 'text-yellow-500' : 'text-red-500';
-                const barColor = converged ? 'bg-green-500' : residual < 0.01 ? 'bg-yellow-500' : 'bg-red-500';
-                return (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className={`text-sm font-semibold ${qualityColor}`}>{qualityLabel}</span>
-                      <span className="text-xs tabular-nums text-muted-foreground">{result.iteration}/{result.config.iterations} iters</span>
-                    </div>
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
-                      <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${iterPct}%` }} />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 text-xs">
-                      <div>
-                        <span className="text-muted-foreground">Energy Residual</span>
-                        <p className="font-semibold tabular-nums text-foreground">{residual.toExponential(2)}</p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Momentum Residual</span>
-                        <p className="font-semibold tabular-nums text-foreground">{result.metrics.momentumResidual.toExponential(2)}</p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Max Divergence</span>
-                        <p className="font-semibold tabular-nums text-foreground">{result.metrics.maxDivergence.toExponential(2)}</p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Effective Δt</span>
-                        <p className="font-semibold tabular-nums text-foreground">{result.effectiveTimeStep.toFixed(4)} s</p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })() : (
-                <div className="flex flex-col items-center py-6 text-center">
-                  <Gauge size={32} className="mb-2 text-muted-foreground/40" />
-                  <p className="text-sm text-muted-foreground">Run a simulation to see convergence data</p>
-                </div>
-              )}
-            </div>
-          </div>
+          <SimulationTabContent
+            racks={racks}
+            isRunning={isRunning}
+            result={result}
+            runSimulation={runSimulation}
+            setConfig={setConfig}
+            setMode={setMode}
+            config={config}
+            selectedProjectId={selectedProjectId}
+            selectedFloorId={selectedFloorId}
+          />
         </TabPanel>
         <TabPanel tabId="3d" activeTab={activeTab}>
-          {result ? (
-            <>
-              <div className="panel-glass mb-4 rounded-xl border border-border/70 bg-card p-4 shadow-sm">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="mr-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-                    View Mode
-                  </span>
-                  {(['temperature', 'velocity', 'pressure', 'humidity'] as const).map((mode) => (
-                    <button
-                      key={mode}
-                      onClick={() => setActiveView(mode)}
-                      className={`rounded-lg border px-3 py-2 text-sm font-semibold uppercase tracking-wider transition-colors ${
-                        activeView === mode
-                          ? 'border-accent bg-accent/15 text-accent'
-                          : 'border-border bg-background text-muted-foreground hover:border-border'
-                      }`}
-                    >
-                      {mode}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="mt-4 flex flex-wrap items-center gap-4">
-                  <div className="flex min-w-65 flex-1 items-center gap-3">
-                    <label className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-                      Slice Z
-                    </label>
-                    <input
-                      type="range"
-                      min={0}
-                      max={Math.max(0, result.config.gridSizeZ - 1)}
-                      value={Math.max(0, Math.min(selectedSliceZ, result.config.gridSizeZ - 1))}
-                      onChange={(event) => setSelectedSliceZ(Number(event.target.value))}
-                      className="w-full"
-                      aria-label="Slice Z"
-                    />
-                    <span className="w-24 text-right text-sm font-semibold tabular-nums text-foreground">
-                      {Math.max(0, Math.min(selectedSliceZ, result.config.gridSizeZ - 1))} ({(Math.max(0, Math.min(selectedSliceZ, result.config.gridSizeZ - 1)) * result.config.gridResolution).toFixed(1)}m)
-                    </span>
-                  </div>
-
-                  <label className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-semibold text-muted-foreground">
-                    <input
-                      type="checkbox"
-                      checked={showHotspots}
-                      onChange={(event) => setShowHotspots(event.target.checked)}
-                    />
-                    Hotspots
-                  </label>
-
-                  <label className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-semibold text-muted-foreground">
-                    <input
-                      type="checkbox"
-                      checked={showAirflow}
-                      onChange={(event) => setShowAirflow(event.target.checked)}
-                    />
-                    Airflow Particles
-                  </label>
-
-                  <div className="ml-auto rounded-lg border border-border/80 bg-background px-3 py-2 text-xs">
-                    <p className="font-semibold text-foreground">
-                      {canEditHVACIn3D ? 'Drag HVAC in 3D to reposition' : 'Room polygons required for HVAC drag editing'}
-                    </p>
-                    <p className={`mt-0.5 font-medium ${layoutSaveState === 'error' ? 'text-red-500' : 'text-muted-foreground'}`}>
-                      {layoutSaveStatusText}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <AirflowViewer3D
-                result={result}
-                racks={racks}
-                hvacUnits={hvacUnits}
-                roomBoundaries={viewerRoomBoundaries}
-                editableHVAC={canEditHVACIn3D}
-                selectedHVACId={selectedHVACId}
-                onSelectHVAC={setSelectedHVACId}
-                onHVACDragPreview={handleHVACDragPreview}
-                onHVACDragCommit={handleHVACDragCommit}
-                onHVACDragInvalid={handleHVACDragInvalid}
-                showHotspots={showHotspots}
-                showAirflow={showAirflow}
-                selectedSliceZ={selectedSliceZ}
-                viewMode={activeView}
-                onInspect={setInspectedCell}
-              />
-
-              {/* Inspect overlay card */}
-              {inspectedCell && (
-                <div className="mt-3 panel-glass rounded-xl border border-accent/30 bg-card p-4 shadow-sm">
-                  <div className="mb-2 flex items-center justify-between">
-                    <h4 className="text-[11px] font-semibold uppercase tracking-widest text-accent">Inspected Cell</h4>
-                    <button
-                      onClick={() => setInspectedCell(null)}
-                      className="text-xs text-muted-foreground hover:text-foreground"
-                    >
-                      Dismiss
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-4">
-                    <div>
-                      <span className="text-xs text-muted-foreground">Position</span>
-                      <p className="font-semibold tabular-nums text-foreground">
-                        ({inspectedCell.position.x.toFixed(1)}, {inspectedCell.position.y.toFixed(1)}, {inspectedCell.position.z.toFixed(1)}) m
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Temperature</span>
-                      <p className="font-semibold tabular-nums text-foreground">{inspectedCell.temperature.toFixed(1)} °C</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Velocity</span>
-                      <p className="font-semibold tabular-nums text-foreground">
-                        {Math.sqrt(inspectedCell.velocity.x ** 2 + inspectedCell.velocity.y ** 2 + inspectedCell.velocity.z ** 2).toFixed(2)} m/s
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Pressure</span>
-                      <p className="font-semibold tabular-nums text-foreground">{inspectedCell.pressure.toFixed(1)} Pa</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="panel-glass flex h-125 flex-col items-center justify-center rounded-xl border border-border/70 bg-card shadow-sm">
-              <Box size={48} className="mb-4 text-muted-foreground/45" />
-              <p className="font-semibold text-foreground">Run a simulation to view 3D airflow</p>
-            </div>
-          )}
+          <ThreeDTabContent
+            selectedHVACId={selectedHVACId}
+            setSelectedHVACId={setSelectedHVACId}
+            layoutSaveState={layoutSaveState}
+            racks={racks}
+            hvacUnits={hvacUnits}
+            result={result}
+            activeView={activeView}
+            showHotspots={showHotspots}
+            selectedSliceZ={selectedSliceZ}
+            setActiveView={setActiveView}
+            setShowHotspots={setShowHotspots}
+            showAirflow={showAirflow}
+          setShowAirflow={setShowAirflow}
+            setSelectedSliceZ={setSelectedSliceZ}
+            inspectedCell={inspectedCell}
+            setInspectedCell={setInspectedCell}
+            viewerRoomBoundaries={viewerRoomBoundaries}
+            handleHVACDragPreview={handleHVACDragPreview}
+            handleHVACDragCommit={handleHVACDragCommit}
+            handleHVACDragInvalid={handleHVACDragInvalid}
+            layoutSaveStatusText={layoutSaveStatusText}
+            canEditHVACIn3D={canEditHVACIn3D}
+          />
         </TabPanel>
         <TabPanel tabId="results" activeTab={activeTab}>
           <ResultsPanel />
         </TabPanel>
         <TabPanel tabId="tileflow" activeTab={activeTab}>
-          {result ? (
-            <div className="space-y-6">
-              {/* TileFlow 3D Controls */}
-              <div className="panel-glass rounded-xl border border-border/70 bg-card p-4 shadow-sm">
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className="mr-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">TileFlow Overlays</span>
-                  {([
-                    { key: 'showStreamlines' as const, label: 'Streamlines' },
-                    { key: 'showFog' as const, label: 'Temp Fog' },
-                    { key: 'showTileOverlay' as const, label: 'Tile Airflow' },
-                    { key: 'showAlerts' as const, label: 'Alert Zones' },
-                  ]).map(({ key, label }) => (
-                    <label key={key} className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-semibold text-muted-foreground">
-                      <input
-                        type="checkbox"
-                        checked={tileFlowView[key]}
-                        onChange={(e) => setTileFlowView({ [key]: e.target.checked })}
-                      />
-                      {label}
-                    </label>
-                  ))}
-                  <div className="ml-auto flex items-center gap-2">
-                    <label className="text-xs text-muted-foreground">Fog Opacity</label>
-                    <input
-                      type="range"
-                      min={0.05}
-                      max={0.8}
-                      step={0.05}
-                      value={tileFlowView.fogOpacity}
-                      onChange={(e) => setTileFlowView({ fogOpacity: Number(e.target.value) })}
-                      className="w-24"
-                      aria-label="Fog opacity"
-                    />
-                    <span className="w-8 text-xs tabular-nums text-foreground">{(tileFlowView.fogOpacity * 100).toFixed(0)}%</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 3D Viewer with TileFlow overlays */}
-              <AirflowViewer3D
-                ref={tileFlowViewerRef}
-                result={result}
-                racks={racks}
-                hvacUnits={hvacUnits}
-                roomBoundaries={viewerRoomBoundaries}
-                showHotspots={showHotspots}
-                showAirflow={false}
-                selectedSliceZ={selectedSliceZ}
-                viewMode={activeView}
-                onInspect={setInspectedCell}
-                tileFlowView={tileFlowView}
-                tileAirflowData={tileAirflowData}
-                alerts={alerts}
-              />
-
-              {/* TileFlow Dashboard */}
-              <TileFlowDashboard
-                result={result}
-                alerts={alerts}
-                tileAirflowData={tileAirflowData}
-                onSnapshotCapture={() => tileFlowViewerRef.current?.captureSnapshot() ?? null}
-              />
-            </div>
-          ) : (
-            <div className="panel-glass flex h-64 flex-col items-center justify-center rounded-xl border border-border/70 bg-card shadow-sm">
-              <Layers size={48} className="mb-4 text-muted-foreground/45" />
-              <p className="text-lg font-bold text-foreground">No simulation results yet</p>
-              <p className="mt-1 text-sm text-muted-foreground">Run a CFD simulation to view TileFlow analysis</p>
-            </div>
-          )}
+          <TileFlowTabContent
+            tileFlowViewerRef={tileFlowViewerRef}
+            racks={racks}
+            hvacUnits={hvacUnits}
+            result={result}
+            activeView={activeView}
+            showHotspots={showHotspots}
+            selectedSliceZ={selectedSliceZ}
+            setInspectedCell={setInspectedCell}
+            tileFlowView={tileFlowView}
+            setTileFlowView={setTileFlowView}
+            alerts={alerts}
+            tileAirflowData={tileAirflowData}
+            viewerRoomBoundaries={viewerRoomBoundaries}
+          />
         </TabPanel>
         <TabPanel tabId="failure" activeTab={activeTab}>
           <FailurePanel />

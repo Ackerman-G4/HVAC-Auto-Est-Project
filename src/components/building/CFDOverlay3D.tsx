@@ -541,69 +541,6 @@ export function ContourSlicePlane({ result, config: sliceConfig }: ContourSliceP
   );
 }
 
-// ─── Dense Velocity Arrows with Density Control ─────────────────────
-
-interface DenseVelocityArrowsProps {
-  result: SimulationResult;
-  sliceZ: number;
-  /** Fraction 0-1: 0 = sparse, 1 = every cell */
-  density?: number;
-  /** Arrow scale multiplier */
-  scale?: number;
-}
-
-export function DenseVelocityArrows({ result, sliceZ, density = 0.3, scale = 1.0 }: DenseVelocityArrowsProps) {
-  const { config } = result;
-  const res = config.gridResolution;
-  // Compute step from density: density=1 → step=1, density=0.1 → step~10
-  const step = Math.max(1, Math.round(1 / Math.max(0.01, density)));
-
-  const arrows = useMemo(() => {
-    const items: { pos: THREE.Vector3; dir: THREE.Vector3; speed: number; color: THREE.Color }[] = [];
-    const { centerX, centerZ: centerY } = getDomainCenter(config);
-    const maxVel = Math.max(result.metrics.maxVelocity, 0.1);
-
-    for (let x = 0; x < config.gridSizeX; x += step) {
-      for (let y = 0; y < config.gridSizeY; y += step) {
-        const vel = result.velocityField[x]?.[y]?.[sliceZ];
-        if (!vel) continue;
-        const speed = Math.sqrt(vel.x ** 2 + vel.y ** 2 + vel.z ** 2);
-        if (speed < 0.01) continue;
-
-        const normSpeed = speed / maxVel;
-        const temp = result.temperatureField[x]?.[y]?.[sliceZ] ?? config.ambientTempC;
-        const color = valueToColor(temp, result.metrics.minTemperature, result.metrics.maxTemperature);
-
-        items.push({
-          pos: new THREE.Vector3(
-            x * res - centerX + res / 2,
-            sliceZ * res,
-            y * res - centerY + res / 2,
-          ),
-          dir: new THREE.Vector3(vel.x, vel.z, vel.y).normalize(),
-          speed: normSpeed,
-          color,
-        });
-      }
-    }
-    return items;
-  }, [result, sliceZ, step, config, res]);
-
-  return (
-    <group>
-      {arrows.map((arrow, i) => {
-        const length = (0.2 + arrow.speed * 0.8) * scale;
-        return (
-          <arrowHelper
-            key={i}
-            args={[arrow.dir, arrow.pos, length, arrow.color.getHex(), 0.12 * scale, 0.06 * scale]}
-          />
-        );
-      })}
-    </group>
-  );
-}
-
 // ─── Streamlines (RK4 through velocity field) ──────────────────────
 
 interface StreamlinesProps {

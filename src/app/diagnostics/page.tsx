@@ -3,11 +3,14 @@
 import { useState, useCallback, useEffect } from 'react';
 import { PageWrapper, PageHeader } from '@/components/ui/page-wrapper';
 import { Card, CardContent } from '@/components/ui/card';
+import { SystemHealthCard } from '@/components/diagnostics/SystemHealthCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { showToast } from '@/components/ui/toast';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Skeleton, SkeletonList } from '@/components/ui/skeleton';
 import {
   Stethoscope,
   Play,
@@ -257,12 +260,14 @@ export default function DiagnosticsPage() {
         actions={
           <div className="flex gap-2">
             <Button variant="ghost" size="md" onClick={reset}><RotateCcw size={15} className="mr-1.5" />Reset</Button>
-            <Button size="md" onClick={run} disabled={loading}>
-              {loading ? <span className="animate-pulse text-sm">Analysing…</span> : <><Play size={15} className="mr-1.5" />Diagnose</>}
+            <Button size="md" onClick={run} disabled={loading} isLoading={loading}>
+              <Play size={15} className="mr-1.5" />Diagnose
             </Button>
           </div>
         }
       />
+
+      <SystemHealthCard />
 
       <Card className="panel-glass border-border/70 bg-primary/5 shadow-sm">
         <CardContent className="py-4">
@@ -451,12 +456,34 @@ export default function DiagnosticsPage() {
         </div>
       )}
 
-      {/* Empty state */}
-      {!result && (
-        <div className="mt-8 flex flex-col items-center text-center text-muted-foreground">
-          <Stethoscope size={36} className="mb-2 opacity-30" />
-          <p className="text-sm">Select symptoms and click <strong>Diagnose</strong></p>
+      {/* Analysis in flight — mirror the results layout instead of leaving the
+          "click Diagnose" prompt up while it's already running. */}
+      {loading && !result && (
+        <div role="status" aria-busy="true" aria-label="Running analysis" className="mt-8 space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-border/60" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Analysing…
+            </span>
+            <div className="h-px flex-1 bg-border/60" />
+          </div>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <Skeleton className="h-40 lg:col-span-2" />
+            <Skeleton className="h-40" />
+          </div>
+          <SkeletonList count={3} />
+          <span className="sr-only">Running diagnostic analysis…</span>
         </div>
+      )}
+
+      {/* Empty state */}
+      {!result && !loading && (
+        <EmptyState
+          className="mt-8"
+          icon={<Stethoscope size={28} />}
+          title="No analysis yet"
+          description="Select symptoms and click Diagnose to generate ranked root-cause guidance."
+        />
       )}
     </PageWrapper>
   );

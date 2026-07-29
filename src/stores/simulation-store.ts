@@ -30,6 +30,7 @@ import type {
   SimulationRunProgress,
 } from '@/types/simulation';
 import { DEFAULT_CALIBRATION_COEFFICIENTS } from '@/types/simulation';
+import { createSimulationEngineSlice, type SimulationEngineSlice } from './simulation-engine-slice';
 
 interface SimulationStore {
   // Equipment
@@ -159,7 +160,15 @@ const DEFAULT_CONFIG: SimulationConfig = {
   specificHeat: 1005,
 };
 
-export const useSimulationStore = create<SimulationStore>((set, get) => ({
+/**
+ * The full simulation store = the baseline (data-center CFD) slice defined here
+ * plus the OpenFOAM case/run/snapshot engine slice. One store, composed of
+ * slices (plan §1.1) so both the viewer/workspace and the engine page read a
+ * single source of truth.
+ */
+export type SimulationStoreState = SimulationStore & SimulationEngineSlice;
+
+export const useSimulationStore = create<SimulationStoreState>((set, get, api) => ({
   // Equipment
   racks: [],
   hvacUnits: [],
@@ -782,4 +791,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     });
     showToast('success', 'Calibration reset to defaults');
   },
+
+  // ── OpenFOAM case/run/snapshot engine slice ─────────────
+  ...createSimulationEngineSlice(set, get, api),
 }));

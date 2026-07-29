@@ -75,7 +75,7 @@ export function SimulationExportHistoryPanel({
           {' · '}Updated {lastBackfillRun.updatedCount}
           {' · '}Skipped {lastBackfillRun.skippedCount}
           {' · '}
-          <span className={lastBackfillRun.ok ? 'text-emerald-700' : 'text-destructive'}>
+          <span className={lastBackfillRun.ok ? 'text-success' : 'text-destructive'}>
             {lastBackfillRun.ok ? 'Success' : 'Failed'}
           </span>
           {lastBackfillRun.message ? ` (${lastBackfillRun.message})` : ''}

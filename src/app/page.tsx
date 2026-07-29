@@ -23,9 +23,12 @@ import {
   Thermometer,
   Wind,
   Clock,
+  FolderKanban,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { PageHeader } from '@/components/ui/page-wrapper';
 import { StatCard } from '@/components/ui/stat-card';
+import { EmptyState } from '@/components/ui/empty-state';
 import { useLoadWorkspaceStore } from '@/stores/load-workspace-store';
 import { useEquipmentWorkspaceStore } from '@/stores/equipment-workspace-store';
 import { useProjectStore } from '@/stores/project-store';
@@ -98,6 +101,10 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-(--space-section-gap)">
+      <PageHeader
+        title={user?.name ? `Welcome back, ${user.name.split(' ')[0]}` : 'Dashboard'}
+        description="Your latest load, equipment, and project activity at a glance."
+      />
       {/* KPI Row */}
       <section className="grid gap-(--space-component-gap) sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
@@ -211,9 +218,12 @@ export default function DashboardPage() {
               ))}
             </ul>
           ) : (
-            <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
-              No recent activity
-            </div>
+            <EmptyState
+              icon={<FolderKanban size={24} />}
+              title="No recent activity"
+              description="Create a project to start tracking load calculations and equipment."
+              className="h-48"
+            />
           )}
           </CardContent>
         </Card>
