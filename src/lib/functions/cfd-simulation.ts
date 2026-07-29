@@ -170,12 +170,19 @@ function placeRacks(grid: CFDGrid, racks: ServerRack[], config: SimulationConfig
     const totalHeatW = rack.powerKW * 1000 * coeffs.thermalLossFactor;
     const heatPerCell = totalHeatW / Math.max(1, rackWidthCells * rackDepthCells * rackHeightCells);
 
+    // Elevation. The renderer treats position.z as height above the floor, but
+    // the solver used to hard-code every rack to grid layer 1, so an elevated
+    // rack drew in the air while its heat stayed on the floor. normalizeRoomLayout
+    // floor-snaps racks to z=0, and posToGrid(0) === 0, so this is a no-op for
+    // every current placement -- it only matters once something sits off the floor.
+    const gz = posToGrid(rack.position.z, config.gridResolution);
+
     for (let dx = 0; dx < rackWidthCells; dx++) {
       for (let dy = 0; dy < rackDepthCells; dy++) {
         for (let dz = 0; dz < rackHeightCells; dz++) {
           const cx = gx + dx;
           const cy = gy + dy;
-          const cz = dz + 1;
+          const cz = gz + dz + 1;
           if (cx >= 0 && cx < grid.sizeX && cy >= 0 && cy < grid.sizeY && cz >= 0 && cz < grid.sizeZ) {
             grid.cells[cx][cy][cz].isObstacle = true;
             grid.cells[cx][cy][cz].heatSource = heatPerCell;
@@ -1391,4 +1398,4 @@ export function runCFDSimulation(
   };
 }
 
-export { DEFAULT_CONFIG, createGrid };
+export { DEFAULT_CONFIG, createGrid, placeRacks };
