@@ -121,7 +121,6 @@
     "sharp": "^0.35.0",
     "esbuild": "^0.28.1",
     "rimraf": "^6.0.1",
-    "archiver": "^8.0.0",
-    "eslint-plugin-react-hooks": "7.0.1"
+    "archiver": "^8.0.0"
   }
 }

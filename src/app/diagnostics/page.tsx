@@ -133,6 +133,47 @@ const defaultInput: DiagnosticInput = {
 
 // ── Page ─────────────────────────────────────────────────────────────────
 
+// ── Field controls ───────────────────────────────────────────────────────
+//
+// Hoisted to module scope. Defined inside DiagnosticsPage these were rebuilt
+// on every render, so React remounted them each time — which made NumField's
+// <Input> lose focus after a single keystroke.
+
+function Pill({ label, field, icon: I, input, onToggle }: {
+  label: string;
+  field: keyof DiagnosticInput;
+  icon: React.ComponentType<{ size?: number }>;
+  input: DiagnosticInput;
+  onToggle: (field: keyof DiagnosticInput) => void;
+}) {
+  return (
+    <button type="button" onClick={() => onToggle(field)}
+      className={cn('inline-flex items-center gap-2 rounded-lg border px-3.5 py-2 text-sm font-medium transition-all',
+        input[field] ? 'bg-accent/12 border-accent/30 text-accent' : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-border')}>
+      <I size={14} />{label}
+    </button>
+  );
+}
+
+function NumField({ label, field, unit, ph, input, onValueChange }: {
+  label: string;
+  field: keyof DiagnosticInput;
+  unit: string;
+  ph?: string;
+  input: DiagnosticInput;
+  onValueChange: (field: keyof DiagnosticInput, raw: string) => void;
+}) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs font-medium text-muted-foreground">{label}</label>
+      <div className="relative">
+        <Input type="number" step="any" value={input[field] != null ? String(input[field]) : ''} onChange={(e) => onValueChange(field, e.target.value)} placeholder={ph ?? '—'} className="h-11 pr-11 text-sm" />
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{unit}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function DiagnosticsPage() {
   const [input, setInput] = useState<DiagnosticInput>({ ...defaultInput });
   const [result, setResult] = useState<DiagnosticResult | null>(null);
@@ -233,25 +274,6 @@ export default function DiagnosticsPage() {
     setShowMeasurements(false);
   };
 
-  // helpers
-  const Pill = ({ label, field, icon: I }: { label: string; field: keyof DiagnosticInput; icon: React.ComponentType<{ size?: number }> }) => (
-    <button type="button" onClick={() => toggleSym(field)}
-      className={cn('inline-flex items-center gap-2 rounded-lg border px-3.5 py-2 text-sm font-medium transition-all',
-        input[field] ? 'bg-accent/12 border-accent/30 text-accent' : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-border')}>
-      <I size={14} />{label}
-    </button>
-  );
-
-  const NumField = ({ label, field, unit, ph }: { label: string; field: keyof DiagnosticInput; unit: string; ph?: string }) => (
-    <div>
-      <label className="mb-1 block text-xs font-medium text-muted-foreground">{label}</label>
-      <div className="relative">
-        <Input type="number" step="any" value={input[field] != null ? String(input[field]) : ''} onChange={(e) => updateNum(field, e.target.value)} placeholder={ph ?? '—'} className="h-11 pr-11 text-sm" />
-        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{unit}</span>
-      </div>
-    </div>
-  );
-
   return (
     <PageWrapper>
       <PageHeader
@@ -317,13 +339,13 @@ export default function DiagnosticsPage() {
           <CardContent className="px-5 py-5">
             <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Symptoms</p>
             <div className="flex flex-wrap gap-2">
-              <Pill label="Uneven Cooling" field="unevenCooling" icon={Thermometer} />
-              <Pill label="Weak Airflow" field="weakAirflow" icon={Wind} />
-              <Pill label="High Humidity" field="highHumidity" icon={Droplets} />
-              <Pill label="Noisy" field="noisyOperation" icon={Zap} />
-              <Pill label="Ice Formation" field="iceFormation" icon={Droplets} />
-              <Pill label="Short Cycling" field="shortCycling" icon={Clock} />
-              <Pill label="High Energy" field="highEnergyBills" icon={CircleDollarSign} />
+              <Pill label="Uneven Cooling" field="unevenCooling" icon={Thermometer} input={input} onToggle={toggleSym} />
+              <Pill label="Weak Airflow" field="weakAirflow" icon={Wind} input={input} onToggle={toggleSym} />
+              <Pill label="High Humidity" field="highHumidity" icon={Droplets} input={input} onToggle={toggleSym} />
+              <Pill label="Noisy" field="noisyOperation" icon={Zap} input={input} onToggle={toggleSym} />
+              <Pill label="Ice Formation" field="iceFormation" icon={Droplets} input={input} onToggle={toggleSym} />
+              <Pill label="Short Cycling" field="shortCycling" icon={Clock} input={input} onToggle={toggleSym} />
+              <Pill label="High Energy" field="highEnergyBills" icon={CircleDollarSign} input={input} onToggle={toggleSym} />
             </div>
           </CardContent>
         </Card>
@@ -341,18 +363,18 @@ export default function DiagnosticsPage() {
           <Card className="panel-glass border-border/70 bg-card shadow-sm">
             <CardContent className="px-5 py-5">
               <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-                <NumField label="Supply (cold)" field="supplyTempCold" unit="°C" ph="14" />
-                <NumField label="Supply (warm)" field="supplyTempWarm" unit="°C" ph="22" />
-                <NumField label="Return air" field="returnAirTemp" unit="°C" ph="26" />
-                <NumField label="Outdoor" field="outdoorTemp" unit="°C" ph="35" />
-                <NumField label="Indoor RH" field="indoorRH" unit="%" ph="65" />
-                <NumField label="Suction" field="suctionPressure" unit="psi" />
-                <NumField label="Discharge" field="dischargePressure" unit="psi" />
-                <NumField label="Superheat" field="superheat" unit="°F" />
-                <NumField label="Sub-cool" field="subcooling" unit="°F" />
-                <NumField label="Motor A" field="motorAmps" unit="A" />
-                <NumField label="Rated A" field="ratedAmps" unit="A" />
-                <NumField label="CFM meas." field="cfmMeasured" unit="CFM" />
+                <NumField label="Supply (cold)" field="supplyTempCold" unit="°C" ph="14" input={input} onValueChange={updateNum} />
+                <NumField label="Supply (warm)" field="supplyTempWarm" unit="°C" ph="22" input={input} onValueChange={updateNum} />
+                <NumField label="Return air" field="returnAirTemp" unit="°C" ph="26" input={input} onValueChange={updateNum} />
+                <NumField label="Outdoor" field="outdoorTemp" unit="°C" ph="35" input={input} onValueChange={updateNum} />
+                <NumField label="Indoor RH" field="indoorRH" unit="%" ph="65" input={input} onValueChange={updateNum} />
+                <NumField label="Suction" field="suctionPressure" unit="psi" input={input} onValueChange={updateNum} />
+                <NumField label="Discharge" field="dischargePressure" unit="psi" input={input} onValueChange={updateNum} />
+                <NumField label="Superheat" field="superheat" unit="°F" input={input} onValueChange={updateNum} />
+                <NumField label="Sub-cool" field="subcooling" unit="°F" input={input} onValueChange={updateNum} />
+                <NumField label="Motor A" field="motorAmps" unit="A" input={input} onValueChange={updateNum} />
+                <NumField label="Rated A" field="ratedAmps" unit="A" input={input} onValueChange={updateNum} />
+                <NumField label="CFM meas." field="cfmMeasured" unit="CFM" input={input} onValueChange={updateNum} />
               </div>
             </CardContent>
           </Card>
