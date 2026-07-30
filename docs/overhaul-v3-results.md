@@ -9,7 +9,7 @@ Rolling status of the MASTER-PLAN-v3 phases as landed on `main` /
 | Metric | Baseline | Now |
 |---|---|---|
 | Pages > 1000 lines | 8 | **0** |
-| Test cases | 6 | **101** |
+| Test cases | 6 | **109** |
 | Vulnerabilities (high) | 12 | **9*** |
 | `npm run check` one-command gate | — | ✅ added |
 
@@ -73,11 +73,19 @@ documents the contract.
   - Both remaining pages are now composition shells over
     `features/simulation/{viewer,engine}/`: **viewer 1675 → 268**, **engine
     1641 → 226**.
-- ⚠️ **Not yet verified in a browser.** tsc/eslint/vitest/build are green and
-  every route serves 200, but these pages render client-side behind auth, so no
-  automated check here can confirm the UI behaves. Needs a hands-on pass —
-  especially the layout autosave (open a project → expect zero PUTs; drag one
-  HVAC unit → expect exactly one debounced PUT).
+- 🟡 **Partly verified.** The autosave's pure half is now covered by
+  `features/simulation/viewer/__tests__/layout-payload.test.ts` (8 cases): the
+  hydrate → re-serialise round trip is idempotent (which is *why* loading a
+  project fires no PUT), the hash still changes when a unit moves or is
+  added/removed (so a real drag does save), malformed placements are dropped
+  rather than piled at the origin, and a scaleless floor falls back to canvas
+  scale 50. Verified non-vacuous by mutation: making the mapper lossy fails the
+  round-trip case.
+
+  What those tests **cannot** cover is the effect wiring around them — the
+  650ms debounce, the hydration guard, and that exactly one request leaves the
+  browser. That still needs a hands-on pass with the network tab: open a
+  project (expect zero PUTs), drag one HVAC unit (expect exactly one).
 
 ### Phase 1.2 — Monolith decomposition ✅
 materials 1098→174, reports 1077→125, projects/[id] 2202→357, floorplan
