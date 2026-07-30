@@ -9,7 +9,7 @@ Rolling status of the MASTER-PLAN-v3 phases as landed on `main` /
 | Metric | Baseline | Now |
 |---|---|---|
 | Pages > 1000 lines | 8 | **0** |
-| Test cases | 6 | **109** |
+| Test cases | 6 | **115** |
 | Vulnerabilities (high) | 12 | **9*** |
 | `npm run check` one-command gate | — | ✅ added |
 
@@ -82,10 +82,20 @@ documents the contract.
   scale 50. Verified non-vacuous by mutation: making the mapper lossy fails the
   round-trip case.
 
-  What those tests **cannot** cover is the effect wiring around them — the
-  650ms debounce, the hydration guard, and that exactly one request leaves the
-  browser. That still needs a hands-on pass with the network tab: open a
-  project (expect zero PUTs), drag one HVAC unit (expect exactly one).
+- ✅ **Autosave effect wiring now covered too.**
+  `__tests__/layout-autosave.test.ts` (6 cases, jsdom via a per-file docblock so
+  the suite stays node by default) drives the real hook with `renderHook`, a
+  per-URL `authFetch` stub and the real zustand store, so a "drag" is just a
+  store write. It pins: opening a project writes nothing back, one move sends
+  exactly one PUT and only after 650ms, a burst of moves collapses to one, an
+  identical re-set sends nothing, and writes landing *while hydration is still
+  in flight* are suppressed.
+
+  Both guards were mutation-checked. Removing the hash short-circuit fails the
+  identical-value case; removing the hydration guard fails the in-flight case —
+  which the first five tests did **not** catch, since by then hydration has
+  finished and the hash check alone suppresses the write. The in-flight test was
+  added specifically to close that hole.
 
 ### Phase 1.2 — Monolith decomposition ✅
 materials 1098→174, reports 1077→125, projects/[id] 2202→357, floorplan
