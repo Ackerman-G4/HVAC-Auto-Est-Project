@@ -163,11 +163,16 @@ function NumField({ label, field, unit, ph, input, onValueChange }: {
   input: DiagnosticInput;
   onValueChange: (field: keyof DiagnosticInput, raw: string) => void;
 }) {
+  // Field controls render their own label (Input's built-in one carries
+  // different styling), so wire htmlFor/id explicitly — otherwise the label is
+  // announced by nothing and clicking it does not focus the field.
+  const inputId = `diagnostic-${field}`;
+
   return (
     <div>
-      <label className="mb-1 block text-xs font-medium text-muted-foreground">{label}</label>
+      <label htmlFor={inputId} className="mb-1 block text-xs font-medium text-muted-foreground">{label}</label>
       <div className="relative">
-        <Input type="number" step="any" value={input[field] != null ? String(input[field]) : ''} onChange={(e) => onValueChange(field, e.target.value)} placeholder={ph ?? '—'} className="h-11 pr-11 text-sm" />
+        <Input id={inputId} type="number" step="any" value={input[field] != null ? String(input[field]) : ''} onChange={(e) => onValueChange(field, e.target.value)} placeholder={ph ?? '—'} className="h-11 pr-11 text-sm" />
         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{unit}</span>
       </div>
     </div>
