@@ -9,7 +9,7 @@ Rolling status of the MASTER-PLAN-v3 phases as landed on `main` /
 | Metric | Baseline | Now |
 |---|---|---|
 | Pages > 1000 lines | 8 | **0** |
-| Test cases | 6 | **115** |
+| Test cases | 6 | **118** |
 | Vulnerabilities (high) | 12 | **9*** |
 | `npm run check` one-command gate | — | ✅ added |
 
@@ -200,7 +200,16 @@ resolved:
   inside `DiagnosticsPage`, so React rebuilt and remounted them every render.
   For `NumField` (which wraps an `<Input>`) that meant **losing focus after one
   keystroke** — a user-facing bug the pin was hiding. Both hoisted to module
-  scope.
+  scope, and now pinned by
+  `app/diagnostics/__tests__/measurement-input-focus.test.tsx`. Reverting the
+  hoist fails those tests with focus on `<body>` and a fresh input node, i.e.
+  it reproduces the original symptom exactly.
+
+  Writing that test also surfaced an **unrelated a11y bug**: `NumField` renders
+  its own `<label>`, and `Input` only wires `htmlFor`/`id` when given its own
+  `label` prop — so every measurement label was associated with nothing.
+  Screen readers announced no name and clicking a label did not focus its
+  field. Now wired explicitly.
 - **1 `immutability`** on `OrbitControls.min/maxDistance` — a false positive;
   three.js exposes those only as mutable properties. Disabled inline with the
   reason.
