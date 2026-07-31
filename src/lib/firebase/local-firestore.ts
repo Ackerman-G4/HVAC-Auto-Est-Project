@@ -7,10 +7,14 @@
  *
  * Data persisted to .local-firestore.json at workspace root.
  */
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, renameSync, unlinkSync } from 'fs';
+import { writeFile, rename, unlink } from 'fs/promises';
 import { join } from 'path';
 
 const DB_FILE = join(process.cwd(), '.local-firestore.json');
+// Written first, then renamed over DB_FILE. rename(2) is atomic within a
+// filesystem, so an interrupted flush cannot leave a half-written database.
+const DB_TMP_FILE = `${DB_FILE}.tmp`;
 
 type DocData = Record<string, unknown>;
 
@@ -30,11 +34,23 @@ interface Store {
 //   - coalesce writes behind a short debounce so a burst of mutations (e.g.
 //     seeding many rooms) flushes to disk a few times instead of once per op.
 // A synchronous flush on process exit guarantees the last writes land.
+//
+// Two details matter once the database gets large (a few simulation cases carry
+// mesh arrays and push it into the tens of MB):
+//
+//   - Serialize compactly. Indenting made whitespace 59% of the file, so it
+//     inflated every read, every write and every byte on disk ~2.5x to produce
+//     something far too big to read by hand anyway.
+//   - Flush off the request path. writeFileSync blocks the event loop, so a
+//     flush of that size stalled *every* in-flight request behind it. The
+//     debounced flush is async; only the exit hook stays synchronous, because
+//     'exit' handlers cannot await.
 
 let _cache: Store | null = null;
 let _flushTimer: ReturnType<typeof setTimeout> | null = null;
 let _dirty = false;
 let _exitHookInstalled = false;
+let _flushInFlight: Promise<void> | null = null;
 
 function loadFromDisk(): Store {
   if (!existsSync(DB_FILE)) return {};
@@ -48,14 +64,49 @@ function loadFromDisk(): Store {
   }
 }
 
-function flushToDisk(): void {
+/** Synchronous flush. Only for process exit, where awaiting is not possible. */
+function flushToDiskSync(): void {
   if (!_dirty || _cache === null) return;
   try {
-    writeFileSync(DB_FILE, JSON.stringify(_cache, null, 2), 'utf-8');
+    writeFileSync(DB_TMP_FILE, JSON.stringify(_cache), 'utf-8');
+    renameSync(DB_TMP_FILE, DB_FILE);
     _dirty = false;
   } catch {
     // Leave _dirty set so a later flush retries.
+    try { unlinkSync(DB_TMP_FILE); } catch { /* nothing to clean up */ }
   }
+}
+
+/**
+ * Flush without blocking the event loop, so requests are not stalled behind a
+ * large write. Serializing is synchronous on purpose: it snapshots the store in
+ * one turn, so a mutation arriving mid-write cannot tear the payload. Anything
+ * that lands during the write re-marks `_dirty` and is picked up by the
+ * follow-up flush below.
+ */
+async function flushToDisk(): Promise<void> {
+  if (!_dirty || _cache === null) return;
+  if (_flushInFlight) return _flushInFlight;
+
+  const payload = JSON.stringify(_cache);
+  _dirty = false;
+
+  _flushInFlight = (async () => {
+    try {
+      await writeFile(DB_TMP_FILE, payload, 'utf-8');
+      await rename(DB_TMP_FILE, DB_FILE);
+    } catch {
+      _dirty = true; // Retry on the next flush.
+      try { await unlink(DB_TMP_FILE); } catch { /* nothing to clean up */ }
+    } finally {
+      _flushInFlight = null;
+    }
+  })();
+
+  await _flushInFlight;
+
+  // A mutation that arrived while the write was in flight is still unwritten.
+  if (_dirty) scheduleFlush();
 }
 
 function installExitHook(): void {
@@ -66,7 +117,7 @@ function installExitHook(): void {
       clearTimeout(_flushTimer);
       _flushTimer = null;
     }
-    flushToDisk();
+    flushToDiskSync();
   };
   process.once('exit', finalize);
   process.once('SIGINT', () => { finalize(); process.exit(0); });
@@ -81,20 +132,23 @@ function readStore(): Store {
   return _cache;
 }
 
+function scheduleFlush(): void {
+  if (_flushTimer !== null) return;
+  _flushTimer = setTimeout(() => {
+    _flushTimer = null;
+    void flushToDisk();
+  }, 100);
+  // Do not keep the event loop alive solely for a pending flush.
+  if (typeof _flushTimer === 'object' && typeof _flushTimer.unref === 'function') {
+    _flushTimer.unref();
+  }
+}
+
 function writeStore(store: Store): void {
   _cache = store;
   _dirty = true;
   installExitHook();
-  if (_flushTimer === null) {
-    _flushTimer = setTimeout(() => {
-      _flushTimer = null;
-      flushToDisk();
-    }, 100);
-    // Do not keep the event loop alive solely for a pending flush.
-    if (typeof _flushTimer === 'object' && typeof _flushTimer.unref === 'function') {
-      _flushTimer.unref();
-    }
-  }
+  scheduleFlush();
 }
 
 // ── Mock Document Snapshot ─────────────────────────────────
