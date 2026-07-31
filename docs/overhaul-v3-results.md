@@ -9,31 +9,42 @@ Rolling status of the MASTER-PLAN-v3 phases as landed on `main` /
 | Metric | Baseline | Now |
 |---|---|---|
 | Pages > 1000 lines | 8 | **0** |
-| Test cases | 6 | **118** |
-| Vulnerabilities (high) | 12 | **9*** |
+| Test cases | 6 | **136** |
+| Vulnerable `brace-expansion` copies | 12 | **0*** |
 | `npm run check` one-command gate | — | ✅ added |
 
-\* Down from 19. All remaining are the same `brace-expansion <=5.0.7` DoS
-(GHSA-mh99-v99m-4gvg), now confined to **dev-only lint tooling**
-(`eslint` → `@eslint/eslintrc`, and eslint-config-next's
-import/jsx-a11y/react plugins → `minimatch@3`).
+\* `npm audit` still prints 9 highs. Those are now a **false positive** — the
+vulnerable code is gone from the tree. Details below.
 
-**Why the rest can't be fixed today** (verified, not assumed): the patch exists
-only from `brace-expansion@3.0.4`/`5.0.8`, and that line changed its export from
-a callable function to a plain object. `minimatch@3.x`/`5.x` call
-`require('brace-expansion')(…)`, so *any* override to a patched version is a
-guaranteed `TypeError` — this is what broke `@eslint/config-array` in the
-earlier attempt. No patched release keeps the callable CommonJS API. Upgrading
-`eslint`→10 was also tried and reverted: `eslint-plugin-react/import/jsx-a11y`
-are all already at their latest versions and none support eslint 10 (peer `^9`
-max), so eslint 10 crashes the lint run outright.
+**All 12 were the same advisory**: `brace-expansion` DoS via unbounded expansion
+(GHSA-mh99-v99m-4gvg / CVE-2026-14257).
 
-**What was fixed:** the two chains that touch runtime/user-facing code are gone
-— `exceljs` (via `archiver@8`, whose `readdir-glob@3` → `minimatch@10` →
-patched `brace-expansion@5`) and `firebase-admin` (via `rimraf@6` → `glob@11` →
-`minimatch@10`). Because `archiver@8` is three majors above what exceljs
-declares and no test covers it, XLSX export was verified by generating a real
-workbook and round-tripping the bytes.
+**The two runtime chains** were fixed first — `exceljs` (via `archiver@8`, whose
+`readdir-glob@3` → `minimatch@10` → patched `brace-expansion@5`) and
+`firebase-admin` (via `rimraf@6` → `glob@11` → `minimatch@10`). Because
+`archiver@8` is three majors above what exceljs declares and no test covers it,
+XLSX export was verified by generating a real workbook and round-tripping the
+bytes.
+
+**The remaining 9** were dev-only lint tooling (`eslint` → `@eslint/eslintrc`,
+and eslint-config-next's import/jsx-a11y/react plugins → `minimatch@3` →
+`brace-expansion@1.1.16`). Two earlier attempts failed and were reverted:
+overriding to `brace-expansion@5` (that line returns a plain object where
+`minimatch@3` calls `require('brace-expansion')(…)`, so it is a guaranteed
+`TypeError`), and `eslint`→10 (no eslint-plugin supports it; peer is `^9` max,
+and it crashes the lint run).
+
+They are fixed now. The **1.x line was back-patched** — `1.1.17`/`1.1.18` carry
+the `EXPANSION_MAX_LENGTH` bound and cite CVE-2026-14257 directly, while keeping
+the callable CommonJS export `minimatch@3` needs. A scoped override
+(`"minimatch@3": { "brace-expansion": "^1.1.18" }`) pulls it in; `eslint src`
+still runs clean. Confirmed by reading both tarballs: `1.1.16` has no length
+guard, `1.1.18` does.
+
+`npm audit` keeps reporting these because the advisory's affected range is a
+flat `<=5.0.7`, which swallows the whole 1.x line and does not carve out the
+backport. **Do not "fix" this by reverting the override** — that reinstalls
+genuinely vulnerable code to quiet a stale range.
 
 ## Phase status
 
@@ -219,6 +230,57 @@ resolved:
   fetching across ~20 files to save one render on mount, so the rule is a
   **warning** with that rationale in `eslint.config.mjs` — visible rather than
   hidden behind a version pin.
+
+### Engineering-tier gating ✅
+Pressing **Run Engineering** raised a full-screen Next.js error overlay reading
+"The OpenFOAM cloud path is not configured."
+
+The backend was right: the Engineering tier is unprovisioned by default —
+`.env.example` says so explicitly ("Leave blank to keep the Engineering tier
+unprovisioned") — and `POST .../runs` returns a clean 503
+(`ENGINEERING_TIER_NOT_PROVISIONED`). The bug was entirely in how the client
+treated it. `startRun` turned that 503 into a thrown `Error` and `console.error`d
+it, and Next.js renders anything reaching `console.error` as a crash overlay. So
+a correctly-configured Preview-tier deployment looked broken.
+
+Two halves, both fixed:
+- **Ask before offering.** New `GET /api/simulation/capabilities` reports which
+  tiers this deployment can run. The engine hook probes it on mount and the
+  Run Engineering button now disables itself with a pointer to Run Preview.
+  Availability is tri-state (`null` = not yet known) so a slow or failed probe
+  never disables a tier that *is* provisioned.
+- **Report, don't crash.** The 503 is now an `info` toast. The carve-out is
+  narrow — matched on the `code` only, so a genuine dispatch failure still
+  logs and still surfaces as an error.
+
+Covered by `stores/__tests__/engineering-tier-gating.test.ts` (8). The
+console.error assertions are the point: they are what separates "handled" from
+"crash overlay". Verified by mutation — removing the carve-out fails 3 of them.
+
+Missing config var *names* are returned to admins only. They are already in
+`.env.example` and carry no secret material, but they are only actionable for
+whoever configures the deployment.
+
+### Dev loading times ✅
+`.local-firestore.json` had grown to **35 MB**, and every mutation flushed it
+with `writeFileSync` — a synchronous whole-file write that blocks the Node event
+loop, so each flush stalled *every* in-flight request behind it.
+
+- **59% of that file was indentation.** It was written with
+  `JSON.stringify(…, null, 2)`, which inflated something far too large to read
+  by hand anyway. Serializing compactly: 35 MB → 15 MB on disk (verified
+  lossless), and ~2x faster to serialize.
+- **The flush no longer blocks the request path.** It is async now; only the
+  process-exit hook stays synchronous, because `exit` handlers cannot await.
+- **Writes are atomic.** Staged through `.tmp` + `rename`, so an interrupted
+  flush can no longer truncate the database — a pre-existing risk that going
+  async would otherwise have widened.
+
+Covered by `firebase/__tests__/local-firestore-persistence.test.ts` (10), with
+`fs` mocked so no test touches a real database. Includes the failure mode that
+would lose data silently: a mutation landing *while* a write is in flight is
+held in a snapshot taken before it, so it needs a follow-up flush to reach disk.
+Old indented files still load unchanged.
 
 ### Phase 6 — Engine hardening ✅
 - ✅ 6.1 invariant suites: `equipment-selection.test.ts` (7),
