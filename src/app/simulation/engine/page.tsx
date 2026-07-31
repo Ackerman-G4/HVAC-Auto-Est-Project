@@ -54,6 +54,8 @@ export default function SimulationEnginePage() {
     addContourSlice,
     removeContourSlice,
     updateContourSlice,
+    engineeringTierAvailable,
+    engineeringTierReason,
     selectedProjectId,
     setSelectedProjectId,
     showCreateForm,
@@ -220,6 +222,8 @@ export default function SimulationEnginePage() {
         removeContourSlice={removeContourSlice}
         updateContourSlice={updateContourSlice}
         handleExport={handleExport}
+        engineeringTierAvailable={engineeringTierAvailable}
+        engineeringTierReason={engineeringTierReason}
       />
     </div>
   );

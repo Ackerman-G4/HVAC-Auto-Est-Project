@@ -49,6 +49,7 @@ export function useSimulationEngine() {
     loadSnapshotIteration, loadSnapshotField,
     exportOpenFOAM, importResults, isExporting, isImporting,
     contourSlices, addContourSlice, removeContourSlice, updateContourSlice,
+    engineeringTierAvailable, engineeringTierReason, loadCapabilities,
   } = useSimulationStore();
 
   const [selectedProjectId, setSelectedProjectId] = useState('');
@@ -189,6 +190,12 @@ export function useSimulationEngine() {
       selectSnapshotIteration(nextIteration);
     }
   }, [snapshotIterationOptions, selectedSnapshotIteration, selectSnapshotIteration]);
+
+  // Probe which solver tiers this deployment can run, so the Engineering
+  // control can be gated before it is clicked rather than after.
+  useEffect(() => {
+    void loadCapabilities();
+  }, [loadCapabilities]);
 
   useEffect(() => {
     try {
@@ -616,6 +623,8 @@ export function useSimulationEngine() {
     addContourSlice,
     removeContourSlice,
     updateContourSlice,
+    engineeringTierAvailable,
+    engineeringTierReason,
     selectedProjectId,
     setSelectedProjectId,
     showCreateForm,
