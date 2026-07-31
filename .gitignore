@@ -50,6 +50,8 @@ yarn-error.log*
 # local dev auth store
 .local-users.json
 .local-firestore.json
+# Staging file for the local-firestore atomic flush; only present mid-write.
+.local-firestore.json.tmp
 next-env.d.ts
 
 /src/generated/prisma

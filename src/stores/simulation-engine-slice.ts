@@ -122,6 +122,15 @@ export interface SimulationEngineSlice {
   isExporting: boolean;
   isImporting: boolean;
 
+  // ── Solver Tier Availability ────────────────────────────
+  /**
+   * Whether this deployment can dispatch Engineering (OpenFOAM cloud) runs.
+   * `null` until {@link loadCapabilities} resolves — treat as "unknown", not
+   * "unavailable", so the control is not wrongly disabled on first paint.
+   */
+  engineeringTierAvailable: boolean | null;
+  engineeringTierReason: string | null;
+
   // ── Actions: Cases ──────────────────────────────────────
   setProjectId: (projectId: string) => void;
   loadCases: (projectId: string) => Promise<void>;
@@ -136,6 +145,9 @@ export interface SimulationEngineSlice {
   selectCase: (caseId: string) => Promise<void>;
   updateCase: (caseId: string, updates: Record<string, unknown>) => Promise<void>;
   deleteCase: (caseId: string) => Promise<void>;
+
+  // ── Actions: Capabilities ───────────────────────────────
+  loadCapabilities: () => Promise<void>;
 
   // ── Actions: Run ────────────────────────────────────────
   startRun: (source?: RunSource) => Promise<void>;
@@ -187,6 +199,8 @@ const INITIAL_STATE = {
   activeContourId: null as string | null,
   isExporting: false,
   isImporting: false,
+  engineeringTierAvailable: null as boolean | null,
+  engineeringTierReason: null as string | null,
 };
 
 // ─── Store Implementation ───────────────────────────────────
@@ -340,6 +354,24 @@ export const createSimulationEngineSlice: StateCreator<
     }
   },
 
+  // ── Capabilities ────────────────────────────────────────
+
+  loadCapabilities: async () => {
+    try {
+      const res = await authFetch('/api/simulation/capabilities');
+      if (!res.ok) return; // Leave as unknown; startRun still guards server-side.
+      const data = await res.json();
+      const engineering = data?.capabilities?.engineering;
+      set({
+        engineeringTierAvailable: engineering?.available === true,
+        engineeringTierReason: engineering?.reason ?? null,
+      });
+    } catch {
+      // Capability probing is advisory. A failure here must not break the page,
+      // and must not disable a tier that may well be available.
+    }
+  },
+
   // ── Run ─────────────────────────────────────────────────
 
   startRun: async (source) => {
@@ -367,6 +399,25 @@ export const createSimulationEngineSlice: StateCreator<
         );
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
+
+          // An unprovisioned Engineering tier is a deployment state, not a
+          // fault: the Preview tier is the supported default (see .env.example).
+          // Report it as information and remember it so the control disables
+          // itself, rather than throwing — a thrown error here reaches
+          // console.error and Next.js renders it as a full-screen crash overlay.
+          if (errData.code === 'ENGINEERING_TIER_NOT_PROVISIONED') {
+            set({
+              engineeringTierAvailable: false,
+              engineeringTierReason: errData.description ?? null,
+            });
+            showToast(
+              'info',
+              'Engineering tier not available',
+              'This deployment has no OpenFOAM cloud solver configured. Use Run Preview instead.',
+            );
+            return;
+          }
+
           throw new Error(errData.description || errData.error || 'Failed to start Engineering run');
         }
         const data = await res.json();

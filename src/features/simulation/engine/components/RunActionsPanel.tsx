@@ -1,5 +1,5 @@
 import type { useSimulationEngine } from '../useSimulationEngine';
-import { Plus, Play, Download, Upload, Trash2, RefreshCw, Layers, Loader2 } from 'lucide-react';
+import { Plus, Play, Download, Upload, Trash2, RefreshCw, Layers, Loader2, Info } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { SectionLabel } from '@/components/ui/section-label';
@@ -19,6 +19,8 @@ type RunActionsPanelProps = Pick<
   | 'removeContourSlice'
   | 'updateContourSlice'
   | 'handleExport'
+  | 'engineeringTierAvailable'
+  | 'engineeringTierReason'
 >;
 
 export function RunActionsPanel({
@@ -34,7 +36,14 @@ export function RunActionsPanel({
   removeContourSlice,
   updateContourSlice,
   handleExport,
+  engineeringTierAvailable,
+  engineeringTierReason,
 }: RunActionsPanelProps) {
+  // `null` means the capability probe has not answered yet. Only a definite
+  // `false` disables the control — an unknown state must not hide a tier that
+  // is in fact provisioned.
+  const engineeringUnavailable = engineeringTierAvailable === false;
+
   return (
     <>
       <div className="flex w-64 shrink-0 flex-col gap-3">
@@ -63,14 +72,31 @@ export function RunActionsPanel({
                 variant="outline"
                 className="w-full border-[color:color-mix(in_oklab,var(--copper)_55%,var(--border))] text-[color:var(--copper)] hover:bg-[color:color-mix(in_oklab,var(--copper)_12%,transparent)]"
                 onClick={() => startRun('openfoam')}
-                disabled={!activeCase || activeCase.status === 'running' || activeCase.status === 'queued'}
+                disabled={
+                  !activeCase ||
+                  activeCase.status === 'running' ||
+                  activeCase.status === 'queued' ||
+                  engineeringUnavailable
+                }
+                title={engineeringUnavailable ? (engineeringTierReason ?? undefined) : undefined}
               >
                 <Play size={12} className="mr-1.5" />
                 Run Engineering
               </Button>
-              <p className="mt-1 text-[10px] leading-tight text-muted-foreground">
-                OpenFOAM cloud solve (minutes). Defensible numbers. No humidity field.
-              </p>
+              {engineeringUnavailable ? (
+                <p className="mt-1 flex items-start gap-1 text-[10px] leading-tight text-muted-foreground">
+                  <Info size={11} className="mt-px shrink-0" />
+                  <span>
+                    Not configured on this deployment. Use{' '}
+                    <span className="font-medium text-foreground">Run Preview</span> — it covers
+                    temperature, velocity, pressure &amp; humidity.
+                  </span>
+                </p>
+              ) : (
+                <p className="mt-1 text-[10px] leading-tight text-muted-foreground">
+                  OpenFOAM cloud solve (minutes). Defensible numbers. No humidity field.
+                </p>
+              )}
             </div>
             <Button
               size="sm"
