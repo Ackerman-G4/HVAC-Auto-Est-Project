@@ -453,9 +453,15 @@ export default function ProjectsPage() {
                   <motion.div key={project.id} variants={cardItemVariants}>
                     <Card className="panel-glass h-full border-border/70 bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-border hover:shadow-md">
                       <CardContent className="p-5">
-                        <div
-                          onClick={() => router.push(`/projects/${project.id}`)}
-                          className="cursor-pointer"
+                        {/*
+                          Was a <div onClick> calling router.push, so opening a
+                          project was mouse-only: no focus, no Enter, nothing in
+                          the tab order, and no link target to open in a new tab.
+                          A Link gives all of that for free.
+                        */}
+                        <Link
+                          href={`/projects/${project.id}`}
+                          className="block rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/55"
                         >
                           <div className="flex items-start justify-between mb-3">
                             <h3 className="text-base font-semibold text-foreground truncate flex-1 pr-2">
@@ -494,7 +500,7 @@ export default function ProjectsPage() {
                               <p className="text-xs font-medium font-display text-muted-foreground">Equip</p>
                             </div>
                           </div>
-                        </div>
+                        </Link>
                         {/* Progress indicator */}
                         <div className="mt-4">
                           <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">

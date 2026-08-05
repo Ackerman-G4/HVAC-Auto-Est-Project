@@ -1,0 +1,49 @@
+name: Frontend gates
+
+# The gate that has been run by hand on every wave of the frontend overhaul,
+# made enforceable: types, lint (a11y included), tests, build, and a bundle
+# budget so the 2.5MB the overhaul is trying to reduce cannot quietly grow back.
+
+on:
+  push:
+    branches: [main, overhaul-v3]
+  pull_request:
+    branches: [main, overhaul-v3]
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - run: npm ci
+
+      # tsc --noEmit && eslint src && vitest run
+      - name: Check (types, lint, tests)
+        run: npm run check
+
+      - name: Build
+        run: npx next build
+
+      # Advisory rather than blocking: the budget is above today's figure so it
+      # catches a regression, not the existing debt the overhaul is working
+      # through. Tighten it as the waves land.
+      - name: Bundle budget
+        run: |
+          RAW=$(find .next/static/chunks -name '*.js' -exec cat {} \; | wc -c)
+          GZ=$(find .next/static/chunks -name '*.js' -exec gzip -c {} \; | wc -c)
+          LARGEST=$(find .next/static/chunks -name '*.js' -printf '%s\n' | sort -rn | head -1)
+          echo "raw:     $(( RAW / 1024 )) KB"
+          echo "gzipped: $(( GZ / 1024 )) KB"
+          echo "largest: $(( LARGEST / 1024 )) KB"
+
+          BUDGET_GZ=$(( 2800 * 1024 ))
+          if [ "$GZ" -gt "$BUDGET_GZ" ]; then
+            echo "::error::gzipped JS $(( GZ / 1024 ))KB exceeds the $(( BUDGET_GZ / 1024 ))KB budget"
+            exit 1
+          fi

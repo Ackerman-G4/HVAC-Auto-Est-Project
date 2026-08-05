@@ -119,7 +119,7 @@ export function WorkflowRail({ projectId, stages, activeStage, className }: Work
         />
       </div>
 
-      <ol className="flex items-stretch gap-1.5 overflow-x-auto pb-2" role="list">
+      <ol className="flex items-stretch gap-1.5 overflow-x-auto pb-2">
         {STAGE_DEFS.map((stage, index) => {
           const state = stages[stage.id] ?? { status: 'not_started' as const };
           const meta = STATUS_META[state.status];
@@ -128,7 +128,7 @@ export function WorkflowRail({ projectId, stages, activeStage, className }: Work
           const isActive = activeStage === stage.id;
 
           return (
-            <li key={stage.id} className="flex min-w-0 flex-1 items-center" role="listitem">
+            <li key={stage.id} className="flex min-w-0 flex-1 items-center">
               <motion.button
                 type="button"
                 onClick={() => router.push(stage.href(projectId))}
