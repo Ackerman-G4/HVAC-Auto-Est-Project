@@ -103,8 +103,11 @@ export default function SimulationEnginePage() {
     handleExport,
   } = useSimulationEngine();
 
+  // Stacks below xl. The three panels are 320px + fluid + 256px, which does not
+  // fit any phone — this page had no mobile layout at all and simply overflowed
+  // sideways. Stacked, the whole column scrolls instead.
   return (
-    <div className="flex h-[calc(100vh-4rem)] gap-4 p-4">
+    <div className="flex flex-col gap-4 p-4 xl:h-[calc(100dvh-4rem)] xl:flex-row">
       {/* ── Left Panel: Cases & Config ──────────────────────── */}
       <CaseListPanel
         projectId={projectId}
@@ -128,7 +131,7 @@ export default function SimulationEnginePage() {
       />
 
       {/* ── Center Panel: Case Details & Mesh Preview ──────── */}
-      <div className="flex flex-1 flex-col gap-3 overflow-y-auto">
+      <div className="flex min-w-0 flex-1 flex-col gap-3 xl:overflow-y-auto">
         {!activeCase ? (
           <EmptyState
             className="flex-1 border-none bg-transparent py-10"
