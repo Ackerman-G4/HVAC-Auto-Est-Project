@@ -291,7 +291,7 @@ export function Sidebar() {
 
       <aside
         className={cn(
-          'hidden md:flex flex-col h-screen shrink-0 transition-all duration-300 ease-in-out',
+          'hidden md:flex flex-col h-dvh shrink-0 transition-all duration-300 ease-in-out',
           collapsed ? 'w-18' : 'w-70'
         )}
         style={{ zIndex: Z.sidebar }}

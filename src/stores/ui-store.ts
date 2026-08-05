@@ -8,12 +8,24 @@ interface UIStore {
   mobileSidebarOpen: boolean;
   workspaceMode: WorkspaceMode;
   theme: AppTheme;
+  /**
+   * Command palette visibility.
+   *
+   * Lives here rather than inside CommandPalette so other components can open
+   * it by calling an action. The header button used to fake a Cmd+K keypress
+   * with `new KeyboardEvent(...)`, which only worked because the palette
+   * happened to listen on window — untestable, and it breaks the day a browser
+   * stops trusting synthetic events.
+   */
+  commandPaletteOpen: boolean;
   toggleSidebar: () => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   setMobileSidebar: (open: boolean) => void;
   setWorkspaceMode: (mode: WorkspaceMode) => void;
   setTheme: (theme: AppTheme) => void;
   toggleTheme: () => void;
+  setCommandPaletteOpen: (open: boolean) => void;
+  toggleCommandPalette: () => void;
 }
 
 function getStoredMode(): WorkspaceMode {
@@ -37,6 +49,7 @@ export const useUIStore = create<UIStore>((set) => {
     mobileSidebarOpen: false,
     workspaceMode: initialMode,
     theme: 'dark',
+    commandPaletteOpen: false,
     toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
     setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
     setMobileSidebar: (open) => set({ mobileSidebarOpen: open }),
@@ -47,5 +60,7 @@ export const useUIStore = create<UIStore>((set) => {
     },
     setTheme: (theme) => set({ theme }),
     toggleTheme: () => set((state) => ({ theme: state.theme === 'light' ? 'dark' : 'light' })),
+    setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
+    toggleCommandPalette: () => set((state) => ({ commandPaletteOpen: !state.commandPaletteOpen })),
   };
 });

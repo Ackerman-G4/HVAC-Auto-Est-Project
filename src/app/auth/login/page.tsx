@@ -48,9 +48,6 @@ function LoginPageContent() {
 
     const ok = await loginWithEmail(parsed.data.email, parsed.data.password);
     if (ok) {
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem('hvac-show-welcome', '1');
-      }
       router.replace(nextTarget);
     }
   };
@@ -159,9 +156,6 @@ function LoginPageContent() {
                       clearError();
                       const ok = await loginWithGoogle(credentialResponse.credential);
                       if (ok) {
-                        if (typeof window !== 'undefined') {
-                          window.sessionStorage.setItem('hvac-show-welcome', '1');
-                        }
                         router.replace(nextTarget);
                       }
                     }}
