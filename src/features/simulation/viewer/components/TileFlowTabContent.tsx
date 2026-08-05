@@ -94,6 +94,9 @@ export function TileFlowTabContent({
                 tileFlowView={tileFlowView}
                 tileAirflowData={tileAirflowData}
                 alerts={alerts}
+                // The only consumer of captureSnapshot, so the only viewer that
+                // needs the GPU drawing buffer retained.
+                enableSnapshotCapture
               />
 
               {/* TileFlow Dashboard */}
