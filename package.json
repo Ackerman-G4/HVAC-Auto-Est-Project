@@ -57,7 +57,6 @@
     "validate:system:strict:local": "powershell -ExecutionPolicy Bypass -File ./scripts/validate-system-local.ps1 -Strict"
   },
   "dependencies": {
-    "@hookform/resolvers": "^5.2.2",
     "@netlify/next": "1.4.9",
     "@react-oauth/google": "0.13.4",
     "@react-three/drei": "^10.7.7",
@@ -69,7 +68,6 @@
     "clsx": "^2.1.1",
     "dotenv": "16.6.1",
     "exceljs": "4.4.0",
-    "fabric": "^7.2.0",
     "firebase": "12.12.1",
     "firebase-admin": "13.8.0",
     "framer-motion": "^12.34.3",
@@ -80,7 +78,6 @@
     "pdfmake": "0.3.7",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "react-hook-form": "^7.71.2",
     "react-resizable-panels": "3.0.2",
     "recharts": "^3.7.0",
     "tailwind-merge": "^3.5.0",
@@ -96,7 +93,6 @@
     "@testing-library/react": "16.3.2",
     "@types/bcryptjs": "2.4.6",
     "@types/better-sqlite3": "^7.6.13",
-    "@types/fabric": "^5.3.11",
     "@types/jsonwebtoken": "9.0.10",
     "@types/node": "^20",
     "@types/react": "^19",

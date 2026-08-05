@@ -76,7 +76,7 @@ table above.
 | 6 — Page decomposition | 🟡 | Two largest targets already done pre-spec. |
 | 7 — Motion doctrine | 🟡 | Only skeleton-shimmer loops; framer at 21 files, not 12. |
 | 8 — 3D performance | 🟡 | Demand rendering + adaptive quality; viewer deletion blocked on parity. |
-| 9 — Data / bundle | 🟡 | pdfmake/exceljs already lazy. |
+| 9 — Data / bundle | 🟡 | Dead deps removed, loading.tsx added; bundle targets blocked on RSC. |
 | 10 — A11y / gates | 🟡 | jsx-a11y recommended on, 0 errors; 24 label warnings remain. |
 
 ### Wave 1 — kill the ceremony ✅
@@ -447,3 +447,40 @@ failing on the debt the overhaul is still working through.
 
 **Not verifiable from here:** a real keyboard walkthrough, screen-reader output,
 and whether demand rendering actually leaves the canvas idle. All need a browser.
+
+### Wave 9 — data and bundle 🟡
+
+| Acceptance | Target | Result |
+|---|---|---|
+| Gzipped client JS | ≤ 1.2 MB | **2.58 MB** ❌ |
+| Largest chunk | ≤ 250 KB | **952 KB** ❌ |
+| `'use client'` files | < 60 | **117** ❌ |
+| `pdfmake`/`exceljs` off the initial chunk | yes | **already were** ✅ |
+| `loading.tsx` on every route | yes | **all but `/auth/*`** ✅ |
+
+**Dead dependencies removed:** `fabric` (+ `@types/fabric`), `react-hook-form`,
+`@hookform/resolvers`. Every apparent `fabric` reference in the codebase turned
+out to be the word *"fabricated"* in material descriptions.
+
+Worth being precise: **this did not shrink the bundle at all** (2.58 MB before
+and after). `fabric` was never imported, so its 29 MB was install weight and
+supply-chain surface, not shipped bytes. Removing it is right; claiming it as a
+bundle win would not be.
+
+**`loading.tsx` added** for `/airflow-duct-design`, `/diagnostics`, `/settings`,
+`/projects/new` and the floorplan preview. `/auth/*` is deliberately skipped —
+those routes use a centred split layout, not the app shell, so a page-header
+skeleton would be the wrong shape.
+
+#### Why the bundle targets are unmet
+
+The three heavy chunks are **pdfmake (952 KB)**, **exceljs (909 KB)** and
+**three (841 KB)**. The first two are already behind `await import(...)`, so
+they are lazy chunks rather than first-load — the spec's own Wave 9 item 4 was
+already satisfied before this wave. Getting them *smaller* means replacing the
+libraries, not moving them.
+
+Reaching ≤ 1.2 MB needs the RSC migration, and that is blocked on the Wave 5
+`AppShell` server/client split, which was deferred because it rewrites the auth
+path and cannot be exercised without a browser. That dependency is real and
+stated in the spec's own sequencing (5 → 9); it has not been worked around.
