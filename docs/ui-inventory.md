@@ -138,6 +138,10 @@ The primitives exist and are proven, but most call sites still hand-roll:
   never had. 13 other files still contain a raw `<table>`, 3 of them page files.
 - **Labels** — `htmlFor` is at 6 against 55 `<label>` elements. `Field` is what
   closes that gap, one form at a time.
-- **Forms** — `react-hook-form` and `@hookform/resolvers` are still unimported.
-  `projects/new/page.tsx` is 361 lines of hand-rolled `useState` form and is the
-  natural first migration; `zod` schemas already exist in `src/lib/validation/`.
+- **Forms** — `projects/new/page.tsx` is 361 lines of hand-rolled `useState`
+  form and is the natural first migration; `zod` schemas already exist in
+  `src/lib/validation/`. `react-hook-form` and `@hookform/resolvers` were
+  **removed in Wave 9**: they had sat installed and unimported, and carrying a
+  dependency against a migration nobody has started is just supply-chain surface.
+  Reinstall them when that form is actually migrated — `Field`'s render prop
+  spreads onto `register()` unchanged, so nothing here needs to move first.
