@@ -10,7 +10,7 @@ interface CardProps {
 
 export function Card({ title, subtitle, actions, children, className = '' }: CardProps) {
   return (
-    <section className={`overflow-hidden panel-glass rounded-2xl border border-border/70 shadow-[var(--panel-shadow)] ${className}`}>
+    <section className={`overflow-hidden panel-glass rounded-lg border border-border/70 shadow-[var(--panel-shadow)] ${className}`}>
       {(title || subtitle || actions) && (
         <header className="flex items-start justify-between gap-4 border-b border-border/70 px-(--space-card-padding) py-5">
           <div>

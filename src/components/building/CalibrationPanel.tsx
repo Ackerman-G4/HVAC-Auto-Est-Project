@@ -53,7 +53,7 @@ function DevCard({ label, icon, value, unit }: { label: string; icon: React.Reac
     value < 10 ? 'text-amber-400' :
     'text-red-400';
   return (
-    <div className="glass-card rounded-2xl border border-border/70 px-4 pb-5 pt-4 shadow-sm">
+    <div className="glass-card rounded-lg border border-border/70 px-4 pb-5 pt-4 shadow-sm">
       <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-muted-foreground">
         {icon}
         {label}
@@ -211,7 +211,7 @@ export default function CalibrationPanel() {
       )}
 
       {/* ─── Calibration Controls ─────────────────────────────── */}
-      <div className="panel-glass rounded-xl border border-border/70 bg-card p-5 shadow-sm">
+      <div className="panel-glass rounded-md border border-border/70 bg-card p-5 shadow-sm">
         <div className="mb-4 flex items-center gap-2">
           <Crosshair size={18} className="text-accent" />
           <h3 className="text-sm font-semibold text-foreground">Calibration Controls</h3>
@@ -221,7 +221,7 @@ export default function CalibrationPanel() {
           <select
             value={mode}
             onChange={(e) => setMode(e.target.value as CalibrationMode)}
-            className="rounded-lg border border-border bg-card px-3 py-1.5 text-sm text-foreground"
+            className="rounded-sm border border-border bg-card px-3 py-1.5 text-sm text-foreground"
           >
             <option value="compare">Compare Only</option>
             <option value="auto-adjust">Auto-Adjust</option>
@@ -231,7 +231,7 @@ export default function CalibrationPanel() {
           <button
             onClick={() => runCalibration(mode, result.projectId, result.config.mode)}
             disabled={isCalibrating || (mode === 'sensor' && sensorReadings.length === 0)}
-            className="flex items-center gap-1.5 rounded-lg bg-accent px-4 py-1.5 text-sm font-medium text-accent-foreground transition hover:bg-accent/90 disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-sm bg-accent px-4 py-1.5 text-sm font-medium text-accent-foreground transition hover:bg-accent/90 disabled:opacity-50"
           >
             <Play size={14} />
             {isCalibrating ? 'Calibrating…' : 'Run Calibration'}
@@ -239,7 +239,7 @@ export default function CalibrationPanel() {
 
           <button
             onClick={resetCalibration}
-            className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground transition hover:text-foreground"
+            className="flex items-center gap-1.5 rounded-sm border border-border px-3 py-1.5 text-sm text-muted-foreground transition hover:text-foreground"
           >
             <RotateCcw size={14} />
             Reset
@@ -254,7 +254,7 @@ export default function CalibrationPanel() {
       </div>
 
       {/* ─── Coefficient Sliders ──────────────────────────────── */}
-      <div className="panel-glass rounded-xl border border-border/70 bg-card p-5 shadow-sm">
+      <div className="panel-glass rounded-md border border-border/70 bg-card p-5 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Activity size={18} className="text-accent" />
@@ -262,7 +262,7 @@ export default function CalibrationPanel() {
           </div>
           <button
             onClick={handleApplySliders}
-            className="rounded-lg bg-accent/20 px-3 py-1 text-xs font-medium text-accent transition hover:bg-accent/30"
+            className="rounded-sm bg-accent/20 px-3 py-1 text-xs font-medium text-accent transition hover:bg-accent/30"
           >
             Apply
           </button>
@@ -303,7 +303,7 @@ export default function CalibrationPanel() {
       </div>
 
       {/* ─── Sensor Input ─────────────────────────────────────── */}
-      <div className="panel-glass rounded-xl border border-border/70 bg-card p-5 shadow-sm">
+      <div className="panel-glass rounded-md border border-border/70 bg-card p-5 shadow-sm">
         <div className="mb-4 flex items-center gap-2">
           <Thermometer size={18} className="text-accent" />
           <h3 className="text-sm font-semibold text-foreground">Sensor Readings</h3>
@@ -353,14 +353,14 @@ export default function CalibrationPanel() {
           </div>
           <button
             onClick={handleAddSensor}
-            className="flex items-center gap-1 rounded-lg bg-accent/20 px-3 py-1 text-xs font-medium text-accent transition hover:bg-accent/30"
+            className="flex items-center gap-1 rounded-sm bg-accent/20 px-3 py-1 text-xs font-medium text-accent transition hover:bg-accent/30"
           >
             <Plus size={14} /> Add
           </button>
           {sensorReadings.length > 0 && (
             <button
               onClick={clearSensorReadings}
-              className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-muted-foreground transition hover:text-red-400"
+              className="flex items-center gap-1 rounded-sm border border-border px-2 py-1 text-xs text-muted-foreground transition hover:text-red-400"
             >
               <Trash2 size={12} /> Clear All
             </button>
@@ -368,7 +368,7 @@ export default function CalibrationPanel() {
         </div>
 
         {sensorReadings.length > 0 && (
-          <div className="max-h-40 overflow-auto rounded-lg border border-border/50">
+          <div className="max-h-40 overflow-auto rounded-sm border border-border/50">
             <table className="w-full text-xs">
               <thead className="sticky top-0 bg-card text-left text-muted-foreground">
                 <tr>
@@ -399,7 +399,7 @@ export default function CalibrationPanel() {
 
       {/* ─── Deviation Detail Table ───────────────────────────── */}
       {calibrationResult && sortedPoints.length > 0 && (
-        <div className="panel-glass rounded-xl border border-border/70 bg-card p-5 shadow-sm">
+        <div className="panel-glass rounded-md border border-border/70 bg-card p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Activity size={18} className="text-accent" />
@@ -415,7 +415,7 @@ export default function CalibrationPanel() {
             </select>
           </div>
 
-          <div className="max-h-64 overflow-auto rounded-lg border border-border/50">
+          <div className="max-h-64 overflow-auto rounded-sm border border-border/50">
             <table className="w-full text-xs">
               <thead className="sticky top-0 bg-card text-left text-muted-foreground">
                 <tr>
@@ -446,7 +446,7 @@ export default function CalibrationPanel() {
 
       {/* ─── Deviation Chart ──────────────────────────────────── */}
       {calibrationResult && chartData.length > 0 && (
-        <div className="panel-glass rounded-xl border border-border/70 bg-card p-5 shadow-sm">
+        <div className="panel-glass rounded-md border border-border/70 bg-card p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-2">
             <Activity size={18} className="text-accent" />
             <h3 className="text-sm font-semibold text-foreground">Deviation Chart</h3>

@@ -17,8 +17,8 @@ export default function SegmentError({
 
   return (
     <div className="flex min-h-[50vh] items-center justify-center px-6">
-      <div className="panel-glass w-full max-w-md rounded-2xl border border-border/70 p-8 text-center">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-destructive/30 bg-destructive/10 text-destructive">
+      <div className="panel-glass w-full max-w-md rounded-lg border border-border/70 p-8 text-center">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-destructive/30 bg-destructive/10 text-destructive">
           <AlertTriangle className="h-6 w-6" aria-hidden="true" />
         </div>
         <h2 className="mb-2 text-lg font-bold text-foreground">This workspace crashed</h2>

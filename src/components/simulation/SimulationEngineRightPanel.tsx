@@ -91,7 +91,7 @@ export default function SimulationEngineRightPanel({
           <select
             value={selectedRunSource}
             onChange={(event) => onRunSourceChange(event.target.value as RunSource)}
-            className="w-full rounded-md border border-border bg-background px-2 py-1 text-xs"
+            className="w-full rounded-sm border border-border bg-background px-2 py-1 text-xs"
             aria-label="Run Source"
             disabled={!activeCase || activeCase.status === 'running' || activeCase.status === 'queued'}
           >
@@ -150,7 +150,7 @@ export default function SimulationEngineRightPanel({
               return (
                 <div
                   key={run.id}
-                  className={`rounded-md border p-2 text-[10px] ${
+                  className={`rounded-sm border p-2 text-[10px] ${
                     activeRun?.id === run.id
                       ? 'border-accent/60 bg-accent/10'
                       : 'border-border/70 bg-background/60'

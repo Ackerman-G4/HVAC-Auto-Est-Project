@@ -1157,7 +1157,7 @@ export default function BuildingViewer3D({ floors, buildingType, projectName }: 
   /* empty */
   if (totalRooms === 0) {
     return (
-      <div className="flex items-center justify-center h-130 border border-border rounded-xl bg-secondary/30">
+      <div className="flex items-center justify-center h-130 border border-border rounded-md bg-secondary/30">
         <div className="text-center text-muted-foreground">
           <p className="text-lg font-semibold mb-1">No rooms to visualise</p>
           <p className="text-sm">Add rooms first, then open 3D View.</p>
@@ -1192,7 +1192,7 @@ export default function BuildingViewer3D({ floors, buildingType, projectName }: 
 
   /* ---------- render ---------- */
   return (
-    <div className="border border-border rounded-xl overflow-hidden bg-card">
+    <div className="border border-border rounded-md overflow-hidden bg-card">
       {/* header */}
       <div className="flex flex-col gap-0 border-b border-border bg-secondary/30">
         <div className="flex items-center justify-between px-4 py-2.5">

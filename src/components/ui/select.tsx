@@ -24,7 +24,7 @@ export function Select({ className, label, error, options, placeholder, id, ref,
         ref={ref}
         id={selectId}
         className={cn(
-          'h-10 w-full appearance-none rounded-xl border border-input bg-card/85 px-3 text-sm text-foreground backdrop-blur-sm',
+          'h-10 w-full appearance-none rounded-md border border-input bg-card/85 px-3 text-sm text-foreground',
           'focus:outline-none focus:ring-2 focus:ring-ring/55 focus:border-primary focus:shadow-[0_0_0_4px_color-mix(in_oklab,var(--primary)_22%,transparent)]',
           'transition-colors duration-150 cursor-pointer',
           'disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-secondary',

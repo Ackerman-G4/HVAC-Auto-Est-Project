@@ -89,14 +89,14 @@ export default function AirflowDuctDesignPage() {
             <h2 className="mt-1 text-xl font-semibold text-foreground">Duct Network Sizing</h2>
             <p className="mt-1 text-sm text-muted-foreground">Adjust distribution constraints, then recompute branch velocity, pressure loss, and fan duty.</p>
           </div>
-          <div className="rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground tabular-nums">
+          <div className="rounded-sm border border-border bg-card px-3 py-2 text-xs text-muted-foreground tabular-nums">
             Load-linked supply: {loadLinkedCfm !== null ? `${loadLinkedCfm.toLocaleString()} CFM` : 'Unavailable'}
           </div>
         </div>
         {(hasBlockingIssues || warningIssues.length > 0) && (
           <div className="mb-4 space-y-2">
             {hasBlockingIssues && (
-              <div className="rounded-lg border border-destructive/45 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              <div className="rounded-sm border border-destructive/45 bg-destructive/10 px-3 py-2 text-xs text-destructive">
                 <p className="font-semibold uppercase tracking-wide">Validation Errors</p>
                 <ul className="mt-1 list-disc space-y-1 pl-4">
                   {blockingIssues.map((issue, index) => (
@@ -106,7 +106,7 @@ export default function AirflowDuctDesignPage() {
               </div>
             )}
             {warningIssues.length > 0 && (
-              <div className="rounded-lg border border-yellow-500/45 bg-yellow-500/10 px-3 py-2 text-xs text-foreground">
+              <div className="rounded-sm border border-yellow-500/45 bg-yellow-500/10 px-3 py-2 text-xs text-foreground">
                 <p className="font-semibold uppercase tracking-wide">Warnings</p>
                 <ul className="mt-1 list-disc space-y-1 pl-4">
                   {warningIssues.map((issue, index) => (
@@ -224,14 +224,14 @@ export default function AirflowDuctDesignPage() {
         >
           <div className="space-y-4">
             {result.formulas.map((formula) => (
-              <div key={formula.label} className="rounded-lg border border-border bg-secondary p-4">
+              <div key={formula.label} className="rounded-sm border border-border bg-secondary p-4">
                 <p className="text-[11px] font-medium uppercase tracking-wider text-foreground">{formula.label}</p>
                 <p className="mt-1 font-mono text-xs text-muted-foreground">{formula.expression}</p>
                 <p className="mt-1.5 text-xs font-semibold text-accent">{formula.value}</p>
               </div>
             ))}
             {result.alerts.length > 0 && (
-              <div className="flex items-start gap-2 rounded-lg border border-warning bg-secondary p-4 text-sm text-foreground">
+              <div className="flex items-start gap-2 rounded-sm border border-warning bg-secondary p-4 text-sm text-foreground">
                 <Info size={14} className="mt-0.5 shrink-0" />
                 <div>
                   {result.alerts.map((alert) => (

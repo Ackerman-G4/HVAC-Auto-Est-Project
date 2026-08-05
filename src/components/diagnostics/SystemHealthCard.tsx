@@ -124,7 +124,7 @@ export function SystemHealthCard() {
         </div>
         <ul className="space-y-2">
           {rows.map((row) => (
-            <li key={row.key} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-secondary/40 px-3.5 py-2.5">
+            <li key={row.key} className="flex items-center justify-between gap-3 rounded-sm border border-border bg-secondary/40 px-3.5 py-2.5">
               <span className="flex items-center gap-2 text-sm text-foreground">
                 {row.state === 'pending' && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
                 {row.state === 'ok' && <Check className="h-3.5 w-3.5 text-accent" />}

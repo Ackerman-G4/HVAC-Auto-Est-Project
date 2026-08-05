@@ -29,7 +29,7 @@ const SEVERITY_STYLES: Record<string, string> = {
 function SeverityBadge({ severity, count }: { severity: string; count: number }) {
   if (count === 0) return null;
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold uppercase ${SEVERITY_STYLES[severity] ?? ''}`}>
+    <span className={`inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1 text-xs font-bold uppercase ${SEVERITY_STYLES[severity] ?? ''}`}>
       {severity} <span className="tabular-nums">{count}</span>
     </span>
   );
@@ -81,7 +81,7 @@ export default function TileFlowDashboard({ result, alerts, tileAirflowData, onS
   return (
     <div className="space-y-6">
       {/* ─── Alert Summary Bar ─────────────────────────────────── */}
-      <div className="panel-glass rounded-xl border border-border/70 bg-card p-5 shadow-sm">
+      <div className="panel-glass rounded-md border border-border/70 bg-card p-5 shadow-sm">
         <button
           onClick={() => setAlertsExpanded(!alertsExpanded)}
           className="flex w-full items-center justify-between"
@@ -105,7 +105,7 @@ export default function TileFlowDashboard({ result, alerts, tileAirflowData, onS
             {alerts.map(alert => (
               <div
                 key={alert.id}
-                className={`flex items-center justify-between rounded-lg border p-3 text-sm ${
+                className={`flex items-center justify-between rounded-sm border p-3 text-sm ${
                   alert.severity === 'emergency' ? 'bg-red-500/8 border-red-500/25' :
                   alert.severity === 'critical' ? 'bg-orange-500/8 border-orange-500/25' :
                   alert.severity === 'warning' ? 'bg-yellow-500/8 border-yellow-500/25' :
@@ -113,7 +113,7 @@ export default function TileFlowDashboard({ result, alerts, tileAirflowData, onS
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <span className={`rounded-md px-2 py-0.5 text-xs font-bold uppercase ${SEVERITY_STYLES[alert.severity]}`}>
+                  <span className={`rounded-sm px-2 py-0.5 text-xs font-bold uppercase ${SEVERITY_STYLES[alert.severity]}`}>
                     {alert.severity}
                   </span>
                   <span className="text-foreground/90">{alert.description}</span>
@@ -131,14 +131,14 @@ export default function TileFlowDashboard({ result, alerts, tileAirflowData, onS
 
       {/* ─── Tile Airflow Table ────────────────────────────────── */}
       {sortedTiles.length > 0 && (
-        <div className="panel-glass rounded-xl border border-border/70 bg-card p-5 shadow-sm">
+        <div className="panel-glass rounded-md border border-border/70 bg-card p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-2">
             <Wind size={18} className="text-accent" />
             <h3 className="text-sm font-semibold text-foreground">Tile Airflow Analysis</h3>
             <span className="text-xs text-muted-foreground">({sortedTiles.length} tiles)</span>
           </div>
 
-          <div className="overflow-auto rounded-lg border border-border">
+          <div className="overflow-auto rounded-sm border border-border">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-secondary/50 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -172,7 +172,7 @@ export default function TileFlowDashboard({ result, alerts, tileAirflowData, onS
                       <td className="px-3 py-2 text-right tabular-nums font-semibold text-foreground">{tile.actualCFM.toFixed(1)}</td>
                       <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{tile.requiredCFM.toFixed(0)}</td>
                       <td className="px-3 py-2 text-right">
-                        <span className={`inline-block rounded-md px-2 py-0.5 text-xs font-bold tabular-nums ${
+                        <span className={`inline-block rounded-sm px-2 py-0.5 text-xs font-bold tabular-nums ${
                           effPct >= 100 ? 'bg-emerald-500/15 text-emerald-400' :
                           effPct >= 70 ? 'bg-yellow-500/15 text-yellow-400' :
                           effPct >= 40 ? 'bg-orange-500/15 text-orange-400' :
@@ -194,7 +194,7 @@ export default function TileFlowDashboard({ result, alerts, tileAirflowData, onS
 
       {/* ─── Convergence Chart ─────────────────────────────────── */}
       {convergenceData.length > 1 && (
-        <div className="panel-glass rounded-xl border border-border/70 bg-card p-5 shadow-sm">
+        <div className="panel-glass rounded-md border border-border/70 bg-card p-5 shadow-sm">
           <h3 className="mb-4 text-sm font-semibold text-foreground">Convergence History</h3>
           <ResponsiveContainer width="100%" height={240}>
             <LineChart data={convergenceData}>
@@ -220,32 +220,32 @@ export default function TileFlowDashboard({ result, alerts, tileAirflowData, onS
       )}
 
       {/* ─── Export Toolbar ────────────────────────────────────── */}
-      <div className="panel-glass flex flex-wrap items-center gap-3 rounded-xl border border-border/70 bg-card p-4 shadow-sm">
+      <div className="panel-glass flex flex-wrap items-center gap-3 rounded-md border border-border/70 bg-card p-4 shadow-sm">
         <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Export</span>
         <button
           onClick={() => exportTileAirflowCSV(tileAirflowData)}
           disabled={tileAirflowData.length === 0}
-          className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-secondary/70 disabled:opacity-50"
+          className="flex items-center gap-2 rounded-sm border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-secondary/70 disabled:opacity-50"
         >
           <Download size={14} /> Tile Data (CSV)
         </button>
         <button
           onClick={() => exportAlertsCSV(alerts)}
           disabled={alerts.length === 0}
-          className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-secondary/70 disabled:opacity-50"
+          className="flex items-center gap-2 rounded-sm border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-secondary/70 disabled:opacity-50"
         >
           <Download size={14} /> Alerts (CSV)
         </button>
         <button
           onClick={() => exportMetricsCSV(m)}
-          className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-secondary/70"
+          className="flex items-center gap-2 rounded-sm border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-secondary/70"
         >
           <Download size={14} /> Metrics (CSV)
         </button>
         <button
           onClick={handleSnapshot}
           disabled={!onSnapshotCapture}
-          className="flex items-center gap-2 rounded-lg border border-accent/30 bg-accent/10 px-3 py-2 text-xs font-semibold text-accent transition-colors hover:bg-accent/20 disabled:opacity-50"
+          className="flex items-center gap-2 rounded-sm border border-accent/30 bg-accent/10 px-3 py-2 text-xs font-semibold text-accent transition-colors hover:bg-accent/20 disabled:opacity-50"
         >
           <Camera size={14} /> Snapshot (PNG)
         </button>

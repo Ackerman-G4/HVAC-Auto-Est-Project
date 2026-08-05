@@ -4,8 +4,8 @@ import type { useSimulationViewer } from '../useSimulationViewer';
 import dynamic from 'next/dynamic';
 import { Layers } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
-const AirflowViewer3D = dynamic(() => import('@/components/building/AirflowViewer3D').then(m => m.default), { ssr: false, loading: () => <div className="panel-glass flex h-125 items-center justify-center rounded-xl border border-border/70 bg-card text-sm font-medium text-muted-foreground shadow-sm">Loading 3D viewer...</div> });
-const TileFlowDashboard = dynamic(() => import('@/components/building/TileFlowDashboard').then(m => m.default), { ssr: false, loading: () => <div className="panel-glass flex h-64 items-center justify-center rounded-xl border border-border/70 bg-card text-sm font-medium text-muted-foreground shadow-sm">Loading dashboard...</div> });
+const AirflowViewer3D = dynamic(() => import('@/components/building/AirflowViewer3D').then(m => m.default), { ssr: false, loading: () => <div className="panel-glass flex h-125 items-center justify-center rounded-md border border-border/70 bg-card text-sm font-medium text-muted-foreground shadow-sm">Loading 3D viewer...</div> });
+const TileFlowDashboard = dynamic(() => import('@/components/building/TileFlowDashboard').then(m => m.default), { ssr: false, loading: () => <div className="panel-glass flex h-64 items-center justify-center rounded-md border border-border/70 bg-card text-sm font-medium text-muted-foreground shadow-sm">Loading dashboard...</div> });
 
 type TileFlowTabContentProps = Pick<
   ReturnType<typeof useSimulationViewer>,
@@ -44,7 +44,7 @@ export function TileFlowTabContent({
           {result ? (
             <div className="space-y-6">
               {/* TileFlow 3D Controls */}
-              <div className="panel-glass rounded-xl border border-border/70 bg-card p-4 shadow-sm">
+              <div className="panel-glass rounded-md border border-border/70 bg-card p-4 shadow-sm">
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="mr-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">TileFlow Overlays</span>
                   {([
@@ -53,7 +53,7 @@ export function TileFlowTabContent({
                     { key: 'showTileOverlay' as const, label: 'Tile Airflow' },
                     { key: 'showAlerts' as const, label: 'Alert Zones' },
                   ]).map(({ key, label }) => (
-                    <label key={key} className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-semibold text-muted-foreground">
+                    <label key={key} className="flex items-center gap-2 rounded-sm border border-border bg-background px-3 py-2 text-sm font-semibold text-muted-foreground">
                       <input
                         type="checkbox"
                         checked={tileFlowView[key]}

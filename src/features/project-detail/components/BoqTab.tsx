@@ -93,7 +93,7 @@ export function BoqTab({
           </CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-lg border border-border bg-secondary/50 p-4">
+          <div className="rounded-sm border border-border bg-secondary/50 p-4">
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Labor Multiplier</p>
             <p className="mt-1 text-xs text-muted-foreground">Suggested: {project.suggestedLaborMultiplier ?? 1}</p>
             <input
@@ -103,12 +103,12 @@ export function BoqTab({
               value={pricingDraft.laborMultiplier}
               onChange={(event) => handlePricingDraftChange('laborMultiplier', event.target.value)}
               placeholder="Use suggested"
-              className="mt-2 w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm"
+              className="mt-2 w-full rounded-sm border border-border bg-background px-2.5 py-1.5 text-sm"
             />
             <p className="mt-2 text-sm text-muted-foreground">Final: {pricingFinal.laborMultiplier}</p>
           </div>
 
-          <div className="rounded-lg border border-border bg-secondary/50 p-4">
+          <div className="rounded-sm border border-border bg-secondary/50 p-4">
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Overhead %</p>
             <p className="mt-1 text-xs text-muted-foreground">Suggested: {project.suggestedOverheadPercent ?? 12}%</p>
             <input
@@ -118,12 +118,12 @@ export function BoqTab({
               value={pricingDraft.overheadPercent}
               onChange={(event) => handlePricingDraftChange('overheadPercent', event.target.value)}
               placeholder="Use suggested"
-              className="mt-2 w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm"
+              className="mt-2 w-full rounded-sm border border-border bg-background px-2.5 py-1.5 text-sm"
             />
             <p className="mt-2 text-sm text-muted-foreground">Final: {pricingFinal.overheadPercent}%</p>
           </div>
 
-          <div className="rounded-lg border border-border bg-secondary/50 p-4">
+          <div className="rounded-sm border border-border bg-secondary/50 p-4">
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Contingency %</p>
             <p className="mt-1 text-xs text-muted-foreground">Suggested: {project.suggestedContingencyPercent ?? 8}%</p>
             <input
@@ -133,12 +133,12 @@ export function BoqTab({
               value={pricingDraft.contingencyPercent}
               onChange={(event) => handlePricingDraftChange('contingencyPercent', event.target.value)}
               placeholder="Use suggested"
-              className="mt-2 w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm"
+              className="mt-2 w-full rounded-sm border border-border bg-background px-2.5 py-1.5 text-sm"
             />
             <p className="mt-2 text-sm text-muted-foreground">Final: {pricingFinal.contingencyPercent}%</p>
           </div>
 
-          <div className="rounded-lg border border-border bg-secondary/50 p-4">
+          <div className="rounded-sm border border-border bg-secondary/50 p-4">
             <p className="text-xs uppercase tracking-wide text-muted-foreground">VAT %</p>
             <p className="mt-1 text-xs text-muted-foreground">Suggested: {project.suggestedVatRate ?? 12}%</p>
             <input
@@ -148,7 +148,7 @@ export function BoqTab({
               value={pricingDraft.vatRate}
               onChange={(event) => handlePricingDraftChange('vatRate', event.target.value)}
               placeholder="Use suggested"
-              className="mt-2 w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm"
+              className="mt-2 w-full rounded-sm border border-border bg-background px-2.5 py-1.5 text-sm"
             />
             <p className="mt-2 text-sm text-muted-foreground">Final: {pricingFinal.vatRate}%</p>
           </div>
@@ -181,7 +181,7 @@ export function BoqTab({
           }
         />
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border bg-card p-3 shadow-sm">
+        <div className="overflow-x-auto rounded-md border border-border bg-card p-3 shadow-sm">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
@@ -229,7 +229,7 @@ export function BoqTab({
                           value={draftValue}
                           onChange={(event) => handleBoqDraftChange(item.id, event.target.value)}
                           aria-label="Unit price"
-                          className="w-28 rounded-md border border-border bg-background px-2.5 py-1.5 text-right text-sm"
+                          className="w-28 rounded-sm border border-border bg-background px-2.5 py-1.5 text-right text-sm"
                         />
                       </div>
                       {item.suggestedUnitPrice !== undefined && (

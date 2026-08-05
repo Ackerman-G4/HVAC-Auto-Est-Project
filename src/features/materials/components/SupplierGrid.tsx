@@ -61,7 +61,7 @@ export function SupplierGrid({
             <Card className="panel-glass h-full border-border/70 bg-card shadow-sm">
               <CardContent className="p-6">
                 <div className="mb-3 flex items-start gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-secondary">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-border bg-secondary">
                     <Store className="w-4 h-4 text-muted-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">

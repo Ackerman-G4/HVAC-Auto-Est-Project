@@ -20,10 +20,10 @@ interface EmptyStateProps {
 // space" hint (plan §Phase 2). Purely decorative.
 function GhostPreview() {
   return (
-    <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden rounded-2xl opacity-40" aria-hidden="true">
-      <div className="absolute left-6 top-8 h-24 w-56 rotate-[-4deg] rounded-xl border border-border/60 bg-gradient-to-br from-card/40 to-transparent" />
-      <div className="absolute right-8 top-14 h-28 w-52 rotate-[5deg] rounded-xl border border-border/60 bg-gradient-to-br from-card/40 to-transparent" />
-      <div className="absolute bottom-10 left-1/2 h-24 w-64 -translate-x-1/2 rotate-[1deg] rounded-xl border border-border/60 bg-gradient-to-br from-card/40 to-transparent" />
+    <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden rounded-lg opacity-40" aria-hidden="true">
+      <div className="absolute left-6 top-8 h-24 w-56 rotate-[-4deg] rounded-md border border-border/60 bg-gradient-to-br from-card/40 to-transparent" />
+      <div className="absolute right-8 top-14 h-28 w-52 rotate-[5deg] rounded-md border border-border/60 bg-gradient-to-br from-card/40 to-transparent" />
+      <div className="absolute bottom-10 left-1/2 h-24 w-64 -translate-x-1/2 rotate-[1deg] rounded-md border border-border/60 bg-gradient-to-br from-card/40 to-transparent" />
     </div>
   );
 }
@@ -40,7 +40,7 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        'relative flex flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-border/70 bg-card/80 px-6 py-20 text-center backdrop-blur-sm',
+        'relative flex flex-col items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-border/70 bg-card/80 px-6 py-20 text-center',
         className,
       )}
     >
@@ -49,7 +49,7 @@ export function EmptyState({
         <div className="mb-6 h-40 w-full max-w-xs">{illustration}</div>
       ) : (
         icon && (
-          <div className="mb-5 rounded-2xl border border-border/70 bg-background/80 p-4 text-muted-foreground shadow-sm">
+          <div className="mb-5 rounded-lg border border-border/70 bg-background/80 p-4 text-muted-foreground shadow-sm">
             {icon}
           </div>
         )

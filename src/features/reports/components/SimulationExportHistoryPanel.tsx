@@ -69,7 +69,7 @@ export function SimulationExportHistoryPanel({
       </div>
 
       {lastBackfillRun && (
-        <div className="mb-3 rounded-lg border border-border bg-secondary/70 px-3 py-2 text-[11px] text-muted-foreground">
+        <div className="mb-3 rounded-sm border border-border bg-secondary/70 px-3 py-2 text-[11px] text-muted-foreground">
           <span className="font-semibold text-foreground">Last backfill:</span>{' '}
           {new Date(lastBackfillRun.attemptedAt).toLocaleString('en-PH')} · Checked {lastBackfillRun.checkedCount}
           {' · '}Updated {lastBackfillRun.updatedCount}
@@ -83,13 +83,13 @@ export function SimulationExportHistoryPanel({
       )}
 
       {simulationReportHistory.length === 0 ? (
-        <div className="rounded-lg border border-border bg-secondary p-4 text-sm text-muted-foreground">
+        <div className="rounded-sm border border-border bg-secondary p-4 text-sm text-muted-foreground">
           No simulation report exports recorded yet. Export from the simulation viewer or workspace to populate history.
         </div>
       ) : (
         <div className="space-y-2">
           {simulationReportHistory.slice(0, 12).map((entry) => (
-            <div key={entry.id} className="rounded-lg border border-border bg-secondary p-3 text-xs text-muted-foreground">
+            <div key={entry.id} className="rounded-sm border border-border bg-secondary p-3 text-xs text-muted-foreground">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-semibold uppercase tracking-wider text-foreground">
                   {entry.projectName} · {entry.format.toUpperCase()} · {entry.source}

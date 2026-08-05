@@ -76,7 +76,7 @@ export function OnboardingTour() {
         >
           <div className="absolute inset-0 bg-background/70 backdrop-blur-sm" aria-hidden="true" />
           <motion.div
-            className="panel-glass relative w-full max-w-md overflow-hidden rounded-2xl border border-border/70 p-6 shadow-[var(--elevation-floating)]"
+            className="panel-glass relative w-full max-w-md overflow-hidden rounded-lg border border-border/70 p-6 shadow-[var(--elevation-floating)]"
             initial={{ opacity: 0, y: reduced ? 0 : 10, scale: reduced ? 1 : 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1, transition: microTransition }}
             exit={{ opacity: 0, y: reduced ? 0 : 8, scale: reduced ? 1 : 0.98, transition: microTransition }}
@@ -85,12 +85,12 @@ export function OnboardingTour() {
               type="button"
               onClick={finish}
               aria-label="Skip tour"
-              className="absolute right-4 top-4 rounded-md p-1 text-muted-foreground/70 transition-colors hover:bg-secondary hover:text-foreground"
+              className="absolute right-4 top-4 rounded-sm p-1 text-muted-foreground/70 transition-colors hover:bg-secondary hover:text-foreground"
             >
               <X size={16} />
             </button>
 
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-accent/30 bg-accent/10 text-accent">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-accent/30 bg-accent/10 text-accent">
               <Icon size={22} aria-hidden="true" />
             </div>
             <h2 className="mb-2 text-lg font-bold text-foreground">{step.title}</h2>

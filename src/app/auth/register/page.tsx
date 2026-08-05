@@ -92,7 +92,7 @@ function RegisterPageContent() {
             </p>
           </div>
 
-          <Card className="rounded-3xl border-border/75 p-8 shadow-(--panel-shadow-strong) sm:p-10">
+          <Card className="rounded-lg border-border/75 p-8 shadow-(--panel-shadow-strong) sm:p-10">
             <CardContent className="p-0">
               <form className="space-y-5" onSubmit={handleSubmit}>
                 <Input
@@ -138,7 +138,7 @@ function RegisterPageContent() {
                 />
 
                 {serverError && (
-                  <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">
+                  <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">
                     {serverError}
                   </p>
                 )}

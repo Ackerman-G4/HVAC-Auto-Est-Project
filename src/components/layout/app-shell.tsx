@@ -150,22 +150,22 @@ function AppShellContent({ children }: AppShellProps) {
                   <button
                     type="button"
                     onClick={() => setCommandPaletteOpen(true)}
-                    className="hidden items-center gap-2 rounded-xl border border-border/70 bg-card/60 px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:border-accent/40 hover:text-foreground md:flex"
+                    className="hidden items-center gap-2 rounded-md border border-border/70 bg-card/60 px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:border-accent/40 hover:text-foreground md:flex"
                     aria-label="Open command palette"
                   >
                     <Search size={14} />
                     <span className="text-xs">Search...</span>
-                    <kbd className="ml-2 rounded-md border border-border/80 bg-secondary/50 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">⌘K</kbd>
+                    <kbd className="ml-2 rounded-sm border border-border/80 bg-secondary/50 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">⌘K</kbd>
                   </button>
                   {/* Workspace mode toggle pill */}
-                  <div className="hidden items-center rounded-lg border border-border/70 bg-card/60 p-0.5 md:flex" role="radiogroup" aria-label="Workspace mode">
+                  <div className="hidden items-center rounded-sm border border-border/70 bg-card/60 p-0.5 md:flex" role="radiogroup" aria-label="Workspace mode">
                     <button
                       type="button"
                       role="radio"
                       aria-checked={workspaceMode === 'beginner'}
                       onClick={() => setWorkspaceMode('beginner')}
                       className={cn(
-                        'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
+                        'flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-medium transition-colors',
                         workspaceMode === 'beginner'
                           ? 'bg-primary/15 text-primary'
                           : 'text-muted-foreground hover:text-foreground',
@@ -180,7 +180,7 @@ function AppShellContent({ children }: AppShellProps) {
                       aria-checked={workspaceMode === 'professional'}
                       onClick={() => setWorkspaceMode('professional')}
                       className={cn(
-                        'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
+                        'flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-medium transition-colors',
                         workspaceMode === 'professional'
                           ? 'bg-primary/15 text-primary'
                           : 'text-muted-foreground hover:text-foreground',
@@ -206,7 +206,7 @@ function AppShellContent({ children }: AppShellProps) {
                       nothing. Settings is where the account actually lives. */}
                   <Link
                     href="/settings"
-                    className="hidden h-9 items-center rounded-xl border border-border/70 bg-card/60 px-3 text-sm font-medium text-foreground transition-colors hover:border-accent/40 md:flex"
+                    className="hidden h-9 items-center rounded-md border border-border/70 bg-card/60 px-3 text-sm font-medium text-foreground transition-colors hover:border-accent/40 md:flex"
                   >
                     <UserCircle2 size={14} className="mr-1.5 text-muted-foreground" />
                     {user?.name || user?.email || 'Engineer'}
