@@ -25,7 +25,7 @@ import {
   CircleDot,
   TriangleAlert,
 } from 'lucide-react';
-import { microTransition, usePrefersReducedMotion } from '@/lib/ui/motion';
+import { microTransition, pageTransition, usePrefersReducedMotion } from '@/lib/ui/motion';
 import { cn } from '@/lib/utils/cn';
 
 export type StageStatus = 'not_started' | 'in_progress' | 'done' | 'stale';
@@ -115,7 +115,7 @@ export function WorkflowRail({ projectId, stages, activeStage, className }: Work
           className="h-full rounded-full bg-accent"
           initial={false}
           animate={{ width: `${progressPct}%` }}
-          transition={reduced ? { duration: 0.001 } : { duration: 0.4, ease: [0.2, 0, 0, 1] }}
+          transition={reduced ? { duration: 0 } : pageTransition}
         />
       </div>
 

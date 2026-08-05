@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import {
 	FileText,
 	Download,
@@ -479,7 +478,7 @@ export default function QuotationPage() {
 					{generating && <QuotationSkeleton />}
 
 					{boqData && project && !generating && (
-						<motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="quotation-doc max-w-none">
+						<div className="quotation-doc max-w-none animate-fade-rise">
 							<Card className="print-card overflow-hidden border-border bg-card shadow-sm">
 								<CardContent className="p-0">
 									<div className="bg-linear-to-r from-accent to-primary text-white px-8 py-6">
@@ -592,7 +591,7 @@ export default function QuotationPage() {
 									</div>
 								</CardContent>
 							</Card>
-						</motion.div>
+						</div>
 					)}
 				</div>
 

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { microTransition } from '@/lib/ui/motion';
 import { ChevronDown } from 'lucide-react';
 
 interface CollapsiblePanelProps {
@@ -44,7 +45,7 @@ export function CollapsiblePanel({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.18, ease: 'easeOut' }}
+            transition={microTransition}
             className="overflow-hidden"
           >
             <div className="border-t border-border/70 px-(--space-card-padding) py-5">{children}</div>
