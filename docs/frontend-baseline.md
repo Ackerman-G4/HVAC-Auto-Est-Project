@@ -73,7 +73,7 @@ table above.
 | 3 — Typography / copy | ✅ | See below. |
 | 4 — Component library | 🟡 | Primitives built and tested; call-site migration pending. |
 | 5 — Shell / layout | 🟡 | Nav/preference bugs fixed; RSC split deliberately deferred. |
-| 6 — Page decomposition | 🟡 | Two largest targets already done pre-spec. |
+| 6 — Page decomposition | 🟡 | projects 862→425; five pages still over 300. |
 | 7 — Motion doctrine | 🟡 | Only skeleton-shimmer loops; framer at 21 files, not 12. |
 | 8 — 3D performance | 🟡 | Demand rendering + adaptive quality; viewer deletion blocked on parity. |
 | 9 — Data / bundle | 🟡 | Dead deps removed, loading.tsx added; bundle targets blocked on RSC. |
@@ -484,3 +484,43 @@ Reaching ≤ 1.2 MB needs the RSC migration, and that is blocked on the Wave 5
 `AppShell` server/client split, which was deferred because it rewrites the auth
 path and cannot be exercised without a browser. That dependency is real and
 stated in the spec's own sequencing (5 → 9); it has not been worked around.
+
+### Wave 6 — page decomposition 🟡
+
+| Acceptance | Target | Result |
+|---|---|---|
+| Largest `page.tsx` | ≤ 300 | **787** ❌ |
+
+Two of the spec's three biggest targets were already done before this overhaul
+started (viewer 1672 → 283, engine 1641 → 226). Of what remained:
+
+**`projects/page.tsx`: 862 → 425.** Split into
+`features/projects/useProjectsDashboard.ts` (state, effects, the persisted
+filter/sort preferences, and the archive/restore/soft-delete handlers) and
+`components/ProjectEditDialog.tsx` (200 lines of form JSX with per-field blur
+coercion), plus a shared `types.ts`.
+
+Both were moved **by line range, not retyped**. The dialog is dense form markup
+and the handlers are order-sensitive; re-deriving either by hand is how subtle
+input regressions get introduced. The page destructures the hook into the same
+local names it used before, so its JSX is byte-identical.
+
+Still over 300: `floorplan/preview` (787), `quotation` (622), `floorplan` (617),
+`diagnostics` (605), `settings` (587).
+
+#### A near-miss worth recording
+
+Partway through this wave `tsc` began failing in two files nothing had touched.
+The cause was **not** the refactor: `npm uninstall` in Wave 9 had re-resolved the
+tree and bumped **recharts 3.7.0 → 3.10.1** in the working tree, and 3.10's
+`Formatter` type no longer accepts the tooltip formatters in `CalibrationPanel`
+and `TileFlowDashboard`.
+
+The committed lockfile was correct — dead deps removed, recharts still pinned at
+3.7.0 — so the drift was working-tree only and was reverted with
+`git checkout package-lock.json && npm ci`.
+
+Worth noting because the gate would not have caught it on its own: `npm run
+check` passed immediately after the uninstall, and the bump only surfaced later.
+A silent minor bump inside a `^` range is exactly the kind of thing that gets
+committed alongside an unrelated change.
