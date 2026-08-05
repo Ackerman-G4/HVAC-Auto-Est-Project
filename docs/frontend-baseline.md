@@ -72,7 +72,7 @@ table above.
 | 2 — Token / surface reset | 🟡 | Surfaces/radius/blur done; hex purge partial — see below. |
 | 3 — Typography / copy | ✅ | See below. |
 | 4 — Component library | 🟡 | Primitives built and tested; call-site migration pending. |
-| 5 — Shell / layout | ⬜ | |
+| 5 — Shell / layout | 🟡 | Nav/preference bugs fixed; RSC split deliberately deferred. |
 | 6 — Page decomposition | 🟡 | Two largest targets already done pre-spec. |
 | 7 — Motion doctrine | 🟡 | Wave 1 removed the worst offenders. |
 | 8 — 3D performance | ⬜ | |
@@ -318,3 +318,48 @@ primitive in production. The remaining migrations are deliberately not done:
 **Not verifiable from here:** that the migrated materials table still reads
 correctly at each breakpoint, and that `TraceableValue`'s card positions
 sensibly near a viewport edge.
+
+### Wave 5 — shell and layout 🟡
+
+| Acceptance | Target | Result |
+|---|---|---|
+| `'use client'` in `components/layout/` | halved | **unchanged** ❌ (deferred, see below) |
+| Every route usable at 390×844 | all | **engine now stacks**; unverified visually |
+| No horizontal page scroll | none | no fixed `w-[NNNpx]` remain in pages |
+
+**A real bug: nav groups shared one open flag.** `renderNavGroup` read a single
+`estimationOpen` for *every* group, so toggling "CFD Simulation" also opened and
+closed "Estimation". Now keyed per group and persisted.
+
+**The sidebar discarded the user's choice.** The shell applied a width-based
+default on every breakpoint crossing, so expanding the sidebar at 1200px and
+then resizing snapped it shut — and reloading lost it entirely. The responsive
+default is now advisory: `applyResponsiveSidebar` is skipped once the user has
+set it themselves, and the preference persists. Verified by mutation.
+
+**Route matching is segment-bounded.** `pathname.startsWith(href)` also
+highlights `/projects` for `/projects-archive`. **No route in the app collides
+today**, so this is hardening rather than a fix for something visible — worth
+saying plainly, because the spec presented it as a live defect.
+
+**The engine page had no mobile layout**, and decomposition had not changed
+that: its five components carry zero responsive classes between them, and the
+three panels are 320px + fluid + 256px, so a phone simply overflowed sideways.
+It now stacks below `xl`, with `min-w-0` on the centre panel so it can shrink
+rather than force overflow. The Guided/Pro pill also explains what it changes.
+
+#### Why the RSC split is deferred
+
+The spec's headline Wave 5 item is splitting `AppShell` into a server shell plus
+a thin client, which is what unblocks Wave 9's RSC migration. It is not done.
+
+`AppShell` currently owns auth initialisation, the boot gate, and theme
+adoption. Moving auth to the server means reading the httpOnly cookie in a
+server component and changing how every route obtains the user — a change to
+the login and session path. That path cannot be exercised here: there is no
+browser to log in with, and a regression would lock the user out of their own
+app rather than merely look wrong.
+
+Five waves of visual change have already landed without being seen. Adding an
+unverifiable auth refactor on top is the wrong order. This wants a browser
+first.

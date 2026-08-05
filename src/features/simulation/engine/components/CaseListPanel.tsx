@@ -49,7 +49,7 @@ export function CaseListPanel({
   handleCreateCase,
 }: CaseListPanelProps) {
   return (
-      <div className="flex w-80 shrink-0 flex-col gap-3 overflow-y-auto">
+      <div className="flex w-full shrink-0 flex-col gap-3 xl:w-80 xl:overflow-y-auto">
         {/* Project Selector */}
         <Card className="p-3">
           <label className="text-xs font-medium text-muted-foreground">Select Project</label>

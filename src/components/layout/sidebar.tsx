@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { HvacLogo } from '@/components/ui/hvac-logo';
 import { cn } from '@/lib/utils/cn';
+import { isRouteActive } from '@/lib/ui/is-route-active';
 import { sidebarVariants } from '@/animations/shared';
 import { panelTransition } from '@/lib/ui/motion';
 import { useUIStore } from '@/stores/ui-store';
@@ -89,22 +90,27 @@ export function Sidebar() {
   const toggleSidebar = useUIStore((state) => state.toggleSidebar);
   const setMobileSidebar = useUIStore((state) => state.setMobileSidebar);
   const isAdmin = useAuthStore((state) => state.user?.role === 'admin');
-  const [estimationOpen, setEstimationOpen] = React.useState(false);
+  // Per-group and persisted. This was one `useState(false)` shared by every
+  // group, so toggling "CFD Simulation" also opened and closed "Estimation",
+  // and both reset on reload.
+  const navGroupsOpen = useUIStore((state) => state.navGroupsOpen);
+  const setNavGroupOpen = useUIStore((state) => state.setNavGroupOpen);
 
   const resolvedBottomNav = isAdmin ? [...bottomNav, adminNavItem] : bottomNav;
 
-  // Auto-expand estimation group when a child route is active
-  const estimationGroup = mainNav.find((e) => isGroup(e) && e.label === 'Estimation') as NavGroup | undefined;
-  const estimationChildActive = estimationGroup?.children.some((c) => pathname.startsWith(c.href)) ?? false;
+  // Expand whichever group owns the current route, not just Estimation.
+  const activeGroupLabel = React.useMemo(() => {
+    const match = mainNav.find(
+      (e) => isGroup(e) && e.children.some((c) => isRouteActive(pathname, c.href)),
+    );
+    return match && isGroup(match) ? match.label : null;
+  }, [pathname]);
 
   React.useEffect(() => {
-    if (estimationChildActive) setEstimationOpen(true);
-  }, [estimationChildActive]);
+    if (activeGroupLabel) setNavGroupOpen(activeGroupLabel, true);
+  }, [activeGroupLabel, setNavGroupOpen]);
 
-  const isActive = (href: string) => {
-    if (href === '/') return pathname === '/';
-    return pathname.startsWith(href);
-  };
+  const isActive = (href: string) => isRouteActive(pathname, href);
 
   const renderNavItem = (item: NavItem, indent = false) => {
     const active = isActive(item.href);
@@ -138,15 +144,15 @@ export function Sidebar() {
   };
 
   const renderNavGroup = (group: NavGroup) => {
-    const isChildActive = group.children.some((c) => pathname.startsWith(c.href));
-    const isOpen = estimationOpen;
+    const isChildActive = group.children.some((c) => isRouteActive(pathname, c.href));
+    const isOpen = navGroupsOpen[group.label] ?? false;
     return (
       <div key={group.label}>
         <button
           type="button"
           onClick={() => {
             if (collapsed) return;
-            setEstimationOpen(!isOpen);
+            setNavGroupOpen(group.label, !isOpen);
           }}
           title={collapsed ? group.label : undefined}
           className={cn(

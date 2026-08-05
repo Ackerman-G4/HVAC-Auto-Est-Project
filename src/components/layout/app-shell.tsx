@@ -51,7 +51,7 @@ function AppShellContent({ children }: AppShellProps) {
   const toggleTheme = useUIStore((state) => state.toggleTheme);
   const workspaceMode = useUIStore((state) => state.workspaceMode);
   const setWorkspaceMode = useUIStore((state) => state.setWorkspaceMode);
-  const setSidebarCollapsed = useUIStore((state) => state.setSidebarCollapsed);
+  const applyResponsiveSidebar = useUIStore((state) => state.applyResponsiveSidebar);
   const setMobileSidebar = useUIStore((state) => state.setMobileSidebar);
   const setCommandPaletteOpen = useUIStore((state) => state.setCommandPaletteOpen);
   const user = useAuthStore((state) => state.user);
@@ -101,7 +101,9 @@ function AppShellContent({ children }: AppShellProps) {
         setMobileSidebar(false);
         return;
       }
-      setSidebarCollapsed(narrow.matches);
+      // Advisory: skipped once the user has set the sidebar themselves, so a
+      // resize no longer discards their choice.
+      applyResponsiveSidebar(narrow.matches);
     };
 
     applyResponsiveShell();
@@ -111,7 +113,7 @@ function AppShellContent({ children }: AppShellProps) {
       mobile.removeEventListener('change', applyResponsiveShell);
       narrow.removeEventListener('change', applyResponsiveShell);
     };
-  }, [setMobileSidebar, setSidebarCollapsed]);
+  }, [setMobileSidebar, applyResponsiveSidebar]);
 
   const showBootScreen = !isAuthRoute && !initialized;
 
@@ -164,6 +166,7 @@ function AppShellContent({ children }: AppShellProps) {
                       role="radio"
                       aria-checked={workspaceMode === 'beginner'}
                       onClick={() => setWorkspaceMode('beginner')}
+                      title="Guided: larger controls and roomier spacing."
                       className={cn(
                         'flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-medium transition-colors',
                         workspaceMode === 'beginner'
@@ -179,6 +182,7 @@ function AppShellContent({ children }: AppShellProps) {
                       role="radio"
                       aria-checked={workspaceMode === 'professional'}
                       onClick={() => setWorkspaceMode('professional')}
+                      title="Pro: compact controls and denser tables."
                       className={cn(
                         'flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-medium transition-colors',
                         workspaceMode === 'professional'
