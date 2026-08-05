@@ -81,7 +81,7 @@ function RegisterPageContent() {
               <UserRoundPlus size={12} className="text-primary" />
               Create Engineering Access
             </div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            <p className="text-xs font-semibold font-display tracking-[0.18em] text-muted-foreground">
               HVAC Studio
             </p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground">
@@ -124,7 +124,7 @@ function RegisterPageContent() {
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   error={fieldErrors.password}
-                  hint="At least 8 characters with uppercase, lowercase, and number"
+                  hint="At least 8 characters with font-display, lowercase, and number"
                   placeholder="Create a secure password"
                 />
                 <Input
@@ -151,7 +151,7 @@ function RegisterPageContent() {
               {googleEnabled && (
                 <div className="my-6 flex items-center gap-3">
                   <div className="h-px flex-1 bg-border" />
-                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <span className="text-xs font-semibold font-display text-muted-foreground">
                     or
                   </span>
                   <div className="h-px flex-1 bg-border" />

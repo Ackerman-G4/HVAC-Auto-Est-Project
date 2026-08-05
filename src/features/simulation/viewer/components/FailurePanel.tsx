@@ -28,7 +28,7 @@ export function FailurePanel() {
     <div className="space-y-6">
       <div className="panel-glass grid grid-cols-2 gap-5 rounded-md border border-border/70 bg-card p-5 md:grid-cols-3">
         <div>
-          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Failure Scenario</label>
+          <label className="mb-1.5 block text-[11px] font-semibold font-display text-muted-foreground">Failure Scenario</label>
           <select className="w-full rounded-md border border-border bg-background px-3.5 py-2.5 text-sm" value={scenario} onChange={e => setScenario(e.target.value as FailureScenario)} aria-label="Failure Scenario">
             <option value="crac_failure">CRAC Unit Failure</option>
             <option value="power_loss">Total Power Loss</option>
@@ -37,7 +37,7 @@ export function FailurePanel() {
           </select>
         </div>
         <div>
-          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Duration (seconds)</label>
+          <label className="mb-1.5 block text-[11px] font-semibold font-display text-muted-foreground">Duration (seconds)</label>
           <input className="w-full rounded-md border border-border bg-background px-3.5 py-2.5 text-sm" type="number" value={duration} onChange={e => setDuration(+e.target.value)} aria-label="Duration" />
         </div>
         <div className="flex items-end">
@@ -52,7 +52,7 @@ export function FailurePanel() {
       </div>
       {scenario !== 'power_loss' && hvacUnits.length > 0 && (
         <div>
-          <label className="mb-2 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Select Failed Units</label>
+          <label className="mb-2 block text-[11px] font-semibold font-display text-muted-foreground">Select Failed Units</label>
           <div className="panel-glass flex flex-wrap gap-2 rounded-md border border-border/70 bg-card p-4">
             {hvacUnits.map(unit => (
               <button

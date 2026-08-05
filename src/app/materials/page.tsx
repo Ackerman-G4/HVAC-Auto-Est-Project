@@ -46,7 +46,7 @@ export default function MaterialsPage() {
           <CardContent className="py-4">
             <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Catalog Workspace</p>
+                <p className="text-[11px] font-semibold font-display text-muted-foreground">Catalog Workspace</p>
                 <p className="text-sm text-foreground font-medium mt-0.5">
                   Keep material pricing and supplier options aligned for faster project costing.
                 </p>

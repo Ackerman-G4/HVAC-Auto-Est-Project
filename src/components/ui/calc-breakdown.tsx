@@ -47,7 +47,7 @@ export function CalcBreakdown({ title, formulas, note, triggerLabel }: CalcBreak
         <div className="space-y-3">
           {formulas.map((f) => (
             <div key={f.label} className="rounded-sm border border-border bg-secondary/60 p-4">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-foreground">{f.label}</p>
+              <p className="text-[11px] font-medium font-display text-foreground">{f.label}</p>
               <p className="mt-1 font-mono text-xs text-muted-foreground">{f.expression}</p>
               <p className="mt-1.5 text-xs font-semibold text-accent tabular-nums">{f.value}</p>
             </div>

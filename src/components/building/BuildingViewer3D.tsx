@@ -1301,7 +1301,7 @@ export default function BuildingViewer3D({ floors, buildingType, projectName }: 
               <p><span className="text-muted-foreground">Name:</span> {selectedRoom.name}</p>
               <p><span className="text-muted-foreground">Type:</span> {selectedRoom.spaceType.replace(/_/g, ' ')}</p>
               <div className="border-t border-border pt-2 mt-2" />
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Dimensions</p>
+              <p className="text-xs font-semibold text-muted-foreground font-display">Dimensions</p>
               <p><span className="text-muted-foreground">Length:</span> {selDims.l.toFixed(2)} m <span className="text-muted-foreground">({(selDims.l * 3.28084).toFixed(2)} ft)</span></p>
               <p><span className="text-muted-foreground">Width:</span> {selDims.w.toFixed(2)} m <span className="text-muted-foreground">({(selDims.w * 3.28084).toFixed(2)} ft)</span></p>
               <p><span className="text-muted-foreground">Height:</span> {selDims.h.toFixed(2)} m <span className="text-muted-foreground">({(selDims.h * 3.28084).toFixed(2)} ft)</span></p>
@@ -1309,7 +1309,7 @@ export default function BuildingViewer3D({ floors, buildingType, projectName }: 
               {selectedPlacementWarnings.length > 0 && (
                 <>
                   <div className="border-t border-border pt-2 mt-2" />
-                  <p className="text-xs font-semibold uppercase tracking-wide text-warning">Geometry Warnings</p>
+                  <p className="text-xs font-semibold font-display text-warning">Geometry Warnings</p>
                   <ul className="space-y-1 text-xs text-foreground">
                     {selectedPlacementWarnings.map((warning) => (
                       <li key={warning} className="rounded border border-warning/40 bg-warning/10 px-2 py-1">{warning}</li>
@@ -1320,7 +1320,7 @@ export default function BuildingViewer3D({ floors, buildingType, projectName }: 
               {selectedRoom.coolingLoad && (
                 <>
                   <div className="border-t border-border pt-2 mt-2" />
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Cooling Load</p>
+                  <p className="text-xs font-semibold text-muted-foreground font-display">Cooling Load</p>
                   <p><span className="text-muted-foreground">TR:</span> {selectedRoom.coolingLoad.trValue.toFixed(2)}</p>
                   <p><span className="text-muted-foreground">BTU/h:</span> {selectedRoom.coolingLoad.btuPerHour.toLocaleString()}</p>
                   <p><span className="text-muted-foreground">Load:</span> {selectedRoom.coolingLoad.totalLoad.toLocaleString()} W</p>

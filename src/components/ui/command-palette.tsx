@@ -313,7 +313,7 @@ export function CommandPalette() {
                 return (
                   <React.Fragment key={cmd.id}>
                     {showHeader && !query && (
-                      <p className="px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                      <p className="px-3 pb-1 pt-3 text-[10px] font-semibold font-display text-muted-foreground/70">
                         {KIND_LABEL[cmd.kind]}
                       </p>
                     )}

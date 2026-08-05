@@ -40,7 +40,7 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        'relative flex flex-col items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-border/70 bg-card/80 px-6 py-20 text-center',
+        'relative flex flex-col items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-border/70 bg-card px-6 py-12 text-center',
         className,
       )}
     >

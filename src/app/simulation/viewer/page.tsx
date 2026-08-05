@@ -151,7 +151,7 @@ export default function SimulationPage() {
       <div className="panel-glass mb-6 rounded-md border border-border/70 bg-primary/5 px-5 py-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Simulation Command Deck</p>
+            <p className="text-[11px] font-semibold font-display text-muted-foreground">Simulation Command Deck</p>
             <p className="mt-0.5 text-sm text-foreground">
               Configure thermal model inputs, run airflow scenarios, and evaluate compliance and energy outcomes.
             </p>

@@ -472,7 +472,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
               <CardContent className="p-3 pt-0 space-y-2">
                 {layoutHVAC.length > 0 && (
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">HVAC Units ({layoutHVAC.length})</p>
+                    <p className="text-[10px] font-semibold font-display text-muted-foreground mb-1">HVAC Units ({layoutHVAC.length})</p>
                     <div className="flex flex-col gap-1 max-h-30 overflow-y-auto">
                       {layoutHVAC.map((h) => (
                         <div key={h.id} className="flex items-center justify-between rounded-sm bg-secondary/50 px-2 py-1 text-xs">
@@ -490,7 +490,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
                 )}
                 {layoutTiles.length > 0 && (
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">Airflow Tiles ({layoutTiles.length})</p>
+                    <p className="text-[10px] font-semibold font-display text-muted-foreground mb-1">Airflow Tiles ({layoutTiles.length})</p>
                     <div className="flex flex-col gap-1 max-h-30 overflow-y-auto">
                       {layoutTiles.map((t) => (
                         <div key={t.id} className="flex items-center justify-between rounded-sm bg-secondary/50 px-2 py-1 text-xs">

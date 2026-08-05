@@ -52,7 +52,7 @@ export function DualValueExplainer({
       )}
     >
       <div className="mb-2 flex items-center justify-between gap-2">
-        <div className={cn('font-semibold text-foreground', compact ? 'text-[11px]' : 'text-xs uppercase tracking-wider')}>
+        <div className={cn('font-semibold text-foreground', compact ? 'text-[11px]' : 'text-xs font-display')}>
           {title}
           {term && definition && (
             <TermHint
@@ -70,19 +70,19 @@ export function DualValueExplainer({
 
       <div className="grid grid-cols-3 gap-2 text-center">
         <div className="rounded-sm border border-border bg-secondary/35 px-2 py-1.5">
-          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Suggested</p>
+          <p className="text-[10px] font-display text-muted-foreground">Suggested</p>
           <p className={cn('tabular-nums font-semibold text-foreground', compact ? 'text-xs' : 'text-sm')}>
             {toDisplay(suggested)}
           </p>
         </div>
         <div className="rounded-sm border border-border bg-secondary/35 px-2 py-1.5">
-          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Override</p>
+          <p className="text-[10px] font-display text-muted-foreground">Override</p>
           <p className={cn('tabular-nums font-semibold text-foreground', compact ? 'text-xs' : 'text-sm')}>
             {toDisplay(override)}
           </p>
         </div>
         <div className="rounded-sm border border-accent/30 bg-accent/12 px-2 py-1.5">
-          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Final</p>
+          <p className="text-[10px] font-display text-muted-foreground">Final</p>
           <p className={cn('tabular-nums font-bold text-accent', compact ? 'text-xs' : 'text-sm')}>
             {toDisplay(final)}
           </p>

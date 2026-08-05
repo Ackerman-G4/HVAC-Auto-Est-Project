@@ -709,7 +709,7 @@ const AirflowViewer3D = forwardRef<AirflowViewerHandle, Props>(function AirflowV
 
       {/* Legend overlay */}
       <div className="absolute top-4 left-4 bg-slate-800/80 rounded-sm p-3 text-xs text-white pointer-events-none">
-        <div className="mb-1.5 text-[10px] uppercase tracking-[0.08em] text-slate-300">
+        <div className="mb-1.5 text-[10px] font-display tracking-[0.08em] text-slate-300">
           {viewMode} mode · Slice {Math.round(selectedSliceZ)} · {config.mode ?? 'balanced'}
         </div>
         <div className="flex items-center gap-2 mb-1">

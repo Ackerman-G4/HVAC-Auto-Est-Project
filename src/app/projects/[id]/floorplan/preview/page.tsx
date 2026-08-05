@@ -711,13 +711,13 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
                 <table className="w-full text-[13px]">
                   <thead>
                     <tr className="border-b border-border text-muted-foreground">
-                      <th className="text-left py-2.5 pr-4 text-[11px] uppercase tracking-wider font-medium w-6">#</th>
-                      <th className="text-left py-2.5 pr-4 text-[11px] uppercase tracking-wider font-medium">Room</th>
-                      <th className="text-left py-2.5 pr-4 text-[11px] uppercase tracking-wider font-medium">Type</th>
-                      <th className="text-right py-2.5 pr-4 text-[11px] uppercase tracking-wider font-medium">Area (m²)</th>
-                      <th className="text-right py-2.5 pr-4 text-[11px] uppercase tracking-wider font-medium">Ceiling (m)</th>
-                      <th className="text-right py-2.5 pr-4 text-[11px] uppercase tracking-wider font-medium">Total Load (W)</th>
-                      <th className="text-right py-2.5 text-[11px] uppercase tracking-wider font-medium">W/m²</th>
+                      <th className="text-left py-2.5 pr-4 text-[11px] font-display font-medium w-6">#</th>
+                      <th className="text-left py-2.5 pr-4 text-[11px] font-display font-medium">Room</th>
+                      <th className="text-left py-2.5 pr-4 text-[11px] font-display font-medium">Type</th>
+                      <th className="text-right py-2.5 pr-4 text-[11px] font-display font-medium">Area (m²)</th>
+                      <th className="text-right py-2.5 pr-4 text-[11px] font-display font-medium">Ceiling (m)</th>
+                      <th className="text-right py-2.5 pr-4 text-[11px] font-display font-medium">Total Load (W)</th>
+                      <th className="text-right py-2.5 text-[11px] font-display font-medium">W/m²</th>
                     </tr>
                   </thead>
                   <tbody>

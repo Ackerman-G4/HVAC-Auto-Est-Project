@@ -26,7 +26,7 @@ export function AdvisoriesCard({
 
   return (
     <Card className="panel-glass border-border/70 p-6 lg:p-8">
-      <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Advisories</h3>
+      <h3 className="mb-3 text-xs font-medium font-display text-muted-foreground">Advisories</h3>
       <div className="space-y-2 rounded-sm border border-warning bg-secondary p-4 text-sm text-foreground">
         {loadResult.alerts.map((alert) => (
           <p key={`load-alert-${alert}`}>Load: {alert}</p>

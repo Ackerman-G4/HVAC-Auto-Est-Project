@@ -54,7 +54,7 @@ function DevCard({ label, icon, value, unit }: { label: string; icon: React.Reac
     'text-red-400';
   return (
     <div className="glass-card rounded-lg border border-border/70 px-4 pb-5 pt-4 shadow-sm">
-      <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-muted-foreground">
+      <div className="mb-2 flex items-center gap-2 text-xs font-medium font-display text-muted-foreground">
         {icon}
         {label}
       </div>
