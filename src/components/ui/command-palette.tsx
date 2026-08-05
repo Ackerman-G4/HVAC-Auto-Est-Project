@@ -96,7 +96,11 @@ const KIND_LABEL: Record<CommandKind, string> = {
 };
 
 export function CommandPalette() {
-  const [open, setOpen] = useState(false);
+  // Visibility lives in the UI store so the header button can open the palette
+  // by calling an action instead of dispatching a synthetic Cmd+K event.
+  const open = useUIStore((s) => s.commandPaletteOpen);
+  const setOpen = useUIStore((s) => s.setCommandPaletteOpen);
+  const toggleOpen = useUIStore((s) => s.toggleCommandPalette);
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const [recents, setRecents] = useState<string[]>([]);
@@ -115,21 +119,22 @@ export function CommandPalette() {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        setOpen((v) => {
-          if (v) return false;
-          // Opening via hotkey: schedule the reset outside the updater.
-          queueMicrotask(() => {
-            setQuery('');
-            setActiveIndex(0);
-            setRecents(loadRecents());
-          });
-          return true;
-        });
+        toggleOpen();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [toggleOpen]);
+
+  // Reset per-open state on every open, whichever route opened it. This used to
+  // live in the hotkey handler, so opening from the header button reopened the
+  // palette with the previous query and selection still in it.
+  useEffect(() => {
+    if (!open) return;
+    setQuery('');
+    setActiveIndex(0);
+    setRecents(loadRecents());
+  }, [open]);
 
   // On open: focus input + ensure projects are loaded (external systems only).
   useEffect(() => {

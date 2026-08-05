@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import path from "path";
+import withBundleAnalyzer from "@next/bundle-analyzer";
 
 const nextConfig: NextConfig = {
   // Pin turbopack root to this project directory so it never
@@ -20,4 +21,10 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
 };
 
-export default nextConfig;
+// Opt-in, so ordinary builds are unaffected. npm sets npm_lifecycle_event to
+// the script name, which avoids an inline env assignment that cmd.exe and
+// PowerShell would each need different syntax for.
+const analyzing =
+  process.env.ANALYZE === "true" || process.env.npm_lifecycle_event === "analyze";
+
+export default withBundleAnalyzer({ enabled: analyzing })(nextConfig);
