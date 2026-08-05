@@ -13,7 +13,7 @@
  */
 import React, { Suspense, useMemo, useRef, useCallback, useState, forwardRef, useImperativeHandle } from 'react';
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
-import { Line, OrbitControls, Text } from '@react-three/drei';
+import { Line, OrbitControls, Text, AdaptiveDpr, AdaptiveEvents } from '@react-three/drei';
 import * as THREE from 'three';
 import type { SimulationResult, ServerRack, HVACUnit, InspectedCellInfo, TileFlowViewConfig, TileAirflowData, ThermalAlert, Vec3 } from '@/types/simulation';
 import { HeatmapSlice, VelocityArrows, AirflowParticles, Streamlines, TemperatureFog, TileAirflowOverlay, AlertZoneMarkers, ContourSlicePlane } from './CFDOverlay3D';
@@ -45,6 +45,15 @@ interface Props {
   alerts?: ThermalAlert[];
   /** Bumping this re-fits the camera to the domain (Reset view). */
   resetToken?: number;
+  /**
+   * Retain the GPU drawing buffer so `captureSnapshot()` can read the canvas.
+   *
+   * Off by default. `preserveDrawingBuffer` makes the driver keep a copy of
+   * every frame, which costs memory and bandwidth on every render, and it was
+   * on unconditionally. Only the TileFlow tab captures snapshots, so only it
+   * should pay for it.
+   */
+  enableSnapshotCapture?: boolean;
 }
 
 export interface AirflowViewerHandle {
@@ -667,6 +676,7 @@ function Scene(props: Props) {
 // ─── Main Component ─────────────────────────────────────────────────
 
 const AirflowViewer3D = forwardRef<AirflowViewerHandle, Props>(function AirflowViewer3D(props, ref) {
+  const { enableSnapshotCapture = false } = props;
   const { result, viewMode = 'temperature', selectedSliceZ = 1 } = props;
   const { metrics, config } = result;
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -689,9 +699,19 @@ const AirflowViewer3D = forwardRef<AirflowViewerHandle, Props>(function AirflowV
       <Canvas
         ref={canvasRef}
         camera={{ position: initialFit.position, fov: 50, near: 0.1, far: 600 }}
-        gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, preserveDrawingBuffer: true }}
+        gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, preserveDrawingBuffer: enableSnapshotCapture }}
         style={{ background: sceneBackground }}
       >
+        {/*
+          This canvas keeps the default continuous loop on purpose: it and
+          CFDOverlay3D run seven useFrame loops for particles and streamlines,
+          which frameloop="demand" would freeze. Adaptive DPR/events are the
+          part that can be taken here — they drop resolution and pointer work
+          while the camera is moving instead of rendering full quality
+          throughout.
+        */}
+        <AdaptiveDpr pixelated />
+        <AdaptiveEvents />
         <Suspense fallback={null}>
           <Scene {...props} resetToken={resetToken} />
         </Suspense>

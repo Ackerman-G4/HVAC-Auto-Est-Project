@@ -1,7 +1,6 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { motion } from 'framer-motion';
 import {
   Wind, Thermometer, Play, ShieldCheck, AlertTriangle, Zap, TrendingUp, Server, AirVent, RotateCcw, Settings2, BarChart3, Box, Activity, Layers, Crosshair, Download,
 } from 'lucide-react';
@@ -95,7 +94,7 @@ export default function SimulationPage() {
   return (
     <PageWrapper>
       {simError && (
-        <div className="mx-auto mb-6 mt-6 max-w-4xl rounded-md border border-red-500/25 bg-red-500/8 p-4 text-sm font-semibold text-destructive">
+        <div className="mx-auto mb-6 mt-6 max-w-4xl rounded-md border border-destructive/25 bg-destructive/8 p-4 text-sm font-semibold text-destructive">
           {simError}
         </div>
       )}
@@ -184,17 +183,20 @@ export default function SimulationPage() {
 
       {/* Capacity Alert */}
       {totalHeatKW > 0 && totalCoolingKW < totalHeatKW && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8 flex items-center gap-3 rounded-md border border-red-500/25 bg-red-500/8 p-4 shadow-sm"
+        // The fade does carry meaning here — the alert appears when the deficit
+        // does — but CSS says it just as well. role=alert so it is announced
+        // rather than only seen; a cooling deficit is the kind of thing you
+        // must not miss. Tokens instead of raw red-500 so it follows the theme.
+        <div
+          role="alert"
+          className="mb-8 flex animate-fade-rise items-center gap-3 rounded-md border border-destructive/25 bg-destructive/8 p-4 shadow-sm"
         >
-          <AlertTriangle size={20} className="text-red-500 shrink-0" />
+          <AlertTriangle size={20} className="shrink-0 text-destructive" />
           <p className="text-sm font-medium text-destructive">
             <strong>Cooling deficit:</strong> Total heat load ({totalHeatKW.toFixed(0)} kW) exceeds cooling capacity ({totalCoolingKW.toFixed(0)} kW).
             Add {(totalHeatKW - totalCoolingKW).toFixed(0)} kW more cooling capacity.
           </p>
-        </motion.div>
+        </div>
       )}
 
       {/* Tabs */}

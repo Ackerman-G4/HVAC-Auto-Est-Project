@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import { pageTransition } from '@/lib/ui/motion';
 import { Wind, Activity } from 'lucide-react';
 import { HvacLogo } from '@/components/ui/hvac-logo';
 
@@ -29,7 +30,7 @@ export function AuthSplitHero({ heading, subtitle }: AuthSplitHeroProps) {
         <motion.p
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45 }}
+          transition={pageTransition}
           className="text-xs font-semibold font-display tracking-[0.2em] text-primary"
         >
           Precision Cooling. Intelligent Design.
@@ -37,7 +38,7 @@ export function AuthSplitHero({ heading, subtitle }: AuthSplitHeroProps) {
         <motion.h1
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.05 }}
+          transition={{ ...pageTransition, delay: 0.05 }}
           className="mt-3 text-4xl font-semibold tracking-tight text-white"
         >
           {heading}
@@ -45,7 +46,7 @@ export function AuthSplitHero({ heading, subtitle }: AuthSplitHeroProps) {
         <motion.p
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
+          transition={{ ...pageTransition, delay: 0.1 }}
           className="mt-4 text-sm leading-7 text-slate-200"
         >
           {subtitle}

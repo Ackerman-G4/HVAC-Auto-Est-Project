@@ -73,11 +73,11 @@ table above.
 | 3 — Typography / copy | ✅ | See below. |
 | 4 — Component library | 🟡 | Primitives built and tested; call-site migration pending. |
 | 5 — Shell / layout | 🟡 | Nav/preference bugs fixed; RSC split deliberately deferred. |
-| 6 — Page decomposition | 🟡 | Two largest targets already done pre-spec. |
-| 7 — Motion doctrine | 🟡 | Wave 1 removed the worst offenders. |
-| 8 — 3D performance | ⬜ | |
-| 9 — Data / bundle | 🟡 | pdfmake/exceljs already lazy. |
-| 10 — A11y / gates | ⬜ | |
+| 6 — Page decomposition | 🟡 | projects 862→425; five pages still over 300. |
+| 7 — Motion doctrine | 🟡 | Only skeleton-shimmer loops; framer at 21 files, not 12. |
+| 8 — 3D performance | 🟡 | Demand rendering + adaptive quality; viewer deletion blocked on parity. |
+| 9 — Data / bundle | 🟡 | Dead deps removed, loading.tsx added; bundle targets blocked on RSC. |
+| 10 — A11y / gates | 🟡 | jsx-a11y recommended on, 0 errors; 24 label warnings remain. |
 
 ### Wave 1 — kill the ceremony ✅
 
@@ -363,3 +363,164 @@ app rather than merely look wrong.
 Five waves of visual change have already landed without being seen. Adding an
 unverifiable auth refactor on top is the wrong order. This wants a browser
 first.
+
+### Waves 7, 8, 10 — motion, 3D, accessibility 🟡
+
+#### Wave 7 — motion doctrine
+
+| Acceptance | Target | Result |
+|---|---|---|
+| Infinite animations (excl. skeleton) | 0 | **0** ✅ |
+| Inline durations/easings | 0 | **0** ✅ |
+| `framer-motion` files | ≤ 12 | **21** ❌ |
+
+Removed `stage-pulse`/`.stage-running`, an infinite opacity pulse with zero call
+sites. The floorplan spinner was one infinite rotation driven through
+framer-motion — a spinner *does* report something, so it stays, but as CSS, and
+it gained `role="status"` (it was announcing nothing). Six hardcoded durations
+now come from `lib/ui/motion.ts`, which already defined 150/250/400ms.
+
+The viewer's cooling-deficit alert moved to CSS and gained `role="alert"` — it
+appears when a deficit does, and that is not something to surface silently.
+
+`framer-motion` is at 21, not 12. What remains is `AnimatePresence` exits,
+drawer/dialog orchestration and the page transition, none of which CSS can do.
+The stagger grids on `/projects` and `SupplierGrid` are decoration by the
+doctrine's own test, but converting orchestrated stagger to CSS is fiddly and
+purely visual, and this branch cannot check the result.
+
+#### Wave 8 — 3D performance
+
+`SimulationCanvas` renders **on demand** instead of at 60fps forever. Safe there
+specifically because none of its layers uses `useFrame`, so nothing continuously
+animating gets starved; drei's `OrbitControls` calls `invalidate()` on change.
+
+`AirflowViewer3D` keeps the continuous loop deliberately — it and `CFDOverlay3D`
+run **seven** `useFrame` loops driving particles and streamlines, which
+demand-mode would freeze. It gets `AdaptiveDpr`/`AdaptiveEvents` instead.
+
+`preserveDrawingBuffer` was on unconditionally, making the driver retain a copy
+of every frame. Only the TileFlow tab calls `captureSnapshot()`, so it is now an
+opt-in prop that only that tab sets.
+
+**The legacy viewer deletion is not done, and should not be.** The plan's own
+precondition is finishing the R3F parity checklist. `CFDOverlay3D` exports eight
+render layers — HeatmapSlice, VelocityArrows, AirflowParticles,
+ContourSlicePlane, Streamlines, TemperatureFog, TileAirflowOverlay,
+AlertZoneMarkers — against three on the R3F side. Deleting the legacy stack today
+removes six capabilities the viewer's own tabs render. That is a feature
+deletion dressed as a refactor; reaching parity means writing six new R3F layers
+whose output cannot be checked from here.
+
+#### Wave 10 — accessibility and gates
+
+| Acceptance | Target | Result |
+|---|---|---|
+| `jsx-a11y` errors | 0 | **0** ✅ |
+| CI gate | yes | **`.github/workflows/frontend-gates.yml`** ✅ |
+
+Turning on the recommended jsx-a11y set surfaced **42 violations** that the
+Next.js default config was not checking for. 18 fixed:
+
+- **Project cards were mouse-only.** A `<div onClick>` calling `router.push`:
+  no focus, no Enter key, nothing in the tab order, and no way to open a project
+  in a new tab. Now a `Link`.
+- `ConfigPanel` (10) and `FailurePanel` (3) migrated onto `Field`. Their labels
+  had `aria-label` duplicating the visible text, so screen readers worked but
+  clicking a label focused nothing. FailurePanel's "select failed units" was a
+  `<label>` over a *group* — now `fieldset`/`legend`, which is the pair that
+  actually names one.
+- `CardTitle` took children through a prop spread, so an empty `<h3>` could ship
+  unnoticed; children is explicit now.
+- Redundant `role="list"`/`role="listitem"` on `<ol>`/`<li>` removed.
+
+**24 remain, all `label-has-associated-control`** — a hand-rolled control beside
+a label with no `htmlFor`. Every other a11y rule is now an **error**, so new
+breakage in those fails the build. This one is a warning because it is a
+migration onto `Field`, not a config question: making it an error today would
+mean per-file disables, which hides the same debt somewhere harder to count.
+`ConfigPanel` and `FailurePanel` are the worked examples.
+
+The CI workflow runs `npm run check` (types + lint + tests), `next build`, and a
+bundle budget set above today's figure so it catches regressions rather than
+failing on the debt the overhaul is still working through.
+
+**Not verifiable from here:** a real keyboard walkthrough, screen-reader output,
+and whether demand rendering actually leaves the canvas idle. All need a browser.
+
+### Wave 9 — data and bundle 🟡
+
+| Acceptance | Target | Result |
+|---|---|---|
+| Gzipped client JS | ≤ 1.2 MB | **2.58 MB** ❌ |
+| Largest chunk | ≤ 250 KB | **952 KB** ❌ |
+| `'use client'` files | < 60 | **117** ❌ |
+| `pdfmake`/`exceljs` off the initial chunk | yes | **already were** ✅ |
+| `loading.tsx` on every route | yes | **all but `/auth/*`** ✅ |
+
+**Dead dependencies removed:** `fabric` (+ `@types/fabric`), `react-hook-form`,
+`@hookform/resolvers`. Every apparent `fabric` reference in the codebase turned
+out to be the word *"fabricated"* in material descriptions.
+
+Worth being precise: **this did not shrink the bundle at all** (2.58 MB before
+and after). `fabric` was never imported, so its 29 MB was install weight and
+supply-chain surface, not shipped bytes. Removing it is right; claiming it as a
+bundle win would not be.
+
+**`loading.tsx` added** for `/airflow-duct-design`, `/diagnostics`, `/settings`,
+`/projects/new` and the floorplan preview. `/auth/*` is deliberately skipped —
+those routes use a centred split layout, not the app shell, so a page-header
+skeleton would be the wrong shape.
+
+#### Why the bundle targets are unmet
+
+The three heavy chunks are **pdfmake (952 KB)**, **exceljs (909 KB)** and
+**three (841 KB)**. The first two are already behind `await import(...)`, so
+they are lazy chunks rather than first-load — the spec's own Wave 9 item 4 was
+already satisfied before this wave. Getting them *smaller* means replacing the
+libraries, not moving them.
+
+Reaching ≤ 1.2 MB needs the RSC migration, and that is blocked on the Wave 5
+`AppShell` server/client split, which was deferred because it rewrites the auth
+path and cannot be exercised without a browser. That dependency is real and
+stated in the spec's own sequencing (5 → 9); it has not been worked around.
+
+### Wave 6 — page decomposition 🟡
+
+| Acceptance | Target | Result |
+|---|---|---|
+| Largest `page.tsx` | ≤ 300 | **787** ❌ |
+
+Two of the spec's three biggest targets were already done before this overhaul
+started (viewer 1672 → 283, engine 1641 → 226). Of what remained:
+
+**`projects/page.tsx`: 862 → 425.** Split into
+`features/projects/useProjectsDashboard.ts` (state, effects, the persisted
+filter/sort preferences, and the archive/restore/soft-delete handlers) and
+`components/ProjectEditDialog.tsx` (200 lines of form JSX with per-field blur
+coercion), plus a shared `types.ts`.
+
+Both were moved **by line range, not retyped**. The dialog is dense form markup
+and the handlers are order-sensitive; re-deriving either by hand is how subtle
+input regressions get introduced. The page destructures the hook into the same
+local names it used before, so its JSX is byte-identical.
+
+Still over 300: `floorplan/preview` (787), `quotation` (622), `floorplan` (617),
+`diagnostics` (605), `settings` (587).
+
+#### A near-miss worth recording
+
+Partway through this wave `tsc` began failing in two files nothing had touched.
+The cause was **not** the refactor: `npm uninstall` in Wave 9 had re-resolved the
+tree and bumped **recharts 3.7.0 → 3.10.1** in the working tree, and 3.10's
+`Formatter` type no longer accepts the tooltip formatters in `CalibrationPanel`
+and `TileFlowDashboard`.
+
+The committed lockfile was correct — dead deps removed, recharts still pinned at
+3.7.0 — so the drift was working-tree only and was reverted with
+`git checkout package-lock.json && npm ci`.
+
+Worth noting because the gate would not have caught it on its own: `npm run
+check` passed immediately after the uninstall, and the bump only surfaced later.
+A silent minor bump inside a `^` range is exactly the kind of thing that gets
+committed alongside an unrelated change.

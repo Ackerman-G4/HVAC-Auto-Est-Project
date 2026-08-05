@@ -23,7 +23,12 @@ import { cn } from '@/lib/utils/cn';
  *   {(f) => <input {...f} value={area} onChange={…} />}
  * </Field>
  *
- * @example react-hook-form
+ * The render prop spreads cleanly onto a form library's own registration, so
+ * adopting one later needs no change here:
+ *
+ * @example with a form library (react-hook-form is not currently a dependency —
+ * it was removed in Wave 9 as dead weight and can be reinstalled when a form is
+ * actually migrated)
  * <Field label="Email" error={errors.email?.message}>
  *   {(f) => <input {...f} {...register('email')} />}
  * </Field>

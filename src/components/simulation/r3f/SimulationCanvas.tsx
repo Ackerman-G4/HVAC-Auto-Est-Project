@@ -16,7 +16,7 @@
 
 import { Suspense, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Html } from '@react-three/drei';
+import { OrbitControls, Html, AdaptiveDpr, AdaptiveEvents } from '@react-three/drei';
 import { useThemeColor } from '@/lib/ui/use-theme-color';
 import type { SimulationResult } from '@/types/simulation';
 import { deriveViewerModel } from './viewer-model';
@@ -58,11 +58,25 @@ export default function SimulationCanvas({
 
   return (
     <div className={className} style={{ width: '100%', height: '100%', minHeight: 320 }}>
+      {/*
+        frameloop="demand" renders only when something changes, instead of at
+        60fps forever. Safe here specifically because none of this canvas's
+        layers (BuildingShell, TemperatureVolume, VelocityGlyphs) uses
+        useFrame — there is nothing continuously animating to starve. drei's
+        OrbitControls calls invalidate() on change, so orbiting still redraws.
+
+        The legacy AirflowViewer3D deliberately keeps the default loop: it and
+        CFDOverlay3D run seven useFrame loops for particles and streamlines,
+        which demand-mode would freeze.
+      */}
       <Canvas
+        frameloop="demand"
         camera={{ position: [ex / 2 + camDist, ey + camDist * 0.6, ez / 2 + camDist], fov: 45 }}
         dpr={[1, 2]}
         gl={{ antialias: true, alpha: true }}
       >
+        <AdaptiveDpr pixelated />
+        <AdaptiveEvents />
         <color attach="background" args={[sceneBackground]} />
         <ambientLight intensity={0.7} />
         <directionalLight position={[ex, ey * 3 + 5, ez]} intensity={0.8} />
