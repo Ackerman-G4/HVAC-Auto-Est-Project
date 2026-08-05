@@ -46,7 +46,7 @@ export function RunActionsPanel({
 
   return (
     <>
-      <div className="flex w-64 shrink-0 flex-col gap-3">
+      <div className="flex w-full shrink-0 flex-col gap-3 xl:w-64">
         {/* Run Controls — solver tier split (plan §D2, §4.3) */}
         <Card className="elev-raised p-3">
           <SectionLabel icon={<Play size={12} />}>Run Controls</SectionLabel>
