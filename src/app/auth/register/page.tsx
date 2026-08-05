@@ -60,9 +60,6 @@ function RegisterPageContent() {
     });
 
     if (ok) {
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem('hvac-show-welcome', '1');
-      }
       router.replace(nextTarget);
     }
   };
@@ -173,9 +170,6 @@ function RegisterPageContent() {
                       clearError();
                       const ok = await loginWithGoogle(credentialResponse.credential);
                       if (ok) {
-                        if (typeof window !== 'undefined') {
-                          window.sessionStorage.setItem('hvac-show-welcome', '1');
-                        }
                         router.replace(nextTarget);
                       }
                     }}

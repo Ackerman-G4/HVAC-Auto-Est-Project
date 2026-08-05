@@ -17,6 +17,7 @@
     "firebase:web-key:sync": "powershell -ExecutionPolicy Bypass -File ./scripts/sync-firebase-web-key.ps1",
     "build": "next build",
     "build:netlify": "next build",
+    "analyze": "next build",
     "start": "next start",
     "lint": "eslint .",
     "test": "vitest run",
@@ -90,6 +91,7 @@
   },
   "devDependencies": {
     "@netlify/plugin-nextjs": "5.15.9",
+    "@next/bundle-analyzer": "16.3.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/react": "16.3.2",
     "@types/bcryptjs": "2.4.6",

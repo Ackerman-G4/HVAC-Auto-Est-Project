@@ -55,7 +55,28 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" data-theme="dark" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        {/*
+          Resolve the theme before first paint.
+
+          data-theme used to be hardcoded to "dark" here and corrected from
+          localStorage in an effect after hydration, so every light-theme user
+          watched the app flash dark-to-light on each load. This runs
+          synchronously during head parsing, so the first paint is already
+          correct. Keep it inline and blocking — deferring it reintroduces the
+          flash.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(){try{var t=localStorage.getItem('hvac-ui-theme');" +
+              "document.documentElement.setAttribute('data-theme'," +
+              "t==='light'||t==='dark'?t:'dark')}catch(e){" +
+              "document.documentElement.setAttribute('data-theme','dark')}})()",
+          }}
+        />
+      </head>
       <body
         className={`${jakarta.variable} ${spaceGrotesk.variable} ${jetBrainsMono.variable} antialiased`}
       >
