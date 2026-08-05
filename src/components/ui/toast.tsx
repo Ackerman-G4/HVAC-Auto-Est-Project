@@ -19,8 +19,28 @@ interface Toast {
 
 let toastListeners: ((toast: Toast) => void)[] = [];
 
+/**
+ * Unique id per toast.
+ *
+ * These were `Date.now().toString()`, so two toasts raised in the same
+ * millisecond collided on their React key — which is exactly what a form
+ * reporting several validation failures at once does. React then reconciles
+ * them as one element and a toast silently goes missing.
+ *
+ * randomUUID needs a secure context; the counter keeps ids unique anywhere else
+ * rather than falling back to the collision.
+ */
+let toastSeq = 0;
+function nextToastId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  toastSeq += 1;
+  return `toast-${Date.now()}-${toastSeq}`;
+}
+
 export function showToast(type: ToastType, title: string, message?: string, duration = 4000) {
-  const toast: Toast = { id: Date.now().toString(), type, title, message, duration };
+  const toast: Toast = { id: nextToastId(), type, title, message, duration };
   toastListeners.forEach((listener) => listener(toast));
 }
 

@@ -71,7 +71,7 @@ table above.
 | 1 — Kill the ceremony | ✅ | See below. |
 | 2 — Token / surface reset | 🟡 | Surfaces/radius/blur done; hex purge partial — see below. |
 | 3 — Typography / copy | ✅ | See below. |
-| 4 — Component library | ⬜ | |
+| 4 — Component library | 🟡 | Primitives built and tested; call-site migration pending. |
 | 5 — Shell / layout | ⬜ | |
 | 6 — Page decomposition | 🟡 | Two largest targets already done pre-spec. |
 | 7 — Motion doctrine | 🟡 | Wave 1 removed the worst offenders. |
@@ -255,3 +255,66 @@ theme keys resolve to them, and no Poppins or JetBrains request remains.
 
 **Not verifiable from here:** how Condensed actually reads at label sizes, and
 whether any label now wraps where it previously did not. Needs a browser.
+
+### Wave 4 — component library 🟡
+
+Full detail in [`ui-inventory.md`](./ui-inventory.md).
+
+| Acceptance | Target | Result |
+|---|---|---|
+| Every primitive documented | yes | **`docs/ui-inventory.md`** ✅ |
+| `@tanstack/react-table` imported | > 0 | **2 files** ✅ |
+| `react-hook-form` / `@hookform/resolvers` imported | > 0 | **0** ❌ |
+| No page file contains a raw `<table>` | 0 | **3 pages, 13 files** ❌ |
+
+**Five new primitives**, each with the house rules applied once so page code
+stops re-deriving them:
+
+- **`Field`** — the fix for ~49 unassociated labels. Works with any control, and
+  hands the wiring over through a render prop rather than cloning it on, because
+  cloning fails silently when the child forwards no props — which is how labels
+  come unassociated in the first place.
+- **`DataTable`** — on `@tanstack/react-table`, which was installed and
+  unimported. Sorting from a real `<button>` with `aria-sort`; several
+  hand-rolled tables sorted from an `onClick` on the `<th>`, which no keyboard
+  could reach. `meta.hideBelow` keeps responsive column hiding without dropping
+  columns from the model, so sort and filter still see the data.
+- **`TraceableValue`** — the §1.4 signature. Trigger is a real button so the
+  derivation opens on focus, not hover alone; an audit trail behind hover is out
+  of reach of anyone not using a mouse.
+- **`Metric`**, **`Toolbar`** — numeric readouts and the search/filter strip.
+
+**`PageHeader` already existed** in `page-wrapper.tsx`, so the spec's
+`page-header.tsx` is covered rather than duplicated.
+
+**Toast ids were a real bug.** `Date.now().toString()` meant two toasts raised
+in the same millisecond collided on their React key, so React reconciled them as
+one and a toast silently vanished — exactly what a form reporting several
+validation failures at once does.
+
+**`Button` gained `asChild`.** Without it, styling a link as a button means
+nesting an `<a>` in a `<button>` (invalid, breaks keyboard activation) or
+copying the class string, which call sites had begun doing.
+
+27 tests across `field.test.tsx` and `data-table.test.tsx`. Writing them
+surfaced that TanStack sorts numeric columns **descending-first** — the right
+behaviour (clicking "Total" on a BOQ means "show me the biggest") but asymmetric
+with text columns, so it is asserted explicitly rather than left as a surprise.
+
+#### What is not done
+
+`MaterialsTable` is migrated and gained sorting it never had, which proves the
+primitive in production. The remaining migrations are deliberately not done:
+
+- **13 files still hand-roll a `<table>`**, 3 of them page files.
+- **`htmlFor` is still 6 against 55 `<label>`s** — `Field` is what closes that,
+  one form at a time.
+- **`react-hook-form` is still unimported.** The natural first migration is
+  `projects/new/page.tsx`, 361 lines of hand-rolled `useState` form with
+  cross-field validation, on the path that creates a user's project. Rewriting
+  its validation without being able to click through it risks losing data on a
+  path where that matters, so it wants a browser rather than a blind rewrite.
+
+**Not verifiable from here:** that the migrated materials table still reads
+correctly at each breakpoint, and that `TraceableValue`'s card positions
+sensibly near a viewport edge.
