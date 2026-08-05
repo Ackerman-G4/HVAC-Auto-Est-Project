@@ -51,7 +51,7 @@ export function EquipmentTab({
           }
         />
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border bg-card p-3 shadow-sm">
+        <div className="overflow-x-auto rounded-md border border-border bg-card p-3 shadow-sm">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
@@ -123,7 +123,7 @@ export function EquipmentTab({
                           value={draft.quantity}
                           onChange={(event) => handleEquipmentDraftChange(eq.id, 'quantity', event.target.value)}
                           placeholder={String(eq.suggestedQuantity ?? eq.quantity)}
-                          className="w-20 rounded-md border border-border bg-background px-2.5 py-1.5 text-right text-sm"
+                          className="w-20 rounded-sm border border-border bg-background px-2.5 py-1.5 text-right text-sm"
                         />
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">
@@ -140,7 +140,7 @@ export function EquipmentTab({
                           value={draft.unitPrice}
                           onChange={(event) => handleEquipmentDraftChange(eq.id, 'unitPrice', event.target.value)}
                           placeholder={String(eq.suggestedUnitPrice ?? eq.unitPrice)}
-                          className="w-28 rounded-md border border-border bg-background px-2.5 py-1.5 text-right text-sm"
+                          className="w-28 rounded-sm border border-border bg-background px-2.5 py-1.5 text-right text-sm"
                         />
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">

@@ -113,7 +113,7 @@ export function ShortcutsSheet() {
         >
           <div className="absolute inset-0 bg-background/60 backdrop-blur-sm" onClick={() => setOpen(false)} aria-hidden="true" />
           <motion.div
-            className="panel-glass relative w-full max-w-md overflow-hidden rounded-2xl border border-border/70 p-6 shadow-[var(--elevation-floating)]"
+            className="panel-glass relative w-full max-w-md overflow-hidden rounded-lg border border-border/70 p-6 shadow-[var(--elevation-floating)]"
             initial={{ opacity: 0, y: reduced ? 0 : -8, scale: reduced ? 1 : 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1, transition: microTransition }}
             exit={{ opacity: 0, y: reduced ? 0 : -6, scale: reduced ? 1 : 0.98, transition: microTransition }}
@@ -136,7 +136,7 @@ export function ShortcutsSheet() {
                           {s.keys.map((k) => (
                             <kbd
                               key={k}
-                              className="rounded-md border border-border/80 bg-secondary/50 px-1.5 py-0.5 text-[11px] font-medium text-foreground"
+                              className="rounded-sm border border-border/80 bg-secondary/50 px-1.5 py-0.5 text-[11px] font-medium text-foreground"
                             >
                               {k}
                             </kbd>

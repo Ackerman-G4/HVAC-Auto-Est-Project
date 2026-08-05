@@ -34,7 +34,7 @@ export function CrossModuleSnapshot({
       defaultOpen
     >
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <div className="rounded-lg border border-border bg-secondary p-4 text-sm text-muted-foreground">
+        <div className="rounded-sm border border-border bg-secondary p-4 text-sm text-muted-foreground">
           <p className="font-medium uppercase tracking-wider text-foreground">Load Module</p>
           <p className="mt-1">Project: {loadInputs.projectName}</p>
           <p>Space Type: {loadInputs.spaceType}</p>
@@ -42,7 +42,7 @@ export function CrossModuleSnapshot({
           <p>Required CFM: {loadResult.breakdown.cfmRequired.toLocaleString()}</p>
         </div>
 
-        <div className="rounded-lg border border-border bg-secondary p-4 text-sm text-muted-foreground">
+        <div className="rounded-sm border border-border bg-secondary p-4 text-sm text-muted-foreground">
           <p className="font-medium uppercase tracking-wider text-foreground">Airflow Module</p>
           <p className="mt-1">Supply CFM: {airflowInputs.supplyCfm.toLocaleString()}</p>
           <p>Branches: {airflowInputs.branches}</p>
@@ -50,7 +50,7 @@ export function CrossModuleSnapshot({
           <p>Fan HP: {airflowResult.requiredFanPowerHp.toFixed(2)}</p>
         </div>
 
-        <div className="rounded-lg border border-border bg-secondary p-4 text-sm text-muted-foreground">
+        <div className="rounded-sm border border-border bg-secondary p-4 text-sm text-muted-foreground">
           <p className="font-medium uppercase tracking-wider text-foreground">Equipment Module</p>
           <p className="mt-1">Budget: {equipmentInputs.budgetBand}</p>
           <p>Priority: {equipmentInputs.optimizationPriority}</p>

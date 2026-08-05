@@ -115,7 +115,7 @@ export function Sidebar() {
         onClick={() => setMobileSidebar(false)}
         title={collapsed ? item.label : undefined}
         className={cn(
-          'group relative flex items-center gap-3 overflow-hidden rounded-xl px-3 py-2.5 text-[13px] font-medium transition-all duration-150',
+          'group relative flex items-center gap-3 overflow-hidden rounded-md px-3 py-2.5 text-[13px] font-medium transition-all duration-150',
           collapsed ? 'justify-center' : '',
           indent && !collapsed ? 'ml-4 pl-4' : '',
           active
@@ -150,7 +150,7 @@ export function Sidebar() {
           }}
           title={collapsed ? group.label : undefined}
           className={cn(
-            'group relative flex w-full items-center gap-3 overflow-hidden rounded-xl px-3 py-2.5 text-[13px] font-medium transition-all duration-150',
+            'group relative flex w-full items-center gap-3 overflow-hidden rounded-md px-3 py-2.5 text-[13px] font-medium transition-all duration-150',
             collapsed ? 'justify-center' : '',
             isChildActive
               ? 'bg-primary/10 text-primary'
@@ -210,7 +210,7 @@ export function Sidebar() {
           collapsed && 'justify-center px-0'
         )}
       >
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-linear-to-br from-primary to-accent text-white shadow-md">
+        <div className="flex h-9 w-9 items-center justify-center rounded-md bg-linear-to-br from-primary to-accent text-white shadow-md">
           <HvacLogo variant="mono" size={22} className="text-white" />
         </div>
         {!collapsed && (
@@ -237,7 +237,7 @@ export function Sidebar() {
       <div className="hidden border-t border-border p-4 md:flex">
         <button
           onClick={toggleSidebar}
-          className="flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors duration-150 hover:bg-secondary hover:text-foreground"
+          className="flex w-full items-center justify-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors duration-150 hover:bg-secondary hover:text-foreground"
         >
           {collapsed ? <ChevronRight size={18} /> : <><ChevronLeft size={18} /><span>Collapse</span></>}
         </button>
@@ -249,7 +249,7 @@ export function Sidebar() {
     <>
       <button
           onClick={() => setMobileSidebar(true)}
-          className="fixed left-3 top-3 rounded-xl border border-border bg-card/90 p-2.5 text-foreground shadow-md transition-colors hover:bg-secondary md:hidden"
+          className="fixed left-3 top-3 rounded-md border border-border bg-card/90 p-2.5 text-foreground shadow-md transition-colors hover:bg-secondary md:hidden"
           style={{ zIndex: Z.modal }}
           aria-label="Open navigation menu"
         >
@@ -277,7 +277,7 @@ export function Sidebar() {
             >
               <button
                 onClick={() => setMobileSidebar(false)}
-                className="absolute right-4 top-4 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                className="absolute right-4 top-4 rounded-sm p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                 style={{ zIndex: Z.modal }}
                 aria-label="Close navigation menu"
               >

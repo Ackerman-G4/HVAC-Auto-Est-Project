@@ -31,12 +31,12 @@ export function SimulationTabContent({
     <>
           <div className="space-y-5">
             {/* Run Simulation */}
-            <div className="panel-glass rounded-xl border border-border/70 bg-card p-5 shadow-sm">
+            <div className="panel-glass rounded-md border border-border/70 bg-card p-5 shadow-sm">
               <h3 className="mb-4 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Run Simulation</h3>
               <button
                 onClick={() => runSimulation(selectedProjectId || '', selectedFloorId || '')}
                 disabled={racks.length === 0 || isRunning}
-                className="flex w-full items-center justify-center gap-2.5 rounded-xl bg-accent px-5 py-3.5 text-sm font-semibold text-accent-foreground shadow-md transition-colors hover:bg-accent/90 disabled:opacity-50"
+                className="flex w-full items-center justify-center gap-2.5 rounded-md bg-accent px-5 py-3.5 text-sm font-semibold text-accent-foreground shadow-md transition-colors hover:bg-accent/90 disabled:opacity-50"
               >
                 {isRunning ? <><RotateCcw size={18} className="animate-spin" /> Running Simulation...</> : <><Play size={18} /> Run CFD Simulation</>}
               </button>
@@ -46,7 +46,7 @@ export function SimulationTabContent({
             </div>
 
             {/* Mesh Density */}
-            <div className="panel-glass rounded-xl border border-border/70 bg-card p-5 shadow-sm">
+            <div className="panel-glass rounded-md border border-border/70 bg-card p-5 shadow-sm">
               <h3 className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
                 <Sliders size={14} /> Mesh Density
               </h3>
@@ -75,7 +75,7 @@ export function SimulationTabContent({
                   <button
                     key={m}
                     onClick={() => setMode(m)}
-                    className={`flex-1 rounded-lg border px-3 py-2 text-xs font-semibold capitalize transition-colors ${
+                    className={`flex-1 rounded-sm border px-3 py-2 text-xs font-semibold capitalize transition-colors ${
                       config.mode === m
                         ? 'border-accent bg-accent/15 text-accent'
                         : 'border-border bg-background text-muted-foreground hover:border-border'
@@ -88,7 +88,7 @@ export function SimulationTabContent({
             </div>
 
             {/* Accuracy Indicator */}
-            <div className="panel-glass rounded-xl border border-border/70 bg-card p-5 shadow-sm">
+            <div className="panel-glass rounded-md border border-border/70 bg-card p-5 shadow-sm">
               <h3 className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
                 <Gauge size={14} /> Accuracy Indicator
               </h3>

@@ -22,7 +22,7 @@ export function StatCard({ title, value, subtitle, icon: Icon, trend, animate = 
   const numericValue = typeof value === 'number' && Number.isFinite(value) ? value : null;
   return (
     <div className={cn(
-      'glass-card hover-lift rounded-2xl border border-border/70 p-(--space-card-padding) shadow-[var(--panel-shadow)]',
+      'glass-card hover-lift rounded-lg border border-border/70 p-(--space-card-padding) shadow-[var(--panel-shadow)]',
       className
     )}>
       <div className="flex items-start justify-between gap-4">
@@ -47,7 +47,7 @@ export function StatCard({ title, value, subtitle, icon: Icon, trend, animate = 
           )}
         </div>
         {Icon && (
-          <div className="h-12 w-12 shrink-0 rounded-xl border border-border/70 bg-primary/10 flex items-center justify-center">
+          <div className="h-12 w-12 shrink-0 rounded-md border border-border/70 bg-primary/10 flex items-center justify-center">
             <Icon size={20} className="text-primary" />
           </div>
         )}

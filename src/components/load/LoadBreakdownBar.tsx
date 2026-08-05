@@ -81,7 +81,7 @@ export default function LoadBreakdownBar({
 
   return (
     <div className={cn('space-y-3', className)}>
-      <div className="flex h-6 w-full overflow-hidden rounded-md bg-secondary" role="img" aria-label="Load component breakdown">
+      <div className="flex h-6 w-full overflow-hidden rounded-sm bg-secondary" role="img" aria-label="Load component breakdown">
         {segments.map((seg, i) => (
           <motion.div
             key={seg.key}

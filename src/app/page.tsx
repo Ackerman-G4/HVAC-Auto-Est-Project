@@ -199,9 +199,9 @@ export default function DashboardPage() {
                 <li key={project.id}>
                   <Link
                     href={`/projects/${project.id}`}
-                    className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm transition-colors hover:bg-secondary/60"
+                    className="flex items-center gap-3 rounded-md px-3 py-3 text-sm transition-colors hover:bg-secondary/60"
                   >
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-primary/10 text-primary">
                       <Clock size={14} />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -238,19 +238,19 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-border/70 bg-secondary/45 p-4">
+              <div className="rounded-lg border border-border/70 bg-secondary/45 p-4">
                 <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Outdoor Temperature</p>
                 <p className="mt-2 text-2xl font-semibold text-foreground">{ambientTemp} °C</p>
               </div>
-              <div className="rounded-2xl border border-border/70 bg-secondary/45 p-4">
+              <div className="rounded-lg border border-border/70 bg-secondary/45 p-4">
                 <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Indoor Setpoint</p>
                 <p className="mt-2 text-2xl font-semibold text-foreground">{indoorSetpoint} °C</p>
               </div>
-              <div className="rounded-2xl border border-border/70 bg-secondary/45 p-4">
+              <div className="rounded-lg border border-border/70 bg-secondary/45 p-4">
                 <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Ventilation Rate</p>
                 <p className="mt-2 text-2xl font-semibold text-foreground">{ventilation} CFM/P</p>
               </div>
-              <div className="rounded-2xl border border-border/70 bg-secondary/45 p-4">
+              <div className="rounded-lg border border-border/70 bg-secondary/45 p-4">
                 <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Safety Margin</p>
                 <p className="mt-2 text-2xl font-semibold text-accent">{safetyMargin}</p>
               </div>

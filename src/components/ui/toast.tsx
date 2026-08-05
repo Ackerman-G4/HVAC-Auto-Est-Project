@@ -85,11 +85,11 @@ export function ToastContainer() {
             role="status"
             aria-live="polite"
             className={cn(
-              'pointer-events-auto flex items-start gap-3 rounded-2xl border border-border/70 bg-card/80 p-4 shadow-[var(--panel-shadow)] backdrop-blur-md border-l-4',
+              'pointer-events-auto flex items-start gap-3 rounded-lg border border-border/70 bg-card/80 p-4 shadow-[var(--panel-shadow)] backdrop-blur-md border-l-4',
               borderColors[toast.type]
             )}
           >
-            <div className={cn('mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border', iconCapsules[toast.type])}>
+            <div className={cn('mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-sm border', iconCapsules[toast.type])}>
               {icons[toast.type]}
             </div>
             <div className="flex-1 min-w-0">
@@ -98,7 +98,7 @@ export function ToastContainer() {
             </div>
             <button
               onClick={() => removeToast(toast.id)}
-              className="rounded-xl border border-transparent p-1 text-muted-foreground transition-colors hover:border-border/70 hover:bg-secondary/80 hover:text-foreground"
+              className="rounded-md border border-transparent p-1 text-muted-foreground transition-colors hover:border-border/70 hover:bg-secondary/80 hover:text-foreground"
               aria-label="Dismiss notification"
             >
               <X size={14} />

@@ -62,7 +62,7 @@ export function ExportTab({
       </Card>
 
       {!exportEnabled && (
-        <div className="mb-4 flex items-center gap-2 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm font-medium text-warning">
+        <div className="mb-4 flex items-center gap-2 rounded-md border border-warning/30 bg-warning/10 px-4 py-3 text-sm font-medium text-warning">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           {boqTampered
             ? 'BOQ integrity check failed. Regenerate the BOQ to restore a verified export.'
@@ -81,7 +81,7 @@ export function ExportTab({
           showToast('success', 'PDF report downloaded');
         }}>
           <CardContent className="p-5 text-center">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl border border-red-500/25 bg-red-500/10">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-md border border-red-500/25 bg-red-500/10">
               <FileText className="w-6 h-6 text-red-600" />
             </div>
             <h4 className="font-semibold mb-1">PDF Report</h4>
@@ -99,7 +99,7 @@ export function ExportTab({
           showToast('success', 'DXF file downloaded — open in AutoCAD or BricsCAD');
         }}>
           <CardContent className="p-5 text-center">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl border border-[rgba(15,139,141,0.3)] bg-[rgba(15,139,141,0.14)]">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-md border border-[rgba(15,139,141,0.3)] bg-[rgba(15,139,141,0.14)]">
               <FileDown className="w-6 h-6 text-accent" />
             </div>
             <h4 className="font-semibold mb-1">CAD Export (DXF)</h4>
@@ -117,7 +117,7 @@ export function ExportTab({
           showToast('success', 'Excel workbook downloaded');
         }}>
           <CardContent className="p-5 text-center">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl border border-emerald-500/25 bg-emerald-500/10">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-md border border-emerald-500/25 bg-emerald-500/10">
               <FileSpreadsheet className="w-6 h-6 text-green-600" />
             </div>
             <h4 className="font-semibold mb-1">Excel Workbook</h4>
@@ -135,7 +135,7 @@ export function ExportTab({
           showToast('success', 'CSV file downloaded');
         }}>
           <CardContent className="p-5 text-center">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl border border-amber-500/25 bg-amber-500/10">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-md border border-amber-500/25 bg-amber-500/10">
               <FileText className="w-6 h-6 text-amber-600" />
             </div>
             <h4 className="font-semibold mb-1">CSV Data</h4>

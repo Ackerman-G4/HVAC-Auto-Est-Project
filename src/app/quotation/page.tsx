@@ -93,13 +93,13 @@ function QuotationSkeleton() {
 					<div className="bg-linear-to-r from-accent/25 to-primary/25 px-8 py-6">
 						<div className="flex items-start justify-between gap-6">
 							<div className="flex-1 space-y-2">
-								<Skeleton className="h-6 w-64 rounded-lg" />
-								<Skeleton className="h-3.5 w-80 rounded-md" />
-								<Skeleton className="h-3.5 w-48 rounded-md" />
+								<Skeleton className="h-6 w-64 rounded-sm" />
+								<Skeleton className="h-3.5 w-80 rounded-sm" />
+								<Skeleton className="h-3.5 w-48 rounded-sm" />
 							</div>
 							<div className="space-y-2 text-right">
-								<Skeleton className="ml-auto h-5 w-32 rounded-lg" />
-								<Skeleton className="ml-auto h-3.5 w-24 rounded-md" />
+								<Skeleton className="ml-auto h-5 w-32 rounded-sm" />
+								<Skeleton className="ml-auto h-3.5 w-24 rounded-sm" />
 							</div>
 						</div>
 					</div>
@@ -108,15 +108,15 @@ function QuotationSkeleton() {
 					<div className="grid gap-6 border-b border-border/70 px-8 py-6 sm:grid-cols-2">
 						{Array.from({ length: 4 }).map((_, i) => (
 							<div key={i} className="space-y-2">
-								<Skeleton className="h-3 w-24 rounded-md" />
-								<Skeleton className="h-4 w-40 rounded-md" />
+								<Skeleton className="h-3 w-24 rounded-sm" />
+								<Skeleton className="h-4 w-40 rounded-sm" />
 							</div>
 						))}
 					</div>
 
 					{/* BOQ line items */}
 					<div className="px-8 py-6">
-						<Skeleton className="mb-4 h-4 w-40 rounded-md" />
+						<Skeleton className="mb-4 h-4 w-40 rounded-sm" />
 						<TableSkeleton rows={6} cols={5} />
 					</div>
 
@@ -125,13 +125,13 @@ function QuotationSkeleton() {
 						<div className="w-full max-w-xs space-y-3">
 							{Array.from({ length: 3 }).map((_, i) => (
 								<div key={i} className="flex items-center justify-between gap-4">
-									<Skeleton className="h-3.5 w-24 rounded-md" />
-									<Skeleton className="h-3.5 w-28 rounded-md" />
+									<Skeleton className="h-3.5 w-24 rounded-sm" />
+									<Skeleton className="h-3.5 w-28 rounded-sm" />
 								</div>
 							))}
 							<div className="flex items-center justify-between gap-4 border-t border-border/70 pt-3">
-								<Skeleton className="h-5 w-20 rounded-md" />
-								<Skeleton className="h-5 w-36 rounded-md" />
+								<Skeleton className="h-5 w-20 rounded-sm" />
+								<Skeleton className="h-5 w-36 rounded-sm" />
 							</div>
 						</div>
 					</div>
@@ -600,18 +600,18 @@ export default function QuotationPage() {
 					<Card className="panel-glass border-border/70 bg-primary/5 shadow-sm">
 						<CardHeader><CardTitle className="text-[13px]">Quotation Snapshot</CardTitle></CardHeader>
 						<CardContent className="space-y-2">
-							<div className="rounded-lg border border-border bg-card p-4"><p className="text-xs uppercase tracking-wider text-muted-foreground">Quotation No.</p><p className="text-sm font-semibold truncate">{quotationNumber || '—'}</p></div>
-							<div className="rounded-lg border border-border bg-card p-4"><p className="text-xs uppercase tracking-wider text-muted-foreground">Client</p><p className="text-sm font-semibold truncate">{project?.clientName || 'N/A'}</p></div>
-							<div className="rounded-lg border border-border bg-card p-4"><p className="text-xs uppercase tracking-wider text-muted-foreground">Grand Total</p><p className="text-2xl font-semibold tabular-nums text-accent">{boqData ? formatPHP(boqData.grandTotal) : '—'}</p></div>
+							<div className="rounded-sm border border-border bg-card p-4"><p className="text-xs uppercase tracking-wider text-muted-foreground">Quotation No.</p><p className="text-sm font-semibold truncate">{quotationNumber || '—'}</p></div>
+							<div className="rounded-sm border border-border bg-card p-4"><p className="text-xs uppercase tracking-wider text-muted-foreground">Client</p><p className="text-sm font-semibold truncate">{project?.clientName || 'N/A'}</p></div>
+							<div className="rounded-sm border border-border bg-card p-4"><p className="text-xs uppercase tracking-wider text-muted-foreground">Grand Total</p><p className="text-2xl font-semibold tabular-nums text-accent">{boqData ? formatPHP(boqData.grandTotal) : '—'}</p></div>
 						</CardContent>
 					</Card>
 
 					<Card className="panel-glass border-border/70 bg-card shadow-sm">
 						<CardHeader><CardTitle className="text-[13px]">Output Readiness</CardTitle></CardHeader>
 						<CardContent className="space-y-2 text-[12px]">
-							<div className="flex items-center justify-between rounded-lg border border-border bg-secondary/50 px-3.5 py-2.5"><span className="text-muted-foreground">Project selected</span><Badge size="sm" variant={project ? 'success' : 'default'}>{project ? 'Ready' : 'Pending'}</Badge></div>
-							<div className="flex items-center justify-between rounded-lg border border-border bg-secondary/50 px-3.5 py-2.5"><span className="text-muted-foreground">BOQ loaded</span><Badge size="sm" variant={boqData ? 'success' : 'default'}>{boqData ? 'Ready' : 'Pending'}</Badge></div>
-							<div className="flex items-center justify-between rounded-lg border border-border bg-secondary/50 px-3.5 py-2.5"><span className="text-muted-foreground">Equipment list</span><Badge size="sm" variant={equipment.length > 0 ? 'success' : 'default'}>{equipment.length > 0 ? 'Ready' : 'Pending'}</Badge></div>
+							<div className="flex items-center justify-between rounded-sm border border-border bg-secondary/50 px-3.5 py-2.5"><span className="text-muted-foreground">Project selected</span><Badge size="sm" variant={project ? 'success' : 'default'}>{project ? 'Ready' : 'Pending'}</Badge></div>
+							<div className="flex items-center justify-between rounded-sm border border-border bg-secondary/50 px-3.5 py-2.5"><span className="text-muted-foreground">BOQ loaded</span><Badge size="sm" variant={boqData ? 'success' : 'default'}>{boqData ? 'Ready' : 'Pending'}</Badge></div>
+							<div className="flex items-center justify-between rounded-sm border border-border bg-secondary/50 px-3.5 py-2.5"><span className="text-muted-foreground">Equipment list</span><Badge size="sm" variant={equipment.length > 0 ? 'success' : 'default'}>{equipment.length > 0 ? 'Ready' : 'Pending'}</Badge></div>
 							<Button variant="accent" size="sm" className="w-full mt-2" onClick={exportQuotationPDF} disabled={!boqData || generating} isLoading={generating}>
 								<Download className="w-4 h-4 mr-1" /> Export PDF
 							</Button>

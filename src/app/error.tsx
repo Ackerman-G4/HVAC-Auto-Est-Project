@@ -24,8 +24,8 @@ export default function RouteError({
 
   return (
     <div className="flex min-h-[70vh] items-center justify-center px-6">
-      <div className="panel-glass w-full max-w-md rounded-2xl border border-border/70 p-8 text-center">
-        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-destructive/30 bg-destructive/10 text-destructive">
+      <div className="panel-glass w-full max-w-md rounded-lg border border-border/70 p-8 text-center">
+        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-lg border border-destructive/30 bg-destructive/10 text-destructive">
           <AlertTriangle className="h-7 w-7" aria-hidden="true" />
         </div>
         <h1 className="mb-2 text-xl font-bold text-foreground">

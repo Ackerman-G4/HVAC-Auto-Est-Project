@@ -38,7 +38,7 @@ export function CatalogToolbar({
 }: CatalogToolbarProps) {
   return (
     <>
-      <div className="mb-4 mt-4 flex flex-col gap-4 rounded-xl border border-border bg-card px-4 py-4 shadow-sm sm:flex-row">
+      <div className="mb-4 mt-4 flex flex-col gap-4 rounded-md border border-border bg-card px-4 py-4 shadow-sm sm:flex-row">
         <div className="flex gap-2 flex-1">
           <Input
             placeholder={activeTab === 'materials' ? 'Search materials...' : 'Search suppliers...'}
@@ -94,7 +94,7 @@ export function CatalogToolbar({
             type="button"
             onClick={() => setCategoryFilter('')}
             className={cn(
-              'rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors',
+              'rounded-sm px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors',
               !categoryFilter
                 ? 'bg-primary text-primary-foreground'
                 : 'border border-border bg-card text-muted-foreground hover:bg-secondary',
@@ -108,7 +108,7 @@ export function CatalogToolbar({
               type="button"
               onClick={() => setCategoryFilter(cat === categoryFilter ? '' : cat)}
               className={cn(
-                'rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors',
+                'rounded-sm px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors',
                 cat === categoryFilter
                   ? 'bg-primary text-primary-foreground'
                   : 'border border-border bg-card text-muted-foreground hover:bg-secondary',

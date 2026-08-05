@@ -467,7 +467,7 @@ export default function SettingsPage() {
             ) : (
               <div className="space-y-4">
                 {placementRules.map((rule) => (
-                  <div key={rule.id} className="space-y-4 rounded-lg border border-border bg-background p-5">
+                  <div key={rule.id} className="space-y-4 rounded-sm border border-border bg-background p-5">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Rule #{rule.id}</span>
                       {canManageSettings && (

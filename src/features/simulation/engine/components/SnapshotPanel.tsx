@@ -158,7 +158,7 @@ export function SnapshotPanel({
                 </div>
 
                 {showSnapshotTimelineHelpNote && (
-                  <div className="mt-2 flex flex-wrap items-start justify-between gap-2 rounded-md border border-border/60 bg-muted/20 px-3 py-2 text-[11px] text-muted-foreground">
+                  <div className="mt-2 flex flex-wrap items-start justify-between gap-2 rounded-sm border border-border/60 bg-muted/20 px-3 py-2 text-[11px] text-muted-foreground">
                     <p>
                       Timeline selection is saved per case in this browser. Preview field and auto-load settings are saved globally.
                     </p>
@@ -191,7 +191,7 @@ export function SnapshotPanel({
                     disabled={runHistory.length === 0 || isLoadingSnapshots}
                     aria-label="Select run for snapshot timeline"
                     title="Select run for snapshot timeline"
-                    className="rounded-md border border-border bg-background px-2 py-1 text-xs"
+                    className="rounded-sm border border-border bg-background px-2 py-1 text-xs"
                   >
                     <option value="">Select run...</option>
                     {runHistory.map((run) => (
@@ -227,7 +227,7 @@ export function SnapshotPanel({
                     disabled={runSnapshots.length === 0 || isLoadingSnapshotDetail}
                     aria-label="Select snapshot iteration"
                     title="Select snapshot iteration (Home/End/PageUp/PageDown supported)"
-                    className="rounded-md border border-border bg-background px-2 py-1 text-xs"
+                    className="rounded-sm border border-border bg-background px-2 py-1 text-xs"
                   >
                     <option value="">Select iteration...</option>
                     {snapshotIterationOptions.map((iteration) => (
@@ -391,7 +391,7 @@ export function SnapshotPanel({
                     }}
                     aria-label="Select snapshot preview field"
                     title="Select snapshot preview field"
-                    className="rounded-md border border-border bg-background px-2 py-1 text-xs"
+                    className="rounded-sm border border-border bg-background px-2 py-1 text-xs"
                   >
                     {SNAPSHOT_PREVIEW_MODES.map((mode) => (
                       <option key={mode} value={mode}>{mode}</option>
@@ -446,14 +446,14 @@ export function SnapshotPanel({
                             : 'Unavailable'}
                   </span>
                 </div>
-                <div className="canvas-ambient relative h-[360px] overflow-hidden rounded-md border border-border/60">
+                <div className="canvas-ambient relative h-[360px] overflow-hidden rounded-sm border border-border/60">
                   {/* Floating glass toolbar — view context stays next to what you're
                       looking at, not only in the far sidebar (plan §Phase 4). */}
                   <div className="pointer-events-none absolute left-3 top-3 z-10 flex items-center gap-2">
-                    <span className="panel-glass rounded-lg border border-border/60 px-2.5 py-1 text-[11px] font-medium capitalize text-foreground shadow-sm">
+                    <span className="panel-glass rounded-sm border border-border/60 px-2.5 py-1 text-[11px] font-medium capitalize text-foreground shadow-sm">
                       {snapshotPreviewMode} field
                     </span>
-                    <span className="panel-glass rounded-lg border border-border/60 px-2.5 py-1 text-[11px] font-medium text-muted-foreground shadow-sm">
+                    <span className="panel-glass rounded-sm border border-border/60 px-2.5 py-1 text-[11px] font-medium text-muted-foreground shadow-sm">
                       {useR3FViewer ? 'R3F viewer' : 'Legacy viewer'}
                     </span>
                   </div>

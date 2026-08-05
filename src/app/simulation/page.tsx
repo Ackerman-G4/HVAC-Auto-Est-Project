@@ -9,7 +9,7 @@ export default function SimulationLauncherPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-5 py-12">
       <Card className="panel-glass border-border/70 p-7 text-center sm:p-10">
-        <div className="mx-auto mb-6 flex h-18 w-18 items-center justify-center rounded-2xl border border-border/70 bg-card text-accent shadow-sm">
+        <div className="mx-auto mb-6 flex h-18 w-18 items-center justify-center rounded-lg border border-border/70 bg-card text-accent shadow-sm">
           <Box size={30} />
         </div>
         <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Simulation Command Deck</p>
@@ -38,7 +38,7 @@ export default function SimulationLauncherPage() {
 
       {/* ── Simulation Engine (CFD Case Management) ────────────── */}
       <Card className="panel-glass border-border/70 p-7 text-center sm:p-10">
-        <div className="mx-auto mb-6 flex h-18 w-18 items-center justify-center rounded-2xl border border-border/70 bg-card text-accent shadow-sm">
+        <div className="mx-auto mb-6 flex h-18 w-18 items-center justify-center rounded-lg border border-border/70 bg-card text-accent shadow-sm">
           <FlaskConical size={30} />
         </div>
         <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Simulation Engine</p>

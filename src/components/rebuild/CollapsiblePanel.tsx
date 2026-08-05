@@ -20,7 +20,7 @@ export function CollapsiblePanel({
   const [open, setOpen] = React.useState(defaultOpen);
 
   return (
-    <section className="panel-glass rounded-2xl border border-border/70 shadow-[var(--panel-shadow)]">
+    <section className="panel-glass rounded-lg border border-border/70 shadow-[var(--panel-shadow)]">
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}

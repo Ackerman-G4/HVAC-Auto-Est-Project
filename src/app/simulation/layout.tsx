@@ -24,7 +24,7 @@ export default function SimulationLayout({ children }: { children: React.ReactNo
     <div className="space-y-5">
       <nav
         aria-label="Simulation views"
-        className="panel-glass flex flex-wrap gap-1 rounded-xl border border-border/70 bg-card p-1.5"
+        className="panel-glass flex flex-wrap gap-1 rounded-md border border-border/70 bg-card p-1.5"
       >
         {TABS.map((tab) => {
           const active = tab.exact ? pathname === tab.href : pathname.startsWith(tab.href);
@@ -35,7 +35,7 @@ export default function SimulationLayout({ children }: { children: React.ReactNo
               href={tab.href}
               aria-current={active ? 'page' : undefined}
               className={cn(
-                'flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors',
+                'flex items-center gap-2 rounded-sm px-3.5 py-2 text-sm font-medium transition-colors',
                 active
                   ? 'bg-accent text-accent-foreground shadow-sm'
                   : 'text-muted-foreground hover:bg-secondary hover:text-foreground',

@@ -27,7 +27,7 @@ export function FormulaTransparency({
           <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Load Equations</p>
           <div className="space-y-3">
             {loadResult.formulas.map((formula) => (
-              <div key={`load-${formula.label}`} className="rounded-lg border border-border bg-secondary p-4">
+              <div key={`load-${formula.label}`} className="rounded-sm border border-border bg-secondary p-4">
                 <p className="text-[11px] font-medium uppercase tracking-wider text-foreground">{formula.label}</p>
                 <p className="mt-1 font-mono text-xs text-muted-foreground">{formula.expression}</p>
                 <p className="mt-1.5 text-xs font-semibold text-accent">{formula.value}</p>
@@ -40,7 +40,7 @@ export function FormulaTransparency({
           <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Airflow Equations</p>
           <div className="space-y-3">
             {airflowResult.formulas.map((formula) => (
-              <div key={`air-${formula.label}`} className="rounded-lg border border-border bg-secondary p-4">
+              <div key={`air-${formula.label}`} className="rounded-sm border border-border bg-secondary p-4">
                 <p className="text-[11px] font-medium uppercase tracking-wider text-foreground">{formula.label}</p>
                 <p className="mt-1 font-mono text-xs text-muted-foreground">{formula.expression}</p>
                 <p className="mt-1.5 text-xs font-semibold text-accent">{formula.value}</p>
@@ -53,7 +53,7 @@ export function FormulaTransparency({
           <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Equipment Equations</p>
           <div className="space-y-3">
             {equipmentResult.formulas.map((formula) => (
-              <div key={`equip-${formula.label}`} className="rounded-lg border border-border bg-secondary p-4">
+              <div key={`equip-${formula.label}`} className="rounded-sm border border-border bg-secondary p-4">
                 <p className="text-[11px] font-medium uppercase tracking-wider text-foreground">{formula.label}</p>
                 <p className="mt-1 font-mono text-xs text-muted-foreground">{formula.expression}</p>
                 <p className="mt-1.5 text-xs font-semibold text-accent">{formula.value}</p>

@@ -57,7 +57,7 @@ export function CaseListPanel({
             <select
               value={selectedProjectId}
               onChange={(e) => setSelectedProjectId(e.target.value)}
-              className="flex-1 rounded-md border border-border bg-background px-2 py-1 text-sm"
+              className="flex-1 rounded-sm border border-border bg-background px-2 py-1 text-sm"
             >
               <option value="">Select a project...</option>
               {projects.map((p) => (
@@ -89,7 +89,7 @@ export function CaseListPanel({
           {isLoadingCases && (
             <div className="space-y-1.5 py-1">
               {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-11 w-full rounded-md" />
+                <Skeleton key={i} className="h-11 w-full rounded-sm" />
               ))}
             </div>
           )}
@@ -104,7 +104,7 @@ export function CaseListPanel({
                 <StaggerItem key={c.id}>
                   <button
                     onClick={() => selectCase(c.id)}
-                    className={`w-full rounded-md border p-2 text-left text-xs transition-colors ${
+                    className={`w-full rounded-sm border p-2 text-left text-xs transition-colors ${
                       activeCase?.id === c.id
                         ? 'border-accent bg-accent/10'
                         : 'border-border hover:bg-muted/30'
@@ -123,14 +123,14 @@ export function CaseListPanel({
 
           {/* Create Form */}
           {showCreateForm && (
-            <div className="mt-3 space-y-2 rounded-md border border-border p-2">
+            <div className="mt-3 space-y-2 rounded-sm border border-border p-2">
               <input
                 ref={newCaseInputRef}
                 type="text"
                 value={newCaseName}
                 onChange={(e) => setNewCaseName(e.target.value)}
                 placeholder="Case name..."
-                className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm"
+                className="w-full rounded-sm border border-border bg-background px-2 py-1 text-sm"
               />
               <div className="grid grid-cols-3 gap-1.5">
                 <div>

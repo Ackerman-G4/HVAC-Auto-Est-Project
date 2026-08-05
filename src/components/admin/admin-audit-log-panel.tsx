@@ -189,7 +189,7 @@ export function AdminAuditLogPanel() {
                                         <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                                           {field}
                                         </p>
-                                        <pre className="overflow-x-auto rounded-lg border border-border/60 bg-background/60 p-3 text-xs text-foreground">
+                                        <pre className="overflow-x-auto rounded-sm border border-border/60 bg-background/60 p-3 text-xs text-foreground">
                                           {value}
                                         </pre>
                                       </div>

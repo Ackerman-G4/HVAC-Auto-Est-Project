@@ -158,7 +158,7 @@ export default function EquipmentSelectionPage() {
                 <select
                   value={inputs.budgetBand}
                   onChange={(event) => setInput('budgetBand', event.target.value as typeof inputs.budgetBand)}
-                  className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20"
+                  className="h-10 w-full rounded-sm border border-input bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20"
                   aria-label="Budget Band"
                 >
                   <option value="economy">Economy</option>
@@ -172,7 +172,7 @@ export default function EquipmentSelectionPage() {
                 <select
                   value={inputs.optimizationPriority}
                   onChange={(event) => setInput('optimizationPriority', event.target.value as typeof inputs.optimizationPriority)}
-                  className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20"
+                  className="h-10 w-full rounded-sm border border-input bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20"
                   aria-label="Optimization Priority"
                 >
                   <option value="capex">Capex</option>
@@ -200,7 +200,7 @@ export default function EquipmentSelectionPage() {
             <select
               value={overrides.lockOptionId ?? ''}
               onChange={(event) => setOverride('lockOptionId', event.target.value || null)}
-              className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20"
+              className="h-10 w-full rounded-sm border border-input bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20"
               aria-label="Lock Override"
             >
               <option value="">Auto-select top score</option>
@@ -306,7 +306,7 @@ export default function EquipmentSelectionPage() {
           <CollapsiblePanel title="Formula Transparency" subtitle="Scoring and lifecycle equations" defaultOpen={false}>
             <div className="space-y-4">
               {result.formulas.map((formula) => (
-                <div key={formula.label} className="rounded-lg border border-border bg-secondary p-4">
+                <div key={formula.label} className="rounded-sm border border-border bg-secondary p-4">
                   <p className="text-[11px] font-medium uppercase tracking-wider text-foreground">{formula.label}</p>
                   <p className="mt-1 font-mono text-xs text-muted-foreground">{formula.expression}</p>
                   <p className="mt-1.5 text-xs font-semibold text-accent">{formula.value}</p>

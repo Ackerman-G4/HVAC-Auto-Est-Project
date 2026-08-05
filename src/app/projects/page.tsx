@@ -355,7 +355,7 @@ export default function ProjectsPage() {
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Project Workspace</p>
                   <p className="text-sm font-medium text-foreground mt-0.5">Manage active jobs, updates, and archival lifecycle in one view.</p>
                 </div>
-                <div className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted-foreground">
+                <div className="rounded-sm border border-border bg-card px-3 py-2 text-sm text-muted-foreground">
                   <FolderKanban className="h-4 w-4" />
                   <span className="tabular-nums">{loading ? '—' : projects.length} total projects</span>
                 </div>
@@ -363,7 +363,7 @@ export default function ProjectsPage() {
             </CardContent>
           </Card>
 
-          <div className="panel-glass mb-6 flex flex-col gap-4 rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
+          <div className="panel-glass mb-6 flex flex-col gap-4 rounded-md border border-border/70 bg-card p-4 shadow-sm sm:p-5">
             <div className="flex-1 flex gap-2">
               <Input
                 placeholder="Search projects..."
@@ -393,7 +393,7 @@ export default function ProjectsPage() {
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as (typeof DASHBOARD_SORT_FIELDS)[number]['value'])}
                 aria-label="Sort by"
-                className="h-10 rounded-xl border border-border bg-background px-3.5 text-sm font-medium text-foreground"
+                className="h-10 rounded-md border border-border bg-background px-3.5 text-sm font-medium text-foreground"
               >
                 {DASHBOARD_SORT_FIELDS.map((field) => (
                   <option key={field.value} value={field.value}>
@@ -405,7 +405,7 @@ export default function ProjectsPage() {
                 value={sortOrder}
                 onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
                 aria-label="Sort order"
-                className="h-10 rounded-xl border border-border bg-background px-3.5 text-sm font-medium text-foreground"
+                className="h-10 rounded-md border border-border bg-background px-3.5 text-sm font-medium text-foreground"
               >
                 <option value="desc">Descending</option>
                 <option value="asc">Ascending</option>
@@ -475,19 +475,19 @@ export default function ProjectsPage() {
                             {project.buildingType} · {project.city || project.location || '—'}
                           </p>
                           <div className="mt-4 grid grid-cols-3 gap-3 text-center">
-                            <div className="rounded-xl border border-border bg-secondary/50 py-2.5">
+                            <div className="rounded-md border border-border bg-secondary/50 py-2.5">
                               <p className="text-lg font-semibold tabular-nums text-foreground">
                                 {roomCount}
                               </p>
                               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Rooms</p>
                             </div>
-                            <div className="rounded-xl border border-border bg-secondary/50 py-2.5">
+                            <div className="rounded-md border border-border bg-secondary/50 py-2.5">
                               <p className="text-lg font-semibold tabular-nums text-foreground">
                                 {projectTR.toFixed(1)}
                               </p>
                               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">TR</p>
                             </div>
-                            <div className="rounded-xl border border-border bg-secondary/50 py-2.5">
+                            <div className="rounded-md border border-border bg-secondary/50 py-2.5">
                               <p className="text-lg font-semibold tabular-nums text-foreground">
                                 {project._count?.selectedEquipment || 0}
                               </p>
@@ -594,23 +594,23 @@ export default function ProjectsPage() {
                 <h3 className="text-[13px] font-semibold text-foreground">Portfolio Snapshot</h3>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl border border-border bg-card p-4">
+                <div className="rounded-md border border-border bg-card p-4">
                   <p className="text-xs uppercase tracking-wider text-muted-foreground">Draft</p>
                   <p className="text-xl font-semibold tabular-nums">{loading ? '—' : draftCount}</p>
                 </div>
-                <div className="rounded-xl border border-border bg-card p-4">
+                <div className="rounded-md border border-border bg-card p-4">
                   <p className="text-xs uppercase tracking-wider text-muted-foreground">Active</p>
                   <p className="text-xl font-semibold tabular-nums">{loading ? '—' : activeCount}</p>
                 </div>
-                <div className="rounded-xl border border-border bg-card p-4">
+                <div className="rounded-md border border-border bg-card p-4">
                   <p className="text-xs uppercase tracking-wider text-muted-foreground">Completed</p>
                   <p className="text-xl font-semibold tabular-nums">{loading ? '—' : completedCount}</p>
                 </div>
-                <div className="rounded-xl border border-border bg-card p-4">
+                <div className="rounded-md border border-border bg-card p-4">
                   <p className="text-xs uppercase tracking-wider text-muted-foreground">Archived</p>
                   <p className="text-xl font-semibold tabular-nums">{loading ? '—' : archivedCount}</p>
                 </div>
-                <div className="col-span-2 rounded-xl border border-red-500/20 bg-red-500/5 p-4">
+                <div className="col-span-2 rounded-md border border-red-500/20 bg-red-500/5 p-4">
                   <p className="text-xs uppercase tracking-wider text-red-400">Trash</p>
                   <p className="text-xl font-semibold tabular-nums text-red-400">{loading ? '—' : deletedCount}</p>
                 </div>
@@ -621,11 +621,11 @@ export default function ProjectsPage() {
           <Card className="panel-glass border-border/70 bg-card shadow-sm">
             <CardContent className="space-y-4 p-5">
               <h3 className="text-[13px] font-semibold text-foreground">Capacity & BOQ</h3>
-              <div className="rounded-lg border border-border bg-secondary/50 p-4">
+              <div className="rounded-sm border border-border bg-secondary/50 p-4">
                 <p className="text-xs uppercase tracking-wider text-muted-foreground">Selected Equipment</p>
                 <p className="text-2xl font-semibold tabular-nums text-foreground">{loading ? '—' : totalEquipment}</p>
               </div>
-              <div className="rounded-lg border border-border bg-secondary/50 p-4">
+              <div className="rounded-sm border border-border bg-secondary/50 p-4">
                 <p className="text-xs uppercase tracking-wider text-muted-foreground">BOQ Line Items</p>
                 <p className="text-2xl font-semibold tabular-nums text-foreground">{loading ? '—' : totalBOQItems}</p>
               </div>
@@ -642,12 +642,12 @@ export default function ProjectsPage() {
         description="Update project details, design conditions, and calculation parameters."
         size="xl"
       >
-        <div className="mb-5 rounded-xl border border-border bg-secondary/50 px-4 py-3 text-sm text-muted-foreground">
+        <div className="mb-5 rounded-md border border-border bg-secondary/50 px-4 py-3 text-sm text-muted-foreground">
           Changes here tune psychrometric assumptions and project metadata used by downstream room loads, equipment sizing, and BOQ generation.
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Left Column: Project Details */}
-          <div className="space-y-4 rounded-xl border border-border bg-card p-4 sm:p-5">
+          <div className="space-y-4 rounded-md border border-border bg-card p-4 sm:p-5">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-foreground">Project Details</h3>
             <Input
               label="Project Name *"
@@ -717,9 +717,9 @@ export default function ProjectsPage() {
           </div>
 
           {/* Right Column: Design Conditions & Parameters */}
-          <div className="space-y-4 rounded-xl border border-border bg-card p-4 sm:p-5">
+          <div className="space-y-4 rounded-md border border-border bg-card p-4 sm:p-5">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-foreground">Design Conditions</h3>
-            <div className="rounded-lg border border-border bg-secondary/50 p-3">
+            <div className="rounded-sm border border-border bg-secondary/50 p-3">
               <p className="text-xs text-muted-foreground">
                 Carrier Psychrometric Chart — WB, dew point, humidity ratio, and enthalpy are auto-computed from DB & RH.
               </p>
@@ -749,27 +749,27 @@ export default function ProjectsPage() {
               const ps = psychrometricState(Number(editForm.outdoorDB) || 35, Number(editForm.outdoorRH) || 50);
               return (
                 <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="rounded-lg border border-border bg-background px-1 py-1.5 shadow-sm">
+                  <div className="rounded-sm border border-border bg-background px-1 py-1.5 shadow-sm">
                     <p className="text-sm font-semibold tabular-nums">{ps.wetBulb}°C</p>
                     <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Wet Bulb</p>
                   </div>
-                  <div className="rounded-lg border border-border bg-background px-1 py-1.5 shadow-sm">
+                  <div className="rounded-sm border border-border bg-background px-1 py-1.5 shadow-sm">
                     <p className="text-sm font-semibold tabular-nums">{ps.dewPoint}°C</p>
                     <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Dew Point</p>
                   </div>
-                  <div className="rounded-lg border border-border bg-background px-1 py-1.5 shadow-sm">
+                  <div className="rounded-sm border border-border bg-background px-1 py-1.5 shadow-sm">
                     <p className="text-sm font-semibold tabular-nums">{(ps.humidityRatio * 1000).toFixed(1)} g/kg</p>
                     <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Humidity Ratio</p>
                   </div>
-                  <div className="rounded-lg border border-border bg-background px-1 py-1.5 shadow-sm">
+                  <div className="rounded-sm border border-border bg-background px-1 py-1.5 shadow-sm">
                     <p className="text-sm font-semibold tabular-nums">{ps.enthalpy} kJ/kg</p>
                     <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Enthalpy</p>
                   </div>
-                  <div className="rounded-lg border border-border bg-background px-1 py-1.5 shadow-sm">
+                  <div className="rounded-sm border border-border bg-background px-1 py-1.5 shadow-sm">
                     <p className="text-sm font-semibold tabular-nums">{ps.specificVolume} m³/kg</p>
                     <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Sp. Volume</p>
                   </div>
-                  <div className="rounded-lg border border-border bg-background px-1 py-1.5 shadow-sm">
+                  <div className="rounded-sm border border-border bg-background px-1 py-1.5 shadow-sm">
                     <p className="text-sm font-semibold tabular-nums">{ps.density} kg/m³</p>
                     <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Density</p>
                   </div>

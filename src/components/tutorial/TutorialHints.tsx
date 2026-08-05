@@ -23,10 +23,10 @@ export default function TutorialHints() {
   }, [step]);
   if (step >= hints.length) return null;
   return (
-    <div className="fixed bottom-6 left-6 z-50 glass-card max-w-xs rounded-2xl border border-border/70 p-4 shadow-(--panel-shadow)">
+    <div className="fixed bottom-6 left-6 z-50 glass-card max-w-xs rounded-lg border border-border/70 p-4 shadow-(--panel-shadow)">
       <p className="text-sm text-foreground">{hints[step].text}</p>
       <button
-        className="mt-3 inline-flex items-center rounded-xl border border-transparent bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+        className="mt-3 inline-flex items-center rounded-md border border-transparent bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
         onClick={() => setStep(step + 1)}
       >
         Next

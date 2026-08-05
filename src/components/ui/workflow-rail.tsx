@@ -105,7 +105,7 @@ export function WorkflowRail({ projectId, stages, activeStage, className }: Work
     <nav
       aria-label="Project workflow"
       className={cn(
-        'panel-glass relative overflow-hidden rounded-2xl border border-border/70 p-3',
+        'panel-glass relative overflow-hidden rounded-lg border border-border/70 p-3',
         className,
       )}
     >
@@ -138,7 +138,7 @@ export function WorkflowRail({ projectId, stages, activeStage, className }: Work
                 aria-label={`${stage.label}: ${meta.label}${state.detail ? ` — ${state.detail}` : ''}`}
                 title={state.detail}
                 className={cn(
-                  'group flex w-full min-w-[6.5rem] flex-col gap-1.5 rounded-xl border px-3 py-2.5 text-left transition-all duration-150',
+                  'group flex w-full min-w-[6.5rem] flex-col gap-1.5 rounded-md border px-3 py-2.5 text-left transition-all duration-150',
                   isActive
                     ? 'border-accent/50 bg-accent/10 shadow-[0_6px_16px_color-mix(in_oklab,var(--accent)_18%,transparent)]'
                     : 'border-transparent hover:border-border/70 hover:bg-secondary/50',

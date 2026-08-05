@@ -51,7 +51,7 @@ export function RunActionsPanel({
         <Card className="elev-raised p-3">
           <SectionLabel icon={<Play size={12} />}>Run Controls</SectionLabel>
           <div className="space-y-2">
-            <div className="rounded-md border border-accent/30 bg-accent/5 p-2">
+            <div className="rounded-sm border border-accent/30 bg-accent/5 p-2">
               <Button
                 size="sm"
                 variant="accent"
@@ -66,7 +66,7 @@ export function RunActionsPanel({
                 Instant, in-browser. Temperature, velocity, pressure &amp; humidity. Free tier.
               </p>
             </div>
-            <div className="rounded-md border border-[color:color-mix(in_oklab,var(--copper)_45%,var(--border))] p-2">
+            <div className="rounded-sm border border-[color:color-mix(in_oklab,var(--copper)_45%,var(--border))] p-2">
               <Button
                 size="sm"
                 variant="outline"

@@ -3,7 +3,7 @@
 import type { useSimulationViewer } from '../useSimulationViewer';
 import dynamic from 'next/dynamic';
 import { Box } from 'lucide-react';
-const AirflowViewer3D = dynamic(() => import('@/components/building/AirflowViewer3D').then(m => m.default), { ssr: false, loading: () => <div className="panel-glass flex h-125 items-center justify-center rounded-xl border border-border/70 bg-card text-sm font-medium text-muted-foreground shadow-sm">Loading 3D viewer...</div> });
+const AirflowViewer3D = dynamic(() => import('@/components/building/AirflowViewer3D').then(m => m.default), { ssr: false, loading: () => <div className="panel-glass flex h-125 items-center justify-center rounded-md border border-border/70 bg-card text-sm font-medium text-muted-foreground shadow-sm">Loading 3D viewer...</div> });
 
 type ThreeDTabContentProps = Pick<
   ReturnType<typeof useSimulationViewer>,
@@ -59,7 +59,7 @@ export function ThreeDTabContent({
     <>
           {result ? (
             <>
-              <div className="panel-glass mb-4 rounded-xl border border-border/70 bg-card p-4 shadow-sm">
+              <div className="panel-glass mb-4 rounded-md border border-border/70 bg-card p-4 shadow-sm">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="mr-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
                     View Mode
@@ -68,7 +68,7 @@ export function ThreeDTabContent({
                     <button
                       key={mode}
                       onClick={() => setActiveView(mode)}
-                      className={`rounded-lg border px-3 py-2 text-sm font-semibold uppercase tracking-wider transition-colors ${
+                      className={`rounded-sm border px-3 py-2 text-sm font-semibold uppercase tracking-wider transition-colors ${
                         activeView === mode
                           ? 'border-accent bg-accent/15 text-accent'
                           : 'border-border bg-background text-muted-foreground hover:border-border'
@@ -98,7 +98,7 @@ export function ThreeDTabContent({
                     </span>
                   </div>
 
-                  <label className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-semibold text-muted-foreground">
+                  <label className="flex items-center gap-2 rounded-sm border border-border bg-background px-3 py-2 text-sm font-semibold text-muted-foreground">
                     <input
                       type="checkbox"
                       checked={showHotspots}
@@ -107,7 +107,7 @@ export function ThreeDTabContent({
                     Hotspots
                   </label>
 
-                  <label className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-semibold text-muted-foreground">
+                  <label className="flex items-center gap-2 rounded-sm border border-border bg-background px-3 py-2 text-sm font-semibold text-muted-foreground">
                     <input
                       type="checkbox"
                       checked={showAirflow}
@@ -116,7 +116,7 @@ export function ThreeDTabContent({
                     Airflow Particles
                   </label>
 
-                  <div className="ml-auto rounded-lg border border-border/80 bg-background px-3 py-2 text-xs">
+                  <div className="ml-auto rounded-sm border border-border/80 bg-background px-3 py-2 text-xs">
                     <p className="font-semibold text-foreground">
                       {canEditHVACIn3D ? 'Drag HVAC in 3D to reposition' : 'Room polygons required for HVAC drag editing'}
                     </p>
@@ -147,7 +147,7 @@ export function ThreeDTabContent({
 
               {/* Inspect overlay card */}
               {inspectedCell && (
-                <div className="mt-3 panel-glass rounded-xl border border-accent/30 bg-card p-4 shadow-sm">
+                <div className="mt-3 panel-glass rounded-md border border-accent/30 bg-card p-4 shadow-sm">
                   <div className="mb-2 flex items-center justify-between">
                     <h4 className="text-[11px] font-semibold uppercase tracking-widest text-accent">Inspected Cell</h4>
                     <button
@@ -183,7 +183,7 @@ export function ThreeDTabContent({
               )}
             </>
           ) : (
-            <div className="panel-glass flex h-125 flex-col items-center justify-center rounded-xl border border-border/70 bg-card shadow-sm">
+            <div className="panel-glass flex h-125 flex-col items-center justify-center rounded-md border border-border/70 bg-card shadow-sm">
               <Box size={48} className="mb-4 text-muted-foreground/45" />
               <p className="font-semibold text-foreground">Run a simulation to view 3D airflow</p>
             </div>

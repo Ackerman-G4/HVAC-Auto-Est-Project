@@ -153,7 +153,7 @@ export function AdminDashboard() {
               <div
                 key={alert.id}
                 className={cn(
-                  'flex items-center gap-3 rounded-xl border px-4 py-3 text-sm font-medium',
+                  'flex items-center gap-3 rounded-md border px-4 py-3 text-sm font-medium',
                   SEVERITY_STYLES[alert.severity],
                 )}
               >

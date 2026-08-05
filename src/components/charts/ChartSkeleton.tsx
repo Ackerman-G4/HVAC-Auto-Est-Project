@@ -8,7 +8,7 @@
 export function ChartSkeleton({ height = 280 }: { height?: number | string }) {
   return (
     <div
-      className="flex w-full animate-pulse items-center justify-center rounded-lg bg-secondary/40"
+      className="flex w-full animate-pulse items-center justify-center rounded-sm bg-secondary/40"
       style={{ height }}
       aria-hidden="true"
     >

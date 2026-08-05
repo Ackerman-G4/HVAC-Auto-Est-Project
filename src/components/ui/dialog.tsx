@@ -92,7 +92,7 @@ export function Dialog({ open, onClose, title, description, children, size = 'md
             aria-labelledby={titleId}
             aria-describedby={descId}
             className={cn(
-              'relative w-full rounded-2xl border border-border/70 bg-card/80 shadow-(--panel-shadow-strong) backdrop-blur-xl',
+              'relative w-full rounded-lg border border-border/70 bg-card/80 shadow-(--panel-shadow-strong)',
               'max-h-[88vh] overflow-y-auto',
               sizes[size],
               className
@@ -104,14 +104,14 @@ export function Dialog({ open, onClose, title, description, children, size = 'md
             exit="exit"
           >
             {(title || description) && (
-              <div className="sticky top-0 z-10 flex items-start justify-between border-b border-border/70 bg-card/60 px-6 py-5 backdrop-blur-md sm:px-8">
+              <div className="sticky top-0 z-10 flex items-start justify-between border-b border-border/70 bg-card/60 px-6 py-5 sm:px-8">
                 <div>
                   {title && <h2 id={titleId} className="text-xl font-bold tracking-tight text-foreground">{title}</h2>}
                   {description && <p id={descId} className="mt-1 text-sm font-medium text-muted-foreground">{description}</p>}
                 </div>
                 <button
                   onClick={onClose}
-                  className="rounded-xl border border-transparent bg-secondary/80 p-2 text-muted-foreground transition-colors hover:border-border/70 hover:bg-secondary hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="rounded-md border border-transparent bg-secondary/80 p-2 text-muted-foreground transition-colors hover:border-border/70 hover:bg-secondary hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                   <X className="h-5 w-5" />
                   <span className="sr-only">Close</span>

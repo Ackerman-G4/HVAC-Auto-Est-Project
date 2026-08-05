@@ -31,7 +31,7 @@ export default function MeshSlicePreview({ geometry, contourSlices, cellSizeM }:
         </span>
       </div>
 
-      <div className="rounded-md border border-border bg-slate-950/70 p-2">
+      <div className="rounded-sm border border-border bg-slate-950/70 p-2">
         <div
           className="relative h-56 w-full overflow-hidden rounded border border-slate-700/80"
           style={{

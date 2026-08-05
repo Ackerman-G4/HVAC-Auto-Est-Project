@@ -99,7 +99,7 @@ export function EquipmentPanel({ floors, selectedFloorId, roomBoundaries, onFloo
   return (
     <div className="space-y-8">
       {/* Auto-Detect from Project Rooms */}
-      <div className="rounded-xl border border-accent/30 bg-accent/5 p-5">
+      <div className="rounded-md border border-accent/30 bg-accent/5 p-5">
         <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
           <Wand2 size={20} className="text-accent" /> Auto-Detect from Room Specs
         </h3>
@@ -114,7 +114,7 @@ export function EquipmentPanel({ floors, selectedFloorId, roomBoundaries, onFloo
               <div className="flex-1 min-w-50">
                 <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Select Floor</label>
                 <select
-                  className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm"
+                  className="w-full rounded-md border border-border bg-background px-3.5 py-2.5 text-sm"
                   value={selectedFloorId}
                   onChange={e => onFloorChange(e.target.value)}
                   aria-label="Select Floor"
@@ -129,7 +129,7 @@ export function EquipmentPanel({ floors, selectedFloorId, roomBoundaries, onFloo
               <button
                 onClick={onAutoDetect}
                 disabled={isDetecting || !selectedFloorId}
-                className="flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-accent-foreground shadow-md transition-colors hover:bg-accent/90 disabled:opacity-50"
+                className="flex items-center gap-2 rounded-md bg-accent px-5 py-2.5 text-sm font-semibold text-accent-foreground shadow-md transition-colors hover:bg-accent/90 disabled:opacity-50"
               >
                 {isDetecting ? (
                   <><RotateCcw size={16} className="animate-spin" /> Detecting...</>
@@ -145,7 +145,7 @@ export function EquipmentPanel({ floors, selectedFloorId, roomBoundaries, onFloo
                 {roomSummary.map(room => {
                   const isServer = room.spaceType === 'server_room';
                   return (
-                    <div key={room.id} className={`rounded-xl border p-3.5 text-sm ${isServer
+                    <div key={room.id} className={`rounded-md border p-3.5 text-sm ${isServer
                       ? 'border-warning/30 bg-warning/5'
                       : 'border-border bg-card'
                     }`}>
@@ -187,17 +187,17 @@ export function EquipmentPanel({ floors, selectedFloorId, roomBoundaries, onFloo
         <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
           <Server size={20} className="text-accent" /> Server Racks
         </h3>
-        <div className="panel-glass mb-5 grid grid-cols-2 gap-4 rounded-xl border border-border/70 bg-card p-4 md:grid-cols-5">
-          <input className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" placeholder="Name" value={rackForm.name} onChange={e => setRackForm(f => ({ ...f, name: e.target.value }))} />
-          <input className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="X (m)" value={rackForm.posX} onChange={e => setRackForm(f => ({ ...f, posX: +e.target.value }))} />
-          <input className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="Y (m)" value={rackForm.posY} onChange={e => setRackForm(f => ({ ...f, posY: +e.target.value }))} />
-          <input className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="Power (kW)" value={rackForm.powerKW} onChange={e => setRackForm(f => ({ ...f, powerKW: +e.target.value }))} />
-          <button onClick={handleAddRack} className="flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/90">
+        <div className="panel-glass mb-5 grid grid-cols-2 gap-4 rounded-md border border-border/70 bg-card p-4 md:grid-cols-5">
+          <input className="rounded-md border border-border bg-background px-3.5 py-2.5 text-sm" placeholder="Name" value={rackForm.name} onChange={e => setRackForm(f => ({ ...f, name: e.target.value }))} />
+          <input className="rounded-md border border-border bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="X (m)" value={rackForm.posX} onChange={e => setRackForm(f => ({ ...f, posX: +e.target.value }))} />
+          <input className="rounded-md border border-border bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="Y (m)" value={rackForm.posY} onChange={e => setRackForm(f => ({ ...f, posY: +e.target.value }))} />
+          <input className="rounded-md border border-border bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="Power (kW)" value={rackForm.powerKW} onChange={e => setRackForm(f => ({ ...f, powerKW: +e.target.value }))} />
+          <button onClick={handleAddRack} className="flex items-center justify-center gap-2 rounded-md bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/90">
             <Plus size={16} /> Add Rack
           </button>
         </div>
         {racks.length > 0 && (
-          <div className="panel-glass overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm">
+          <div className="panel-glass overflow-hidden rounded-md border border-border/70 bg-card shadow-sm">
             <table className="w-full text-sm">
               <thead className="border-b border-border bg-secondary/50">
                 <tr>
@@ -216,7 +216,7 @@ export function EquipmentPanel({ floors, selectedFloorId, roomBoundaries, onFloo
                     <td className="px-4 py-3 font-bold text-warning">{rack.powerKW} kW</td>
                     <td className="px-4 py-3 text-muted-foreground">{(rack.powerKW * 3412).toLocaleString()}</td>
                     <td className="px-4 py-3 text-right">
-                      <button onClick={() => removeRack(rack.id)} aria-label="Remove rack" className="rounded-lg p-1.5 text-destructive/70 transition-colors hover:bg-[rgba(216,77,87,0.12)] hover:text-destructive">
+                      <button onClick={() => removeRack(rack.id)} aria-label="Remove rack" className="rounded-sm p-1.5 text-destructive/70 transition-colors hover:bg-[rgba(216,77,87,0.12)] hover:text-destructive">
                         <Trash2 size={16} />
                       </button>
                     </td>
@@ -233,19 +233,19 @@ export function EquipmentPanel({ floors, selectedFloorId, roomBoundaries, onFloo
         <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
           <AirVent size={20} className="text-accent" /> HVAC Cooling Units
         </h3>
-        <div className="panel-glass mb-5 grid grid-cols-2 gap-4 rounded-xl border border-border/70 bg-card p-4 md:grid-cols-6">
-          <select className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" value={hvacForm.type} onChange={e => setHvacForm(f => ({ ...f, type: e.target.value as HVACUnitType }))} aria-label="HVAC unit type">
+        <div className="panel-glass mb-5 grid grid-cols-2 gap-4 rounded-md border border-border/70 bg-card p-4 md:grid-cols-6">
+          <select className="rounded-md border border-border bg-background px-3.5 py-2.5 text-sm" value={hvacForm.type} onChange={e => setHvacForm(f => ({ ...f, type: e.target.value as HVACUnitType }))} aria-label="HVAC unit type">
             <option value="crac">CRAC</option>
             <option value="crah">CRAH</option>
             <option value="ahu">AHU</option>
             <option value="in_row">In-Row</option>
             <option value="rear_door">Rear Door HX</option>
           </select>
-          <input className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="X (m)" value={hvacForm.posX} onChange={e => setHvacForm(f => ({ ...f, posX: +e.target.value }))} />
-          <input className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="Y (m)" value={hvacForm.posY} onChange={e => setHvacForm(f => ({ ...f, posY: +e.target.value }))} />
-          <input className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="Capacity (kW)" value={hvacForm.capacityKW} onChange={e => setHvacForm(f => ({ ...f, capacityKW: +e.target.value }))} />
-          <input className="rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="Airflow (CFM)" value={hvacForm.airflowCFM} onChange={e => setHvacForm(f => ({ ...f, airflowCFM: +e.target.value }))} />
-          <button onClick={handleAddHVAC} className="flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/90">
+          <input className="rounded-md border border-border bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="X (m)" value={hvacForm.posX} onChange={e => setHvacForm(f => ({ ...f, posX: +e.target.value }))} />
+          <input className="rounded-md border border-border bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="Y (m)" value={hvacForm.posY} onChange={e => setHvacForm(f => ({ ...f, posY: +e.target.value }))} />
+          <input className="rounded-md border border-border bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="Capacity (kW)" value={hvacForm.capacityKW} onChange={e => setHvacForm(f => ({ ...f, capacityKW: +e.target.value }))} />
+          <input className="rounded-md border border-border bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="Airflow (CFM)" value={hvacForm.airflowCFM} onChange={e => setHvacForm(f => ({ ...f, airflowCFM: +e.target.value }))} />
+          <button onClick={handleAddHVAC} className="flex items-center justify-center gap-2 rounded-md bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/90">
             <Plus size={16} /> Add Unit
           </button>
         </div>
@@ -253,7 +253,7 @@ export function EquipmentPanel({ floors, selectedFloorId, roomBoundaries, onFloo
           Placement snaps to 0.25m grid and enforces room-boundary clearance plus no-overlap with existing units.
         </p>
         {hvacUnits.length > 0 && (
-          <div className="panel-glass overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm">
+          <div className="panel-glass overflow-hidden rounded-md border border-border/70 bg-card shadow-sm">
             <table className="w-full text-sm">
               <thead className="border-b border-border bg-secondary/50">
                 <tr>
@@ -269,12 +269,12 @@ export function EquipmentPanel({ floors, selectedFloorId, roomBoundaries, onFloo
                 {hvacUnits.map(unit => (
                   <tr key={unit.id} className="hover:bg-secondary/50">
                     <td className="px-4 py-3 font-medium">{unit.name}</td>
-                    <td className="px-4 py-3"><span className="rounded-md border border-accent/30 bg-[rgba(15,139,141,0.12)] px-2.5 py-1 text-sm font-semibold text-accent">{unit.type.toUpperCase()}</span></td>
+                    <td className="px-4 py-3"><span className="rounded-sm border border-accent/30 bg-[rgba(15,139,141,0.12)] px-2.5 py-1 text-sm font-semibold text-accent">{unit.type.toUpperCase()}</span></td>
                     <td className="px-4 py-3 text-muted-foreground">({unit.position.x}, {unit.position.y})</td>
                     <td className="px-4 py-3 font-bold text-success">{unit.capacityKW} kW</td>
                     <td className="px-4 py-3 text-muted-foreground">{unit.airflowCFM.toLocaleString()} CFM</td>
                     <td className="px-4 py-3 text-right">
-                      <button onClick={() => removeHVACUnit(unit.id)} aria-label="Remove HVAC unit" className="rounded-lg p-1.5 text-destructive/70 transition-colors hover:bg-[rgba(216,77,87,0.12)] hover:text-destructive">
+                      <button onClick={() => removeHVACUnit(unit.id)} aria-label="Remove HVAC unit" className="rounded-sm p-1.5 text-destructive/70 transition-colors hover:bg-[rgba(216,77,87,0.12)] hover:text-destructive">
                         <Trash2 size={16} />
                       </button>
                     </td>
@@ -291,10 +291,10 @@ export function EquipmentPanel({ floors, selectedFloorId, roomBoundaries, onFloo
         <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
           <Grid3x3 size={20} className="text-accent" /> Perforated Floor Tiles
         </h3>
-        <div className="panel-glass mb-5 flex gap-3 rounded-xl border border-border/70 bg-card p-4">
-          <input id="tileX" className="w-24 rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="Grid X" defaultValue={5} />
-          <input id="tileY" className="w-24 rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="Grid Y" defaultValue={5} />
-          <input id="tileOpen" className="w-32 rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm" type="number" step="0.05" placeholder="Open Area (0-1)" defaultValue={0.25} />
+        <div className="panel-glass mb-5 flex gap-3 rounded-md border border-border/70 bg-card p-4">
+          <input id="tileX" className="w-24 rounded-md border border-border bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="Grid X" defaultValue={5} />
+          <input id="tileY" className="w-24 rounded-md border border-border bg-background px-3.5 py-2.5 text-sm" type="number" placeholder="Grid Y" defaultValue={5} />
+          <input id="tileOpen" className="w-32 rounded-md border border-border bg-background px-3.5 py-2.5 text-sm" type="number" step="0.05" placeholder="Open Area (0-1)" defaultValue={0.25} />
           <button
             onClick={() => {
               const x = parseInt((document.getElementById('tileX') as HTMLInputElement).value);
@@ -304,7 +304,7 @@ export function EquipmentPanel({ floors, selectedFloorId, roomBoundaries, onFloo
                 addTile({ x, y, openArea, tileSize: 0.6 });
               }
             }}
-            className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/90"
+            className="flex items-center gap-2 rounded-md bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/90"
           >
             <Plus size={16} /> Add Tile
           </button>
@@ -312,7 +312,7 @@ export function EquipmentPanel({ floors, selectedFloorId, roomBoundaries, onFloo
         {tiles.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {tiles.map((tile, i) => (
-              <div key={i} className="flex items-center gap-2 rounded-xl border border-border bg-secondary/50 px-3.5 py-2.5 text-sm">
+              <div key={i} className="flex items-center gap-2 rounded-md border border-border bg-secondary/50 px-3.5 py-2.5 text-sm">
                 <Grid3x3 size={14} className="text-muted-foreground" />
                 <span>({tile.x}, {tile.y})</span>
                 <span className="text-muted-foreground">{(tile.openArea * 100).toFixed(0)}%</span>
