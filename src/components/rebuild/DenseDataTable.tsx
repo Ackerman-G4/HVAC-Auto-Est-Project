@@ -63,7 +63,7 @@ export function DenseDataTable<T extends object>({
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between gap-3">
-        <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</h4>
+        <h4 className="text-xs font-medium font-display text-muted-foreground">{title}</h4>
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
@@ -79,7 +79,7 @@ export function DenseDataTable<T extends object>({
               {columns.map((column) => (
                 <th
                   key={String(column.key)}
-                  className={`cursor-pointer border-b border-border/70 px-5 py-3.5 text-[11px] font-medium uppercase tracking-wider ${column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left'}`}
+                  className={`cursor-pointer border-b border-border/70 px-5 py-3.5 text-[11px] font-medium font-display ${column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left'}`}
                   onClick={() => {
                     if (sortBy === column.key) {
                       setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));

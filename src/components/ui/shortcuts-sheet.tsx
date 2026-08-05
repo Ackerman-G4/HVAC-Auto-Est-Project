@@ -125,7 +125,7 @@ export function ShortcutsSheet() {
             <div className="space-y-5">
               {SHORTCUTS.map((section) => (
                 <div key={section.group}>
-                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                  <p className="mb-2 text-[10px] font-semibold font-display text-muted-foreground/70">
                     {section.group}
                   </p>
                   <ul className="space-y-2">

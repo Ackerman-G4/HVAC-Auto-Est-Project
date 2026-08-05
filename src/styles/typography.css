@@ -1,6 +1,12 @@
 /* ── Typography System ─────────────────────────────────────── */
-/* Inter-only scale for headings and body.                     */
-/* JetBrains Mono for logs/diagnostics.                        */
+/* IBM Plex Sans Condensed for headers/labels, Inter for body,  */
+/* IBM Plex Mono for data and logs.                             */
+/*                                                              */
+/* Condensed carries the section labels and table headers, which */
+/* is what lets them be sentence case without growing — the      */
+/* reason 230 `uppercase` usages could be deleted. ALL-CAPS      */
+/* destroys word-shape recognition, which is exactly what you    */
+/* need when scanning 40 rows of an equipment schedule.          */
 
 :root {
   /* ── Type scale (rem-based) ── */
@@ -34,9 +40,9 @@
   --tracking-tabular: 0.02em;
 }
 
-/* ── Heading classes (Inter-only, no display font) ── */
+/* ── Heading classes (display face) ── */
 .heading-h1 {
-  font-family: var(--font-sans), 'Segoe UI', sans-serif;
+  font-family: var(--font-display), var(--font-sans), 'Segoe UI', sans-serif;
   font-size: var(--text-h1);
   font-weight: var(--weight-semibold);
   line-height: var(--leading-tight);
@@ -44,7 +50,7 @@
 }
 
 .heading-h2 {
-  font-family: var(--font-sans), 'Segoe UI', sans-serif;
+  font-family: var(--font-display), var(--font-sans), 'Segoe UI', sans-serif;
   font-size: var(--text-h2);
   font-weight: var(--weight-semibold);
   line-height: var(--leading-snug);
@@ -52,9 +58,20 @@
 }
 
 .heading-h3 {
-  font-family: var(--font-sans), 'Segoe UI', sans-serif;
+  font-family: var(--font-display), var(--font-sans), 'Segoe UI', sans-serif;
   font-size: var(--text-h3);
   font-weight: var(--weight-medium);
+  line-height: var(--leading-normal);
+  letter-spacing: var(--tracking-normal);
+}
+
+/* ── Eyebrow / section label ──
+   Was uppercase with 0.22em tracking. Condensed at normal tracking in
+   sentence case occupies about the same width and stays readable. */
+.text-eyebrow {
+  font-family: var(--font-display), var(--font-sans), 'Segoe UI', sans-serif;
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
   line-height: var(--leading-normal);
   letter-spacing: var(--tracking-normal);
 }

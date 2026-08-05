@@ -240,7 +240,7 @@ export default function NewProjectPage() {
                 {NEW_PROJECT_PSYCHRO_METRICS.map((metric) => (
                   <div key={metric.term} className="rounded-sm border border-border bg-background px-2 py-2 shadow-sm">
                     <p className="text-sm font-semibold tabular-nums">{metric.formatValue(ps)}</p>
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    <div className="text-[10px] font-display text-muted-foreground">
                       <TermHint term={metric.term} definition={metric.definition} compact className="justify-center" />
                     </div>
                   </div>
@@ -256,7 +256,7 @@ export default function NewProjectPage() {
 
           {step === 3 && (
             <div className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Review</p>
+              <p className="text-xs font-semibold font-display text-muted-foreground">Review</p>
               <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {[
                   ['Project', form.name || '—'],

@@ -29,7 +29,7 @@ const SEVERITY_STYLES: Record<string, string> = {
 function SeverityBadge({ severity, count }: { severity: string; count: number }) {
   if (count === 0) return null;
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1 text-xs font-bold uppercase ${SEVERITY_STYLES[severity] ?? ''}`}>
+    <span className={`inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1 text-xs font-bold font-display ${SEVERITY_STYLES[severity] ?? ''}`}>
       {severity} <span className="tabular-nums">{count}</span>
     </span>
   );
@@ -113,7 +113,7 @@ export default function TileFlowDashboard({ result, alerts, tileAirflowData, onS
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <span className={`rounded-sm px-2 py-0.5 text-xs font-bold uppercase ${SEVERITY_STYLES[alert.severity]}`}>
+                  <span className={`rounded-sm px-2 py-0.5 text-xs font-bold font-display ${SEVERITY_STYLES[alert.severity]}`}>
                     {alert.severity}
                   </span>
                   <span className="text-foreground/90">{alert.description}</span>
@@ -141,7 +141,7 @@ export default function TileFlowDashboard({ result, alerts, tileAirflowData, onS
           <div className="overflow-auto rounded-sm border border-border">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border bg-secondary/50 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <tr className="border-b border-border bg-secondary/50 text-xs font-semibold font-display text-muted-foreground">
                   <th className="px-3 py-2.5 text-left">Tile</th>
                   <th className="px-3 py-2.5 text-left">Position</th>
                   <th className="cursor-pointer px-3 py-2.5 text-right" onClick={() => handleSort('actualCFM')}>
@@ -221,7 +221,7 @@ export default function TileFlowDashboard({ result, alerts, tileAirflowData, onS
 
       {/* ─── Export Toolbar ────────────────────────────────────── */}
       <div className="panel-glass flex flex-wrap items-center gap-3 rounded-md border border-border/70 bg-card p-4 shadow-sm">
-        <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Export</span>
+        <span className="text-[11px] font-semibold font-display text-muted-foreground">Export</span>
         <button
           onClick={() => exportTileAirflowCSV(tileAirflowData)}
           disabled={tileAirflowData.length === 0}

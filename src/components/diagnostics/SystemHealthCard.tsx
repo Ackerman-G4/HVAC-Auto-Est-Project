@@ -109,7 +109,7 @@ export function SystemHealthCard() {
             <Activity className="h-4 w-4 text-accent" />
             <h3 className="text-sm font-semibold text-foreground">System Health</h3>
             <span
-              className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
+              className={`rounded-full px-2 py-0.5 text-[10px] font-semibold font-display ${
                 anyFail ? 'bg-destructive/15 text-destructive'
                   : allOk ? 'bg-accent/15 text-accent'
                   : 'bg-secondary text-muted-foreground'

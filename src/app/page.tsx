@@ -134,7 +134,7 @@ export default function DashboardPage() {
         {/* Load Distribution Chart */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            <CardTitle className="text-xs font-medium font-display text-muted-foreground">
               Load Distribution
             </CardTitle>
           </CardHeader>
@@ -162,7 +162,7 @@ export default function DashboardPage() {
         {/* Cost Breakdown Chart */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            <CardTitle className="text-xs font-medium font-display text-muted-foreground">
               Cost Breakdown
             </CardTitle>
           </CardHeader>
@@ -184,7 +184,7 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <CardTitle className="text-xs font-medium font-display text-muted-foreground">
                 Recent Activity
               </CardTitle>
               <Link href="/projects" className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors">
@@ -220,8 +220,19 @@ export default function DashboardPage() {
           ) : (
             <EmptyState
               icon={<FolderKanban size={24} />}
-              title="No recent activity"
-              description="Create a project to start tracking load calculations and equipment."
+              title="No projects yet"
+              description="Start one to track load calculations, equipment and BOQ."
+              action={
+                /* Button has no asChild yet (Wave 4), so this is a styled Link
+                   rather than a Button wrapping one — nesting an <a> in a
+                   <button> is invalid and breaks keyboard activation. */
+                <Link
+                  href="/projects/new"
+                  className="inline-flex h-9 items-center rounded-sm bg-accent px-3 text-sm font-medium text-accent-foreground transition-colors hover:bg-accent-dark"
+                >
+                  Create your first project
+                </Link>
+              }
               className="h-48"
             />
           )}
@@ -232,26 +243,26 @@ export default function DashboardPage() {
         <div className="grid gap-(--space-component-gap)">
           <Card>
             <CardHeader>
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <CardTitle className="text-xs font-medium font-display text-muted-foreground">
                 Environment Snapshot
               </CardTitle>
             </CardHeader>
             <CardContent>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-lg border border-border/70 bg-secondary/45 p-4">
-                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Outdoor Temperature</p>
+                <p className="text-[11px] font-display text-muted-foreground">Outdoor Temperature</p>
                 <p className="mt-2 text-2xl font-semibold text-foreground">{ambientTemp} °C</p>
               </div>
               <div className="rounded-lg border border-border/70 bg-secondary/45 p-4">
-                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Indoor Setpoint</p>
+                <p className="text-[11px] font-display text-muted-foreground">Indoor Setpoint</p>
                 <p className="mt-2 text-2xl font-semibold text-foreground">{indoorSetpoint} °C</p>
               </div>
               <div className="rounded-lg border border-border/70 bg-secondary/45 p-4">
-                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Ventilation Rate</p>
+                <p className="text-[11px] font-display text-muted-foreground">Ventilation Rate</p>
                 <p className="mt-2 text-2xl font-semibold text-foreground">{ventilation} CFM/P</p>
               </div>
               <div className="rounded-lg border border-border/70 bg-secondary/45 p-4">
-                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Safety Margin</p>
+                <p className="text-[11px] font-display text-muted-foreground">Safety Margin</p>
                 <p className="mt-2 text-2xl font-semibold text-accent">{safetyMargin}</p>
               </div>
             </div>
@@ -260,7 +271,7 @@ export default function DashboardPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <CardTitle className="text-xs font-medium font-display text-muted-foreground">
                 System Status
               </CardTitle>
             </CardHeader>

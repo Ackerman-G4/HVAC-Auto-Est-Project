@@ -157,9 +157,12 @@ export default function SimulationEngineRightPanel({
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="truncate font-semibold uppercase">{run.source}</span>
+                    {/* run.source is a lowercase enum ('internal' | 'openfoam'),
+                        so it needs casing applied rather than inherited from a
+                        blanket uppercase rule. */}
+                    <span className="truncate font-semibold font-display capitalize">{run.source}</span>
                     <span
-                      className={`rounded px-1.5 py-0.5 text-[9px] font-medium uppercase ${
+                      className={`rounded px-1.5 py-0.5 text-[9px] font-medium font-display ${
                         run.status === 'completed'
                           ? 'bg-emerald-500/10 text-emerald-600'
                           : run.status === 'failed'

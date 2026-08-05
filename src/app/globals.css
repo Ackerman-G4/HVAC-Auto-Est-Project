@@ -173,9 +173,13 @@
   --color-surface-1: var(--surface-1);
   --color-surface-2: var(--surface-2);
   --color-surface-3: var(--surface-3);
-  --font-sans: var(--font-jakarta);
-  --font-mono: var(--font-jetbrains-mono);
-  --font-display: var(--font-space-grotesk);
+  /* Map Tailwind's font-* utilities onto the faces loaded in layout.tsx. The
+     loaded faces are --face-*, deliberately distinct from these theme keys:
+     `--font-mono: var(--font-mono)` would be a self-reference, and the only
+     reason it appears to work is that next/font re-declares it lower down. */
+  --font-sans: var(--face-body);
+  --font-mono: var(--face-mono);
+  --font-display: var(--face-display);
 
   /* Wire the radius tokens to the rounded-* utilities. Without this Tailwind
      uses its own default scale and the tokens in tokens.css do nothing —

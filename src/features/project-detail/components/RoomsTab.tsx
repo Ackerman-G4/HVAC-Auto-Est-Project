@@ -90,7 +90,7 @@ export function RoomsTab({
               <form onSubmit={handleAddRoom} className="space-y-5">
                 {/* Unit toggle */}
                 <div className="flex items-center gap-4 border-b border-border pb-3">
-                  <label className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Input Unit:</label>
+                  <label className="text-sm font-medium font-display text-muted-foreground">Input Unit:</label>
                   <button
                     type="button"
                     onClick={() => setRoomForm({ ...roomForm, useFootInput: !roomForm.useFootInput })}
@@ -330,7 +330,7 @@ export function RoomsTab({
                               </div>
 
                               <div className="w-full rounded-sm border border-border bg-card p-3.5 shadow-sm sm:w-90">
-                                <p className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">Cooling Load Overrides</p>
+                                <p className="mb-2 text-xs font-display text-muted-foreground">Cooling Load Overrides</p>
                                 <div className="grid grid-cols-2 gap-2">
                                   <div>
                                     <label className="mb-1 block text-xs text-muted-foreground">TR Override</label>
@@ -413,7 +413,7 @@ export function RoomsTab({
                             <div className="mt-4 pt-4 border-t border-border">
                               <div className="flex items-center gap-2 mb-2">
                                 <Zap className="w-3.5 h-3.5 text-amber-500" />
-                                <span className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                                <span className="text-sm font-semibold font-display text-muted-foreground">
                                   AC Recommendation ({rec.recommendedType})
                                 </span>
                                 {rec.deratingFactor < 1 && (

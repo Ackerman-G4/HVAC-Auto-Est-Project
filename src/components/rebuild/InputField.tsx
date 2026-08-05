@@ -61,7 +61,7 @@ export function InputField({
 
   return (
     <div className="space-y-2">
-      <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+      <label className="text-xs font-medium font-display text-muted-foreground">
         {label}
       </label>
       <div className="relative">

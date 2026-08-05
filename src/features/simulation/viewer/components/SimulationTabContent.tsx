@@ -32,7 +32,7 @@ export function SimulationTabContent({
           <div className="space-y-5">
             {/* Run Simulation */}
             <div className="panel-glass rounded-md border border-border/70 bg-card p-5 shadow-sm">
-              <h3 className="mb-4 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Run Simulation</h3>
+              <h3 className="mb-4 text-[11px] font-semibold font-display text-muted-foreground">Run Simulation</h3>
               <button
                 onClick={() => runSimulation(selectedProjectId || '', selectedFloorId || '')}
                 disabled={racks.length === 0 || isRunning}
@@ -47,7 +47,7 @@ export function SimulationTabContent({
 
             {/* Mesh Density */}
             <div className="panel-glass rounded-md border border-border/70 bg-card p-5 shadow-sm">
-              <h3 className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+              <h3 className="mb-3 flex items-center gap-2 text-[11px] font-semibold font-display text-muted-foreground">
                 <Sliders size={14} /> Mesh Density
               </h3>
               <div className="mb-3 flex items-center gap-3">
@@ -89,7 +89,7 @@ export function SimulationTabContent({
 
             {/* Accuracy Indicator */}
             <div className="panel-glass rounded-md border border-border/70 bg-card p-5 shadow-sm">
-              <h3 className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+              <h3 className="mb-3 flex items-center gap-2 text-[11px] font-semibold font-display text-muted-foreground">
                 <Gauge size={14} /> Accuracy Indicator
               </h3>
               {result ? (() => {

@@ -32,7 +32,7 @@ export function ReportsCharts({
   return (
     <section className="grid gap-(--space-component-gap) xl:grid-cols-3">
       <Card className="panel-glass border-border/70 p-6 lg:p-8">
-        <h3 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">Load Breakdown</h3>
+        <h3 className="mb-4 text-xs font-medium font-display text-muted-foreground">Load Breakdown</h3>
         <div className="h-85 w-full">
           {chartsReady ? (
             <ResponsiveContainer width="100%" height="100%">
@@ -51,7 +51,7 @@ export function ReportsCharts({
       </Card>
 
       <Card className="panel-glass border-border/70 p-6 lg:p-8">
-        <h3 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">Branch Velocity</h3>
+        <h3 className="mb-4 text-xs font-medium font-display text-muted-foreground">Branch Velocity</h3>
         <div className="h-85 w-full">
           {chartsReady ? (
             <ResponsiveContainer width="100%" height="100%">
@@ -73,7 +73,7 @@ export function ReportsCharts({
       </Card>
 
       <Card className="panel-glass border-border/70 p-6 lg:p-8">
-        <h3 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">Equipment Ranking</h3>
+        <h3 className="mb-4 text-xs font-medium font-display text-muted-foreground">Equipment Ranking</h3>
         <div className="h-85 w-full">
           {chartsReady ? (
             <ResponsiveContainer width="100%" height="100%">

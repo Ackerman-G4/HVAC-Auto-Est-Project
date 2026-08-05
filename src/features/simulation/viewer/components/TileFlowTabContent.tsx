@@ -46,7 +46,7 @@ export function TileFlowTabContent({
               {/* TileFlow 3D Controls */}
               <div className="panel-glass rounded-md border border-border/70 bg-card p-4 shadow-sm">
                 <div className="flex flex-wrap items-center gap-3">
-                  <span className="mr-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">TileFlow Overlays</span>
+                  <span className="mr-1 text-[11px] font-semibold font-display text-muted-foreground">TileFlow Overlays</span>
                   {([
                     { key: 'showStreamlines' as const, label: 'Streamlines' },
                     { key: 'showFog' as const, label: 'Temp Fog' },

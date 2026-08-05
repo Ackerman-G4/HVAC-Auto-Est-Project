@@ -29,7 +29,7 @@ export function ReportsHeader({
     <Card className="panel-glass border-border/70 p-6 lg:p-7">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Reporting Command Deck</p>
+          <p className="text-[11px] font-semibold font-display text-muted-foreground">Reporting Command Deck</p>
           <h2 className="mt-1 text-xl font-semibold text-foreground">Engineering Reports</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Consolidate load, airflow, equipment, and costing outputs into client-ready deliverables.

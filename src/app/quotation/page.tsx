@@ -437,7 +437,7 @@ export default function QuotationPage() {
 				<CardContent className="py-4">
 					<div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
 						<div>
-							<p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Quotation Workspace</p>
+							<p className="text-[11px] font-semibold font-display text-muted-foreground">Quotation Workspace</p>
 							<p className="text-sm font-medium text-foreground mt-0.5">
 								Build client-ready quotations with complete BOQ, equipment schedule, and commercial terms.
 							</p>
@@ -502,7 +502,7 @@ export default function QuotationPage() {
 									<div className="border-b border-border bg-card px-8 py-5">
 										<div className="grid grid-cols-2 gap-8">
 											<div className="space-y-2.5">
-												<h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Project information</h3>
+												<h3 className="text-xs font-semibold font-display text-muted-foreground">Project information</h3>
 												<div className="space-y-1.5 text-[13px]">
 													<div className="flex items-center gap-2"><Building2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" /><span className="font-medium">{project.name}</span></div>
 													<div className="flex items-center gap-2"><User className="w-3.5 h-3.5 text-muted-foreground shrink-0" /><span className="text-muted-foreground">{project.clientName || 'N/A'}</span></div>
@@ -510,7 +510,7 @@ export default function QuotationPage() {
 												</div>
 											</div>
 											<div className="space-y-2.5">
-												<h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Quotation details</h3>
+												<h3 className="text-xs font-semibold font-display text-muted-foreground">Quotation details</h3>
 												<div className="space-y-1.5 text-[13px]">
 													<div className="flex items-center gap-2"><Hash className="w-3.5 h-3.5 text-muted-foreground shrink-0" /><span>Ref: {quotationNumber}</span></div>
 													<div className="flex items-center gap-2"><Calendar className="w-3.5 h-3.5 text-muted-foreground shrink-0" /><span className="text-muted-foreground">{new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })}</span></div>
@@ -522,12 +522,12 @@ export default function QuotationPage() {
 
 									{groupedItems && Object.keys(groupedItems).length > 0 && (
 										<div className="px-8 py-5 border-b border-border">
-											<h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+											<h3 className="text-[11px] font-semibold text-muted-foreground font-display mb-3 flex items-center gap-2">
 												<FileText className="w-3.5 h-3.5" /> Bill of quantities
 											</h3>
 											<table className="w-full text-[12px]">
 												<thead>
-													<tr className="border-b border-border text-xs uppercase tracking-wider text-muted-foreground">
+													<tr className="border-b border-border text-xs font-display text-muted-foreground">
 														<th className="text-left py-2 font-medium">Description</th>
 														<th className="text-right py-2 font-medium">Qty</th>
 														<th className="text-left py-2 pl-3 font-medium">Unit</th>
@@ -563,7 +563,7 @@ export default function QuotationPage() {
 
 									<div className="px-8 py-5 border-b border-border">
 										<div className="max-w-sm ml-auto">
-											<h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Cost summary</h3>
+											<h3 className="text-[11px] font-semibold text-muted-foreground font-display mb-3">Cost summary</h3>
 											<div className="space-y-2 text-[13px]">
 												{[
 													{ label: 'Equipment cost', value: boqData.equipmentCost },
@@ -600,9 +600,9 @@ export default function QuotationPage() {
 					<Card className="panel-glass border-border/70 bg-primary/5 shadow-sm">
 						<CardHeader><CardTitle className="text-[13px]">Quotation Snapshot</CardTitle></CardHeader>
 						<CardContent className="space-y-2">
-							<div className="rounded-sm border border-border bg-card p-4"><p className="text-xs uppercase tracking-wider text-muted-foreground">Quotation No.</p><p className="text-sm font-semibold truncate">{quotationNumber || '—'}</p></div>
-							<div className="rounded-sm border border-border bg-card p-4"><p className="text-xs uppercase tracking-wider text-muted-foreground">Client</p><p className="text-sm font-semibold truncate">{project?.clientName || 'N/A'}</p></div>
-							<div className="rounded-sm border border-border bg-card p-4"><p className="text-xs uppercase tracking-wider text-muted-foreground">Grand Total</p><p className="text-2xl font-semibold tabular-nums text-accent">{boqData ? formatPHP(boqData.grandTotal) : '—'}</p></div>
+							<div className="rounded-sm border border-border bg-card p-4"><p className="text-xs font-display text-muted-foreground">Quotation No.</p><p className="text-sm font-semibold truncate">{quotationNumber || '—'}</p></div>
+							<div className="rounded-sm border border-border bg-card p-4"><p className="text-xs font-display text-muted-foreground">Client</p><p className="text-sm font-semibold truncate">{project?.clientName || 'N/A'}</p></div>
+							<div className="rounded-sm border border-border bg-card p-4"><p className="text-xs font-display text-muted-foreground">Grand Total</p><p className="text-2xl font-semibold tabular-nums text-accent">{boqData ? formatPHP(boqData.grandTotal) : '—'}</p></div>
 						</CardContent>
 					</Card>
 

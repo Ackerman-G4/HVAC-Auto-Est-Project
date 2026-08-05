@@ -83,7 +83,7 @@ export function ResultsPanel() {
                 'bg-[rgba(206,161,74,0.14)] border-[rgba(206,161,74,0.35)]'
               }`}>
                 <div>
-                  <span className={`rounded-sm px-2.5 py-1 text-sm font-bold uppercase ${
+                  <span className={`rounded-sm px-2.5 py-1 text-sm font-bold font-display ${
                     hs.severity === 'emergency' ? 'bg-[rgba(216,77,87,0.18)] text-destructive' :
                     hs.severity === 'critical' ? 'bg-[rgba(219,142,47,0.18)] text-warning' :
                     'bg-[rgba(206,161,74,0.2)] text-accent'

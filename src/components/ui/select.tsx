@@ -16,7 +16,7 @@ export function Select({ className, label, error, options, placeholder, id, ref,
   return (
     <div className="w-full">
       {label && (
-        <label htmlFor={selectId} className="mb-2 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        <label htmlFor={selectId} className="mb-2 block text-xs font-medium font-display text-muted-foreground">
           {label}
         </label>
       )}

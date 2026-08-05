@@ -91,7 +91,7 @@ export function SimulationExportHistoryPanel({
           {simulationReportHistory.slice(0, 12).map((entry) => (
             <div key={entry.id} className="rounded-sm border border-border bg-secondary p-3 text-xs text-muted-foreground">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="font-semibold uppercase tracking-wider text-foreground">
+                <span className="font-semibold font-display text-foreground">
                   {entry.projectName} · {entry.format.toUpperCase()} · {entry.source}
                 </span>
                 <span>{new Date(entry.generatedAt).toLocaleString('en-PH')}</span>

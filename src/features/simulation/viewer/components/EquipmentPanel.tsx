@@ -112,7 +112,7 @@ export function EquipmentPanel({ floors, selectedFloorId, roomBoundaries, onFloo
             {/* Floor Selector */}
             <div className="flex flex-wrap items-end gap-4">
               <div className="flex-1 min-w-50">
-                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Select Floor</label>
+                <label className="mb-1.5 block text-[11px] font-semibold font-display text-muted-foreground">Select Floor</label>
                 <select
                   className="w-full rounded-md border border-border bg-background px-3.5 py-2.5 text-sm"
                   value={selectedFloorId}
@@ -201,11 +201,11 @@ export function EquipmentPanel({ floors, selectedFloorId, roomBoundaries, onFloo
             <table className="w-full text-sm">
               <thead className="border-b border-border bg-secondary/50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Name</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Position</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Power</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">BTU/hr</th>
-                  <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-muted-foreground"></th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold font-display text-muted-foreground">Name</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold font-display text-muted-foreground">Position</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold font-display text-muted-foreground">Power</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold font-display text-muted-foreground">BTU/hr</th>
+                  <th className="px-4 py-3 text-right text-[11px] font-semibold font-display text-muted-foreground"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
@@ -257,12 +257,12 @@ export function EquipmentPanel({ floors, selectedFloorId, roomBoundaries, onFloo
             <table className="w-full text-sm">
               <thead className="border-b border-border bg-secondary/50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Name</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Type</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Position</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Capacity</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Airflow</th>
-                  <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-muted-foreground"></th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold font-display text-muted-foreground">Name</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold font-display text-muted-foreground">Type</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold font-display text-muted-foreground">Position</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold font-display text-muted-foreground">Capacity</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold font-display text-muted-foreground">Airflow</th>
+                  <th className="px-4 py-3 text-right text-[11px] font-semibold font-display text-muted-foreground"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">

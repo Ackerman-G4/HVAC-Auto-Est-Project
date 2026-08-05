@@ -50,7 +50,7 @@ export function PsychrometricMetricGrid({
       {PSYCHROMETRIC_METRICS.map((metric) => (
         <div key={metric.term} className={`rounded py-1.5 ${toneClassName}`}>
           <p className="text-sm font-bold tabular-nums">{metric.formatValue(state)}</p>
-          <p className="text-[8px] uppercase tracking-wider text-muted-foreground">
+          <p className="text-[8px] font-display text-muted-foreground">
             <TermHint term={metric.term} definition={metric.definition} compact />
           </p>
         </div>
