@@ -115,7 +115,7 @@ export default function LoadCalculationPage() {
           <Card>
             <CardHeader>
               <div className="flex flex-wrap items-start justify-between gap-4">
-                <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                <CardTitle className="text-xs font-medium font-display text-muted-foreground">
                   Project Info
                 </CardTitle>
                 <div className="flex flex-wrap items-center gap-2">
@@ -139,7 +139,7 @@ export default function LoadCalculationPage() {
                   onValueChange={(next) => setInput('projectName', String(next))}
                 />
                 <div className="space-y-2">
-                  <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  <label className="text-xs font-medium font-display text-muted-foreground">
                     Space Type
                   </label>
                   <select
@@ -157,7 +157,7 @@ export default function LoadCalculationPage() {
                 </div>
                 <div className="sm:col-span-2">
                   <div className="space-y-2">
-                    <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    <label className="text-xs font-medium font-display text-muted-foreground">
                       Location
                     </label>
                     <div className="relative">
@@ -182,7 +182,7 @@ export default function LoadCalculationPage() {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                <CardTitle className="text-xs font-medium font-display text-muted-foreground">
                   Rooms
                 </CardTitle>
                 <button
@@ -212,7 +212,7 @@ export default function LoadCalculationPage() {
           {/* Room Parameters (Inputs) Card */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <CardTitle className="text-xs font-medium font-display text-muted-foreground">
                 Room Parameters
               </CardTitle>
             </CardHeader>
@@ -231,7 +231,7 @@ export default function LoadCalculationPage() {
 
               {/* Override controls */}
               <div className="mt-6 border-t border-border pt-5">
-                <h4 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Manual Overrides</h4>
+                <h4 className="mb-3 text-xs font-medium font-display text-muted-foreground">Manual Overrides</h4>
                 <div className="grid gap-5 sm:grid-cols-2">
                   <div>
                     <label className="flex items-center gap-2 text-sm text-foreground">
@@ -291,7 +291,7 @@ export default function LoadCalculationPage() {
         <div className="space-y-(--space-component-gap)">
           {/* Results header + explain-the-numbers affordance (plan §4.4) */}
           <div className="flex items-center gap-1.5">
-            <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Calculation Results</h3>
+            <h3 className="text-xs font-medium font-display text-muted-foreground">Calculation Results</h3>
             <CalcBreakdown
               title="Cooling Load Breakdown"
               formulas={result.formulas}
@@ -308,7 +308,7 @@ export default function LoadCalculationPage() {
           {/* Load Breakdown Chart */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <CardTitle className="text-xs font-medium font-display text-muted-foreground">
                 Load Component Breakdown
               </CardTitle>
             </CardHeader>
@@ -335,7 +335,7 @@ export default function LoadCalculationPage() {
           {/* Airflow & Velocity Chart */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <CardTitle className="text-xs font-medium font-display text-muted-foreground">
                 Airflow & Velocity Profile
               </CardTitle>
             </CardHeader>
@@ -353,7 +353,7 @@ export default function LoadCalculationPage() {
           {/* Equipment Comparison */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <CardTitle className="text-xs font-medium font-display text-muted-foreground">
                 Equipment Comparison
               </CardTitle>
             </CardHeader>
@@ -373,7 +373,7 @@ export default function LoadCalculationPage() {
         <div className="space-y-4">
           {result.formulas.map((formula) => (
             <div key={formula.label} className="rounded-sm border border-border bg-secondary p-4">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-foreground">{formula.label}</p>
+              <p className="text-[11px] font-medium font-display text-foreground">{formula.label}</p>
               <p className="mt-1 font-mono text-xs text-muted-foreground">{formula.expression}</p>
               <p className="mt-1.5 text-xs font-semibold text-accent">{formula.value}</p>
             </div>

@@ -53,7 +53,7 @@ export function Input({ className, label, error, hint, unit, prefix, showRangeHi
   return (
     <div className="w-full">
       {label && (
-        <label htmlFor={inputId} className="mb-2 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        <label htmlFor={inputId} className="mb-2 block text-xs font-medium font-display text-muted-foreground">
           {label}
         </label>
       )}
@@ -106,7 +106,7 @@ export function Textarea({ className, label, error, id, ref, ...props }: Textare
   return (
     <div className="w-full">
       {label && (
-        <label htmlFor={inputId} className="mb-2 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        <label htmlFor={inputId} className="mb-2 block text-xs font-medium font-display text-muted-foreground">
           {label}
         </label>
       )}

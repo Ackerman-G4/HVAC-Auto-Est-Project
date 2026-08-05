@@ -201,7 +201,7 @@ export default function SettingsPage() {
         <CardContent className="py-4">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Configuration Workspace</p>
+              <p className="text-[11px] font-semibold font-display text-muted-foreground">Configuration Workspace</p>
               <p className="mt-0.5 text-sm font-medium text-foreground">
                 Tune default design assumptions, costing factors, and unit-placement rules to match your firm standards.
               </p>
@@ -469,7 +469,7 @@ export default function SettingsPage() {
                 {placementRules.map((rule) => (
                   <div key={rule.id} className="space-y-4 rounded-sm border border-border bg-background p-5">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Rule #{rule.id}</span>
+                      <span className="text-sm font-medium font-display text-muted-foreground">Rule #{rule.id}</span>
                       {canManageSettings && (
                         <Button variant="ghost" size="sm" onClick={() => removePlacementRule(rule.id)}>
                           <Trash2 className="w-3.5 h-3.5 text-destructive" />

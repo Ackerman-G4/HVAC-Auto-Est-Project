@@ -12,7 +12,7 @@ export default function SimulationLauncherPage() {
         <div className="mx-auto mb-6 flex h-18 w-18 items-center justify-center rounded-lg border border-border/70 bg-card text-accent shadow-sm">
           <Box size={30} />
         </div>
-        <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Simulation Command Deck</p>
+        <p className="text-[11px] font-semibold font-display text-muted-foreground">Simulation Command Deck</p>
         <h2 className="mt-2 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
           CFD Simulation Viewer
         </h2>
@@ -41,7 +41,7 @@ export default function SimulationLauncherPage() {
         <div className="mx-auto mb-6 flex h-18 w-18 items-center justify-center rounded-lg border border-border/70 bg-card text-accent shadow-sm">
           <FlaskConical size={30} />
         </div>
-        <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Simulation Engine</p>
+        <p className="text-[11px] font-semibold font-display text-muted-foreground">Simulation Engine</p>
         <h2 className="mt-2 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
           CFD Case Manager
         </h2>

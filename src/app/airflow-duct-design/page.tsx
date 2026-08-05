@@ -85,7 +85,7 @@ export default function AirflowDuctDesignPage() {
       <Card className="panel-glass border-border/70 p-6 lg:p-8">
         <div className="mb-5 flex flex-wrap items-start justify-between gap-3 border-b border-border/80 pb-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Airflow Command Deck</p>
+            <p className="text-[11px] font-semibold font-display text-muted-foreground">Airflow Command Deck</p>
             <h2 className="mt-1 text-xl font-semibold text-foreground">Duct Network Sizing</h2>
             <p className="mt-1 text-sm text-muted-foreground">Adjust distribution constraints, then recompute branch velocity, pressure loss, and fan duty.</p>
           </div>
@@ -97,7 +97,7 @@ export default function AirflowDuctDesignPage() {
           <div className="mb-4 space-y-2">
             {hasBlockingIssues && (
               <div className="rounded-sm border border-destructive/45 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                <p className="font-semibold uppercase tracking-wide">Validation Errors</p>
+                <p className="font-semibold font-display">Validation Errors</p>
                 <ul className="mt-1 list-disc space-y-1 pl-4">
                   {blockingIssues.map((issue, index) => (
                     <li key={`airflow-error-${issue.field}-${index}`}>{issue.message}</li>
@@ -107,7 +107,7 @@ export default function AirflowDuctDesignPage() {
             )}
             {warningIssues.length > 0 && (
               <div className="rounded-sm border border-yellow-500/45 bg-yellow-500/10 px-3 py-2 text-xs text-foreground">
-                <p className="font-semibold uppercase tracking-wide">Warnings</p>
+                <p className="font-semibold font-display">Warnings</p>
                 <ul className="mt-1 list-disc space-y-1 pl-4">
                   {warningIssues.map((issue, index) => (
                     <li key={`airflow-warning-${issue.field}-${index}`}>{issue.message}</li>
@@ -150,7 +150,7 @@ export default function AirflowDuctDesignPage() {
 
       {/* Full-Width Branch Sizing Table */}
       <Card className="panel-glass border-border/70 p-6 lg:p-8">
-        <h3 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        <h3 className="mb-4 text-xs font-medium font-display text-muted-foreground">
           Branch Sizing Table
         </h3>
         <DenseDataTable rows={result.branchRows} columns={branchColumns} title="Branch sizing matrix" />
@@ -159,7 +159,7 @@ export default function AirflowDuctDesignPage() {
       {/* Charts */}
       <section className="grid gap-(--space-component-gap) lg:grid-cols-2">
         <Card className="panel-glass border-border/70 p-6 lg:p-8">
-          <h3 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          <h3 className="mb-4 text-xs font-medium font-display text-muted-foreground">
             Velocity & Pressure Profile
           </h3>
           <div className="h-75 w-full">
@@ -172,7 +172,7 @@ export default function AirflowDuctDesignPage() {
         </Card>
 
         <Card className="panel-glass border-border/70 p-6 lg:p-8">
-          <h3 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          <h3 className="mb-4 text-xs font-medium font-display text-muted-foreground">
             CFM Distribution
           </h3>
           <div className="h-75 w-full">
@@ -225,7 +225,7 @@ export default function AirflowDuctDesignPage() {
           <div className="space-y-4">
             {result.formulas.map((formula) => (
               <div key={formula.label} className="rounded-sm border border-border bg-secondary p-4">
-                <p className="text-[11px] font-medium uppercase tracking-wider text-foreground">{formula.label}</p>
+                <p className="text-[11px] font-medium font-display text-foreground">{formula.label}</p>
                 <p className="mt-1 font-mono text-xs text-muted-foreground">{formula.expression}</p>
                 <p className="mt-1.5 text-xs font-semibold text-accent">{formula.value}</p>
               </div>

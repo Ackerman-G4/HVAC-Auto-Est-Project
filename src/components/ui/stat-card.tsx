@@ -27,7 +27,7 @@ export function StatCard({ title, value, subtitle, icon: Icon, trend, animate = 
     )}>
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">{title}</p>
+          <p className="text-xs font-medium font-display text-muted-foreground">{title}</p>
           <p className={cn(
             'mt-3 truncate text-3xl font-bold leading-none tabular-nums',
             tone === 'currency' ? 'text-currency' : 'text-foreground',

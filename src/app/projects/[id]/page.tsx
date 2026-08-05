@@ -247,12 +247,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                 {/* Outdoor */}
                 <div>
-                  <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Outdoor Air</p>
+                  <p className="mb-2 text-xs font-medium font-display text-muted-foreground">Outdoor Air</p>
                   <PsychrometricMetricGrid state={outdoorPS} toneClassName="bg-[rgba(219,142,47,0.14)]" />
                 </div>
                 {/* Indoor */}
                 <div>
-                  <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Indoor Air (Design)</p>
+                  <p className="mb-2 text-xs font-medium font-display text-muted-foreground">Indoor Air (Design)</p>
                   <PsychrometricMetricGrid state={indoorPS} toneClassName="bg-[rgba(15,139,141,0.14)]" />
                 </div>
               </div>

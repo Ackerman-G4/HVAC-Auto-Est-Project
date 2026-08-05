@@ -70,7 +70,7 @@ table above.
 | 0 — Instrumentation | ✅ | This document; `npm run analyze`. |
 | 1 — Kill the ceremony | ✅ | See below. |
 | 2 — Token / surface reset | 🟡 | Surfaces/radius/blur done; hex purge partial — see below. |
-| 3 — Typography / copy | ⬜ | |
+| 3 — Typography / copy | ✅ | See below. |
 | 4 — Component library | ⬜ | |
 | 5 — Shell / layout | ⬜ | |
 | 6 — Page decomposition | 🟡 | Two largest targets already done pre-spec. |
@@ -205,3 +205,53 @@ fallback is precisely the bug being fixed.
 **Not verifiable from here:** that the opaque palette still reads correctly, and
 that the 3D canvases now sit on a light background in light mode. Both need a
 browser.
+
+### Wave 3 — typography and copy ✅
+
+| Acceptance | Target | Result |
+|---|---|---|
+| `uppercase` usages | ≤ 20 | **0** ✅ |
+| `--font-jakarta` / `--font-space-grotesk` | 0 | **0** ✅ |
+
+**Poppins is gone.** A geometric humanist face with wide friendly counters is
+the wrong voice for an estimation tool, and it was masquerading under
+`--font-space-grotesk`. Display is now **IBM Plex Sans Condensed** — the
+vernacular of the drawing title block and the equipment schedule. **IBM Plex
+Mono** replaces JetBrains Mono so the app carries one mono face, not two.
+
+**The font variables no longer lie.** `--font-jakarta` loaded Inter and
+`--font-space-grotesk` loaded Poppins. The loaded faces are now `--face-body`,
+`--face-display`, `--face-mono`, mapped onto Tailwind's `--font-sans` /
+`--font-display` / `--font-mono` theme keys.
+
+The `--face-*` naming is deliberate. Writing `--font-mono: var(--font-mono)` in
+`@theme inline` is a self-reference; it only *appears* to work because next/font
+re-declares the same name further down the cascade. Distinct names remove the
+trap. (The same shape exists for `--radius-*` from Wave 2 and is safe there for
+a different reason: `tokens.css` declares the literal unlayered, which beats
+`@layer theme` regardless of order. Verified in the built CSS.)
+
+**All 230 `uppercase` deleted**, along with the wide tracking that existed to
+make caps legible. Every one was an eyebrow or section label whose source text
+was already sentence case, so removing the CSS gave sentence case for free;
+Condensed keeps them from growing. One genuine catch: `{run.source}` is a
+lowercase enum (`internal`/`openfoam`) that was relying on the blanket rule to
+display as caps, so it now sets `capitalize` explicitly.
+
+**Numerals.** `CountUp` had no tabular figures at all — proportional digits
+change width as they tick, so every animated number visibly jittered and shifted
+whatever sat beside it. Now tabular at the primitive. BOQ quantity, unit price,
+total and grand total were also untreated; a column of costs whose digits do not
+align is unreadable.
+
+**Copy and controls.** The dashboard's "No recent activity" was a dead end —
+`EmptyState` already supports an action and it simply was not used; it now
+invites creating a project. Buttons no longer rise 2px on hover (they should not
+levitate in a data tool; `active:scale` stays, since press feedback reports
+something real), and badges dropped `font-bold`.
+
+Verified in the built output rather than assumed: all three faces load, the
+theme keys resolve to them, and no Poppins or JetBrains request remains.
+
+**Not verifiable from here:** how Condensed actually reads at label sizes, and
+whether any label now wraps where it previously did not. Needs a browser.

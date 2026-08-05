@@ -20,7 +20,7 @@ export function AuthSplitHero({ heading, subtitle }: AuthSplitHeroProps) {
           <HvacLogo variant="color" size={28} />
         </div>
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">HVAC Studio</p>
+          <p className="text-xs font-semibold font-display tracking-[0.2em] text-muted-foreground">HVAC Studio</p>
           <p className="text-sm font-medium text-foreground">Engineering Command Center</p>
         </div>
       </div>
@@ -30,7 +30,7 @@ export function AuthSplitHero({ heading, subtitle }: AuthSplitHeroProps) {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45 }}
-          className="text-xs font-semibold uppercase tracking-[0.2em] text-primary"
+          className="text-xs font-semibold font-display tracking-[0.2em] text-primary"
         >
           Precision Cooling. Intelligent Design.
         </motion.p>
@@ -56,14 +56,14 @@ export function AuthSplitHero({ heading, subtitle }: AuthSplitHeroProps) {
         <div className="rounded-lg border border-border/60 bg-card/35 p-4">
           <div className="mb-2 flex items-center gap-2 text-primary">
             <Wind size={16} />
-            <span className="text-xs font-semibold uppercase tracking-[0.14em]">Airflow Sync</span>
+            <span className="text-xs font-semibold font-display tracking-[0.14em]">Airflow Sync</span>
           </div>
           <p className="text-xs text-slate-200">Live load and duct computations are ready for high-precision iteration.</p>
         </div>
         <div className="rounded-lg border border-border/60 bg-card/35 p-4">
           <div className="mb-2 flex items-center gap-2 text-accent">
             <Activity size={16} />
-            <span className="text-xs font-semibold uppercase tracking-[0.14em]">System Health</span>
+            <span className="text-xs font-semibold font-display tracking-[0.14em]">System Health</span>
           </div>
           <p className="text-xs text-slate-200">Project metrics, equipment fit, and reports are unified in one workflow.</p>
         </div>

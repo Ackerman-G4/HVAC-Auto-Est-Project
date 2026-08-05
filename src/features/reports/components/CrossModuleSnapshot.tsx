@@ -35,7 +35,7 @@ export function CrossModuleSnapshot({
     >
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <div className="rounded-sm border border-border bg-secondary p-4 text-sm text-muted-foreground">
-          <p className="font-medium uppercase tracking-wider text-foreground">Load Module</p>
+          <p className="font-medium font-display text-foreground">Load Module</p>
           <p className="mt-1">Project: {loadInputs.projectName}</p>
           <p>Space Type: {loadInputs.spaceType}</p>
           <p>Required TR: {loadResult.breakdown.trRequired.toFixed(2)}</p>
@@ -43,7 +43,7 @@ export function CrossModuleSnapshot({
         </div>
 
         <div className="rounded-sm border border-border bg-secondary p-4 text-sm text-muted-foreground">
-          <p className="font-medium uppercase tracking-wider text-foreground">Airflow Module</p>
+          <p className="font-medium font-display text-foreground">Airflow Module</p>
           <p className="mt-1">Supply CFM: {airflowInputs.supplyCfm.toLocaleString()}</p>
           <p>Branches: {airflowInputs.branches}</p>
           <p>Trunk Duct: {airflowResult.trunkDiameterIn} in</p>
@@ -51,7 +51,7 @@ export function CrossModuleSnapshot({
         </div>
 
         <div className="rounded-sm border border-border bg-secondary p-4 text-sm text-muted-foreground">
-          <p className="font-medium uppercase tracking-wider text-foreground">Equipment Module</p>
+          <p className="font-medium font-display text-foreground">Equipment Module</p>
           <p className="mt-1">Budget: {equipmentInputs.budgetBand}</p>
           <p>Priority: {equipmentInputs.optimizationPriority}</p>
           <p>Selected: {selectedCandidate?.model ?? 'No candidate'}</p>

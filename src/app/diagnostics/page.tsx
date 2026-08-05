@@ -300,7 +300,7 @@ export default function DiagnosticsPage() {
         <CardContent className="py-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Diagnostics Command Deck</p>
+              <p className="text-[11px] font-semibold font-display text-muted-foreground">Diagnostics Command Deck</p>
               <p className="mt-0.5 text-sm text-foreground">
                 Capture symptoms, blend optional field readings, and generate ranked root-cause guidance.
               </p>
@@ -342,7 +342,7 @@ export default function DiagnosticsPage() {
         {/* Row 2: Symptoms */}
         <Card className="panel-glass border-border/70 bg-card shadow-sm">
           <CardContent className="px-5 py-5">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Symptoms</p>
+            <p className="mb-3 text-xs font-semibold font-display text-muted-foreground">Symptoms</p>
             <div className="flex flex-wrap gap-2">
               <Pill label="Uneven Cooling" field="unevenCooling" icon={Thermometer} input={input} onToggle={toggleSym} />
               <Pill label="Weak Airflow" field="weakAirflow" icon={Wind} input={input} onToggle={toggleSym} />
@@ -392,7 +392,7 @@ export default function DiagnosticsPage() {
           {/* Divider */}
           <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-border/60" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Analysis Results</span>
+            <span className="text-xs font-semibold font-display text-muted-foreground">Analysis Results</span>
             <div className="h-px flex-1 bg-border/60" />
           </div>
 
@@ -444,7 +444,7 @@ export default function DiagnosticsPage() {
           {/* Immediate actions */}
           <Card className="panel-glass border-border/70 bg-card shadow-sm">
             <CardContent className="px-5 py-4">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Immediate Actions</p>
+              <p className="mb-2 text-xs font-semibold font-display text-muted-foreground">Immediate Actions</p>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {result.immediateActions.map((a, i) => (
                   <div key={i} className="flex items-start gap-2 text-sm">
@@ -469,7 +469,7 @@ export default function DiagnosticsPage() {
           {/* Preventive */}
           <Card className="panel-glass border-border/70 bg-card shadow-sm">
             <CardContent className="px-5 py-4">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Preventive Maintenance</p>
+              <p className="mb-2 text-xs font-semibold font-display text-muted-foreground">Preventive Maintenance</p>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {result.preventiveActions.map((a, i) => (
                   <div key={i} className="flex items-start gap-2 text-sm">
@@ -489,7 +489,7 @@ export default function DiagnosticsPage() {
         <div role="status" aria-busy="true" aria-label="Running analysis" className="mt-8 space-y-6">
           <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-border/60" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <span className="text-xs font-semibold font-display text-muted-foreground">
               Analysing…
             </span>
             <div className="h-px flex-1 bg-border/60" />
@@ -544,14 +544,14 @@ function FaultRow({ fault, expanded, onToggle }: { fault: DiagnosticFault; expan
         <div className="space-y-4 border-t border-border px-4 py-4 text-sm">
           {/* Root cause */}
           <div>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Root Cause</p>
+            <p className="mb-1 text-xs font-semibold font-display text-muted-foreground">Root Cause</p>
             <p className="text-foreground leading-relaxed">{fault.mechanismDescription}</p>
             <p className="text-muted-foreground mt-1"><strong className="text-foreground">Uneven cooling:</strong> {fault.whyCoolingIsUneven}</p>
           </div>
 
           {/* Symptoms */}
           <div>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Symptoms</p>
+            <p className="mb-1 text-xs font-semibold font-display text-muted-foreground">Symptoms</p>
             <div className="flex flex-wrap gap-1">
               {fault.symptoms.map((s, i) => (
                 <span key={i} className="inline-flex items-center gap-1 rounded bg-secondary/50 px-2 py-1 text-xs text-foreground">
@@ -567,7 +567,7 @@ function FaultRow({ fault, expanded, onToggle }: { fault: DiagnosticFault; expan
 
           {/* Steps */}
           <div>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Diagnostic Steps</p>
+            <p className="mb-1 text-xs font-semibold font-display text-muted-foreground">Diagnostic Steps</p>
             <ol className="space-y-1">
               {fault.diagnosticSteps.map((st) => (
                 <li key={st.order} className="flex gap-2">
@@ -583,7 +583,7 @@ function FaultRow({ fault, expanded, onToggle }: { fault: DiagnosticFault; expan
 
           {/* Fixes */}
           <div>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Corrective Actions</p>
+            <p className="mb-1 text-xs font-semibold font-display text-muted-foreground">Corrective Actions</p>
             <div className="space-y-1.5">
               {fault.correctiveActions.map((ca, i) => (
                 <div key={i} className="flex items-start gap-2">

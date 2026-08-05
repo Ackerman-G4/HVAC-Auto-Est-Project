@@ -94,7 +94,7 @@ export function CatalogToolbar({
             type="button"
             onClick={() => setCategoryFilter('')}
             className={cn(
-              'rounded-sm px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors',
+              'rounded-sm px-3 py-1.5 text-xs font-semibold font-display transition-colors',
               !categoryFilter
                 ? 'bg-primary text-primary-foreground'
                 : 'border border-border bg-card text-muted-foreground hover:bg-secondary',
@@ -108,7 +108,7 @@ export function CatalogToolbar({
               type="button"
               onClick={() => setCategoryFilter(cat === categoryFilter ? '' : cat)}
               className={cn(
-                'rounded-sm px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors',
+                'rounded-sm px-3 py-1.5 text-xs font-semibold font-display transition-colors',
                 cat === categoryFilter
                   ? 'bg-primary text-primary-foreground'
                   : 'border border-border bg-card text-muted-foreground hover:bg-secondary',

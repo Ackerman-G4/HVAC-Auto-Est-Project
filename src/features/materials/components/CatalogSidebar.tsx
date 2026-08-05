@@ -31,15 +31,15 @@ export function CatalogSidebar({
         </CardHeader>
         <CardContent className="space-y-2">
           <div className="rounded-sm border border-border bg-card p-4">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">Materials</p>
+            <p className="text-xs font-display text-muted-foreground">Materials</p>
             <p className="text-xl font-semibold tabular-nums">{loading ? '—' : materialsCount}</p>
           </div>
           <div className="rounded-sm border border-border bg-card p-4">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">Suppliers</p>
+            <p className="text-xs font-display text-muted-foreground">Suppliers</p>
             <p className="text-xl font-semibold tabular-nums">{loading ? '—' : suppliersCount}</p>
           </div>
           <div className="rounded-sm border border-border bg-card p-4">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">Avg Material Price</p>
+            <p className="text-xs font-display text-muted-foreground">Avg Material Price</p>
             <p className="text-xl font-semibold tabular-nums">{loading ? '—' : formatPHP(averageMaterialPrice)}</p>
           </div>
         </CardContent>

@@ -761,7 +761,7 @@ export default function FloorPlanMultiView({
               <div className="flex flex-col bg-background">
                 <div className="flex items-center gap-1.5 border-b border-border bg-card px-3 py-1.5">
                   <Layers className="w-3 h-3 text-muted-foreground" />
-                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">
+                  <span className="text-[10px] font-semibold text-muted-foreground font-display tracking-[0.08em]">
                     Room Legend
                   </span>
                 </div>
@@ -818,7 +818,7 @@ export default function FloorPlanMultiView({
 
                   {/* View legend */}
                   <div className="mt-3 space-y-1 border-t border-border pt-2.5 text-[10px] text-muted-foreground">
-                    <p className="font-semibold text-muted-foreground text-[9px] uppercase tracking-[0.06em] mb-1">Drawing Legend</p>
+                    <p className="font-semibold text-muted-foreground text-[9px] font-display tracking-[0.06em] mb-1">Drawing Legend</p>
                     <div className="flex items-center gap-2">
                       <div className="w-5 border-t-2 border-[#6B7280]" />
                       <span>Floor line (FL &plusmn;0.00)</span>
@@ -878,7 +878,7 @@ function ViewPanel({
       <div className="flex items-center gap-1.5 border-b border-border bg-card px-3 py-1.5">
         <Eye className={`w-3 h-3 ${accentColor ? 'text-accent' : 'text-muted-foreground'}`} />
         <span
-          className={`text-[10px] font-bold uppercase tracking-[0.08em] ${
+          className={`text-[10px] font-bold font-display tracking-[0.08em] ${
             accentColor ? 'text-accent' : 'text-muted-foreground'
           }`}
         >

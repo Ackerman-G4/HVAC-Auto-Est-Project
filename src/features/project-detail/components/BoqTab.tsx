@@ -94,7 +94,7 @@ export function BoqTab({
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-sm border border-border bg-secondary/50 p-4">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Labor Multiplier</p>
+            <p className="text-xs font-display text-muted-foreground">Labor Multiplier</p>
             <p className="mt-1 text-xs text-muted-foreground">Suggested: {project.suggestedLaborMultiplier ?? 1}</p>
             <input
               type="number"
@@ -109,7 +109,7 @@ export function BoqTab({
           </div>
 
           <div className="rounded-sm border border-border bg-secondary/50 p-4">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Overhead %</p>
+            <p className="text-xs font-display text-muted-foreground">Overhead %</p>
             <p className="mt-1 text-xs text-muted-foreground">Suggested: {project.suggestedOverheadPercent ?? 12}%</p>
             <input
               type="number"
@@ -124,7 +124,7 @@ export function BoqTab({
           </div>
 
           <div className="rounded-sm border border-border bg-secondary/50 p-4">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Contingency %</p>
+            <p className="text-xs font-display text-muted-foreground">Contingency %</p>
             <p className="mt-1 text-xs text-muted-foreground">Suggested: {project.suggestedContingencyPercent ?? 8}%</p>
             <input
               type="number"
@@ -139,7 +139,7 @@ export function BoqTab({
           </div>
 
           <div className="rounded-sm border border-border bg-secondary/50 p-4">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">VAT %</p>
+            <p className="text-xs font-display text-muted-foreground">VAT %</p>
             <p className="mt-1 text-xs text-muted-foreground">Suggested: {project.suggestedVatRate ?? 12}%</p>
             <input
               type="number"
@@ -185,14 +185,14 @@ export function BoqTab({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
-                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Section</th>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Description</th>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">State</th>
-                <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Qty</th>
-                <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Unit</th>
-                <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Unit Price</th>
-                <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total</th>
-                <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold font-display text-muted-foreground">Section</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold font-display text-muted-foreground">Description</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold font-display text-muted-foreground">State</th>
+                <th className="px-4 py-2.5 text-right text-xs font-semibold font-display text-muted-foreground">Qty</th>
+                <th className="px-4 py-2.5 text-right text-xs font-semibold font-display text-muted-foreground">Unit</th>
+                <th className="px-4 py-2.5 text-right text-xs font-semibold font-display text-muted-foreground">Unit Price</th>
+                <th className="px-4 py-2.5 text-right text-xs font-semibold font-display text-muted-foreground">Total</th>
+                <th className="px-4 py-2.5 text-right text-xs font-semibold font-display text-muted-foreground">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -218,7 +218,7 @@ export function BoqTab({
                         {item.isOverridden ? 'Override' : 'Suggested'}
                       </Badge>
                     </td>
-                    <td className="px-4 py-2.5 text-right">{item.quantity}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums">{item.quantity}</td>
                     <td className="px-4 py-2.5 text-right">{item.unit}</td>
                     <td className="px-4 py-2.5 text-right">
                       <div className="flex justify-end">
@@ -229,7 +229,7 @@ export function BoqTab({
                           value={draftValue}
                           onChange={(event) => handleBoqDraftChange(item.id, event.target.value)}
                           aria-label="Unit price"
-                          className="w-28 rounded-sm border border-border bg-background px-2.5 py-1.5 text-right text-sm"
+                          className="w-28 rounded-sm border border-border bg-background px-2.5 py-1.5 text-right text-sm tabular-nums"
                         />
                       </div>
                       {item.suggestedUnitPrice !== undefined && (
@@ -238,7 +238,7 @@ export function BoqTab({
                         </p>
                       )}
                     </td>
-                    <td className="px-4 py-2.5 text-right font-medium">{formatPHP(item.totalPrice)}</td>
+                    <td className="px-4 py-2.5 text-right font-medium tabular-nums">{formatPHP(item.totalPrice)}</td>
                     <td className="px-4 py-2.5 text-right">
                       <div className="flex justify-end gap-2">
                         <Button
@@ -299,7 +299,7 @@ export function BoqTab({
             <tfoot>
               <tr className="font-bold text-lg">
                 <td colSpan={7} className="px-4 py-3 text-right">Grand Total:</td>
-                <td className="px-4 py-3 text-right">{formatPHP(boqTotal)}</td>
+                <td className="px-4 py-3 text-right tabular-nums">{formatPHP(boqTotal)}</td>
               </tr>
             </tfoot>
           </table>

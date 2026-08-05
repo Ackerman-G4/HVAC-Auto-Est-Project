@@ -55,20 +55,20 @@ export function EquipmentTab({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
-                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Brand / Model</th>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Type</th>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">State</th>
-                <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Capacity</th>
-                <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Qty</th>
-                <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <th className="px-4 py-2.5 text-left text-xs font-semibold font-display text-muted-foreground">Brand / Model</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold font-display text-muted-foreground">Type</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold font-display text-muted-foreground">State</th>
+                <th className="px-4 py-2.5 text-right text-xs font-semibold font-display text-muted-foreground">Capacity</th>
+                <th className="px-4 py-2.5 text-right text-xs font-semibold font-display text-muted-foreground">Qty</th>
+                <th className="px-4 py-2.5 text-right text-xs font-semibold font-display text-muted-foreground">
                   <TermHint
                     term="EER"
                     definition="Energy Efficiency Ratio. Higher EER indicates better efficiency at rated operating conditions."
                   />
                 </th>
-                <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Unit Price</th>
-                <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total</th>
-                <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
+                <th className="px-4 py-2.5 text-right text-xs font-semibold font-display text-muted-foreground">Unit Price</th>
+                <th className="px-4 py-2.5 text-right text-xs font-semibold font-display text-muted-foreground">Total</th>
+                <th className="px-4 py-2.5 text-right text-xs font-semibold font-display text-muted-foreground">Actions</th>
               </tr>
             </thead>
             <tbody>

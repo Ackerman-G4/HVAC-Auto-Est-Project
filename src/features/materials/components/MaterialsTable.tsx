@@ -52,14 +52,14 @@ export function MaterialsTable({
         <table className="w-full text-[13px]">
           <thead>
             <tr className="border-b border-border">
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Material</th>
-              <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground sm:table-cell">Category</th>
-              <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground lg:table-cell">Location</th>
-              <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground md:table-cell">Specifications</th>
-              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Unit</th>
-              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Price</th>
+              <th className="px-4 py-3 text-left text-xs font-medium font-display text-muted-foreground">Material</th>
+              <th className="hidden px-4 py-3 text-left text-xs font-medium font-display text-muted-foreground sm:table-cell">Category</th>
+              <th className="hidden px-4 py-3 text-left text-xs font-medium font-display text-muted-foreground lg:table-cell">Location</th>
+              <th className="hidden px-4 py-3 text-left text-xs font-medium font-display text-muted-foreground md:table-cell">Specifications</th>
+              <th className="px-4 py-3 text-right text-xs font-medium font-display text-muted-foreground">Unit</th>
+              <th className="px-4 py-3 text-right text-xs font-medium font-display text-muted-foreground">Price</th>
               {canManageCatalog && (
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Actions</th>
+                <th className="px-4 py-3 text-right text-xs font-medium font-display text-muted-foreground">Actions</th>
               )}
             </tr>
           </thead>

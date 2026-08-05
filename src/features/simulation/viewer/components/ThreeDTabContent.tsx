@@ -61,14 +61,14 @@ export function ThreeDTabContent({
             <>
               <div className="panel-glass mb-4 rounded-md border border-border/70 bg-card p-4 shadow-sm">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="mr-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  <span className="mr-1 text-[11px] font-semibold font-display text-muted-foreground">
                     View Mode
                   </span>
                   {(['temperature', 'velocity', 'pressure', 'humidity'] as const).map((mode) => (
                     <button
                       key={mode}
                       onClick={() => setActiveView(mode)}
-                      className={`rounded-sm border px-3 py-2 text-sm font-semibold uppercase tracking-wider transition-colors ${
+                      className={`rounded-sm border px-3 py-2 text-sm font-semibold font-display transition-colors ${
                         activeView === mode
                           ? 'border-accent bg-accent/15 text-accent'
                           : 'border-border bg-background text-muted-foreground hover:border-border'
@@ -81,7 +81,7 @@ export function ThreeDTabContent({
 
                 <div className="mt-4 flex flex-wrap items-center gap-4">
                   <div className="flex min-w-65 flex-1 items-center gap-3">
-                    <label className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                    <label className="text-[11px] font-semibold font-display text-muted-foreground">
                       Slice Z
                     </label>
                     <input
@@ -149,7 +149,7 @@ export function ThreeDTabContent({
               {inspectedCell && (
                 <div className="mt-3 panel-glass rounded-md border border-accent/30 bg-card p-4 shadow-sm">
                   <div className="mb-2 flex items-center justify-between">
-                    <h4 className="text-[11px] font-semibold uppercase tracking-widest text-accent">Inspected Cell</h4>
+                    <h4 className="text-[11px] font-semibold font-display text-accent">Inspected Cell</h4>
                     <button
                       onClick={() => setInspectedCell(null)}
                       className="text-xs text-muted-foreground hover:text-foreground"
