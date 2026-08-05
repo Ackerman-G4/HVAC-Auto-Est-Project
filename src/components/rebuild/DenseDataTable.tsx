@@ -68,13 +68,13 @@ export function DenseDataTable<T extends object>({
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder={filterPlaceholder}
-          className="h-9 w-65 rounded-xl border border-input bg-card/85 px-3 text-sm text-foreground backdrop-blur-sm placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/55 focus-visible:border-primary"
+          className="h-9 w-65 rounded-md border border-input bg-card/85 px-3 text-sm text-foreground placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/55 focus-visible:border-primary"
         />
       </div>
 
-      <div className="max-h-90 overflow-auto rounded-2xl border border-border/70">
+      <div className="max-h-90 overflow-auto rounded-lg border border-border/70">
         <table className="w-full border-collapse text-sm">
-          <thead className="sticky top-0 z-10 bg-secondary/70 text-foreground backdrop-blur-sm">
+          <thead className="sticky top-0 z-10 bg-secondary/70 text-foreground">
             <tr>
               {columns.map((column) => (
                 <th

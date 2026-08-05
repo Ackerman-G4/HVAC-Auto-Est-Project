@@ -16,7 +16,7 @@ export function AuthSplitHero({ heading, subtitle }: AuthSplitHeroProps) {
       <div className="system-grid-bg absolute inset-0 opacity-50" />
 
       <div className="relative z-10 flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-border/80 bg-card/70">
+        <div className="flex h-10 w-10 items-center justify-center rounded-md border border-border/80 bg-card/70">
           <HvacLogo variant="color" size={28} />
         </div>
         <div>
@@ -53,14 +53,14 @@ export function AuthSplitHero({ heading, subtitle }: AuthSplitHeroProps) {
       </div>
 
       <div className="relative z-10 mt-auto grid gap-3 sm:grid-cols-2">
-        <div className="rounded-2xl border border-border/60 bg-card/35 p-4 backdrop-blur-md">
+        <div className="rounded-lg border border-border/60 bg-card/35 p-4">
           <div className="mb-2 flex items-center gap-2 text-primary">
             <Wind size={16} />
             <span className="text-xs font-semibold uppercase tracking-[0.14em]">Airflow Sync</span>
           </div>
           <p className="text-xs text-slate-200">Live load and duct computations are ready for high-precision iteration.</p>
         </div>
-        <div className="rounded-2xl border border-border/60 bg-card/35 p-4 backdrop-blur-md">
+        <div className="rounded-lg border border-border/60 bg-card/35 p-4">
           <div className="mb-2 flex items-center gap-2 text-accent">
             <Activity size={16} />
             <span className="text-xs font-semibold uppercase tracking-[0.14em]">System Health</span>

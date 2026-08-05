@@ -69,7 +69,7 @@ export function Input({ className, label, error, hint, unit, prefix, showRangeHi
           aria-invalid={activeError ? true : undefined}
           aria-describedby={describedBy}
           className={cn(
-            'h-10 w-full rounded-xl border border-input bg-card/85 px-3 text-sm text-foreground backdrop-blur-sm',
+            'h-10 w-full rounded-md border border-input bg-card/85 px-3 text-sm text-foreground',
             hasLeading && 'pl-9',
             hasTrailing && 'pr-14',
             'placeholder:text-muted-foreground/60',
@@ -114,7 +114,7 @@ export function Textarea({ className, label, error, id, ref, ...props }: Textare
         ref={ref}
         id={inputId}
         className={cn(
-          'min-h-30 w-full resize-y rounded-xl border border-input bg-card/85 px-3 py-3 text-sm text-foreground backdrop-blur-sm',
+          'min-h-30 w-full resize-y rounded-md border border-input bg-card/85 px-3 py-3 text-sm text-foreground',
           'placeholder:text-muted-foreground/60',
           'focus:outline-none focus:ring-2 focus:ring-ring/55 focus:border-primary',
           'transition-colors duration-150',

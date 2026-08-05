@@ -20,7 +20,7 @@ import { ProjectDropdown } from '@/features/simulation/viewer/components/Project
 
 const CalibrationPanel = dynamic(
   () => import('@/components/building/CalibrationPanel').then(mod => mod.default),
-  { ssr: false, loading: () => <div className="panel-glass flex h-64 items-center justify-center rounded-xl border border-border/70 bg-card text-sm font-medium text-muted-foreground shadow-sm">Loading calibration...</div> }
+  { ssr: false, loading: () => <div className="panel-glass flex h-64 items-center justify-center rounded-md border border-border/70 bg-card text-sm font-medium text-muted-foreground shadow-sm">Loading calibration...</div> }
 );
 
 // ─── Main Page ──────────────────────────────────────────────────────
@@ -95,7 +95,7 @@ export default function SimulationPage() {
   return (
     <PageWrapper>
       {simError && (
-        <div className="mx-auto mb-6 mt-6 max-w-4xl rounded-xl border border-red-500/25 bg-red-500/8 p-4 text-sm font-semibold text-destructive">
+        <div className="mx-auto mb-6 mt-6 max-w-4xl rounded-md border border-red-500/25 bg-red-500/8 p-4 text-sm font-semibold text-destructive">
           {simError}
         </div>
       )}
@@ -103,24 +103,24 @@ export default function SimulationPage() {
         title="CFD Simulation"
         description="Airflow simulation, thermal analysis, and cooling optimization"
         actions={
-          <div className="panel-glass flex flex-wrap items-center gap-2.5 rounded-xl border border-border/70 bg-card p-2 shadow-sm">
+          <div className="panel-glass flex flex-wrap items-center gap-2.5 rounded-md border border-border/70 bg-card p-2 shadow-sm">
             <button
               onClick={() => { runPUE(); }}
               disabled={racks.length === 0}
-              className="flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary/70 disabled:opacity-50"
+              className="flex items-center gap-2 rounded-md border border-border bg-background px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary/70 disabled:opacity-50"
             >
               <Zap size={16} /> PUE
             </button>
             <button
               onClick={() => { runCompliance(); }}
-              className="flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary/70"
+              className="flex items-center gap-2 rounded-md border border-border bg-background px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary/70"
             >
               <ShieldCheck size={16} /> Compliance
             </button>
             <button
               onClick={() => { runOptimization(); }}
               disabled={racks.length === 0 || isRunning}
-              className="flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary/70 disabled:opacity-50"
+              className="flex items-center gap-2 rounded-md border border-border bg-background px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary/70 disabled:opacity-50"
             >
               <TrendingUp size={16} /> Optimize
             </button>
@@ -131,7 +131,7 @@ export default function SimulationPage() {
                 key={format}
                 onClick={() => { void handleExportReport(format); }}
                 disabled={!result || reportExporting !== null}
-                className="flex items-center gap-2 rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary/70 disabled:opacity-50"
+                className="flex items-center gap-2 rounded-md border border-border bg-background px-3.5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary/70 disabled:opacity-50"
               >
                 <Download size={16} />
                 {reportExporting === format ? 'Exporting…' : format.toUpperCase()}
@@ -140,7 +140,7 @@ export default function SimulationPage() {
             <button
               onClick={() => runSimulation(selectedProjectId || '', selectedFloorId || '')}
               disabled={racks.length === 0 || isRunning}
-              className="flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-accent-foreground shadow-md transition-colors hover:bg-accent/90 disabled:opacity-50"
+              className="flex items-center gap-2 rounded-md bg-accent px-5 py-2.5 text-sm font-semibold text-accent-foreground shadow-md transition-colors hover:bg-accent/90 disabled:opacity-50"
             >
               {isRunning ? <><RotateCcw size={16} className="animate-spin" /> Running...</> : <><Play size={16} /> Run Simulation</>}
             </button>
@@ -148,7 +148,7 @@ export default function SimulationPage() {
         }
       />
 
-      <div className="panel-glass mb-6 rounded-xl border border-border/70 bg-primary/5 px-5 py-4 shadow-sm">
+      <div className="panel-glass mb-6 rounded-md border border-border/70 bg-primary/5 px-5 py-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Simulation Command Deck</p>
@@ -156,7 +156,7 @@ export default function SimulationPage() {
               Configure thermal model inputs, run airflow scenarios, and evaluate compliance and energy outcomes.
             </p>
           </div>
-          <div className="rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground tabular-nums">
+          <div className="rounded-sm border border-border bg-card px-3 py-2 text-xs text-muted-foreground tabular-nums">
             {racks.length} racks · {hvacUnits.length} HVAC units · {result ? 'Result ready' : 'Awaiting run'}
           </div>
         </div>
@@ -187,7 +187,7 @@ export default function SimulationPage() {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8 flex items-center gap-3 rounded-xl border border-red-500/25 bg-red-500/8 p-4 shadow-sm"
+          className="mb-8 flex items-center gap-3 rounded-md border border-red-500/25 bg-red-500/8 p-4 shadow-sm"
         >
           <AlertTriangle size={20} className="text-red-500 shrink-0" />
           <p className="text-sm font-medium text-destructive">

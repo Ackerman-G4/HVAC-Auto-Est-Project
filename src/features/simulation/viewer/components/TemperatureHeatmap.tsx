@@ -10,7 +10,7 @@ export function TemperatureHeatmap() {
 
   if (!result) {
     return (
-      <div className="panel-glass flex h-64 items-center justify-center rounded-xl border border-border/70 bg-card shadow-sm">
+      <div className="panel-glass flex h-64 items-center justify-center rounded-md border border-border/70 bg-card shadow-sm">
         <p className="text-sm font-medium text-muted-foreground">Run a simulation to see temperature distribution</p>
       </div>
     );
@@ -57,7 +57,7 @@ export function TemperatureHeatmap() {
         </div>
       </div>
 
-      <div className="overflow-auto rounded-xl border border-border bg-slate-900 p-4 shadow-sm">
+      <div className="overflow-auto rounded-md border border-border bg-slate-900 p-4 shadow-sm">
         <svg
           width={gridPixelWidth}
           height={gridPixelHeight}
@@ -86,7 +86,7 @@ export function TemperatureHeatmap() {
       </div>
 
       {/* Color legend */}
-      <div className="panel-glass mt-4 flex items-center gap-3 rounded-xl border border-border/70 bg-card px-4 py-3">
+      <div className="panel-glass mt-4 flex items-center gap-3 rounded-md border border-border/70 bg-card px-4 py-3">
         <span className="text-sm font-medium text-muted-foreground">{minT.toFixed(1)}°C</span>
         <div className="flex-1 h-3 rounded-full cfd-heatmap-legend" />
         <span className="text-sm font-medium text-muted-foreground">{maxT.toFixed(1)}°C</span>

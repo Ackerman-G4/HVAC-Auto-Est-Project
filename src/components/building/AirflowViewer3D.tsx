@@ -18,6 +18,7 @@ import * as THREE from 'three';
 import type { SimulationResult, ServerRack, HVACUnit, InspectedCellInfo, TileFlowViewConfig, TileAirflowData, ThermalAlert, Vec3 } from '@/types/simulation';
 import { HeatmapSlice, VelocityArrows, AirflowParticles, Streamlines, TemperatureFog, TileAirflowOverlay, AlertZoneMarkers, ContourSlicePlane } from './CFDOverlay3D';
 import { getDomainCenter, getDomainBBox, computeCameraFit } from '@/lib/simulation/scene-transform';
+import { useThemeColor } from '@/lib/ui/use-theme-color';
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -670,6 +671,8 @@ const AirflowViewer3D = forwardRef<AirflowViewerHandle, Props>(function AirflowV
   const { metrics, config } = result;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [resetToken, setResetToken] = useState(0);
+  // Was a hardcoded '#0f172a', so the canvas stayed near-black in light mode.
+  const sceneBackground = useThemeColor('--canvas-bg', '#0f172a');
   const initialFit = computeCameraFit(getDomainBBox(config));
 
   useImperativeHandle(ref, () => ({
@@ -682,12 +685,12 @@ const AirflowViewer3D = forwardRef<AirflowViewerHandle, Props>(function AirflowV
   }), []);
 
   return (
-    <div className="relative w-full h-125 rounded-xl overflow-hidden border border-slate-700 bg-slate-900">
+    <div className="relative w-full h-125 rounded-md overflow-hidden border border-border bg-[color:var(--canvas-bg)]">
       <Canvas
         ref={canvasRef}
         camera={{ position: initialFit.position, fov: 50, near: 0.1, far: 600 }}
         gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, preserveDrawingBuffer: true }}
-        style={{ background: '#0f172a' }}
+        style={{ background: sceneBackground }}
       >
         <Suspense fallback={null}>
           <Scene {...props} resetToken={resetToken} />
@@ -698,14 +701,14 @@ const AirflowViewer3D = forwardRef<AirflowViewerHandle, Props>(function AirflowV
       <button
         type="button"
         onClick={() => setResetToken((t) => t + 1)}
-        className="absolute top-4 right-4 rounded-lg bg-slate-800/80 px-2.5 py-1.5 text-xs font-medium text-white backdrop-blur-sm transition-colors hover:bg-slate-700/90"
+        className="absolute top-4 right-4 rounded-sm bg-slate-800/80 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700/90"
         title="Reset camera view"
       >
         Reset view
       </button>
 
       {/* Legend overlay */}
-      <div className="absolute top-4 left-4 bg-slate-800/80 backdrop-blur-sm rounded-lg p-3 text-xs text-white pointer-events-none">
+      <div className="absolute top-4 left-4 bg-slate-800/80 rounded-sm p-3 text-xs text-white pointer-events-none">
         <div className="mb-1.5 text-[10px] uppercase tracking-[0.08em] text-slate-300">
           {viewMode} mode · Slice {Math.round(selectedSliceZ)} · {config.mode ?? 'balanced'}
         </div>
@@ -728,13 +731,13 @@ const AirflowViewer3D = forwardRef<AirflowViewerHandle, Props>(function AirflowV
       </div>
 
       {/* Status bar */}
-      <div className="absolute bottom-4 left-4 right-4 flex justify-between bg-slate-800/80 backdrop-blur-sm rounded-lg px-3 py-2 text-xs text-slate-300 pointer-events-none">
+      <div className="absolute bottom-4 left-4 right-4 flex justify-between bg-slate-800/80 rounded-sm px-3 py-2 text-xs text-slate-300 pointer-events-none">
         <span>Max: {metrics.maxTemperature.toFixed(1)}°C | Avg: {metrics.avgTemperature.toFixed(1)}°C | PUE: {metrics.pue.toFixed(2)}</span>
         <span>CFL dt: {result.effectiveTimeStep?.toFixed(4) ?? '—'}s | Iter: {result.iteration}</span>
       </div>
 
       {/* Controls hint */}
-      <div className="absolute bottom-4 right-4 bg-slate-800/80 backdrop-blur-sm rounded-lg px-3 py-2 text-xs text-slate-400 pointer-events-none">
+      <div className="absolute bottom-4 right-4 bg-slate-800/80 rounded-sm px-3 py-2 text-xs text-slate-400 pointer-events-none">
         Drag to orbit • Scroll to zoom • Right-drag to pan
       </div>
     </div>

@@ -6,7 +6,7 @@ import type { ProjectData } from '../types';
 const BuildingViewer3D = dynamic(() => import('@/components/building/BuildingViewer3D'), {
   ssr: false,
   loading: () => (
-    <div className="flex items-center justify-center h-125 border border-border rounded-xl bg-secondary/30">
+    <div className="flex items-center justify-center h-125 border border-border rounded-md bg-secondary/30">
       <div className="text-center text-muted-foreground">
         <div className="animate-spin w-8 h-8 border-2 border-accent border-t-transparent rounded-full mx-auto mb-3" />
         <p className="text-sm">Loading 3D viewer...</p>

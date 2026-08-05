@@ -69,7 +69,7 @@ table above.
 |---|---|---|
 | 0 — Instrumentation | ✅ | This document; `npm run analyze`. |
 | 1 — Kill the ceremony | ✅ | See below. |
-| 2 — Token / surface reset | ⬜ | |
+| 2 — Token / surface reset | 🟡 | Surfaces/radius/blur done; hex purge partial — see below. |
 | 3 — Typography / copy | ⬜ | |
 | 4 — Component library | ⬜ | |
 | 5 — Shell / layout | ⬜ | |
@@ -128,3 +128,80 @@ verified by mutation.
 absence of a visible theme flash both need a browser. The 1.1s is removed by
 construction (the timer is gone); the flash fix needs a throttled reload in both
 themes to confirm.
+
+### Wave 2 — token and surface reset 🟡
+
+| Acceptance | Target | Result |
+|---|---|---|
+| `backdrop-blur` usages | ≤ 6 | **6** ✅ |
+| `rounded-(xl\|2xl\|3xl\|md)` | 0 | **0** ✅ |
+| Translucent surface tokens | 0 | **0** ✅ |
+| Infinite decorative animations | 0 | **0** ✅ |
+| Hardcoded hex in `.tsx` | 0 | **205** (from 227) ❌ |
+| CSS bundle | ≤ 90 KB | **126 KB** (from 128) ❌ |
+
+**Surfaces are opaque.** Every surface token was a translucent `rgba()`, so 127
+surfaces floated over whatever happened to be behind them. Each is now the
+former colour *composited over the ground it actually sat on*, so the palette
+reads the same while nothing is see-through. The only surviving `rgba` values
+are shadows and the five overlay tokens.
+
+**Blur is overlay-only**, 30 → 6: dialog scrim, command palette, toasts, mobile
+drawer, shortcuts sheet, onboarding tour. Everything else was a compositing
+layer for decoration, including four over the 3D canvas.
+
+**Radius is three steps.** The scale in `tokens.css` was never wired into
+Tailwind's `@theme`, so the `rounded-*` utilities used Tailwind's defaults and
+the tokens did nothing — which is how 463 usages drifted across six values.
+Now wired, and 416 usages codemodded to sm/md/lg (208/168/49) plus `rounded-full`
+for pills. `--radius-control`, referenced by two rules, was never defined at
+all; it is now an alias for `--radius-sm`.
+
+**Deleted:** the `.canvas-ambient` 26s infinite drift (its reference grid
+stays — that earns its place), the `.cta-glow` 2.6s breathe on an idle button
+(now the static ring its own reduced-motion branch already fell back to), both
+body radial gradients, and the accent wash on `.surface-recessed`.
+
+**The black hole is fixed.** `SimulationCanvas` and `AirflowViewer3D` set their
+scene background from JS with hardcoded `#0b1013` / `#0f172a`, so the canvas
+stayed near-black in light mode. New `--canvas-bg` token defined in *both*
+themes, read through `useThemeColor` — an effect, so it re-resolves on theme
+change rather than caching one value. `toThreeColor` guards the case where the
+browser hands back `oklch()`/`color-mix()`, which three.js throws on.
+
+**Also deleted `PsychrometricChart.tsx`** — zero consumers, and the only
+client-side importer of `rule-evaluator`, which pulls in mathjs. 22 of the hex
+went with it.
+
+#### Why hex is 205, not 0
+
+Two categories genuinely should not be tokens, and blanket-converting them would
+be wrong rather than incomplete:
+
+- **`layout.tsx` (1)** — `themeColor` in viewport metadata becomes a
+  `<meta name="theme-color">` tag. Meta content cannot reference a CSS variable.
+- **`global-error.tsx` (4)** — Next.js renders this when the root layout itself
+  has crashed, which is exactly when the stylesheet may not have loaded. Its
+  inline hex is the reason it still renders.
+
+The remaining ~200 sit in four canvas/3D files (`BuildingViewer3D` 55,
+`FloorPlanMultiView` 37, `floorplan/preview` 32, `AirflowViewer3D` 25) plus
+small chart palettes. These are **categorical and sequential data palettes** —
+space-type fills, temperature ramps. Per the spec's own rule ("color as data"),
+they encode data, and a temperature ramp that shifted with the theme would be
+worse, not better. The right treatment is consolidating them into one documented
+palette module rather than converting them to theme tokens, and that is a
+focused change to renderers whose output cannot be checked from here. Left for
+a follow-up rather than done blind.
+
+The CSS bundle barely moved (128 → 126 KB) because the weight is Tailwind's
+generated utilities, not the token layer. Getting under 90 KB needs the Wave 3/4
+class-surface reduction, not more token work.
+
+Covered by `lib/ui/__tests__/css-var.test.ts` (11), which pins the fallback
+behaviour — these run during SSR and before the stylesheet applies, and a wrong
+fallback is precisely the bug being fixed.
+
+**Not verifiable from here:** that the opaque palette still reads correctly, and
+that the 3D canvases now sit on a light background in light mode. Both need a
+browser.

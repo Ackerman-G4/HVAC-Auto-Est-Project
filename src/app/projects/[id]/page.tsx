@@ -201,7 +201,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         actions={
           <div className="flex flex-wrap items-center gap-3">
             <AutosaveIndicator status={snapshotStatus} savedAt={snapshotSavedAt} />
-            <div className="panel-glass flex flex-wrap gap-2.5 rounded-xl border border-border/70 bg-card p-2">
+            <div className="panel-glass flex flex-wrap gap-2.5 rounded-md border border-border/70 bg-card p-2">
             <Button variant="secondary" size="md" onClick={runCalculation} isLoading={calculating}>
               <Calculator className="w-4 h-4 mr-1" /> Calculate
             </Button>

@@ -695,7 +695,7 @@ export default function FloorPlanMultiView({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(11,18,29,0.82)] p-3 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(11,18,29,0.82)] p-3"
           onClick={onClose}
         >
           <motion.div
@@ -703,13 +703,13 @@ export default function FloorPlanMultiView({
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.92, opacity: 0 }}
             transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-            className="relative flex h-[93vh] w-[96vw] flex-col overflow-hidden rounded-xl border border-border bg-background shadow-2xl"
+            className="relative flex h-[93vh] w-[96vw] flex-col overflow-hidden rounded-md border border-border bg-background shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             {/* ── Header ─────────────────────────────────────────────────── */}
             <div className="flex items-center justify-between border-b border-border bg-card px-4 py-2.5">
               <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-md bg-accent/10 flex items-center justify-center">
+                <div className="w-7 h-7 rounded-sm bg-accent/10 flex items-center justify-center">
                   <Box className="w-4 h-4 text-accent" />
                 </div>
                 <div>
@@ -723,7 +723,7 @@ export default function FloorPlanMultiView({
               </div>
               <button
                 onClick={onClose}
-                className="rounded-lg p-1.5 transition-colors hover:bg-secondary/80"
+                className="rounded-sm p-1.5 transition-colors hover:bg-secondary/80"
                 title="Close multi-view"
               >
                 <X className="w-4 h-4 text-muted-foreground" />
@@ -776,7 +776,7 @@ export default function FloorPlanMultiView({
                       return (
                         <div
                           key={room.id}
-                          className="flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-secondary/45"
+                          className="flex items-center gap-2 rounded-sm px-2 py-1.5 transition-colors hover:bg-secondary/45"
                         >
                           <div
                             className="w-2.5 h-2.5 rounded-[3px] border border-black/10 shrink-0"

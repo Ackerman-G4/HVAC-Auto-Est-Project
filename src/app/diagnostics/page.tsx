@@ -148,7 +148,7 @@ function Pill({ label, field, icon: I, input, onToggle }: {
 }) {
   return (
     <button type="button" onClick={() => onToggle(field)}
-      className={cn('inline-flex items-center gap-2 rounded-lg border px-3.5 py-2 text-sm font-medium transition-all',
+      className={cn('inline-flex items-center gap-2 rounded-sm border px-3.5 py-2 text-sm font-medium transition-all',
         input[field] ? 'bg-accent/12 border-accent/30 text-accent' : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-border')}>
       <I size={14} />{label}
     </button>
@@ -305,7 +305,7 @@ export default function DiagnosticsPage() {
                 Capture symptoms, blend optional field readings, and generate ranked root-cause guidance.
               </p>
             </div>
-            <div className="rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
+            <div className="rounded-sm border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
               {result ? `${result.faults.length} fault candidates` : 'Awaiting analysis run'}
             </div>
           </div>
@@ -402,7 +402,7 @@ export default function DiagnosticsPage() {
               <CardContent className="px-5 py-5">
                 <p className="text-sm font-semibold text-foreground">{result.summaryTitle}</p>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{result.summaryDescription}</p>
-                <div className="mt-3 rounded-lg border border-border bg-secondary/50 p-3">
+                <div className="mt-3 rounded-sm border border-border bg-secondary/50 p-3">
                   <p className="mb-1 text-xs font-medium text-muted-foreground">Client Explanation</p>
                   <p className="text-sm leading-relaxed text-foreground">{result.clientExplanation}</p>
                 </div>

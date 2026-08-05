@@ -65,11 +65,11 @@ export default function ForgotPasswordPage() {
             </p>
           </div>
 
-          <Card className="rounded-3xl border-border/75 p-8 shadow-(--panel-shadow-strong) sm:p-10">
+          <Card className="rounded-lg border-border/75 p-8 shadow-(--panel-shadow-strong) sm:p-10">
             <CardContent className="p-0">
               {sent ? (
                 <div className="space-y-5 text-center">
-                  <p className="rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm font-medium text-success">
+                  <p className="rounded-md border border-success/30 bg-success/10 px-4 py-3 text-sm font-medium text-success">
                     If an account exists for that email, a password reset link has been sent. Check
                     your inbox and spam folder.
                   </p>

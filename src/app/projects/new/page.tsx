@@ -228,7 +228,7 @@ export default function NewProjectPage() {
 
           {step === 2 && (
             <>
-              <div className="rounded-lg border border-border bg-secondary/40 p-3">
+              <div className="rounded-sm border border-border bg-secondary/40 p-3">
                 <p className="mb-1 text-sm font-medium text-muted-foreground">Carrier Psychrometric Chart</p>
                 <p className="text-sm text-muted-foreground">Set outdoor DB &amp; RH — wet-bulb, dew point, humidity ratio, and enthalpy are auto-computed.</p>
               </div>
@@ -238,7 +238,7 @@ export default function NewProjectPage() {
               </div>
               <div className="grid grid-cols-3 gap-3 text-center">
                 {NEW_PROJECT_PSYCHRO_METRICS.map((metric) => (
-                  <div key={metric.term} className="rounded-lg border border-border bg-background px-2 py-2 shadow-sm">
+                  <div key={metric.term} className="rounded-sm border border-border bg-background px-2 py-2 shadow-sm">
                     <p className="text-sm font-semibold tabular-nums">{metric.formatValue(ps)}</p>
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
                       <TermHint term={metric.term} definition={metric.definition} compact className="justify-center" />
@@ -268,7 +268,7 @@ export default function NewProjectPage() {
                   ['Outdoor design', `${form.outdoorDB}°C / ${form.outdoorRH}%`],
                   ['Indoor design', `${form.indoorDB}°C / ${form.indoorRH}%`],
                 ].map(([k, v]) => (
-                  <div key={k} className="flex items-center justify-between rounded-lg border border-border bg-secondary/40 px-3.5 py-2 text-sm">
+                  <div key={k} className="flex items-center justify-between rounded-sm border border-border bg-secondary/40 px-3.5 py-2 text-sm">
                     <span className="text-muted-foreground">{k}</span>
                     <span className="font-medium tabular-nums text-foreground">{v}</span>
                   </div>
