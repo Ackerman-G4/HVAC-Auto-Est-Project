@@ -74,10 +74,10 @@ table above.
 | 4 — Component library | 🟡 | Primitives built and tested; call-site migration pending. |
 | 5 — Shell / layout | 🟡 | Nav/preference bugs fixed; RSC split deliberately deferred. |
 | 6 — Page decomposition | 🟡 | Two largest targets already done pre-spec. |
-| 7 — Motion doctrine | 🟡 | Wave 1 removed the worst offenders. |
-| 8 — 3D performance | ⬜ | |
+| 7 — Motion doctrine | 🟡 | Only skeleton-shimmer loops; framer at 21 files, not 12. |
+| 8 — 3D performance | 🟡 | Demand rendering + adaptive quality; viewer deletion blocked on parity. |
 | 9 — Data / bundle | 🟡 | pdfmake/exceljs already lazy. |
-| 10 — A11y / gates | ⬜ | |
+| 10 — A11y / gates | 🟡 | jsx-a11y recommended on, 0 errors; 24 label warnings remain. |
 
 ### Wave 1 — kill the ceremony ✅
 
@@ -363,3 +363,87 @@ app rather than merely look wrong.
 Five waves of visual change have already landed without being seen. Adding an
 unverifiable auth refactor on top is the wrong order. This wants a browser
 first.
+
+### Waves 7, 8, 10 — motion, 3D, accessibility 🟡
+
+#### Wave 7 — motion doctrine
+
+| Acceptance | Target | Result |
+|---|---|---|
+| Infinite animations (excl. skeleton) | 0 | **0** ✅ |
+| Inline durations/easings | 0 | **0** ✅ |
+| `framer-motion` files | ≤ 12 | **21** ❌ |
+
+Removed `stage-pulse`/`.stage-running`, an infinite opacity pulse with zero call
+sites. The floorplan spinner was one infinite rotation driven through
+framer-motion — a spinner *does* report something, so it stays, but as CSS, and
+it gained `role="status"` (it was announcing nothing). Six hardcoded durations
+now come from `lib/ui/motion.ts`, which already defined 150/250/400ms.
+
+The viewer's cooling-deficit alert moved to CSS and gained `role="alert"` — it
+appears when a deficit does, and that is not something to surface silently.
+
+`framer-motion` is at 21, not 12. What remains is `AnimatePresence` exits,
+drawer/dialog orchestration and the page transition, none of which CSS can do.
+The stagger grids on `/projects` and `SupplierGrid` are decoration by the
+doctrine's own test, but converting orchestrated stagger to CSS is fiddly and
+purely visual, and this branch cannot check the result.
+
+#### Wave 8 — 3D performance
+
+`SimulationCanvas` renders **on demand** instead of at 60fps forever. Safe there
+specifically because none of its layers uses `useFrame`, so nothing continuously
+animating gets starved; drei's `OrbitControls` calls `invalidate()` on change.
+
+`AirflowViewer3D` keeps the continuous loop deliberately — it and `CFDOverlay3D`
+run **seven** `useFrame` loops driving particles and streamlines, which
+demand-mode would freeze. It gets `AdaptiveDpr`/`AdaptiveEvents` instead.
+
+`preserveDrawingBuffer` was on unconditionally, making the driver retain a copy
+of every frame. Only the TileFlow tab calls `captureSnapshot()`, so it is now an
+opt-in prop that only that tab sets.
+
+**The legacy viewer deletion is not done, and should not be.** The plan's own
+precondition is finishing the R3F parity checklist. `CFDOverlay3D` exports eight
+render layers — HeatmapSlice, VelocityArrows, AirflowParticles,
+ContourSlicePlane, Streamlines, TemperatureFog, TileAirflowOverlay,
+AlertZoneMarkers — against three on the R3F side. Deleting the legacy stack today
+removes six capabilities the viewer's own tabs render. That is a feature
+deletion dressed as a refactor; reaching parity means writing six new R3F layers
+whose output cannot be checked from here.
+
+#### Wave 10 — accessibility and gates
+
+| Acceptance | Target | Result |
+|---|---|---|
+| `jsx-a11y` errors | 0 | **0** ✅ |
+| CI gate | yes | **`.github/workflows/frontend-gates.yml`** ✅ |
+
+Turning on the recommended jsx-a11y set surfaced **42 violations** that the
+Next.js default config was not checking for. 18 fixed:
+
+- **Project cards were mouse-only.** A `<div onClick>` calling `router.push`:
+  no focus, no Enter key, nothing in the tab order, and no way to open a project
+  in a new tab. Now a `Link`.
+- `ConfigPanel` (10) and `FailurePanel` (3) migrated onto `Field`. Their labels
+  had `aria-label` duplicating the visible text, so screen readers worked but
+  clicking a label focused nothing. FailurePanel's "select failed units" was a
+  `<label>` over a *group* — now `fieldset`/`legend`, which is the pair that
+  actually names one.
+- `CardTitle` took children through a prop spread, so an empty `<h3>` could ship
+  unnoticed; children is explicit now.
+- Redundant `role="list"`/`role="listitem"` on `<ol>`/`<li>` removed.
+
+**24 remain, all `label-has-associated-control`** — a hand-rolled control beside
+a label with no `htmlFor`. Every other a11y rule is now an **error**, so new
+breakage in those fails the build. This one is a warning because it is a
+migration onto `Field`, not a config question: making it an error today would
+mean per-file disables, which hides the same debt somewhere harder to count.
+`ConfigPanel` and `FailurePanel` are the worked examples.
+
+The CI workflow runs `npm run check` (types + lint + tests), `next build`, and a
+bundle budget set above today's figure so it catches regressions rather than
+failing on the debt the overhaul is still working through.
+
+**Not verifiable from here:** a real keyboard walkthrough, screen-reader output,
+and whether demand rendering actually leaves the canvas idle. All need a browser.
