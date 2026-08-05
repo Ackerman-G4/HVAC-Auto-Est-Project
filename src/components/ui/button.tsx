@@ -8,9 +8,21 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   size?: 'sm' | 'md' | 'lg' | 'icon';
   isLoading?: boolean;
   ref?: React.Ref<HTMLButtonElement>;
+  /**
+   * Render the single child element with the button's styling instead of
+   * emitting a `<button>`.
+   *
+   * For navigation: `<Button asChild><Link href="…">…</Link></Button>`. Without
+   * it, making a link look like a button means either nesting an `<a>` inside a
+   * `<button>` (invalid, and it breaks keyboard activation) or hand-copying the
+   * class string, which is what call sites had started doing.
+   *
+   * `isLoading` is ignored here — the spinner and `disabled` are button-only.
+   */
+  asChild?: boolean;
 }
 
-export function Button({ className, variant = 'primary', size = 'md', isLoading, children, disabled, ref, ...props }: ButtonProps) {
+export function Button({ className, variant = 'primary', size = 'md', isLoading, children, disabled, ref, asChild, ...props }: ButtonProps) {
   const baseStyles = 'inline-flex items-center justify-center gap-2 rounded-md border font-medium text-sm transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/55 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98]';
 
   // Variants change colour and shadow on hover. They no longer rise: buttons in
@@ -36,10 +48,22 @@ export function Button({ className, variant = 'primary', size = 'md', isLoading,
     icon: 'h-10 w-10 p-0',
   };
 
+  const classes = cn(baseStyles, variants[variant], sizes[size], className);
+
+  if (asChild) {
+    if (!React.isValidElement(children)) {
+      throw new Error('Button: asChild expects exactly one React element child.');
+    }
+    const child = children as React.ReactElement<{ className?: string }>;
+    return React.cloneElement(child, {
+      className: cn(classes, child.props.className),
+    });
+  }
+
   return (
     <button
       ref={ref}
-      className={cn(baseStyles, variants[variant], sizes[size], className)}
+      className={classes}
       disabled={disabled || isLoading}
       {...props}
     >

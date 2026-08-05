@@ -29,6 +29,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-wrapper';
 import { StatCard } from '@/components/ui/stat-card';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Button } from '@/components/ui/button';
 import { useLoadWorkspaceStore } from '@/stores/load-workspace-store';
 import { useEquipmentWorkspaceStore } from '@/stores/equipment-workspace-store';
 import { useProjectStore } from '@/stores/project-store';
@@ -223,15 +224,9 @@ export default function DashboardPage() {
               title="No projects yet"
               description="Start one to track load calculations, equipment and BOQ."
               action={
-                /* Button has no asChild yet (Wave 4), so this is a styled Link
-                   rather than a Button wrapping one — nesting an <a> in a
-                   <button> is invalid and breaks keyboard activation. */
-                <Link
-                  href="/projects/new"
-                  className="inline-flex h-9 items-center rounded-sm bg-accent px-3 text-sm font-medium text-accent-foreground transition-colors hover:bg-accent-dark"
-                >
-                  Create your first project
-                </Link>
+                <Button asChild size="sm" variant="accent">
+                  <Link href="/projects/new">Create your first project</Link>
+                </Button>
               }
               className="h-48"
             />
