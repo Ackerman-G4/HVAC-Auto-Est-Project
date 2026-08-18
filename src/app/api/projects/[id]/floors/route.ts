@@ -6,6 +6,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { parseJsonBody } from '@/lib/validation/http';
+import { createFloorSchema } from '@/lib/validation/projects';
 import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import {
   createFloorRecord,
@@ -78,19 +80,23 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return jsonGuard;
     }
 
-    const body = await request.json();
+    const parsed = await parseJsonBody(request, createFloorSchema);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
 
     const project = await getProjectRecord(projectId);
     if (!project) {
       return resourceNotFound('Project', 'The project does not exist.', 'PROJECT_NOT_FOUND');
     }
 
+    // Defaults come from createFloorSchema. `name` is the one field left to the
+    // handler, because its default is derived from another field's value.
     const floor = await createFloorRecord(projectId, {
-      floorNumber: body.floorNumber ?? 1,
-      name: body.name || `Floor ${body.floorNumber ?? 1}`,
-      ceilingHeight: body.ceilingHeight ?? 3.0,
-      scale: body.scale ?? 50,
-      floorPlanImage: body.floorPlanImage ?? null,
+      floorNumber: body.floorNumber,
+      name: body.name ?? `Floor ${body.floorNumber}`,
+      ceilingHeight: body.ceilingHeight,
+      scale: body.scale,
+      floorPlanImage: body.floorPlanImage,
     });
 
     return NextResponse.json({ floor }, { status: 201 });
