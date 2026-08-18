@@ -20,12 +20,15 @@
 
 ## Test Accounts (Local Mode)
 
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | `admin@hvac-auto.dev` | `Admin@1234!` |
-| Engineer | `engineer@hvac-auto.dev` | `Engineer@1234!` |
+| Role | Email |
+|------|-------|
+| Admin | `admin@hvac-auto.dev` |
+| Engineer | `engineer@hvac-auto.dev` |
 
-> These credentials live in `.local-users.json` (gitignored). Do not use in production.
+> Passwords are not published here. This file previously printed a working pair
+> for each account, in a public repository — see `docs/test-credentials.md` for
+> the seeding procedure and the password policy. The accounts themselves live in
+> the gitignored `.local-users.json` and mean nothing in production.
 
 ---
 
@@ -38,7 +41,7 @@ Run `npm run dev:stack` then open `http://localhost:3000`.
 | # | Step | Expected |
 |---|------|----------|
 | 1 | Navigate to `/auth/login` | Login form renders, no crash |
-| 2 | Enter `admin@hvac-auto.dev` / `Admin@1234!` | Fields accept input |
+| 2 | Enter `admin@hvac-auto.dev` and its password | Fields accept input |
 | 3 | Click **Sign In** | Redirect to `/` or `?next=` target |
 | 4 | Check browser cookies | `hvac_auth_token` cookie set, `httpOnly` |
 | 5 | Navigate to `/settings` | Settings page loads (admin sees edit controls) |
@@ -49,7 +52,7 @@ Run `npm run dev:stack` then open `http://localhost:3000`.
 | # | Step | Expected |
 |---|------|----------|
 | 1 | Sign out (top-right menu) | Redirected to `/auth/login` |
-| 2 | Enter `engineer@hvac-auto.dev` / `Engineer@1234!` | — |
+| 2 | Enter `engineer@hvac-auto.dev` and its password | — |
 | 3 | Click **Sign In** | Redirect to `/` |
 | 4 | Navigate to `/settings` | Read-only view — no mutation buttons |
 | 5 | Attempt `PUT /api/settings` via DevTools | `403 Forbidden` |
@@ -82,7 +85,7 @@ npm run validate:rbac
 
 # Full RBAC with admin allow-path checks
 $env:RBAC_ADMIN_EMAIL="admin@hvac-auto.dev"
-$env:RBAC_ADMIN_PASSWORD="Admin@1234!"
+$env:RBAC_ADMIN_PASSWORD="<the admin password you seeded>"
 npm run validate:rbac:positive
 ```
 
@@ -163,7 +166,7 @@ After successful login as admin, exercise each major feature:
 npm run dev:stack
 
 # Reset test accounts manually (regenerate hashes)
-node -e "const b=require('bcryptjs'); b.hash('Admin@1234!',10).then(h=>console.log(h))"
+node -e "const b=require('bcryptjs'); b.hash(process.env.NEW_PASSWORD,10).then(h=>console.log(h))"  # NEW_PASSWORD=<your choice>
 
 # Set role for an existing local user (admin CLI helper)
 npm run auth:set-role -- --email admin@hvac-auto.dev --role admin
