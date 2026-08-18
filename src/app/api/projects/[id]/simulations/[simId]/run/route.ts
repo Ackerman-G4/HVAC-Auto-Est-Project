@@ -6,6 +6,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { parseJsonBody } from '@/lib/validation/http';
+import { startRunSchema } from '@/lib/validation/simulation-cases';
 import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import { getProjectRecord } from '@/lib/firebase/projects-store';
 import {
@@ -144,7 +146,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return errorResponse(400, 'Not meshed', 'Generate a mesh before running.', 'NOT_MESHED');
     }
 
-    const body = await request.json().catch(() => ({}));
+    const parsed = await parseJsonBody(request, startRunSchema);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
     const source = body.source || simCase.runSource || 'internal';
 
     // Create the run job

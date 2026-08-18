@@ -7,6 +7,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { parseJsonBody } from '@/lib/validation/http';
+import { updateSimulationCaseSchema } from '@/lib/validation/simulation-cases';
 import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import { getProjectRecord } from '@/lib/firebase/projects-store';
 import {
@@ -112,7 +114,9 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       return errorResponse(409, 'Case is active', 'Cannot update a case that is running or queued.', 'CASE_ACTIVE');
     }
 
-    const body = await request.json();
+    const parsed = await parseJsonBody(request, updateSimulationCaseSchema);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
 
     const updates: Parameters<typeof updateSimulationCase>[2] = {};
     if (body.name !== undefined) updates.name = body.name;
