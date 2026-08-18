@@ -113,7 +113,14 @@ describe('update', () => {
     expect(parsed.userUnitPriceOverride).toBeNull();
   });
 
-  it('rejects a zero quantity on update too', () => {
-    expect(updateEquipmentSelectionSchema.safeParse({ quantity: 0 }).success).toBe(false);
+  it('rejects a zero quantity override, matching create', () => {
+    expect(updateEquipmentSelectionSchema.safeParse({ userQuantityOverride: 0 }).success).toBe(false);
+  });
+
+  it('accepts useSuggested, which reverts both overrides', () => {
+    // Distinct from clearing one override with null, and from omitting the
+    // field to leave the stored value alone. Collapsing the three would make
+    // reverting to the engine figure impossible to express.
+    expect(updateEquipmentSelectionSchema.parse({ useSuggested: true }).useSuggested).toBe(true);
   });
 });

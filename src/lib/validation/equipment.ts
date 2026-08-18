@@ -79,9 +79,22 @@ export function isAutoSizeRequest(
   return body.autoSize === true;
 }
 
+/**
+ * Dual-control update. Only overrides are mutable here — the suggested values
+ * come from the engine and the catalogue, not from the client.
+ *
+ * The three-way distinction is load-bearing and must not be collapsed:
+ *   `useSuggested: true` — discard both overrides and revert to the engine's figures
+ *   `<field>: null`      — clear that one override
+ *   field absent         — leave the stored override untouched
+ *
+ * There is deliberately no `quantity` field. The handler never reads one; the
+ * quantity it stores is derived from the override or the suggestion. Declaring
+ * it would document a contract the endpoint does not honour.
+ */
 export const updateEquipmentSelectionSchema = z
   .object({
-    quantity: quantitySchema.optional(),
+    useSuggested: z.boolean().optional(),
     userQuantityOverride: quantitySchema.nullable().optional(),
     userUnitPriceOverride: z.number().finite().nonnegative().max(1_000_000_000).nullable().optional(),
     overrideReason: z.string().max(2000).optional(),

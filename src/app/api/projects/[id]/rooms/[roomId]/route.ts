@@ -6,6 +6,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { parseJsonBody } from '@/lib/validation/http';
+import { updateRoomSchema } from '@/lib/validation/rooms';
 import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import {
   deleteRoomRecord,
@@ -103,15 +105,17 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       return jsonGuard;
     }
 
-    const body = await request.json();
+    const parsed = await parseJsonBody(request, updateRoomSchema);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
 
     const existing = await getRoomRecord(roomId);
     if (!existing || existing.projectId !== projectId) {
       return resourceNotFound('Room', 'The room does not exist in this project.', 'ROOM_NOT_FOUND');
     }
 
-    const fallbackArea = typeof body.area === 'number' ? body.area : existing.area;
-    const fallbackPerimeter = typeof body.perimeter === 'number' ? body.perimeter : existing.perimeter;
+    const fallbackArea = body.area ?? existing.area;
+    const fallbackPerimeter = body.perimeter ?? existing.perimeter;
     const metrics = body.polygon !== undefined
       ? derivePolygonMetrics(body.polygon, fallbackArea, fallbackPerimeter)
       : {

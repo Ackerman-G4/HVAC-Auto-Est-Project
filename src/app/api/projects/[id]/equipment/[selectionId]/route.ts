@@ -6,6 +6,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { parseJsonBody } from '@/lib/validation/http';
+import { updateEquipmentSelectionSchema } from '@/lib/validation/equipment';
 import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import {
   deleteSelectedEquipmentRecord,
@@ -45,7 +47,9 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       return jsonGuard;
     }
 
-    const body = await request.json();
+    const parsed = await parseJsonBody(request, updateEquipmentSelectionSchema);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
 
     const existing = await getSelectedEquipmentRecord(selectionId);
     if (!existing || existing.projectId !== projectId) {

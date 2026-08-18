@@ -142,7 +142,7 @@ Mechanism: TypeScript types are erased at runtime. `Response.json()` is declared
 Create `src/lib/validation/http.ts` exporting a single generic helper that accepts a Zod schema and a `Request`, parses the body, and returns a discriminated union of success with the inferred type or failure with a typed validation error. The failure branch must map to HTTP 400 with a machine readable error code and a field level detail array. Never throw across the boundary.
 Gate: `npx tsc --noEmit` returns 0 errors. New unit test covers valid body, malformed JSON, missing required field and wrong scalar type.
 
-**☐ TASK 1.2 through 1.5 — Apply schemas by domain slice**
+**◐ TASK 1.2 through 1.5 — Apply schemas by domain slice**
 Work one slice at a time. Do not attempt all 36 handlers in one change.
 
 Slice A, projects and floors, 5 handlers: `projects/route.ts`, `projects/[id]/route.ts`, `projects/[id]/floors/route.ts`, `projects/[id]/floors/[floorId]/route.ts`, `projects/[id]/calculate/route.ts`.
