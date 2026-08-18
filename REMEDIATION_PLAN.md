@@ -138,7 +138,7 @@ Gate: both composite scripts execute types, lint and tests.
 
 Mechanism: TypeScript types are erased at runtime. `Response.json()` is declared as returning `any` in the standard library, so the compiler cannot warn when unvalidated data enters the domain. A parse step at the boundary is the only mechanism that reintroduces the guarantee. Zod is chosen because it is already a dependency and because `z.infer` derives the static type from the runtime schema, keeping one source of truth.
 
-**☐ TASK 1.1 — Define the shared boundary contract**
+**☑ TASK 1.1 — Define the shared boundary contract**
 Create `src/lib/validation/http.ts` exporting a single generic helper that accepts a Zod schema and a `Request`, parses the body, and returns a discriminated union of success with the inferred type or failure with a typed validation error. The failure branch must map to HTTP 400 with a machine readable error code and a field level detail array. Never throw across the boundary.
 Gate: `npx tsc --noEmit` returns 0 errors. New unit test covers valid body, malformed JSON, missing required field and wrong scalar type.
 
