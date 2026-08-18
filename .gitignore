@@ -70,3 +70,9 @@ __pycache__/
 /.logs/docx-parity-*/
 /HVAC_Accuracy_Improvement_Plan.docx
 
+
+# Build and run artefacts. These were tracked (166 files under .logs) until
+# TASK 0.3; they are regenerated on every run and carry no source of truth.
+.logs/
+firestore-debug.log
+syntax_check_result.txt

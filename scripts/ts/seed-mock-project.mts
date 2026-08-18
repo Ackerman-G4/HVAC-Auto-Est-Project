@@ -56,9 +56,28 @@ interface SeededProjectSummary {
 // Credentials are overridable so the seeded projects can be owned by any
 // existing account (e.g. SEED_USER_EMAIL=admin@hvac-auto.dev). If the account
 // already exists, registration fails and the script falls back to login.
+//
+// The password has no committed default on purpose. A default that ships in the
+// repository is a published credential the moment anyone runs the script
+// unmodified, and it was previously printed in docs/test-credentials.md too.
+// Failing loudly is better than seeding an account whose password is public.
+const seedPassword = process.env.SEED_USER_PASSWORD;
+if (!seedPassword) {
+  console.error(
+    'SEED_USER_PASSWORD is not set.\n' +
+      '\n' +
+      'Set it to a value you choose, then re-run:\n' +
+      '  SEED_USER_PASSWORD=<your-password> npm run seed:mock\n' +
+      '\n' +
+      'It must satisfy the registration policy: at least 12 characters, with\n' +
+      'mixed case, a digit and a symbol. See docs/test-credentials.md.',
+  );
+  process.exit(1);
+}
+
 const TEST_USER = {
   email: process.env.SEED_USER_EMAIL || 'test@hvac-auto.dev',
-  password: process.env.SEED_USER_PASSWORD || 'SeedMockPass2026!',
+  password: seedPassword,
   displayName: process.env.SEED_USER_NAME || 'Test Engineer',
   role: 'admin' as const,
 };
@@ -1115,7 +1134,9 @@ async function main() {
       `    - ${project.name} | ${project.id} | floors=${project.floorCount}, rooms=${project.roomCount}`,
     );
   }
-  console.log(`  Test login : ${TEST_USER.email} / ${TEST_USER.password}`);
+  // Echo the account but not the password — this output lands in CI logs and in
+  // .logs/, and a password printed there is a password published.
+  console.log(`  Test login : ${TEST_USER.email} (password: the SEED_USER_PASSWORD you supplied)`);
   console.log(`  Open the app and log in to view the project.`);
 }
 
