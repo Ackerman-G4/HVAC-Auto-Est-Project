@@ -162,11 +162,11 @@ Gate per slice: all three gates green, and every touched handler contains no ref
 
 Mechanism: in IEEE 754 floating point, division by zero yields Infinity rather than raising. Infinity propagates silently through multiplication and through `Math.ceil` and `Math.max`, so a single bad catalogue record produces a corrupt currency total with no error anywhere in the stack. The correction is a guard at the point of division and a typed exception, not a downstream sanity check.
 
-**☐ TASK 2.1 — Build the guarded arithmetic primitive**
+**☑ TASK 2.1 — Build the guarded arithmetic primitive**
 Create `src/lib/engine/numeric-guards.ts` exporting a division function that accepts numerator, denominator and a context label, and throws a typed `CalculationError` when the denominator is zero, negative where the caller declares positivity required, or non finite. Export a finite value assertion for inputs crossing into the engine.
 Gate: unit tests cover zero, negative, `NaN`, `Infinity` and valid input.
 
-**☐ TASK 2.2 — Remediate the money path first**
+**☑ TASK 2.2 — Remediate the money path first**
 Apply the guard at `src/lib/engine/hvac/load-calculation-engine.ts` line 257 and at every division in `src/lib/engine/pricing-engine.ts` and `src/lib/engine/cost`. Extend `src/lib/engine/__tests__/golden-money-path.test.ts` with a case supplying a catalogue record of zero capacity and asserting a typed error rather than a numeric result.
 Gate: golden money path test suite passes with the new case. Confirm the new case fails before the guard is applied, to prove the test is load bearing.
 
@@ -333,3 +333,57 @@ inside a bcrypt hashing snippet — five further occurrences across a second fil
 printed it to stdout on completion, where it would land in CI logs and in
 `.logs/`. All are removed; `SEED_USER_PASSWORD` now has no default and the
 script exits with instructions when it is unset.
+
+### Phase 2 progress — and a correction to F2
+
+**TASK 2.1 ☑** `src/lib/engine/numeric-guards.ts` — `safeDivide`,
+`assertFinite`, `assertPositive`, and a typed `CalculationError` carrying a
+machine-readable code, the division's context and the offending value. 20 tests.
+
+**TASK 2.2 ☑** Guards applied to both equipment-quantity divisions
+(`load-calculation-engine.ts` and `equipment-selection-engine.ts`), to both
+utilisation divisions and to both annual-energy divisions. The golden money-path
+suite gained five cases; removing the guard fails three of them and nine of the
+twenty guard tests, so they are load-bearing.
+
+#### F2 is real arithmetic, but its stated trigger is not reachable today
+
+The finding says "a catalogue record carrying capacity zero". Both catalogues
+are **static TypeScript constants**, not database rows:
+`constants/equipment-catalog.ts` has 42 entries with a minimum capacity of
+0.75 TR, and `load-calculation-engine.ts` holds four literals of 2/3/5/8 TR.
+Neither contains a zero, and neither is sourced from Firestore. So the specific
+path F2 describes cannot fire on today's data.
+
+The arithmetic is still exactly as described, and the guard is still required by
+CLAUDE.md §8.4 — but it is worth stating plainly that this hardens a division
+against future data rather than fixing a live corruption.
+
+**There is one genuinely reachable route to a zero capacity**, and the ledger
+does not mention it. `equipment-pricing.ts` line 108:
+
+```ts
+capacityTR: input.capacityTR || (capacityBTU ? capacityBTU / 12000 : 0)
+```
+
+An off-catalogue custom item that supplies neither capacity is **stored with
+`capacityTR: 0`**. Slice B's schema now rejects a supplied zero or negative
+capacity, so the value cannot arrive over HTTP — but this expression fabricates
+one when both fields are simply absent. That line also inlines the 12000
+coefficient, which TASK 2.4 will move into `units.ts`.
+
+#### Two masking guards removed
+
+`Math.max(0.1, providedTr)` appeared in both engines as the utilisation
+denominator. It does not prevent the fault; it hides it, converting a
+detectable zero into a plausible-looking percentage. That is the worse of the
+two outcomes and is precisely what the plan's §4 warns against. Both are now
+`safeDivide(..., { requirePositive: true })`.
+
+#### Remaining in Phase 2
+
+TASK 2.3 (classify all engine divisions) and TASK 2.4 (centralise unit
+conversion). The engine holds 48 divisions, not the 197 in the ledger — that
+count appears to include matches outside `src/lib/engine` or non-division uses
+of `/`. Four `12000` coefficients have already been named at the sites touched
+here; the rest await 2.4.

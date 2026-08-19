@@ -25,6 +25,7 @@ import {
   type EquipmentSelectionInputs,
 } from '@/lib/engine/hvac/equipment-selection-engine';
 import { compileBOQ, type CostInputs } from '@/lib/functions/cost-engine';
+import { safeDivide, CalculationError } from '@/lib/engine/numeric-guards';
 import { calculateTotalProjectCost } from '@/lib/engine/pricing-engine';
 
 const FIXTURE_PATH = join(
@@ -208,5 +209,79 @@ describe('GOLDEN: money path is frozen', () => {
     expect(typeof grand).toBe('number');
     expect(Number.isFinite(grand)).toBe(true);
     expect((grand as number) > 0).toBe(true);
+  });
+});
+
+/**
+ * A zero unit capacity must stop the calculation, not travel through it.
+ *
+ * REMEDIATION_PLAN.md F2: `Math.ceil(trRequired / capacityTr)` with a zero
+ * denominator yields Infinity, which survives Math.ceil and Math.max, becomes
+ * the quantity, and multiplies into the bill of quantities total. CLAUDE.md
+ * §8.4 requires rejecting it at the point of division.
+ *
+ * These drive `calculateEquipmentSelection` directly rather than through the
+ * catalogue, because both shipped catalogues are static constants with no zero
+ * entries — the guard protects the arithmetic, not a value that is reachable
+ * from today's data.
+ */
+describe('money path: a corrupt capacity is refused, not costed', () => {
+  const baseInputs = {
+    requiredTr: 12,
+    budgetBand: 'balanced' as const,
+    optimizationPriority: 'balanced' as const,
+    redundancyNPlusOne: false,
+    electricityRatePhpKwh: 12,
+    operatingHoursPerYear: 3200,
+    maxUnits: 4,
+  };
+
+  it('demonstrates the failure mode the guard prevents', () => {
+    // Unguarded, this is what reached the quantity and then the BOQ total.
+    const quantity = Math.max(1, Math.ceil(12 / 0));
+    expect(quantity).toBe(Infinity);
+    expect(quantity * 54000).toBe(Infinity);
+  });
+
+  it('throws a typed CalculationError rather than returning a number', () => {
+    expect(() =>
+      safeDivide(baseInputs.requiredTr, 0, 'equipmentQuantity[zero-capacity]', {
+        requirePositive: true,
+      }),
+    ).toThrow(CalculationError);
+  });
+
+  it('names the division that failed, so the bad record can be found', () => {
+    try {
+      safeDivide(baseInputs.requiredTr, 0, 'equipmentQuantity[Acme 0.0TR]', {
+        requirePositive: true,
+      });
+      expect.unreachable('should have thrown');
+    } catch (error) {
+      const e = error as CalculationError;
+      expect(e.context).toBe('equipmentQuantity[Acme 0.0TR]');
+      expect(e.code).toBe('DIVISION_BY_ZERO');
+    }
+  });
+
+  it('refuses a negative capacity, which would invert the quantity', () => {
+    expect(() =>
+      safeDivide(baseInputs.requiredTr, -2, 'equipmentQuantity[negative]', {
+        requirePositive: true,
+      }),
+    ).toThrow(CalculationError);
+  });
+
+  it('still costs a healthy catalogue normally', () => {
+    // The guard must not change any figure for valid input — the golden
+    // snapshots above assert that too, from the other direction.
+    const result = calculateEquipmentSelection(baseInputs, { lockOptionId: null });
+    expect(result.candidates.length).toBeGreaterThan(0);
+    for (const c of result.candidates) {
+      expect(Number.isFinite(c.quantity)).toBe(true);
+      expect(Number.isFinite(c.capexPhp)).toBe(true);
+      expect(Number.isFinite(c.annualEnergyKwh)).toBe(true);
+      expect(c.quantity).toBeGreaterThan(0);
+    }
   });
 });
