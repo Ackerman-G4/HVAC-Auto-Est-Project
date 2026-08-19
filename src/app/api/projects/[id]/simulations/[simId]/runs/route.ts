@@ -11,6 +11,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { parseJsonBody } from '@/lib/validation/http';
+import { startEngineeringRunSchema } from '@/lib/validation/simulation-cases';
 import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import { getProjectRecord } from '@/lib/firebase/projects-store';
 import {
@@ -137,7 +139,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return errorResponse(409, 'Already running', 'Case already has an active run.', 'ALREADY_RUNNING');
     }
 
-    const body = await request.json().catch(() => ({} as Record<string, unknown>));
+    const parsed = await parseJsonBody(request, startEngineeringRunSchema);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
     const backend = body?.solverBackend;
     if (backend === 'preview') {
       return errorResponse(

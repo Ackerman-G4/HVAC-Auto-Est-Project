@@ -6,6 +6,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { parseJsonBody } from '@/lib/validation/http';
+import { createRoomSchema } from '@/lib/validation/rooms';
 import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import {
   createFloorRecord,
@@ -43,6 +45,12 @@ const ROOM_GET_RATE_LIMIT = {
   windowMs: 60_000,
   maxRequests: 40,
 } as const;
+
+/**
+ * Applied only when a floor is created implicitly and the request named no
+ * ceiling height. Rooms take the floor's height unless they override it.
+ */
+const DEFAULT_CEILING_HEIGHT_M = 2.7;
 
 function derivePolygonMetrics(
   rawPolygon: unknown,
@@ -140,7 +148,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return jsonGuard;
     }
 
-    const body = await request.json();
+    const parsed = await parseJsonBody(request, createRoomSchema);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
 
     const project = await getProjectRecord(projectId);
     if (!project) {
@@ -148,41 +158,47 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     // Find or create floor
-    let floor = await findFloorByProjectAndNumber(projectId, body.floorNumber || 1);
+    let floor = await findFloorByProjectAndNumber(projectId, body.floorNumber);
     if (!floor) {
       floor = await createFloorRecord(projectId, {
-        floorNumber: body.floorNumber || 1,
-        name: body.floorName || `Floor ${body.floorNumber || 1}`,
-        ceilingHeight: body.ceilingHeight || 2.7,
+        floorNumber: body.floorNumber,
+        name: body.floorName ?? `Floor ${body.floorNumber}`,
+        ceilingHeight: body.ceilingHeight ?? DEFAULT_CEILING_HEIGHT_M,
       });
     }
 
-    const fallbackArea = typeof body.area === 'number' ? body.area : 0;
-    const fallbackPerimeter = typeof body.perimeter === 'number'
-      ? body.perimeter
-      : (fallbackArea > 0 ? Math.sqrt(fallbackArea) * 4 : 0);
+    // The schema has already established these are finite non-negative numbers
+    // when present, so only presence is in question here.
+    const fallbackArea = body.area ?? 0;
+    const fallbackPerimeter =
+      body.perimeter ?? (fallbackArea > 0 ? Math.sqrt(fallbackArea) * 4 : 0);
     const metrics = derivePolygonMetrics(body.polygon, fallbackArea, fallbackPerimeter);
     if (metrics.validationError) {
       return errorResponse(400, 'Invalid room polygon', metrics.validationError, 'INVALID_ROOM_POLYGON');
     }
 
     // Create room
+    // Every default below now comes from createRoomSchema. The previous
+    // `body.<field> || <fallback>` form fired on any falsy value, so a
+    // deliberately-supplied 0 was overwritten — lightingDensity: 0 became 15
+    // W/m² and equipmentLoad: 0 became 10 W/m², inflating the cooling load and
+    // everything costed from it.
     const room = await createRoomRecord(projectId, floor.id, {
-      name: body.name || 'New Room',
-      spaceType: body.spaceType || 'office',
+      name: body.name,
+      spaceType: body.spaceType,
       area: metrics.area,
       perimeter: metrics.perimeter,
       polygon: body.polygon !== undefined ? JSON.stringify(body.polygon) : '[]',
-      ceilingHeight: body.ceilingHeight || floor.ceilingHeight,
-      wallConstruction: body.wallConstruction || 'concrete_block_200mm',
-      windowType: body.windowType || 'single_clear_6mm',
-      windowArea: body.windowArea || 0,
-      windowOrientation: body.windowOrientation || 'N',
-      occupantCount: body.occupantCount || 0,
-      lightingDensity: body.lightingDensity || 15,
-      equipmentLoad: body.equipmentLoad || 10,
-      hasRoofExposure: body.hasRoofExposure || false,
-      notes: body.notes || '',
+      ceilingHeight: body.ceilingHeight ?? floor.ceilingHeight,
+      wallConstruction: body.wallConstruction,
+      windowType: body.windowType,
+      windowArea: body.windowArea,
+      windowOrientation: body.windowOrientation,
+      occupantCount: body.occupantCount,
+      lightingDensity: body.lightingDensity,
+      equipmentLoad: body.equipmentLoad,
+      hasRoofExposure: body.hasRoofExposure,
+      notes: body.notes,
     });
 
     // Auto‑calculate cooling load when room has an area
@@ -204,7 +220,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         finalBtuPerHour: btuSelection.final,
         btuPerHour: btuSelection.final,
         isOverridden: trSelection.isOverridden || btuSelection.isOverridden,
-        overrideReason: body.overrideReason || '',
+        overrideReason: body.overrideReason,
         overrideUpdatedAt:
           trSelection.isOverridden || btuSelection.isOverridden ? new Date().toISOString() : null,
         timestamp: new Date().toISOString(),

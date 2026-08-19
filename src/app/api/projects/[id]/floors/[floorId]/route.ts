@@ -6,6 +6,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { parseJsonBody } from '@/lib/validation/http';
+import { updateFloorSchema } from '@/lib/validation/projects';
 import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import {
   deleteFloorRecord,
@@ -43,7 +45,9 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       return jsonGuard;
     }
 
-    const body = await request.json();
+    const parsed = await parseJsonBody(request, updateFloorSchema);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
 
     const existing = await getFloorRecord(floorId);
     if (!existing || existing.projectId !== projectId) {
