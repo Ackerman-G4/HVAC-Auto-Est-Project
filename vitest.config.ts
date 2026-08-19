@@ -14,6 +14,10 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/*.{test,spec}.{ts,tsx}', 'src/**/*.smoke.test.{ts,tsx}'],
+    // The Firestore rules suite needs a running emulator, so it is excluded
+    // here to keep `npm run check` hermetic and offline. It runs via
+    // `npm run test:rules`, which starts the emulator around it.
+    exclude: ['**/node_modules/**', '**/dist/**', 'src/**/firestore-rules.test.ts'],
     globals: false,
   },
 });

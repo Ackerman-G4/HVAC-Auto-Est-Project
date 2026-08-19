@@ -206,15 +206,15 @@ Mechanism: a Firestore rule containing `get` charges a document read per evaluat
 Add `ownerId` to documents in the top level `floors`, `rooms`, `selectedEquipment` and `boqItems` collections. Write a backfill script under `scripts/ts`. Rewrite the four rule blocks to compare `resource.data.ownerId` directly and delete the `isProjectOwner` `get` call from those paths.
 Gate: rules unit tests confirm an owner reads and a non owner is denied. Read count for a fifty room list query drops from approximately 100 to 50, measured in the emulator.
 
-**☐ TASK 4.2 — Make ownership immutable**
+**☑ TASK 4.2 — Make ownership immutable**
 Add to every update rule the condition that the incoming owner identifier equals the existing owner identifier. Ownership transfer, if required as a product feature, becomes a privileged server operation, not a client write.
 Gate: rules test proves an owner cannot rewrite the owner field.
 
-**☐ TASK 4.3 — Make the audit log trustworthy**
+**☑ TASK 4.3 — Make the audit log trustworthy**
 Change `auditLogs` to deny client creation entirely, matching the pattern already used correctly for `loginEvents` and `priceAuditLogs`. Route all audit writes through the Admin SDK inside `src/lib/firebase/audit-log-store.ts`, stamping the caller identity and a server timestamp from the verified session rather than the request body.
 Gate: rules test proves a client create is denied. Existing audit functionality still passes its tests.
 
-**☐ TASK 4.4 — Add the explicit terminal deny**
+**☑ TASK 4.4 — Add the explicit terminal deny**
 Append a catch all match denying read and write. Firestore already denies by default, so this is documentation of intent rather than a behavioural change, and it makes the default visible to any reviewer.
 Gate: no existing rules test regresses.
 
@@ -387,3 +387,53 @@ conversion). The engine holds 48 divisions, not the 197 in the ledger — that
 count appears to include matches outside `src/lib/engine` or non-division uses
 of `/`. Four `12000` coefficients have already been named at the sites touched
 here; the rest await 2.4.
+
+### Phase 4 progress — F7 and F8 confirmed exploitable, then closed
+
+A rules test harness did not exist, and CLAUDE.md §7.3 forbids touching the
+rules without one. `@firebase/rules-unit-testing` (257 KB, dev-only) is now
+installed and `npm run test:rules` starts the emulator around
+`src/lib/firebase/__tests__/firestore-rules.test.ts`. The alternative — driving
+the emulator's REST surface directly, with no dependency — was rejected because
+it reimplements auth-context construction and the assertion helpers for no gain.
+
+The suite is **excluded from `npm run check`**, which must stay hermetic. A gate
+that needs a background service is a gate people learn to skip.
+
+**Both findings were verified against the live emulator before any fix**, and
+both reported *"Expected request to fail, but it succeeded"*:
+
+- **F7** — an owner could reassign `ownerId` on update, transferring the record
+  or orphaning it beyond their own reach.
+- **F8** — any authenticated caller could create an `auditLogs` entry with
+  arbitrary content, including one attributed to a different user.
+
+**F7 is broader than the ledger records.** The ledger names project update
+rules. The identical `allow update, delete: if ... resource.data.ownerId ==
+request.auth.uid` appears on **three** collections — `projects`, `simulations`
+and `diagnosticHistory` — all with the same hole. All three are fixed.
+
+**Why this was safe to change.** No client code in this application touches
+Firestore: there is not one `setDoc`/`updateDoc`/`addDoc` call, and
+`firebase/firestore` is never imported outside the rules test. Every read and
+write goes through the Admin SDK server-side, which bypasses rules entirely. So
+these rules are not what enforces access today — they are the backstop for
+anyone holding client credentials, and tightening them changes no application
+behaviour. That was verified by grep before the edit, not assumed.
+
+**TASK 4.4** added the terminal deny. Firestore already denies unmatched paths,
+so it changes nothing at runtime; it states the default where a reviewer adding
+a collection will see it.
+
+13 rules tests. Five failed before the fix and pass after; the other eight
+passed throughout, so the change did not loosen anything that already worked.
+
+One test error worth recording: an early version seeded `users/{uid}` with
+`role: 'admin'` and expected admin reads to succeed. `isAdmin()` reads
+`request.auth.token.role`, a custom claim, not a document. The test was wrong,
+not the rule — fixed in the test rather than by loosening the rule to match.
+
+**TASK 4.1 (denormalise ownerId) is not done.** It needs a schema change plus a
+backfill across four collections, and the read-count measurement the gate asks
+for. It is the one Phase 4 task that changes data rather than rules, and it
+deserves its own change.
