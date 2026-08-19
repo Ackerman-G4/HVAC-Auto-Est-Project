@@ -13,6 +13,11 @@
 import { EQUIPMENT_CATALOG } from '@/constants/equipment-catalog';
 import type { PriceOverrideRecord } from '@/lib/firebase/price-override-store';
 
+import { btuPerHourToTons, tonsToBtuPerHour, btuPerHourToKilowatts } from '@/lib/engine/units';
+
+/** Fallback efficiency for an off-catalogue item that did not state one. */
+const DEFAULT_CUSTOM_EER = 10;
+
 export type CatalogEntry = typeof EQUIPMENT_CATALOG[number];
 
 /** Find a catalog SKU by model (trimmed, case-insensitive). */
@@ -100,15 +105,32 @@ export function resolveManualSelection(
   }
 
   // Genuine off-catalog custom item — client values are the only source.
-  const capacityBTU = input.capacityBTU || 0;
+  //
+  // Capacity is derived from whichever of the two the caller supplied, in
+  // either direction. The previous expression only went BTU → TR, so a custom
+  // item given `capacityTR` alone was stored with `capacityBTU: 0`, and one
+  // given neither was stored with *both* at zero. A zero capacity then divides
+  // in the equipment quantity (F2) and reads as a real figure everywhere else.
+  //
+  // Conversions go through units.ts rather than inline coefficients
+  // (CLAUDE.md §5).
+  const suppliedTr = input.capacityTR && input.capacityTR > 0 ? input.capacityTR : null;
+  const suppliedBtu = input.capacityBTU && input.capacityBTU > 0 ? input.capacityBTU : null;
+
+  const capacityTR = suppliedTr ?? (suppliedBtu !== null ? btuPerHourToTons(suppliedBtu) : 0);
+  const capacityBTU = suppliedBtu ?? (suppliedTr !== null ? tonsToBtuPerHour(suppliedTr) : 0);
+
   return {
     manufacturer: input.brand || '',
     model: input.model || '',
     type: input.type || 'wall_split',
-    capacityTR: input.capacityTR || (capacityBTU ? capacityBTU / 12000 : 0),
+    capacityTR,
     capacityBTU,
-    capacityKW: capacityBTU * 0.000293,
-    eer: input.eer || 10,
+    capacityKW: btuPerHourToKilowatts(capacityBTU),
+    // EER is a denominator in the annual-energy calculation, so a zero or
+    // negative value cannot be carried forward. 10 is the documented fallback
+    // for an off-catalogue item whose efficiency was not stated.
+    eer: input.eer && input.eer > 0 ? input.eer : DEFAULT_CUSTOM_EER,
     refrigerant: input.refrigerant || 'R32',
     unitPricePHP: input.unitPrice || 0,
     overridden: false,
