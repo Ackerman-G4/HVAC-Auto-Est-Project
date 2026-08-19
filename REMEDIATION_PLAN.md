@@ -174,7 +174,7 @@ Gate: golden money path test suite passes with the new case. Confirm the new cas
 Enumerate all 197 division operations under `src/lib/engine`. Classify each as guarded already, denominator is a compile time constant and therefore safe, or requires a guard. Produce the classification table in `docs/audit/division-audit.md`, then apply guards to the third category.
 Gate: table complete, all three gates green.
 
-**☐ TASK 2.4 — Centralise unit conversion**
+**◐ TASK 2.4 — Centralise unit conversion**
 Create `src/lib/engine/units.ts` holding every conversion as a named function with the coefficient declared once and its source stated. Minimum set: tons of refrigeration to British thermal units per hour, square metres to square feet, metric temperature difference to imperial temperature difference, litres per second to cubic feet per minute, watts to British thermal units per hour. Replace every inline conversion coefficient in the engine with a call. Do not change the field names on `LoadCalculationInputs`, since encoding the unit in the identifier is already correct and renaming would create churn without benefit.
 Gate: no numeric conversion literal such as 12000, 3.412 or 2.119 appears anywhere in `src/lib/engine` outside `units.ts`. All gates green.
 
@@ -437,3 +437,56 @@ not the rule — fixed in the test rather than by loosening the rule to match.
 backfill across four collections, and the read-count measurement the gate asks
 for. It is the one Phase 4 task that changes data rather than rules, and it
 deserves its own change.
+
+### F6 is not currently incurring its cost
+
+TASK 4.1 (denormalise `ownerId`) is deferred, and the reason is the same shape
+as the F2 correction.
+
+F6 states that a list query of N documents incurs N extra billed reads because
+`isProjectOwner` performs a `get`. That is true of a query issued through the
+**client** SDK. This application issues none: `src/lib/firebase/firebase.ts`
+exports only `app`, `isFirebaseClientMissing` and `getFirebaseAnalytics` — there
+is no `getFirestore` anywhere on the client, and `firebase/firestore` is
+imported in exactly one file, the rules test added in Phase 4.
+
+Every read goes through the Admin SDK, which **bypasses rules entirely**. Rules
+are never evaluated, so the `get` never executes, so the second read is never
+billed. The doubling is real in the rules and unrealised in production.
+
+That makes TASK 4.1 a schema change plus a backfill across four collections,
+plus a permanent consistency obligation on every ownership change, in exchange
+for optimising a cost nobody is paying. It becomes worth doing the day a
+client-SDK read path is added — and it should be done *before* that path ships,
+not after. Recorded rather than executed.
+
+### TASK 2.4 — unit conversion centralised ◐
+
+`src/lib/engine/units.ts` holds every conversion as a named function with its
+coefficient declared once and its provenance stated. 18 tests, checked against
+independently known reference values rather than against the module's own
+constants — a test that reuses the coefficient it verifies proves only that
+multiplication works.
+
+Absolute and difference temperature conversions are deliberately separate
+functions. Applying the 1.8 factor to an absolute reading without the +32 offset
+is the classic silent error, and a test asserts the two differ by exactly 32.
+
+**A correction to my own claim.** The first version of that module said the
+inline `* 0.000293` it replaces "drifts by ~0.1%". It does not: the constant is
+low by **0.024%** — 10.5480 kW against 10.5506 kW on a 3 TR unit, a drift of
+0.0026 kW. The test asserting the larger figure failed, which is how it was
+caught. Both the comment and the test now state the measured value, and the
+justification is single-definition (CLAUDE.md §5), not accuracy.
+
+**The reachable zero-capacity bug is fixed.** `equipment-pricing.ts` derived
+custom-item capacity in one direction only, so an off-catalogue item given
+`capacityTR` alone was stored with `capacityBTU: 0`, and one given neither was
+stored with **both** at zero. Capacity is now derived in whichever direction the
+caller supplied, a supplied zero is treated as absent rather than as a capacity,
+and `eer` — a denominator in the annual-energy calculation — can no longer be
+zero or negative.
+
+Still outstanding in Phase 2: TASK 2.3, the classification table for the
+remaining engine divisions. `cooling-load.ts` and the formula-display strings in
+both HVAC engines still hold inline coefficients.
