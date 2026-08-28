@@ -122,7 +122,7 @@ export default function SimulationRunProgressCard({
   const visibleResiduals = residualFields.filter((item) => typeof item.value === 'number');
 
   return (
-    <div className={cn('rounded-xl border border-border/70 bg-card p-4 shadow-sm', className)}>
+    <div className={cn('rounded-md border border-border/70 bg-card p-4 shadow-sm', className)}>
       <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
         <Activity size={14} /> {title}
       </h3>

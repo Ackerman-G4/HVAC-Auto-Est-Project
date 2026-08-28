@@ -6,6 +6,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { parseJsonBody } from '@/lib/validation/http';
+import { createProjectSchema } from '@/lib/validation/projects';
 import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import {
   createProjectRecord,
@@ -76,8 +78,6 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  let body: Record<string, unknown>;
-
   try {
     const jsonGuard = requireJsonRequest(request);
     if (jsonGuard) {
@@ -97,22 +97,14 @@ export async function POST(request: NextRequest) {
       return auth.response;
     }
 
-    try {
-      body = (await request.json()) as Record<string, unknown>;
-    } catch {
-      return errorResponse(
-        400,
-        'Invalid request payload',
-        'The request body is not valid JSON.',
-        'INVALID_JSON',
-      );
-    }
+    // parseJsonBody covers both cases this block handled by hand: a malformed
+    // body (its own 400) and a missing or blank name (previously a separate
+    // MISSING_NAME check after a `toStringField(...).trim()`).
+    const parsed = await parseJsonBody(request, createProjectSchema);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
 
-    const projectName = toStringField(body.name).trim();
-
-    if (!projectName) {
-      return errorResponse(400, 'Project name is required', 'Enter a project name before creating the project.', 'MISSING_NAME');
-    }
+    const projectName = body.name;
 
     // Resolve design conditions from the selected Philippine city (ASHRAE
     // 0.4% cooling design data) unless the client supplies explicit values.

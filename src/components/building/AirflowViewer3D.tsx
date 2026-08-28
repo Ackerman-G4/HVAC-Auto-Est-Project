@@ -13,11 +13,12 @@
  */
 import React, { Suspense, useMemo, useRef, useCallback, useState, forwardRef, useImperativeHandle } from 'react';
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
-import { Line, OrbitControls, Text } from '@react-three/drei';
+import { Line, OrbitControls, Text, AdaptiveDpr, AdaptiveEvents } from '@react-three/drei';
 import * as THREE from 'three';
 import type { SimulationResult, ServerRack, HVACUnit, InspectedCellInfo, TileFlowViewConfig, TileAirflowData, ThermalAlert, Vec3 } from '@/types/simulation';
 import { HeatmapSlice, VelocityArrows, AirflowParticles, Streamlines, TemperatureFog, TileAirflowOverlay, AlertZoneMarkers, ContourSlicePlane } from './CFDOverlay3D';
 import { getDomainCenter, getDomainBBox, computeCameraFit } from '@/lib/simulation/scene-transform';
+import { useThemeColor } from '@/lib/ui/use-theme-color';
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -44,6 +45,15 @@ interface Props {
   alerts?: ThermalAlert[];
   /** Bumping this re-fits the camera to the domain (Reset view). */
   resetToken?: number;
+  /**
+   * Retain the GPU drawing buffer so `captureSnapshot()` can read the canvas.
+   *
+   * Off by default. `preserveDrawingBuffer` makes the driver keep a copy of
+   * every frame, which costs memory and bandwidth on every render, and it was
+   * on unconditionally. Only the TileFlow tab captures snapshots, so only it
+   * should pay for it.
+   */
+  enableSnapshotCapture?: boolean;
 }
 
 export interface AirflowViewerHandle {
@@ -80,7 +90,12 @@ function AutoFitCamera({
     camera.position.set(fit.position[0], fit.position[1], fit.position[2]);
     if (controls) {
       controls.target.set(fit.target[0], fit.target[1], fit.target[2]);
+      // react-hooks/immutability flags assigning to a hook-returned value, but
+      // OrbitControls only exposes these as mutable properties — there is no
+      // setter API to move the modification into.
+      // eslint-disable-next-line react-hooks/immutability
       controls.minDistance = fit.minDistance;
+      // eslint-disable-next-line react-hooks/immutability
       controls.maxDistance = fit.maxDistance;
       controls.update();
     } else {
@@ -661,10 +676,13 @@ function Scene(props: Props) {
 // ─── Main Component ─────────────────────────────────────────────────
 
 const AirflowViewer3D = forwardRef<AirflowViewerHandle, Props>(function AirflowViewer3D(props, ref) {
+  const { enableSnapshotCapture = false } = props;
   const { result, viewMode = 'temperature', selectedSliceZ = 1 } = props;
   const { metrics, config } = result;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [resetToken, setResetToken] = useState(0);
+  // Was a hardcoded '#0f172a', so the canvas stayed near-black in light mode.
+  const sceneBackground = useThemeColor('--canvas-bg', '#0f172a');
   const initialFit = computeCameraFit(getDomainBBox(config));
 
   useImperativeHandle(ref, () => ({
@@ -677,13 +695,23 @@ const AirflowViewer3D = forwardRef<AirflowViewerHandle, Props>(function AirflowV
   }), []);
 
   return (
-    <div className="relative w-full h-125 rounded-xl overflow-hidden border border-slate-700 bg-slate-900">
+    <div className="relative w-full h-125 rounded-md overflow-hidden border border-border bg-[color:var(--canvas-bg)]">
       <Canvas
         ref={canvasRef}
         camera={{ position: initialFit.position, fov: 50, near: 0.1, far: 600 }}
-        gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, preserveDrawingBuffer: true }}
-        style={{ background: '#0f172a' }}
+        gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, preserveDrawingBuffer: enableSnapshotCapture }}
+        style={{ background: sceneBackground }}
       >
+        {/*
+          This canvas keeps the default continuous loop on purpose: it and
+          CFDOverlay3D run seven useFrame loops for particles and streamlines,
+          which frameloop="demand" would freeze. Adaptive DPR/events are the
+          part that can be taken here — they drop resolution and pointer work
+          while the camera is moving instead of rendering full quality
+          throughout.
+        */}
+        <AdaptiveDpr pixelated />
+        <AdaptiveEvents />
         <Suspense fallback={null}>
           <Scene {...props} resetToken={resetToken} />
         </Suspense>
@@ -693,15 +721,15 @@ const AirflowViewer3D = forwardRef<AirflowViewerHandle, Props>(function AirflowV
       <button
         type="button"
         onClick={() => setResetToken((t) => t + 1)}
-        className="absolute top-4 right-4 rounded-lg bg-slate-800/80 px-2.5 py-1.5 text-xs font-medium text-white backdrop-blur-sm transition-colors hover:bg-slate-700/90"
+        className="absolute top-4 right-4 rounded-sm bg-slate-800/80 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-700/90"
         title="Reset camera view"
       >
         Reset view
       </button>
 
       {/* Legend overlay */}
-      <div className="absolute top-4 left-4 bg-slate-800/80 backdrop-blur-sm rounded-lg p-3 text-xs text-white pointer-events-none">
-        <div className="mb-1.5 text-[10px] uppercase tracking-[0.08em] text-slate-300">
+      <div className="absolute top-4 left-4 bg-slate-800/80 rounded-sm p-3 text-xs text-white pointer-events-none">
+        <div className="mb-1.5 text-[10px] font-display tracking-[0.08em] text-slate-300">
           {viewMode} mode · Slice {Math.round(selectedSliceZ)} · {config.mode ?? 'balanced'}
         </div>
         <div className="flex items-center gap-2 mb-1">
@@ -723,13 +751,13 @@ const AirflowViewer3D = forwardRef<AirflowViewerHandle, Props>(function AirflowV
       </div>
 
       {/* Status bar */}
-      <div className="absolute bottom-4 left-4 right-4 flex justify-between bg-slate-800/80 backdrop-blur-sm rounded-lg px-3 py-2 text-xs text-slate-300 pointer-events-none">
+      <div className="absolute bottom-4 left-4 right-4 flex justify-between bg-slate-800/80 rounded-sm px-3 py-2 text-xs text-slate-300 pointer-events-none">
         <span>Max: {metrics.maxTemperature.toFixed(1)}°C | Avg: {metrics.avgTemperature.toFixed(1)}°C | PUE: {metrics.pue.toFixed(2)}</span>
         <span>CFL dt: {result.effectiveTimeStep?.toFixed(4) ?? '—'}s | Iter: {result.iteration}</span>
       </div>
 
       {/* Controls hint */}
-      <div className="absolute bottom-4 right-4 bg-slate-800/80 backdrop-blur-sm rounded-lg px-3 py-2 text-xs text-slate-400 pointer-events-none">
+      <div className="absolute bottom-4 right-4 bg-slate-800/80 rounded-sm px-3 py-2 text-xs text-slate-400 pointer-events-none">
         Drag to orbit • Scroll to zoom • Right-drag to pan
       </div>
     </div>

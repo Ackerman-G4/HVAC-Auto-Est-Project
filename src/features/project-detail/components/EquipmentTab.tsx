@@ -51,24 +51,24 @@ export function EquipmentTab({
           }
         />
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border bg-card p-3 shadow-sm">
+        <div className="overflow-x-auto rounded-md border border-border bg-card p-3 shadow-sm">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
-                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Brand / Model</th>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Type</th>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">State</th>
-                <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Capacity</th>
-                <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Qty</th>
-                <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <th className="px-4 py-2.5 text-left text-xs font-semibold font-display text-muted-foreground">Brand / Model</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold font-display text-muted-foreground">Type</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold font-display text-muted-foreground">State</th>
+                <th className="px-4 py-2.5 text-right text-xs font-semibold font-display text-muted-foreground">Capacity</th>
+                <th className="px-4 py-2.5 text-right text-xs font-semibold font-display text-muted-foreground">Qty</th>
+                <th className="px-4 py-2.5 text-right text-xs font-semibold font-display text-muted-foreground">
                   <TermHint
                     term="EER"
                     definition="Energy Efficiency Ratio. Higher EER indicates better efficiency at rated operating conditions."
                   />
                 </th>
-                <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Unit Price</th>
-                <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total</th>
-                <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
+                <th className="px-4 py-2.5 text-right text-xs font-semibold font-display text-muted-foreground">Unit Price</th>
+                <th className="px-4 py-2.5 text-right text-xs font-semibold font-display text-muted-foreground">Total</th>
+                <th className="px-4 py-2.5 text-right text-xs font-semibold font-display text-muted-foreground">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -123,7 +123,7 @@ export function EquipmentTab({
                           value={draft.quantity}
                           onChange={(event) => handleEquipmentDraftChange(eq.id, 'quantity', event.target.value)}
                           placeholder={String(eq.suggestedQuantity ?? eq.quantity)}
-                          className="w-20 rounded-md border border-border bg-background px-2.5 py-1.5 text-right text-sm"
+                          className="w-20 rounded-sm border border-border bg-background px-2.5 py-1.5 text-right text-sm"
                         />
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">
@@ -140,7 +140,7 @@ export function EquipmentTab({
                           value={draft.unitPrice}
                           onChange={(event) => handleEquipmentDraftChange(eq.id, 'unitPrice', event.target.value)}
                           placeholder={String(eq.suggestedUnitPrice ?? eq.unitPrice)}
-                          className="w-28 rounded-md border border-border bg-background px-2.5 py-1.5 text-right text-sm"
+                          className="w-28 rounded-sm border border-border bg-background px-2.5 py-1.5 text-right text-sm"
                         />
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">

@@ -16,7 +16,7 @@ export default function NotFound() {
   return (
     <div className="flex min-h-[70vh] items-center justify-center px-6">
       <div className="w-full max-w-lg text-center">
-        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-border/70 bg-card/80 text-muted-foreground shadow-sm">
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-lg border border-border/70 bg-card/80 text-muted-foreground shadow-sm">
           <Compass className="h-8 w-8" aria-hidden="true" />
         </div>
         <p className="mb-1 font-mono text-sm font-semibold tracking-widest text-accent">
@@ -34,7 +34,7 @@ export default function NotFound() {
             <Link
               key={href}
               href={href}
-              className="group rounded-2xl border border-border/70 bg-card/80 p-4 text-left transition-all duration-150 hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-[0_10px_22px_color-mix(in_oklab,var(--accent)_16%,transparent)]"
+              className="group rounded-lg border border-border/70 bg-card/80 p-4 text-left transition-all duration-150 hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-[0_10px_22px_color-mix(in_oklab,var(--accent)_16%,transparent)]"
             >
               <Icon className="mb-2 h-5 w-5 text-accent" aria-hidden="true" />
               <p className="text-sm font-semibold text-foreground group-hover:text-accent">

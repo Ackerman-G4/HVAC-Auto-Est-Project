@@ -695,7 +695,7 @@ export default function FloorPlanMultiView({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(11,18,29,0.82)] p-3 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(11,18,29,0.82)] p-3"
           onClick={onClose}
         >
           <motion.div
@@ -703,13 +703,13 @@ export default function FloorPlanMultiView({
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.92, opacity: 0 }}
             transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-            className="relative flex h-[93vh] w-[96vw] flex-col overflow-hidden rounded-xl border border-border bg-background shadow-2xl"
+            className="relative flex h-[93vh] w-[96vw] flex-col overflow-hidden rounded-md border border-border bg-background shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             {/* ── Header ─────────────────────────────────────────────────── */}
             <div className="flex items-center justify-between border-b border-border bg-card px-4 py-2.5">
               <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-md bg-accent/10 flex items-center justify-center">
+                <div className="w-7 h-7 rounded-sm bg-accent/10 flex items-center justify-center">
                   <Box className="w-4 h-4 text-accent" />
                 </div>
                 <div>
@@ -723,7 +723,7 @@ export default function FloorPlanMultiView({
               </div>
               <button
                 onClick={onClose}
-                className="rounded-lg p-1.5 transition-colors hover:bg-secondary/80"
+                className="rounded-sm p-1.5 transition-colors hover:bg-secondary/80"
                 title="Close multi-view"
               >
                 <X className="w-4 h-4 text-muted-foreground" />
@@ -761,7 +761,7 @@ export default function FloorPlanMultiView({
               <div className="flex flex-col bg-background">
                 <div className="flex items-center gap-1.5 border-b border-border bg-card px-3 py-1.5">
                   <Layers className="w-3 h-3 text-muted-foreground" />
-                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">
+                  <span className="text-[10px] font-semibold text-muted-foreground font-display tracking-[0.08em]">
                     Room Legend
                   </span>
                 </div>
@@ -776,7 +776,7 @@ export default function FloorPlanMultiView({
                       return (
                         <div
                           key={room.id}
-                          className="flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-secondary/45"
+                          className="flex items-center gap-2 rounded-sm px-2 py-1.5 transition-colors hover:bg-secondary/45"
                         >
                           <div
                             className="w-2.5 h-2.5 rounded-[3px] border border-black/10 shrink-0"
@@ -818,7 +818,7 @@ export default function FloorPlanMultiView({
 
                   {/* View legend */}
                   <div className="mt-3 space-y-1 border-t border-border pt-2.5 text-[10px] text-muted-foreground">
-                    <p className="font-semibold text-muted-foreground text-[9px] uppercase tracking-[0.06em] mb-1">Drawing Legend</p>
+                    <p className="font-semibold text-muted-foreground text-[9px] font-display tracking-[0.06em] mb-1">Drawing Legend</p>
                     <div className="flex items-center gap-2">
                       <div className="w-5 border-t-2 border-[#6B7280]" />
                       <span>Floor line (FL &plusmn;0.00)</span>
@@ -878,7 +878,7 @@ function ViewPanel({
       <div className="flex items-center gap-1.5 border-b border-border bg-card px-3 py-1.5">
         <Eye className={`w-3 h-3 ${accentColor ? 'text-accent' : 'text-muted-foreground'}`} />
         <span
-          className={`text-[10px] font-bold uppercase tracking-[0.08em] ${
+          className={`text-[10px] font-bold font-display tracking-[0.08em] ${
             accentColor ? 'text-accent' : 'text-muted-foreground'
           }`}
         >

@@ -31,22 +31,11 @@ import { safeJsonParse } from '@/lib/utils/safe-json';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { authFetch } from '@/lib/api-client';
-import { useAuthStore } from '@/stores/auth-store';
+import { useProjectsDashboard } from '@/features/projects/useProjectsDashboard';
+import { ProjectEditDialog } from '@/features/projects/components/ProjectEditDialog';
+import type { ProjectListItem } from '@/features/projects/types';
 
-interface ProjectListItem {
-  id: string;
-  name: string;
-  clientName: string;
-  buildingType: string;
-  status: string;
-  location: string;
-  city: string;
-  totalFloorArea: number;
-  createdAt: string;
-  updatedAt: string;
-  floors: { rooms: { coolingLoad?: { trValue: number } | null }[] }[];
-  _count: { selectedEquipment: number; boqItems: number };
-}
+
 
 const DASHBOARD_PREFS_KEY = 'hvac-projects-dashboard:v1';
 const DASHBOARD_STATUSES = ['all', 'draft', 'active', 'completed', 'archived', 'deleted'] as const;
@@ -57,279 +46,46 @@ const DASHBOARD_SORT_FIELDS = [
 ] as const;
 
 export default function ProjectsPage() {
-  const [projects, setProjects] = useState<ProjectListItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [sortBy, setSortBy] = useState<(typeof DASHBOARD_SORT_FIELDS)[number]['value']>('updatedAt');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [prefsHydrated, setPrefsHydrated] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<ProjectListItem | null>(null);
-  const [editTarget, setEditTarget] = useState<ProjectListItem | null>(null);
-  const [editForm, setEditForm] = useState<Record<string, string | number>>({
-    name: '',
-    clientName: '',
-    buildingType: 'commercial',
-    location: '',
-    city: 'Manila',
-    totalFloorArea: 0,
-    floorsAboveGrade: 1,
-    floorsBelowGrade: 0,
-    outdoorDB: 35,
-    outdoorRH: 50,
-    indoorDB: 24,
-    indoorRH: 50,
-    safetyFactor: 1.1,
-    diversityFactor: 0.85,
-    notes: '',
-  });
-  const [editSaving, setEditSaving] = useState(false);
-  const router = useRouter();
-  const user = useAuthStore((state) => state.user);
-  const authInitialized = useAuthStore((state) => state.initialized);
-  const cityOptions = getCityOptions();
-
-  const fetchProjects = useCallback(() => {
-    setLoading(true);
-    const params = new URLSearchParams();
-    if (search) params.set('search', search);
-    if (statusFilter !== 'all') params.set('status', statusFilter);
-    params.set('sortBy', sortBy);
-    params.set('sortOrder', sortOrder);
-
-    authFetch(`/api/projects?${params}`)
-      .then((r) => r.json())
-      .then((data) => {
-        setProjects(data.projects || []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, [search, statusFilter, sortBy, sortOrder]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const raw = window.localStorage.getItem(DASHBOARD_PREFS_KEY);
-    const parsed = safeJsonParse<{
-      search?: string;
-      statusFilter?: string;
-      sortBy?: string;
-      sortOrder?: string;
-    }>(raw);
-
-    if (!parsed) {
-      setPrefsHydrated(true);
-      return;
-    }
-
-    if (typeof parsed.search === 'string') setSearch(parsed.search);
-    if (typeof parsed.statusFilter === 'string' && DASHBOARD_STATUSES.includes(parsed.statusFilter as typeof DASHBOARD_STATUSES[number])) {
-      setStatusFilter(parsed.statusFilter);
-    }
-    if (typeof parsed.sortBy === 'string' && DASHBOARD_SORT_FIELDS.some((f) => f.value === parsed.sortBy)) {
-      setSortBy(parsed.sortBy as (typeof DASHBOARD_SORT_FIELDS)[number]['value']);
-    }
-    if (parsed.sortOrder === 'asc' || parsed.sortOrder === 'desc') {
-      setSortOrder(parsed.sortOrder);
-    }
-
-    setPrefsHydrated(true);
-  }, []);
-
-  useEffect(() => {
-    if (!prefsHydrated || typeof window === 'undefined') return;
-
-    window.localStorage.setItem(
-      DASHBOARD_PREFS_KEY,
-      JSON.stringify({
-        search,
-        statusFilter,
-        sortBy,
-        sortOrder,
-      }),
-    );
-  }, [search, statusFilter, sortBy, sortOrder, prefsHydrated]);
-
-  useEffect(() => {
-    if (!prefsHydrated || !user) return;
-    fetchProjects();
-  }, [fetchProjects, prefsHydrated, user]);
-
-  useEffect(() => {
-    if (authInitialized && !user) {
-      setLoading(false);
-      router.replace('/auth/login');
-    }
-  }, [authInitialized, user, router]);
-
-  const handleSearch = () => fetchProjects();
-
-  const openEdit = (project: ProjectListItem) => {
-    // Fetch full project data for the form
-    authFetch(`/api/projects/${project.id}`)
-      .then((r) => r.json())
-      .then((data) => {
-        const p = data.project || data;
-        setEditForm({
-          name: p.name || '',
-          clientName: p.clientName || '',
-          buildingType: p.buildingType || 'commercial',
-          location: p.location || '',
-          city: p.city || 'Manila',
-          totalFloorArea: p.totalFloorArea || 0,
-          floorsAboveGrade: p.floorsAboveGrade || 1,
-          floorsBelowGrade: p.floorsBelowGrade || 0,
-          outdoorDB: p.outdoorDB || 35,
-          outdoorRH: p.outdoorRH || 50,
-          indoorDB: p.indoorDB || 24,
-          indoorRH: p.indoorRH || 50,
-          safetyFactor: p.safetyFactor || 1.1,
-          diversityFactor: p.diversityFactor || 0.85,
-          notes: p.notes || '',
-        });
-        setEditTarget(project);
-      })
-      .catch(() => showToast('error', 'Failed to load project details'));
-  };
-
-  const handleEditSave = async () => {
-    if (!editTarget) return;
-    if (!String(editForm.name).trim()) {
-      showToast('error', 'Project name is required');
-      return;
-    }
-    setEditSaving(true);
-    try {
-      const res = await authFetch(`/api/projects/${editTarget.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editForm),
-      });
-      if (res.ok) {
-        showToast('success', 'Project updated successfully');
-        setEditTarget(null);
-        fetchProjects();
-      } else {
-        const err = await res.json();
-        showToast('error', err.error || 'Failed to update');
-      }
-    } catch {
-      showToast('error', 'Network error');
-    } finally {
-      setEditSaving(false);
-    }
-  };
-
-  const handleEditChange = (field: string, value: string | number) => {
-    setEditForm((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleEditNumChange = (field: string, raw: string) => {
-    setEditForm((prev) => ({ ...prev, [field]: raw }));
-  };
-
-  const handleEditNumBlur = (field: string, fallback: number) => {
-    setEditForm((prev) => {
-      const v = prev[field];
-      const n = typeof v === 'string' ? parseFloat(v) : v;
-      return { ...prev, [field]: isNaN(n as number) || v === '' ? fallback : n };
-    });
-  };
-
-  const handleArchive = async (project: ProjectListItem) => {
-    try {
-      const res = await authFetch(`/api/projects/${project.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'archived' }),
-      });
-      if (res.ok) {
-        showToast('success', 'Project archived');
-        fetchProjects();
-      } else {
-        const err = await res.json();
-        showToast('error', err.error || 'Failed to archive project');
-      }
-    } catch {
-      showToast('error', 'Network error while archiving');
-    }
-  };
-
-  const handleRestore = async (project: ProjectListItem) => {
-    try {
-      const res = await authFetch(`/api/projects/${project.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'draft' }),
-      });
-      if (res.ok) {
-        showToast('success', 'Project restored');
-        fetchProjects();
-      } else {
-        const err = await res.json();
-        showToast('error', err.error || 'Failed to restore project');
-      }
-    } catch {
-      showToast('error', 'Network error while restoring');
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    try {
-      const res = await authFetch(`/api/projects/${deleteTarget.id}?permanent=true`, { method: 'DELETE' });
-      if (res.ok) {
-        showToast('success', 'Project permanently deleted');
-      } else {
-        const err = await res.json();
-        showToast('error', err.error || 'Failed to delete project');
-      }
-    } catch {
-      showToast('error', 'Network error while deleting');
-    }
-    setDeleteTarget(null);
-    fetchProjects();
-  };
-
-  const handleSoftDelete = async (project: ProjectListItem) => {
-    try {
-      const res = await authFetch(`/api/projects/${project.id}`, { method: 'DELETE' });
-      if (res.ok) {
-        showToast('success', 'Project moved to trash');
-        fetchProjects();
-      } else {
-        const err = await res.json();
-        showToast('error', err.error || 'Failed to delete project');
-      }
-    } catch {
-      showToast('error', 'Network error while deleting');
-    }
-  };
-
-  const statusColor: Record<string, 'default' | 'success' | 'warning' | 'accent' | 'destructive'> = {
-    draft: 'default',
-    active: 'accent',
-    completed: 'success',
-    archived: 'warning',
-    deleted: 'destructive',
-  };
-
-  const statusProgress: Record<string, { percent: number; color: string }> = {
-    draft: { percent: 15, color: 'bg-muted-foreground' },
-    active: { percent: 50, color: 'bg-primary' },
-    completed: { percent: 100, color: 'bg-success' },
-    archived: { percent: 100, color: 'bg-muted-foreground/50' },
-    deleted: { percent: 0, color: 'bg-destructive' },
-  };
-
-  const statuses = DASHBOARD_STATUSES;
-  const draftCount = projects.filter((p) => p.status === 'draft').length;
-  const activeCount = projects.filter((p) => p.status === 'active').length;
-  const completedCount = projects.filter((p) => p.status === 'completed').length;
-  const archivedCount = projects.filter((p) => p.status === 'archived').length;
-  const deletedCount = projects.filter((p) => p.status === 'deleted').length;
-  const totalEquipment = projects.reduce((sum, p) => sum + (p._count?.selectedEquipment || 0), 0);
-  const totalBOQItems = projects.reduce((sum, p) => sum + (p._count?.boqItems || 0), 0);
+  const {
+    activeCount,
+    archivedCount,
+    cityOptions,
+    completedCount,
+    deleteTarget,
+    deletedCount,
+    draftCount,
+    editForm,
+    editSaving,
+    editTarget,
+    handleArchive,
+    handleDelete,
+    handleEditChange,
+    handleEditNumBlur,
+    handleEditNumChange,
+    handleEditSave,
+    handleRestore,
+    handleSearch,
+    handleSoftDelete,
+    loading,
+    openEdit,
+    projects,
+    router,
+    search,
+    setDeleteTarget,
+    setEditTarget,
+    setSearch,
+    setSortBy,
+    setSortOrder,
+    setStatusFilter,
+    sortBy,
+    sortOrder,
+    statusFilter,
+    statuses,
+    totalBOQItems,
+    totalEquipment,
+    statusColor,
+    statusProgress,
+  } = useProjectsDashboard();
 
   return (
     <PageWrapper>
@@ -352,10 +108,10 @@ export default function ProjectsPage() {
             <CardContent className="py-4">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Project Workspace</p>
+                  <p className="text-[11px] font-semibold font-display text-muted-foreground">Project Workspace</p>
                   <p className="text-sm font-medium text-foreground mt-0.5">Manage active jobs, updates, and archival lifecycle in one view.</p>
                 </div>
-                <div className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted-foreground">
+                <div className="rounded-sm border border-border bg-card px-3 py-2 text-sm text-muted-foreground">
                   <FolderKanban className="h-4 w-4" />
                   <span className="tabular-nums">{loading ? '—' : projects.length} total projects</span>
                 </div>
@@ -363,7 +119,7 @@ export default function ProjectsPage() {
             </CardContent>
           </Card>
 
-          <div className="panel-glass mb-6 flex flex-col gap-4 rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
+          <div className="panel-glass mb-6 flex flex-col gap-4 rounded-md border border-border/70 bg-card p-4 shadow-sm sm:p-5">
             <div className="flex-1 flex gap-2">
               <Input
                 placeholder="Search projects..."
@@ -393,7 +149,7 @@ export default function ProjectsPage() {
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as (typeof DASHBOARD_SORT_FIELDS)[number]['value'])}
                 aria-label="Sort by"
-                className="h-10 rounded-xl border border-border bg-background px-3.5 text-sm font-medium text-foreground"
+                className="h-10 rounded-md border border-border bg-background px-3.5 text-sm font-medium text-foreground"
               >
                 {DASHBOARD_SORT_FIELDS.map((field) => (
                   <option key={field.value} value={field.value}>
@@ -405,7 +161,7 @@ export default function ProjectsPage() {
                 value={sortOrder}
                 onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
                 aria-label="Sort order"
-                className="h-10 rounded-xl border border-border bg-background px-3.5 text-sm font-medium text-foreground"
+                className="h-10 rounded-md border border-border bg-background px-3.5 text-sm font-medium text-foreground"
               >
                 <option value="desc">Descending</option>
                 <option value="asc">Ascending</option>
@@ -453,9 +209,15 @@ export default function ProjectsPage() {
                   <motion.div key={project.id} variants={cardItemVariants}>
                     <Card className="panel-glass h-full border-border/70 bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-border hover:shadow-md">
                       <CardContent className="p-5">
-                        <div
-                          onClick={() => router.push(`/projects/${project.id}`)}
-                          className="cursor-pointer"
+                        {/*
+                          Was a <div onClick> calling router.push, so opening a
+                          project was mouse-only: no focus, no Enter, nothing in
+                          the tab order, and no link target to open in a new tab.
+                          A Link gives all of that for free.
+                        */}
+                        <Link
+                          href={`/projects/${project.id}`}
+                          className="block rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/55"
                         >
                           <div className="flex items-start justify-between mb-3">
                             <h3 className="text-base font-semibold text-foreground truncate flex-1 pr-2">
@@ -475,26 +237,26 @@ export default function ProjectsPage() {
                             {project.buildingType} · {project.city || project.location || '—'}
                           </p>
                           <div className="mt-4 grid grid-cols-3 gap-3 text-center">
-                            <div className="rounded-xl border border-border bg-secondary/50 py-2.5">
+                            <div className="rounded-md border border-border bg-secondary/50 py-2.5">
                               <p className="text-lg font-semibold tabular-nums text-foreground">
                                 {roomCount}
                               </p>
-                              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Rooms</p>
+                              <p className="text-xs font-medium font-display text-muted-foreground">Rooms</p>
                             </div>
-                            <div className="rounded-xl border border-border bg-secondary/50 py-2.5">
+                            <div className="rounded-md border border-border bg-secondary/50 py-2.5">
                               <p className="text-lg font-semibold tabular-nums text-foreground">
                                 {projectTR.toFixed(1)}
                               </p>
-                              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">TR</p>
+                              <p className="text-xs font-medium font-display text-muted-foreground">TR</p>
                             </div>
-                            <div className="rounded-xl border border-border bg-secondary/50 py-2.5">
+                            <div className="rounded-md border border-border bg-secondary/50 py-2.5">
                               <p className="text-lg font-semibold tabular-nums text-foreground">
                                 {project._count?.selectedEquipment || 0}
                               </p>
-                              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Equip</p>
+                              <p className="text-xs font-medium font-display text-muted-foreground">Equip</p>
                             </div>
                           </div>
-                        </div>
+                        </Link>
                         {/* Progress indicator */}
                         <div className="mt-4">
                           <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
@@ -594,24 +356,24 @@ export default function ProjectsPage() {
                 <h3 className="text-[13px] font-semibold text-foreground">Portfolio Snapshot</h3>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl border border-border bg-card p-4">
-                  <p className="text-xs uppercase tracking-wider text-muted-foreground">Draft</p>
+                <div className="rounded-md border border-border bg-card p-4">
+                  <p className="text-xs font-display text-muted-foreground">Draft</p>
                   <p className="text-xl font-semibold tabular-nums">{loading ? '—' : draftCount}</p>
                 </div>
-                <div className="rounded-xl border border-border bg-card p-4">
-                  <p className="text-xs uppercase tracking-wider text-muted-foreground">Active</p>
+                <div className="rounded-md border border-border bg-card p-4">
+                  <p className="text-xs font-display text-muted-foreground">Active</p>
                   <p className="text-xl font-semibold tabular-nums">{loading ? '—' : activeCount}</p>
                 </div>
-                <div className="rounded-xl border border-border bg-card p-4">
-                  <p className="text-xs uppercase tracking-wider text-muted-foreground">Completed</p>
+                <div className="rounded-md border border-border bg-card p-4">
+                  <p className="text-xs font-display text-muted-foreground">Completed</p>
                   <p className="text-xl font-semibold tabular-nums">{loading ? '—' : completedCount}</p>
                 </div>
-                <div className="rounded-xl border border-border bg-card p-4">
-                  <p className="text-xs uppercase tracking-wider text-muted-foreground">Archived</p>
+                <div className="rounded-md border border-border bg-card p-4">
+                  <p className="text-xs font-display text-muted-foreground">Archived</p>
                   <p className="text-xl font-semibold tabular-nums">{loading ? '—' : archivedCount}</p>
                 </div>
-                <div className="col-span-2 rounded-xl border border-red-500/20 bg-red-500/5 p-4">
-                  <p className="text-xs uppercase tracking-wider text-red-400">Trash</p>
+                <div className="col-span-2 rounded-md border border-red-500/20 bg-red-500/5 p-4">
+                  <p className="text-xs font-display text-red-400">Trash</p>
                   <p className="text-xl font-semibold tabular-nums text-red-400">{loading ? '—' : deletedCount}</p>
                 </div>
               </div>
@@ -621,12 +383,12 @@ export default function ProjectsPage() {
           <Card className="panel-glass border-border/70 bg-card shadow-sm">
             <CardContent className="space-y-4 p-5">
               <h3 className="text-[13px] font-semibold text-foreground">Capacity & BOQ</h3>
-              <div className="rounded-lg border border-border bg-secondary/50 p-4">
-                <p className="text-xs uppercase tracking-wider text-muted-foreground">Selected Equipment</p>
+              <div className="rounded-sm border border-border bg-secondary/50 p-4">
+                <p className="text-xs font-display text-muted-foreground">Selected Equipment</p>
                 <p className="text-2xl font-semibold tabular-nums text-foreground">{loading ? '—' : totalEquipment}</p>
               </div>
-              <div className="rounded-lg border border-border bg-secondary/50 p-4">
-                <p className="text-xs uppercase tracking-wider text-muted-foreground">BOQ Line Items</p>
+              <div className="rounded-sm border border-border bg-secondary/50 p-4">
+                <p className="text-xs font-display text-muted-foreground">BOQ Line Items</p>
                 <p className="text-2xl font-semibold tabular-nums text-foreground">{loading ? '—' : totalBOQItems}</p>
               </div>
             </CardContent>
@@ -635,211 +397,17 @@ export default function ProjectsPage() {
       </div>
 
       {/* Edit Project Dialog */}
-      <Dialog
-        open={!!editTarget}
-        onClose={() => setEditTarget(null)}
-        title="Edit Project"
-        description="Update project details, design conditions, and calculation parameters."
-        size="xl"
-      >
-        <div className="mb-5 rounded-xl border border-border bg-secondary/50 px-4 py-3 text-sm text-muted-foreground">
-          Changes here tune psychrometric assumptions and project metadata used by downstream room loads, equipment sizing, and BOQ generation.
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Left Column: Project Details */}
-          <div className="space-y-4 rounded-xl border border-border bg-card p-4 sm:p-5">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-foreground">Project Details</h3>
-            <Input
-              label="Project Name *"
-              placeholder="e.g., ABC Office Tower HVAC"
-              value={editForm.name}
-              onChange={(e) => handleEditChange('name', e.target.value)}
-            />
-            <Input
-              label="Client Name"
-              placeholder="e.g., ABC Corporation"
-              value={editForm.clientName}
-              onChange={(e) => handleEditChange('clientName', e.target.value)}
-            />
-            <Select
-              label="Building Type"
-              value={editForm.buildingType}
-              onChange={(e) => handleEditChange('buildingType', e.target.value)}
-              options={[
-                { value: 'commercial', label: 'Commercial' },
-                { value: 'residential', label: 'Residential' },
-                { value: 'industrial', label: 'Industrial' },
-                { value: 'institutional', label: 'Institutional' },
-                { value: 'healthcare', label: 'Healthcare' },
-                { value: 'hospitality', label: 'Hospitality' },
-                { value: 'retail', label: 'Retail' },
-                { value: 'mixed_use', label: 'Mixed Use' },
-              ]}
-            />
-            <Input
-              label="Location / Address"
-              placeholder="e.g., Makati CBD"
-              value={editForm.location}
-              onChange={(e) => handleEditChange('location', e.target.value)}
-            />
-            <Select
-              label="City"
-              value={editForm.city}
-              onChange={(e) => handleEditChange('city', e.target.value)}
-              options={cityOptions.map((c) => ({ value: c.value, label: c.label }))}
-            />
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="Floors Above Grade"
-                type="number"
-                min={1}
-                value={editForm.floorsAboveGrade}
-                onChange={(e) => handleEditNumChange('floorsAboveGrade', e.target.value)}
-                onBlur={() => handleEditNumBlur('floorsAboveGrade', 1)}
-              />
-              <Input
-                label="Floors Below Grade"
-                type="number"
-                min={0}
-                value={editForm.floorsBelowGrade}
-                onChange={(e) => handleEditNumChange('floorsBelowGrade', e.target.value)}
-                onBlur={() => handleEditNumBlur('floorsBelowGrade', 0)}
-              />
-            </div>
-            <Input
-              label="Total Floor Area (sqm)"
-              type="number"
-              min={0}
-              value={editForm.totalFloorArea}
-              onChange={(e) => handleEditNumChange('totalFloorArea', e.target.value)}
-              onBlur={() => handleEditNumBlur('totalFloorArea', 0)}
-            />
-          </div>
-
-          {/* Right Column: Design Conditions & Parameters */}
-          <div className="space-y-4 rounded-xl border border-border bg-card p-4 sm:p-5">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-foreground">Design Conditions</h3>
-            <div className="rounded-lg border border-border bg-secondary/50 p-3">
-              <p className="text-xs text-muted-foreground">
-                Carrier Psychrometric Chart — WB, dew point, humidity ratio, and enthalpy are auto-computed from DB & RH.
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="Outdoor Dry Bulb (°C)"
-                type="number"
-                step={0.1}
-                value={editForm.outdoorDB}
-                onChange={(e) => handleEditNumChange('outdoorDB', e.target.value)}
-                onBlur={() => handleEditNumBlur('outdoorDB', 35)}
-              />
-              <Input
-                label="Outdoor RH (%)"
-                type="number"
-                step={1}
-                min={10}
-                max={100}
-                value={editForm.outdoorRH}
-                onChange={(e) => handleEditNumChange('outdoorRH', e.target.value)}
-                onBlur={() => handleEditNumBlur('outdoorRH', 50)}
-              />
-            </div>
-            {/* Psychrometric Summary — auto-computed */}
-            {(() => {
-              const ps = psychrometricState(Number(editForm.outdoorDB) || 35, Number(editForm.outdoorRH) || 50);
-              return (
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="rounded-lg border border-border bg-background px-1 py-1.5 shadow-sm">
-                    <p className="text-sm font-semibold tabular-nums">{ps.wetBulb}°C</p>
-                    <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Wet Bulb</p>
-                  </div>
-                  <div className="rounded-lg border border-border bg-background px-1 py-1.5 shadow-sm">
-                    <p className="text-sm font-semibold tabular-nums">{ps.dewPoint}°C</p>
-                    <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Dew Point</p>
-                  </div>
-                  <div className="rounded-lg border border-border bg-background px-1 py-1.5 shadow-sm">
-                    <p className="text-sm font-semibold tabular-nums">{(ps.humidityRatio * 1000).toFixed(1)} g/kg</p>
-                    <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Humidity Ratio</p>
-                  </div>
-                  <div className="rounded-lg border border-border bg-background px-1 py-1.5 shadow-sm">
-                    <p className="text-sm font-semibold tabular-nums">{ps.enthalpy} kJ/kg</p>
-                    <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Enthalpy</p>
-                  </div>
-                  <div className="rounded-lg border border-border bg-background px-1 py-1.5 shadow-sm">
-                    <p className="text-sm font-semibold tabular-nums">{ps.specificVolume} m³/kg</p>
-                    <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Sp. Volume</p>
-                  </div>
-                  <div className="rounded-lg border border-border bg-background px-1 py-1.5 shadow-sm">
-                    <p className="text-sm font-semibold tabular-nums">{ps.density} kg/m³</p>
-                    <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Density</p>
-                  </div>
-                </div>
-              );
-            })()}
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="Indoor Dry Bulb (°C)"
-                type="number"
-                step={0.1}
-                value={editForm.indoorDB}
-                onChange={(e) => handleEditNumChange('indoorDB', e.target.value)}
-                onBlur={() => handleEditNumBlur('indoorDB', 24)}
-              />
-              <Input
-                label="Indoor RH (%)"
-                type="number"
-                step={1}
-                min={30}
-                max={70}
-                value={editForm.indoorRH}
-                onChange={(e) => handleEditNumChange('indoorRH', e.target.value)}
-                onBlur={() => handleEditNumBlur('indoorRH', 50)}
-              />
-            </div>
-
-            <h3 className="pt-2 text-sm font-semibold uppercase tracking-wider text-foreground">Calculation Parameters</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="Safety Factor"
-                type="number"
-                step={0.05}
-                min={1}
-                max={2}
-                value={editForm.safetyFactor}
-                onChange={(e) => handleEditNumChange('safetyFactor', e.target.value)}
-                onBlur={() => handleEditNumBlur('safetyFactor', 1.1)}
-              />
-              <Input
-                label="Diversity Factor"
-                type="number"
-                step={0.05}
-                min={0.5}
-                max={1}
-                value={editForm.diversityFactor}
-                onChange={(e) => handleEditNumChange('diversityFactor', e.target.value)}
-                onBlur={() => handleEditNumBlur('diversityFactor', 0.85)}
-              />
-            </div>
-            <Input
-              label="Notes"
-              placeholder="Additional project notes..."
-              value={editForm.notes}
-              onChange={(e) => handleEditChange('notes', e.target.value)}
-            />
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="mt-6 flex justify-end gap-3 border-t border-border bg-card pt-5">
-          <Button variant="ghost" size="sm" onClick={() => setEditTarget(null)}>
-            Cancel
-          </Button>
-          <Button variant="accent" size="sm" onClick={handleEditSave} isLoading={editSaving}>
-            <Save className="w-4 h-4 mr-2" />
-            Save Changes
-          </Button>
-        </div>
-      </Dialog>
+      <ProjectEditDialog
+        editTarget={editTarget}
+        setEditTarget={setEditTarget}
+        editForm={editForm}
+        editSaving={editSaving}
+        cityOptions={cityOptions}
+        handleEditChange={handleEditChange}
+        handleEditNumChange={handleEditNumChange}
+        handleEditNumBlur={handleEditNumBlur}
+        handleEditSave={handleEditSave}
+      />
 
       {/* Delete Confirmation */}
       <ConfirmDialog

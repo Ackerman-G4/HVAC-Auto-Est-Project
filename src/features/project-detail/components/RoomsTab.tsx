@@ -90,18 +90,18 @@ export function RoomsTab({
               <form onSubmit={handleAddRoom} className="space-y-5">
                 {/* Unit toggle */}
                 <div className="flex items-center gap-4 border-b border-border pb-3">
-                  <label className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Input Unit:</label>
+                  <label className="text-sm font-medium font-display text-muted-foreground">Input Unit:</label>
                   <button
                     type="button"
                     onClick={() => setRoomForm({ ...roomForm, useFootInput: !roomForm.useFootInput })}
-                    className={`rounded-md border px-3.5 py-1.5 text-sm font-medium transition-colors ${roomForm.useFootInput ? 'border-accent/35 bg-accent text-accent-foreground' : 'border-border bg-secondary/50 text-muted-foreground hover:bg-secondary/70 hover:text-foreground'}`}
+                    className={`rounded-sm border px-3.5 py-1.5 text-sm font-medium transition-colors ${roomForm.useFootInput ? 'border-accent/35 bg-accent text-accent-foreground' : 'border-border bg-secondary/50 text-muted-foreground hover:bg-secondary/70 hover:text-foreground'}`}
                   >
                     Feet (ft)
                   </button>
                   <button
                     type="button"
                     onClick={() => setRoomForm({ ...roomForm, useFootInput: !roomForm.useFootInput })}
-                    className={`rounded-md border px-3.5 py-1.5 text-sm font-medium transition-colors ${!roomForm.useFootInput ? 'border-accent/35 bg-accent text-accent-foreground' : 'border-border bg-secondary/50 text-muted-foreground hover:bg-secondary/70 hover:text-foreground'}`}
+                    className={`rounded-sm border px-3.5 py-1.5 text-sm font-medium transition-colors ${!roomForm.useFootInput ? 'border-accent/35 bg-accent text-accent-foreground' : 'border-border bg-secondary/50 text-muted-foreground hover:bg-secondary/70 hover:text-foreground'}`}
                   >
                     Meters (m)
                   </button>
@@ -119,7 +119,7 @@ export function RoomsTab({
                       <Input label="Room Width (ft) *" type="number" step={0.1} min={0} max={1000} unit="ft" value={numVal(roomForm.widthFt) || ''} onChange={(e) => handleRoomNumChange('widthFt', e.target.value)} onBlur={() => handleRoomNumBlur('widthFt', 0)} hint={numVal(roomForm.widthFt) > 0 ? `= ${feetToMeters(numVal(roomForm.widthFt)).toFixed(2)} m` : ''} />
                       <div>
                         <label className="mb-1.5 block text-sm font-medium text-foreground">Area (auto)</label>
-                        <div className="flex h-10 items-center rounded-lg border border-border bg-secondary/50 px-3.5 text-sm tabular-nums">
+                        <div className="flex h-10 items-center rounded-sm border border-border bg-secondary/50 px-3.5 text-sm tabular-nums">
                           {computedAreaSqft > 0 ? (
                             <span>{computedAreaSqft.toFixed(1)} ft² <span className="text-muted-foreground">({computedAreaSqm.toFixed(1)} m²)</span></span>
                           ) : (
@@ -188,7 +188,7 @@ export function RoomsTab({
       ) : (
         <div className="space-y-6">
           {project.floors.map((floor) => (
-            <div key={floor.id} className="rounded-xl border border-border bg-card p-5 shadow-sm">
+            <div key={floor.id} className="rounded-md border border-border bg-card p-5 shadow-sm">
               <div className="flex items-center gap-2 mb-4 pb-3 border-b border-border">
                 <Building2 className="w-5 h-5 text-accent" />
                 <h4 className="text-base font-bold text-foreground">
@@ -238,7 +238,7 @@ export function RoomsTab({
                           {room.coolingLoad && (
                             <div className="w-full shrink-0 text-right sm:w-auto">
                               <div className="flex gap-5">
-                                <div className="rounded-lg border border-accent/30 bg-accent/12 px-3.5 py-2">
+                                <div className="rounded-sm border border-accent/30 bg-accent/12 px-3.5 py-2">
                                   <div className="flex items-center justify-end gap-2 mb-1">
                                     <Badge size="sm" variant={room.coolingLoad.isOverridden ? 'accent' : 'secondary'}>
                                       {room.coolingLoad.isOverridden ? 'Override' : 'Suggested'}
@@ -247,7 +247,7 @@ export function RoomsTab({
                                   <p className="text-lg font-bold text-accent">{room.coolingLoad.trValue} TR</p>
                                   <p className="text-sm text-muted-foreground">{(room.coolingLoad.btuPerHour || 0).toLocaleString()} BTU/h</p>
                                 </div>
-                                <div className="rounded-lg border border-border bg-secondary/50 px-3.5 py-2">
+                                <div className="rounded-sm border border-border bg-secondary/50 px-3.5 py-2">
                                   <p className="text-base font-semibold">{room.coolingLoad.cfmSupply} CFM</p>
                                   <p className="text-sm text-muted-foreground">
                                     <TermHint
@@ -257,7 +257,7 @@ export function RoomsTab({
                                     />
                                   </p>
                                 </div>
-                                <div className="rounded-lg border border-border bg-secondary/50 px-3.5 py-2">
+                                <div className="rounded-sm border border-border bg-secondary/50 px-3.5 py-2">
                                   <p className="text-base font-semibold">{(room.coolingLoad.totalLoad / room.area).toFixed(0)} W/m²</p>
                                   <p className="text-sm text-muted-foreground">
                                     <TermHint
@@ -270,7 +270,7 @@ export function RoomsTab({
                               </div>
 
                               <div className="mt-2 grid w-full grid-cols-2 gap-2.5 sm:w-107.5">
-                                <div className="rounded-lg border border-border bg-secondary/50 px-3.5 py-2 text-right">
+                                <div className="rounded-sm border border-border bg-secondary/50 px-3.5 py-2 text-right">
                                   <p className="text-sm font-semibold tabular-nums">
                                     {Math.round(room.coolingLoad.totalSensibleLoad).toLocaleString()} W
                                   </p>
@@ -282,7 +282,7 @@ export function RoomsTab({
                                     />
                                   </p>
                                 </div>
-                                <div className="rounded-lg border border-border bg-secondary/50 px-3.5 py-2 text-right">
+                                <div className="rounded-sm border border-border bg-secondary/50 px-3.5 py-2 text-right">
                                   <p className="text-sm font-semibold tabular-nums">
                                     {Math.round(room.coolingLoad.totalLatentLoad).toLocaleString()} W
                                   </p>
@@ -329,8 +329,8 @@ export function RoomsTab({
                                 />
                               </div>
 
-                              <div className="w-full rounded-lg border border-border bg-card p-3.5 shadow-sm sm:w-90">
-                                <p className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">Cooling Load Overrides</p>
+                              <div className="w-full rounded-sm border border-border bg-card p-3.5 shadow-sm sm:w-90">
+                                <p className="mb-2 text-xs font-display text-muted-foreground">Cooling Load Overrides</p>
                                 <div className="grid grid-cols-2 gap-2">
                                   <div>
                                     <label className="mb-1 block text-xs text-muted-foreground">TR Override</label>
@@ -341,7 +341,7 @@ export function RoomsTab({
                                       value={roomLoadDraft.tr}
                                       onChange={(event) => handleRoomLoadDraftChange(room.id, 'tr', event.target.value)}
                                       placeholder={`Suggested ${(room.coolingLoad.suggestedTrValue ?? room.coolingLoad.trValue).toString()}`}
-                                      className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm text-right"
+                                      className="w-full rounded-sm border border-border bg-background px-2.5 py-1.5 text-sm text-right"
                                     />
                                   </div>
                                   <div>
@@ -353,7 +353,7 @@ export function RoomsTab({
                                       value={roomLoadDraft.btu}
                                       onChange={(event) => handleRoomLoadDraftChange(room.id, 'btu', event.target.value)}
                                       placeholder={`Suggested ${Math.round(room.coolingLoad.suggestedBtuPerHour ?? room.coolingLoad.btuPerHour).toString()}`}
-                                      className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm text-right"
+                                      className="w-full rounded-sm border border-border bg-background px-2.5 py-1.5 text-sm text-right"
                                     />
                                   </div>
                                 </div>
@@ -413,7 +413,7 @@ export function RoomsTab({
                             <div className="mt-4 pt-4 border-t border-border">
                               <div className="flex items-center gap-2 mb-2">
                                 <Zap className="w-3.5 h-3.5 text-amber-500" />
-                                <span className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                                <span className="text-sm font-semibold font-display text-muted-foreground">
                                   AC Recommendation ({rec.recommendedType})
                                 </span>
                                 {rec.deratingFactor < 1 && (

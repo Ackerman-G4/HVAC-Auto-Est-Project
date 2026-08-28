@@ -113,16 +113,6 @@ const ROUTE_META: Array<{ match: (pathname: string) => boolean; meta: RouteMeta 
     },
   },
   {
-    match: (pathname) => pathname.startsWith('/simulation/workspace'),
-    meta: {
-      title: 'CFD Simulation Workspace',
-      subtitle: 'Data-center airflow analysis',
-      hideHeader: true,
-      fullBleed: true,
-      constrained: false,
-    },
-  },
-  {
     match: (pathname) => pathname.startsWith('/simulation/engine'),
     meta: {
       title: 'Simulation Engine',

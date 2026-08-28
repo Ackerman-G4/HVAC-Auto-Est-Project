@@ -9,10 +9,10 @@ export default function SimulationLauncherPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-5 py-12">
       <Card className="panel-glass border-border/70 p-7 text-center sm:p-10">
-        <div className="mx-auto mb-6 flex h-18 w-18 items-center justify-center rounded-2xl border border-border/70 bg-card text-accent shadow-sm">
+        <div className="mx-auto mb-6 flex h-18 w-18 items-center justify-center rounded-lg border border-border/70 bg-card text-accent shadow-sm">
           <Box size={30} />
         </div>
-        <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Simulation Command Deck</p>
+        <p className="text-[11px] font-semibold font-display text-muted-foreground">Simulation Command Deck</p>
         <h2 className="mt-2 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
           CFD Simulation Viewer
         </h2>
@@ -20,10 +20,10 @@ export default function SimulationLauncherPage() {
           Run server-room airflow studies with dedicated high-performance visualization. Configure rack densities, HVAC assets, and failure scenarios, then inspect thermal behavior across both 3D and analytics views.
         </p>
         <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center">
-          <Link href="/simulation/workspace">
+          <Link href="/simulation/viewer">
             <Button>
               <Columns3 size={14} className="mr-1.5" />
-              Open Workspace
+              Open Viewer
             </Button>
           </Link>
           <Button
@@ -38,10 +38,10 @@ export default function SimulationLauncherPage() {
 
       {/* ── Simulation Engine (CFD Case Management) ────────────── */}
       <Card className="panel-glass border-border/70 p-7 text-center sm:p-10">
-        <div className="mx-auto mb-6 flex h-18 w-18 items-center justify-center rounded-2xl border border-border/70 bg-card text-accent shadow-sm">
+        <div className="mx-auto mb-6 flex h-18 w-18 items-center justify-center rounded-lg border border-border/70 bg-card text-accent shadow-sm">
           <FlaskConical size={30} />
         </div>
-        <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Simulation Engine</p>
+        <p className="text-[11px] font-semibold font-display text-muted-foreground">Simulation Engine</p>
         <h2 className="mt-2 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
           CFD Case Manager
         </h2>

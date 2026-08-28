@@ -7,6 +7,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { parseJsonBody } from '@/lib/validation/http';
+import { updateProjectSchema } from '@/lib/validation/projects';
 import { canAccessProject, projectAccessDenied } from '@/lib/auth/project-access';
 import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import {
@@ -119,7 +121,9 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       return jsonGuard;
     }
 
-    const body = await request.json();
+    const parsed = await parseJsonBody(request, updateProjectSchema);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
 
     const existing = await getProjectRecord(id);
     if (!existing) {

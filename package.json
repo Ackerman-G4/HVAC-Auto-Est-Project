@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "check": "tsc --noEmit && eslint src && vitest run",
     "dev": "powershell -ExecutionPolicy Bypass -File ./scripts/dev-app.ps1",
     "dev:no-turbo": "powershell -ExecutionPolicy Bypass -File ./scripts/dev-app.ps1 -NoTurbo",
     "dev:raw": "next dev --turbopack",
@@ -16,6 +17,7 @@
     "firebase:web-key:sync": "powershell -ExecutionPolicy Bypass -File ./scripts/sync-firebase-web-key.ps1",
     "build": "next build",
     "build:netlify": "next build",
+    "analyze": "next build",
     "start": "next start",
     "lint": "eslint .",
     "test": "vitest run",
@@ -45,17 +47,17 @@
     "validate:snapshot:playback": "powershell -ExecutionPolicy Bypass -File ./scripts/smoke-snapshot-playback.ps1",
     "validate:catalog:admin": "powershell -ExecutionPolicy Bypass -File ./scripts/smoke-catalog-admin.ps1",
     "validate:catalog:admin:strict": "powershell -ExecutionPolicy Bypass -File ./scripts/smoke-catalog-admin.ps1 -Strict",
-    "validate:quality": "npm run lint && npm run build && npm run audit:check",
+    "validate:quality": "npm run check && npm run build && npm run audit:check",
     "validate:docx:parity": "powershell -ExecutionPolicy Bypass -File ./scripts/validate-docx-parity.ps1",
     "validate:docx:parity:strict": "powershell -ExecutionPolicy Bypass -File ./scripts/validate-docx-parity.ps1 -Strict",
     "validate:system": "npm run validate:preflight && npm run validate:auth && npm run validate:rbac && npm run validate:dual-control && npm run validate:snapshot:playback && npm run validate:building-simulation && npm run validate:catalog:admin && npm run validate:quality",
     "validate:system:strict:raw": "npm run validate:preflight:strict && npm run validate:auth:positive && npm run validate:rbac:positive:strict && npm run validate:dual-control && npm run validate:snapshot:playback && npm run validate:building-simulation && npm run validate:catalog:admin:strict && npm run validate:quality",
     "validate:system:strict": "powershell -ExecutionPolicy Bypass -File ./scripts/validate-system-strict.ps1",
     "validate:system:local": "powershell -ExecutionPolicy Bypass -File ./scripts/validate-system-local.ps1",
-    "validate:system:strict:local": "powershell -ExecutionPolicy Bypass -File ./scripts/validate-system-local.ps1 -Strict"
+    "validate:system:strict:local": "powershell -ExecutionPolicy Bypass -File ./scripts/validate-system-local.ps1 -Strict",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-hvac-auto --config firebase.json \"vitest run --config vitest.rules.config.ts\""
   },
   "dependencies": {
-    "@hookform/resolvers": "^5.2.2",
     "@netlify/next": "1.4.9",
     "@react-oauth/google": "0.13.4",
     "@react-three/drei": "^10.7.7",
@@ -67,7 +69,6 @@
     "clsx": "^2.1.1",
     "dotenv": "16.6.1",
     "exceljs": "4.4.0",
-    "fabric": "^7.2.0",
     "firebase": "12.12.1",
     "firebase-admin": "13.8.0",
     "framer-motion": "^12.34.3",
@@ -78,7 +79,6 @@
     "pdfmake": "0.3.7",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "react-hook-form": "^7.71.2",
     "react-resizable-panels": "3.0.2",
     "recharts": "^3.7.0",
     "tailwind-merge": "^3.5.0",
@@ -88,11 +88,13 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "5.0.1",
     "@netlify/plugin-nextjs": "5.15.9",
+    "@next/bundle-analyzer": "16.3.0",
     "@tailwindcss/postcss": "^4",
+    "@testing-library/react": "16.3.2",
     "@types/bcryptjs": "2.4.6",
     "@types/better-sqlite3": "^7.6.13",
-    "@types/fabric": "^5.3.11",
     "@types/jsonwebtoken": "9.0.10",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -100,6 +102,7 @@
     "@types/uuid": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
+    "jsdom": "27.4.0",
     "tailwindcss": "^4",
     "tsx": "^4.19.0",
     "typescript": "^5",
@@ -118,6 +121,11 @@
     "postcss": "^8.5.23",
     "uuid": "14.0.0",
     "sharp": "^0.35.0",
-    "esbuild": "^0.28.1"
+    "esbuild": "^0.28.1",
+    "rimraf": "^6.0.1",
+    "archiver": "^8.0.0",
+    "minimatch@3": {
+      "brace-expansion": "^1.1.18"
+    }
   }
 }

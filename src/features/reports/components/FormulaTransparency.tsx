@@ -24,11 +24,11 @@ export function FormulaTransparency({
     >
       <div className="space-y-4">
         <div>
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Load Equations</p>
+          <p className="mb-2 text-[11px] font-medium font-display text-muted-foreground">Load Equations</p>
           <div className="space-y-3">
             {loadResult.formulas.map((formula) => (
-              <div key={`load-${formula.label}`} className="rounded-lg border border-border bg-secondary p-4">
-                <p className="text-[11px] font-medium uppercase tracking-wider text-foreground">{formula.label}</p>
+              <div key={`load-${formula.label}`} className="rounded-sm border border-border bg-secondary p-4">
+                <p className="text-[11px] font-medium font-display text-foreground">{formula.label}</p>
                 <p className="mt-1 font-mono text-xs text-muted-foreground">{formula.expression}</p>
                 <p className="mt-1.5 text-xs font-semibold text-accent">{formula.value}</p>
               </div>
@@ -37,11 +37,11 @@ export function FormulaTransparency({
         </div>
 
         <div>
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Airflow Equations</p>
+          <p className="mb-2 text-[11px] font-medium font-display text-muted-foreground">Airflow Equations</p>
           <div className="space-y-3">
             {airflowResult.formulas.map((formula) => (
-              <div key={`air-${formula.label}`} className="rounded-lg border border-border bg-secondary p-4">
-                <p className="text-[11px] font-medium uppercase tracking-wider text-foreground">{formula.label}</p>
+              <div key={`air-${formula.label}`} className="rounded-sm border border-border bg-secondary p-4">
+                <p className="text-[11px] font-medium font-display text-foreground">{formula.label}</p>
                 <p className="mt-1 font-mono text-xs text-muted-foreground">{formula.expression}</p>
                 <p className="mt-1.5 text-xs font-semibold text-accent">{formula.value}</p>
               </div>
@@ -50,11 +50,11 @@ export function FormulaTransparency({
         </div>
 
         <div>
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Equipment Equations</p>
+          <p className="mb-2 text-[11px] font-medium font-display text-muted-foreground">Equipment Equations</p>
           <div className="space-y-3">
             {equipmentResult.formulas.map((formula) => (
-              <div key={`equip-${formula.label}`} className="rounded-lg border border-border bg-secondary p-4">
-                <p className="text-[11px] font-medium uppercase tracking-wider text-foreground">{formula.label}</p>
+              <div key={`equip-${formula.label}`} className="rounded-sm border border-border bg-secondary p-4">
+                <p className="text-[11px] font-medium font-display text-foreground">{formula.label}</p>
                 <p className="mt-1 font-mono text-xs text-muted-foreground">{formula.expression}</p>
                 <p className="mt-1.5 text-xs font-semibold text-accent">{formula.value}</p>
               </div>

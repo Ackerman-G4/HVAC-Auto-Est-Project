@@ -16,7 +16,8 @@
 
 import { Suspense, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Html } from '@react-three/drei';
+import { OrbitControls, Html, AdaptiveDpr, AdaptiveEvents } from '@react-three/drei';
+import { useThemeColor } from '@/lib/ui/use-theme-color';
 import type { SimulationResult } from '@/types/simulation';
 import { deriveViewerModel } from './viewer-model';
 import BuildingShell from './BuildingShell';
@@ -39,6 +40,9 @@ export default function SimulationCanvas({
   className,
 }: SimulationCanvasProps) {
   const model = useMemo(() => (result ? deriveViewerModel(result) : null), [result]);
+  // Before the early return: this is a hook, and the scene must follow the
+  // theme rather than staying near-black on a light page.
+  const sceneBackground = useThemeColor('--canvas-bg', '#0b1013');
 
   if (!model) {
     return (
@@ -54,15 +58,29 @@ export default function SimulationCanvas({
 
   return (
     <div className={className} style={{ width: '100%', height: '100%', minHeight: 320 }}>
+      {/*
+        frameloop="demand" renders only when something changes, instead of at
+        60fps forever. Safe here specifically because none of this canvas's
+        layers (BuildingShell, TemperatureVolume, VelocityGlyphs) uses
+        useFrame — there is nothing continuously animating to starve. drei's
+        OrbitControls calls invalidate() on change, so orbiting still redraws.
+
+        The legacy AirflowViewer3D deliberately keeps the default loop: it and
+        CFDOverlay3D run seven useFrame loops for particles and streamlines,
+        which demand-mode would freeze.
+      */}
       <Canvas
+        frameloop="demand"
         camera={{ position: [ex / 2 + camDist, ey + camDist * 0.6, ez / 2 + camDist], fov: 45 }}
         dpr={[1, 2]}
         gl={{ antialias: true, alpha: true }}
       >
-        <color attach="background" args={['#0b1013']} />
+        <AdaptiveDpr pixelated />
+        <AdaptiveEvents />
+        <color attach="background" args={[sceneBackground]} />
         <ambientLight intensity={0.7} />
         <directionalLight position={[ex, ey * 3 + 5, ez]} intensity={0.8} />
-        <Suspense fallback={<Html center><span style={{ color: '#9fb0bb', fontSize: 12 }}>Loading…</span></Html>}>
+        <Suspense fallback={<Html center><span className="text-xs text-muted-foreground">Loading…</span></Html>}>
           <BuildingShell model={model} />
           {showTemperature && <TemperatureVolume model={model} />}
           {showVelocity && <VelocityGlyphs model={model} stride={glyphStride} />}

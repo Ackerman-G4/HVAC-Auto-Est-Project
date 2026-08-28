@@ -61,7 +61,7 @@ export function InputField({
 
   return (
     <div className="space-y-2">
-      <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+      <label className="text-xs font-medium font-display text-muted-foreground">
         {label}
       </label>
       <div className="relative">
@@ -82,7 +82,7 @@ export function InputField({
 
             onValueChange(event.target.value);
           }}
-          className={`h-10 w-full rounded-xl border bg-card/85 px-3 text-sm text-foreground backdrop-blur-sm transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/55 ${inlineError ? 'border-destructive focus-visible:ring-destructive/45' : 'border-input focus-visible:border-primary'} ${disabled ? 'cursor-not-allowed opacity-60' : ''} ${unit ? 'pr-14' : ''}`}
+          className={`h-10 w-full rounded-md border bg-card/85 px-3 text-sm text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/55 ${inlineError ? 'border-destructive focus-visible:ring-destructive/45' : 'border-input focus-visible:border-primary'} ${disabled ? 'cursor-not-allowed opacity-60' : ''} ${unit ? 'pr-14' : ''}`}
         />
         {unit && (
           <span className="pointer-events-none absolute inset-y-0 right-3 inline-flex items-center text-sm text-muted-foreground">

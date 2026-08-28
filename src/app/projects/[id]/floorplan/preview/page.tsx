@@ -553,10 +553,14 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
     return (
       <PageWrapper>
         <div className="flex items-center justify-center h-64">
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-            className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full"
+          {/* A spinner does carry information ("still working"), so it stays —
+              but as CSS. Driving one infinite rotation through framer-motion
+              buys nothing and keeps the library on this route's critical path.
+              animate-spin is neutralised by the global reduced-motion clamp. */}
+          <div
+            role="status"
+            aria-label="Loading floor plan"
+            className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent"
           />
         </div>
       </PageWrapper>
@@ -608,15 +612,15 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
       ) : (
         <div className="space-y-4">
           {/* Controls bar */}
-          <div className="panel-glass no-print flex flex-wrap items-center gap-3 rounded-xl border border-border/70 bg-card px-3 py-2 shadow-sm">
+          <div className="panel-glass no-print flex flex-wrap items-center gap-3 rounded-md border border-border/70 bg-card px-3 py-2 shadow-sm">
             {/* Floor selector */}
             {floors.length > 1 && (
-              <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-0.5">
+              <div className="flex items-center gap-1 rounded-sm border border-border bg-card p-0.5">
                 {floors.map((floor, idx) => (
                   <button
                     key={floor.id}
                     onClick={() => setActiveFloor(idx)}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                    className={`px-3 py-1.5 text-xs font-medium rounded-sm transition-colors ${
                       idx === activeFloor
                         ? 'bg-accent text-accent-foreground shadow-md'
                         : 'text-muted-foreground hover:bg-secondary/70 hover:text-foreground'
@@ -629,10 +633,10 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
             )}
 
             {/* Toggle buttons */}
-            <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-0.5">
+            <div className="flex items-center gap-1 rounded-sm border border-border bg-card p-0.5">
               <button
                 onClick={() => setShowLabels(!showLabels)}
-                className={`px-2.5 py-1.5 text-xs rounded-md transition-colors ${
+                className={`px-2.5 py-1.5 text-xs rounded-sm transition-colors ${
                   showLabels
                     ? 'bg-accent text-accent-foreground shadow-md'
                     : 'text-muted-foreground hover:bg-secondary/70 hover:text-foreground'
@@ -642,7 +646,7 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
               </button>
               <button
                 onClick={() => setShowDimensions(!showDimensions)}
-                className={`px-2.5 py-1.5 text-xs rounded-md transition-colors ${
+                className={`px-2.5 py-1.5 text-xs rounded-sm transition-colors ${
                   showDimensions
                     ? 'bg-accent text-accent-foreground shadow-md'
                     : 'text-muted-foreground hover:bg-secondary/70 hover:text-foreground'
@@ -652,7 +656,7 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
               </button>
               <button
                 onClick={() => setShowLoads(!showLoads)}
-                className={`px-2.5 py-1.5 text-xs rounded-md transition-colors ${
+                className={`px-2.5 py-1.5 text-xs rounded-sm transition-colors ${
                   showLoads
                     ? 'bg-accent text-accent-foreground shadow-md'
                     : 'text-muted-foreground hover:bg-secondary/70 hover:text-foreground'
@@ -666,7 +670,7 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setZoom(z => Math.max(0.5, z - 0.1))}
-                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary/75 hover:text-foreground"
+                className="rounded-sm p-1.5 text-muted-foreground transition-colors hover:bg-secondary/75 hover:text-foreground"
                 title="Zoom out"
               >
                 <ZoomOut className="w-4 h-4" />
@@ -676,14 +680,14 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
               </span>
               <button
                 onClick={() => setZoom(z => Math.min(2, z + 0.1))}
-                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary/75 hover:text-foreground"
+                className="rounded-sm p-1.5 text-muted-foreground transition-colors hover:bg-secondary/75 hover:text-foreground"
                 title="Zoom in"
               >
                 <ZoomIn className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setZoom(1)}
-                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary/75 hover:text-foreground"
+                className="rounded-sm p-1.5 text-muted-foreground transition-colors hover:bg-secondary/75 hover:text-foreground"
                 title="Reset zoom"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
@@ -711,13 +715,13 @@ export default function FloorPlanPreviewPage({ params }: { params: Promise<{ id:
                 <table className="w-full text-[13px]">
                   <thead>
                     <tr className="border-b border-border text-muted-foreground">
-                      <th className="text-left py-2.5 pr-4 text-[11px] uppercase tracking-wider font-medium w-6">#</th>
-                      <th className="text-left py-2.5 pr-4 text-[11px] uppercase tracking-wider font-medium">Room</th>
-                      <th className="text-left py-2.5 pr-4 text-[11px] uppercase tracking-wider font-medium">Type</th>
-                      <th className="text-right py-2.5 pr-4 text-[11px] uppercase tracking-wider font-medium">Area (m²)</th>
-                      <th className="text-right py-2.5 pr-4 text-[11px] uppercase tracking-wider font-medium">Ceiling (m)</th>
-                      <th className="text-right py-2.5 pr-4 text-[11px] uppercase tracking-wider font-medium">Total Load (W)</th>
-                      <th className="text-right py-2.5 text-[11px] uppercase tracking-wider font-medium">W/m²</th>
+                      <th className="text-left py-2.5 pr-4 text-[11px] font-display font-medium w-6">#</th>
+                      <th className="text-left py-2.5 pr-4 text-[11px] font-display font-medium">Room</th>
+                      <th className="text-left py-2.5 pr-4 text-[11px] font-display font-medium">Type</th>
+                      <th className="text-right py-2.5 pr-4 text-[11px] font-display font-medium">Area (m²)</th>
+                      <th className="text-right py-2.5 pr-4 text-[11px] font-display font-medium">Ceiling (m)</th>
+                      <th className="text-right py-2.5 pr-4 text-[11px] font-display font-medium">Total Load (W)</th>
+                      <th className="text-right py-2.5 text-[11px] font-display font-medium">W/m²</th>
                     </tr>
                   </thead>
                   <tbody>

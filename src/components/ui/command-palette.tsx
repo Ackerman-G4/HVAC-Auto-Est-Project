@@ -96,7 +96,11 @@ const KIND_LABEL: Record<CommandKind, string> = {
 };
 
 export function CommandPalette() {
-  const [open, setOpen] = useState(false);
+  // Visibility lives in the UI store so the header button can open the palette
+  // by calling an action instead of dispatching a synthetic Cmd+K event.
+  const open = useUIStore((s) => s.commandPaletteOpen);
+  const setOpen = useUIStore((s) => s.setCommandPaletteOpen);
+  const toggleOpen = useUIStore((s) => s.toggleCommandPalette);
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const [recents, setRecents] = useState<string[]>([]);
@@ -115,21 +119,22 @@ export function CommandPalette() {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        setOpen((v) => {
-          if (v) return false;
-          // Opening via hotkey: schedule the reset outside the updater.
-          queueMicrotask(() => {
-            setQuery('');
-            setActiveIndex(0);
-            setRecents(loadRecents());
-          });
-          return true;
-        });
+        toggleOpen();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [toggleOpen]);
+
+  // Reset per-open state on every open, whichever route opened it. This used to
+  // live in the hotkey handler, so opening from the header button reopened the
+  // palette with the previous query and selection still in it.
+  useEffect(() => {
+    if (!open) return;
+    setQuery('');
+    setActiveIndex(0);
+    setRecents(loadRecents());
+  }, [open]);
 
   // On open: focus input + ensure projects are loaded (external systems only).
   useEffect(() => {
@@ -273,7 +278,7 @@ export function CommandPalette() {
             aria-hidden="true"
           />
           <motion.div
-            className="panel-glass relative w-full max-w-xl overflow-hidden rounded-2xl border border-border/70 shadow-[var(--elevation-floating)]"
+            className="panel-glass relative w-full max-w-xl overflow-hidden rounded-lg border border-border/70 shadow-[var(--elevation-floating)]"
             initial={{ opacity: 0, y: reduced ? 0 : -12, scale: reduced ? 1 : 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1, transition: microTransition }}
             exit={{ opacity: 0, y: reduced ? 0 : -8, scale: reduced ? 1 : 0.98, transition: microTransition }}
@@ -292,7 +297,7 @@ export function CommandPalette() {
                 className="h-13 w-full bg-transparent py-4 text-sm font-medium text-foreground outline-none placeholder:text-muted-foreground/70"
                 aria-label="Search commands"
               />
-              <kbd className="shrink-0 rounded-md border border-border/80 bg-secondary/50 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+              <kbd className="shrink-0 rounded-sm border border-border/80 bg-secondary/50 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
                 Esc
               </kbd>
             </div>
@@ -308,7 +313,7 @@ export function CommandPalette() {
                 return (
                   <React.Fragment key={cmd.id}>
                     {showHeader && !query && (
-                      <p className="px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                      <p className="px-3 pb-1 pt-3 text-[10px] font-semibold font-display text-muted-foreground/70">
                         {KIND_LABEL[cmd.kind]}
                       </p>
                     )}
@@ -320,7 +325,7 @@ export function CommandPalette() {
                       onMouseEnter={() => setActiveIndex(index)}
                       onClick={() => runCommand(cmd)}
                       className={cn(
-                        'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors',
+                        'flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm font-medium transition-colors',
                         active
                           ? 'bg-accent/12 text-foreground'
                           : 'text-muted-foreground hover:text-foreground',
@@ -328,7 +333,7 @@ export function CommandPalette() {
                     >
                       <span
                         className={cn(
-                          'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border',
+                          'flex h-7 w-7 shrink-0 items-center justify-center rounded-sm border',
                           active
                             ? 'border-accent/40 bg-accent/10 text-accent'
                             : 'border-border/70 bg-card/60 text-muted-foreground',

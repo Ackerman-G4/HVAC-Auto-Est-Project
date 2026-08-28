@@ -29,7 +29,19 @@ service cloud.firestore {
     match /projects/{projectId} {
       allow read: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
       allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
-      allow update, delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+      // Ownership is immutable from the client.
+      //
+      // The previous rule checked only resource.data.ownerId -- the document as
+      // it already exists -- and never constrained the incoming value, so an
+      // owner could write a different id and transfer the record, or write a
+      // nonexistent one and orphan it beyond their own reach.
+      //
+      // Transferring ownership, if it becomes a feature, is a privileged server
+      // operation through the Admin SDK, not a client write.
+      allow update: if isAuthenticated()
+        && resource.data.ownerId == request.auth.uid
+        && request.resource.data.ownerId == resource.data.ownerId;
+      allow delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
 
       // Sub-collections inherit project ownership
       match /floors/{floorId} {
@@ -120,7 +132,19 @@ service cloud.firestore {
     match /simulations/{simId} {
       allow read: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
       allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
-      allow update, delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+      // Ownership is immutable from the client.
+      //
+      // The previous rule checked only resource.data.ownerId -- the document as
+      // it already exists -- and never constrained the incoming value, so an
+      // owner could write a different id and transfer the record, or write a
+      // nonexistent one and orphan it beyond their own reach.
+      //
+      // Transferring ownership, if it becomes a feature, is a privileged server
+      // operation through the Admin SDK, not a client write.
+      allow update: if isAuthenticated()
+        && resource.data.ownerId == request.auth.uid
+        && request.resource.data.ownerId == resource.data.ownerId;
+      allow delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
     }
 
     // ── Rules Engine (admin-write, authenticated-read) ──────
@@ -149,14 +173,47 @@ service cloud.firestore {
     match /diagnosticHistory/{diagId} {
       allow read: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
       allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
-      allow update, delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+      // Ownership is immutable from the client.
+      //
+      // The previous rule checked only resource.data.ownerId -- the document as
+      // it already exists -- and never constrained the incoming value, so an
+      // owner could write a different id and transfer the record, or write a
+      // nonexistent one and orphan it beyond their own reach.
+      //
+      // Transferring ownership, if it becomes a feature, is a privileged server
+      // operation through the Admin SDK, not a client write.
+      allow update: if isAuthenticated()
+        && resource.data.ownerId == request.auth.uid
+        && request.resource.data.ownerId == resource.data.ownerId;
+      allow delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
     }
 
     // ── Audit Logs (append-only for authenticated, read for admin)
     match /auditLogs/{logId} {
       allow read: if isAdmin();
-      allow create: if isAuthenticated();
-      // No update or delete — audit logs are immutable
+
+      // No client writes of any kind.
+      //
+      // `allow create: if isAuthenticated()` let any signed-in caller append an
+      // arbitrary entry, including one attributed to somebody else. An
+      // append-only log that anyone can append to has no evidentiary value --
+      // worse than none, because its existence invites trust.
+      //
+      // Entries are written by audit-log-store.ts through the Admin SDK, which
+      // bypasses rules entirely, so denying the client changes no behaviour in
+      // this application. Matches how loginEvents and priceAuditLogs are
+      // already handled.
+      allow write: if false;
+    }
+
+    // ── Terminal deny ───────────────────────────────────────
+    //
+    // Firestore already denies anything unmatched, so this changes no
+    // behaviour. It states the default in the file, where a reviewer adding a
+    // collection can see it, rather than leaving it as knowledge someone has
+    // to bring with them.
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

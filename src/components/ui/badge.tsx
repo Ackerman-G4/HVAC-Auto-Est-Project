@@ -16,18 +16,18 @@ export function Badge({ className, variant = 'default', size = 'md', children, .
     destructive: 'border border-destructive/30 bg-destructive/10 text-destructive',
     success: 'border border-success/30 bg-success/10 text-success',
     warning: 'border border-warning/30 bg-warning/10 text-warning',
-    outline: 'border border-border/70 bg-card/75 text-muted-foreground backdrop-blur-sm hover:bg-secondary/80',
+    outline: 'border border-border/70 bg-card/75 text-muted-foreground hover:bg-secondary/80',
   };
 
   const sizes = {
-    sm: 'text-[10px] px-2 py-0.5 font-bold uppercase tracking-wider',
-    md: 'text-[11px] px-2.5 py-1 font-bold uppercase tracking-wider',
+    sm: 'text-[10px] px-2 py-0.5 font-medium font-display',
+    md: 'text-[11px] px-2.5 py-1 font-medium font-display',
   };
 
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-lg whitespace-nowrap transition-colors duration-150',
+        'inline-flex items-center rounded-sm whitespace-nowrap transition-colors duration-150',
         variants[variant],
         sizes[size],
         className

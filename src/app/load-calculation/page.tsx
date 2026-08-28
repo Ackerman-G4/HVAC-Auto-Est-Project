@@ -14,8 +14,10 @@ const AirflowProfileChart = dynamic(
 );
 import { Info, MapPin, Plus, RefreshCcw, WandSparkles } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { PageHeader } from '@/components/ui/page-wrapper';
 import { Button } from '@/components/ui/button';
 import { StatCard } from '@/components/ui/stat-card';
+import { CalcBreakdown } from '@/components/ui/calc-breakdown';
 import { Stagger, StaggerItem } from '@/components/ui/reveal';
 import LoadBreakdownBar, { segmentsFromEntries } from '@/components/load/LoadBreakdownBar';
 import { CollapsiblePanel } from '@/components/rebuild/CollapsiblePanel';
@@ -101,6 +103,10 @@ export default function LoadCalculationPage() {
 
   return (
     <div className="space-y-(--space-section-gap)">
+      <PageHeader
+        title="Load Calculation"
+        description="Estimate cooling load, airflow, and equipment sizing for a space."
+      />
       {/* 2-Column Layout — Project Info & Inputs (left), Outputs (right) */}
       <section className="grid gap-(--space-component-gap) xl:grid-cols-[420px_minmax(0,1fr)]">
         {/* Left Column — Project Info + Room Parameters */}
@@ -109,7 +115,7 @@ export default function LoadCalculationPage() {
           <Card>
             <CardHeader>
               <div className="flex flex-wrap items-start justify-between gap-4">
-                <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                <CardTitle className="text-xs font-medium font-display text-muted-foreground">
                   Project Info
                 </CardTitle>
                 <div className="flex flex-wrap items-center gap-2">
@@ -133,13 +139,13 @@ export default function LoadCalculationPage() {
                   onValueChange={(next) => setInput('projectName', String(next))}
                 />
                 <div className="space-y-2">
-                  <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  <label className="text-xs font-medium font-display text-muted-foreground">
                     Space Type
                   </label>
                   <select
                     value={inputs.spaceType}
                     onChange={(event) => setSpaceType(event.target.value as SpaceType)}
-                    className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20"
+                    className="h-10 w-full rounded-sm border border-input bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20"
                     aria-label="Space Type"
                   >
                     {spaceTypes.map((item) => (
@@ -151,7 +157,7 @@ export default function LoadCalculationPage() {
                 </div>
                 <div className="sm:col-span-2">
                   <div className="space-y-2">
-                    <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    <label className="text-xs font-medium font-display text-muted-foreground">
                       Location
                     </label>
                     <div className="relative">
@@ -161,7 +167,7 @@ export default function LoadCalculationPage() {
                         value={location}
                         onChange={(e) => setLocation(e.target.value)}
                         placeholder="City or address"
-                        className="h-10 w-full rounded-lg border border-input bg-card pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20"
+                        className="h-10 w-full rounded-sm border border-input bg-card pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20"
                       />
                     </div>
                   </div>
@@ -176,12 +182,12 @@ export default function LoadCalculationPage() {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                <CardTitle className="text-xs font-medium font-display text-muted-foreground">
                   Rooms
                 </CardTitle>
                 <button
                   type="button"
-                  className="flex h-7 w-7 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                  className="flex h-7 w-7 items-center justify-center rounded-sm border border-border text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                   title="Add room (coming soon)"
                 >
                   <Plus size={14} />
@@ -192,7 +198,7 @@ export default function LoadCalculationPage() {
               <div className="space-y-1">
                 <button
                   type="button"
-                  className="w-full rounded-lg bg-primary/10 px-3 py-2.5 text-left text-sm font-medium text-foreground"
+                  className="w-full rounded-sm bg-primary/10 px-3 py-2.5 text-left text-sm font-medium text-foreground"
                 >
                   <span className="block truncate">{inputs.projectName || 'Room 1'}</span>
                   <span className="text-xs text-muted-foreground">
@@ -206,7 +212,7 @@ export default function LoadCalculationPage() {
           {/* Room Parameters (Inputs) Card */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <CardTitle className="text-xs font-medium font-display text-muted-foreground">
                 Room Parameters
               </CardTitle>
             </CardHeader>
@@ -225,7 +231,7 @@ export default function LoadCalculationPage() {
 
               {/* Override controls */}
               <div className="mt-6 border-t border-border pt-5">
-                <h4 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Manual Overrides</h4>
+                <h4 className="mb-3 text-xs font-medium font-display text-muted-foreground">Manual Overrides</h4>
                 <div className="grid gap-5 sm:grid-cols-2">
                   <div>
                     <label className="flex items-center gap-2 text-sm text-foreground">
@@ -283,6 +289,15 @@ export default function LoadCalculationPage() {
 
         {/* Right Column — Outputs */}
         <div className="space-y-(--space-component-gap)">
+          {/* Results header + explain-the-numbers affordance (plan §4.4) */}
+          <div className="flex items-center gap-1.5">
+            <h3 className="text-xs font-medium font-display text-muted-foreground">Calculation Results</h3>
+            <CalcBreakdown
+              title="Cooling Load Breakdown"
+              formulas={result.formulas}
+              note="Values are derived from envelope, people, lighting, equipment, and ventilation gains per the ASHRAE-based cooling-load engine."
+            />
+          </div>
           {/* KPI Summary */}
           <Stagger className="grid gap-(--space-component-gap) sm:grid-cols-3">
             <StaggerItem><StatCard title="Design Load" value={`${result.breakdown.totalBtuAfterFactors.toLocaleString()} BTU/h`} /></StaggerItem>
@@ -293,7 +308,7 @@ export default function LoadCalculationPage() {
           {/* Load Breakdown Chart */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <CardTitle className="text-xs font-medium font-display text-muted-foreground">
                 Load Component Breakdown
               </CardTitle>
             </CardHeader>
@@ -320,7 +335,7 @@ export default function LoadCalculationPage() {
           {/* Airflow & Velocity Chart */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <CardTitle className="text-xs font-medium font-display text-muted-foreground">
                 Airflow & Velocity Profile
               </CardTitle>
             </CardHeader>
@@ -338,7 +353,7 @@ export default function LoadCalculationPage() {
           {/* Equipment Comparison */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <CardTitle className="text-xs font-medium font-display text-muted-foreground">
                 Equipment Comparison
               </CardTitle>
             </CardHeader>
@@ -357,14 +372,14 @@ export default function LoadCalculationPage() {
       >
         <div className="space-y-4">
           {result.formulas.map((formula) => (
-            <div key={formula.label} className="rounded-lg border border-border bg-secondary p-4">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-foreground">{formula.label}</p>
+            <div key={formula.label} className="rounded-sm border border-border bg-secondary p-4">
+              <p className="text-[11px] font-medium font-display text-foreground">{formula.label}</p>
               <p className="mt-1 font-mono text-xs text-muted-foreground">{formula.expression}</p>
               <p className="mt-1.5 text-xs font-semibold text-accent">{formula.value}</p>
             </div>
           ))}
           {result.alerts.length > 0 && (
-            <div className="flex items-start gap-2 rounded-lg border border-warning bg-warning/10 p-4 text-sm text-foreground">
+            <div className="flex items-start gap-2 rounded-sm border border-warning bg-warning/10 p-4 text-sm text-foreground">
               <Info size={14} className="mt-0.5 shrink-0" />
               <div>
                 {result.alerts.map((alert) => (

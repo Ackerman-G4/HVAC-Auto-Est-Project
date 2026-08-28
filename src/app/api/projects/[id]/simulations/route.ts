@@ -6,6 +6,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { parseJsonBody } from '@/lib/validation/http';
+import { createSimulationCaseSchema } from '@/lib/validation/simulation-cases';
 import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import { getProjectRecord } from '@/lib/firebase/projects-store';
 import {
@@ -102,7 +104,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return errorResponse(403, 'Forbidden', 'You do not have access to this project.', 'FORBIDDEN');
     }
 
-    const body = await request.json();
+    const parsed = await parseJsonBody(request, createSimulationCaseSchema);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
 
     if (!body.name) {
       return errorResponse(400, 'Case name required', 'Provide a name for the simulation case.', 'MISSING_NAME');

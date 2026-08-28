@@ -5,7 +5,14 @@
  */
 
 import { getFirebaseAuth } from '@/lib/firebase/server';
-import { isLocalAuthMode, localListUsers } from '@/lib/auth/local-auth';
+import {
+  isLocalAuthMode,
+  localListUsers,
+  localSetUserDisabled,
+  localSetUserRole,
+} from '@/lib/auth/local-auth';
+
+export class AdminUserNotFoundError extends Error {}
 
 export interface AdminUserSummary {
   id: string;
@@ -30,7 +37,7 @@ function mapLocalUsers(): AdminUserSummary[] {
     email: user.email,
     name: user.name,
     role: user.role,
-    disabled: false,
+    disabled: user.disabled,
     mfaEnabled: false,
     lastLoginAt: null,
     createdAt: toIsoOrNull(user.createdAt),
@@ -65,5 +72,49 @@ export async function listAdminUsers(): Promise<{
     return { mode: 'firebase', users };
   } catch {
     return { mode: 'local', users: mapLocalUsers() };
+  }
+}
+
+export async function getAdminUserById(id: string): Promise<AdminUserSummary | null> {
+  const { users } = await listAdminUsers();
+  return users.find((u) => u.id === id) ?? null;
+}
+
+/** Sets the disabled/locked-out status of an account, in whichever auth mode is active. */
+export async function setAdminUserDisabled(id: string, disabled: boolean): Promise<void> {
+  if (isLocalAuthMode()) {
+    try {
+      localSetUserDisabled(id, disabled);
+    } catch {
+      throw new AdminUserNotFoundError('User not found');
+    }
+    return;
+  }
+
+  try {
+    await getFirebaseAuth().updateUser(id, { disabled });
+  } catch {
+    throw new AdminUserNotFoundError('User not found');
+  }
+}
+
+/** Sets the admin/engineer role of an account, in whichever auth mode is active. */
+export async function setAdminUserRole(id: string, role: 'admin' | 'engineer'): Promise<void> {
+  if (isLocalAuthMode()) {
+    try {
+      localSetUserRole(id, role);
+    } catch {
+      throw new AdminUserNotFoundError('User not found');
+    }
+    return;
+  }
+
+  try {
+    const auth = getFirebaseAuth();
+    const record = await auth.getUser(id);
+    const claims = { ...(record.customClaims ?? {}), role };
+    await auth.setCustomUserClaims(id, claims);
+  } catch {
+    throw new AdminUserNotFoundError('User not found');
   }
 }

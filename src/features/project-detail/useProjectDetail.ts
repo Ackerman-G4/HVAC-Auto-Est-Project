@@ -41,6 +41,7 @@ export function useProjectDetail(id: string) {
   const [equipmentDrafts, setEquipmentDrafts] = useState<Record<string, EquipmentDraftState>>({});
   const [equipmentSavingId, setEquipmentSavingId] = useState<string | null>(null);
   const [snapshotSavedAt, setSnapshotSavedAt] = useState<string | null>(null);
+  const [snapshotStatus, setSnapshotStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [roomForm, setRoomForm] = useState<Record<string, string | number | boolean>>({
     name: '',
     floorNumber: 1,
@@ -297,8 +298,10 @@ export function useProjectDetail(id: string) {
 
   useEffect(() => {
     if (!project) return;
+    setSnapshotStatus('saving');
     const timeoutId = window.setTimeout(() => {
       saveLocalSnapshot(false);
+      setSnapshotStatus('saved');
     }, 1000);
 
     return () => window.clearTimeout(timeoutId);
@@ -756,6 +759,7 @@ export function useProjectDetail(id: string) {
     equipmentDrafts,
     equipmentSavingId,
     snapshotSavedAt,
+    snapshotStatus,
     roomForm,
     setRoomForm,
     // form helpers + derived

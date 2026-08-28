@@ -63,23 +63,23 @@ export function DenseDataTable<T extends object>({
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between gap-3">
-        <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</h4>
+        <h4 className="text-xs font-medium font-display text-muted-foreground">{title}</h4>
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder={filterPlaceholder}
-          className="h-9 w-65 rounded-xl border border-input bg-card/85 px-3 text-sm text-foreground backdrop-blur-sm placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/55 focus-visible:border-primary"
+          className="h-9 w-65 rounded-md border border-input bg-card/85 px-3 text-sm text-foreground placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/55 focus-visible:border-primary"
         />
       </div>
 
-      <div className="max-h-90 overflow-auto rounded-2xl border border-border/70">
+      <div className="max-h-90 overflow-auto rounded-lg border border-border/70">
         <table className="w-full border-collapse text-sm">
-          <thead className="sticky top-0 z-10 bg-secondary/70 text-foreground backdrop-blur-sm">
+          <thead className="sticky top-0 z-10 bg-secondary/70 text-foreground">
             <tr>
               {columns.map((column) => (
                 <th
                   key={String(column.key)}
-                  className={`cursor-pointer border-b border-border/70 px-5 py-3.5 text-[11px] font-medium uppercase tracking-wider ${column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left'}`}
+                  className={`cursor-pointer border-b border-border/70 px-5 py-3.5 text-[11px] font-medium font-display ${column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left'}`}
                   onClick={() => {
                     if (sortBy === column.key) {
                       setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));

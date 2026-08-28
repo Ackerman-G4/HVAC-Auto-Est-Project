@@ -144,7 +144,7 @@ export function AdminAuditLogPanel() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-border/70 text-left text-xs uppercase tracking-wider text-muted-foreground">
+                    <tr className="border-b border-border/70 text-left text-xs font-display text-muted-foreground">
                       <th className="px-4 py-3 font-semibold" />
                       <th className="px-4 py-3 font-semibold">Time</th>
                       <th className="px-4 py-3 font-semibold">Action</th>
@@ -186,10 +186,10 @@ export function AdminAuditLogPanel() {
                                     if (!value) return null;
                                     return (
                                       <div key={field}>
-                                        <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                        <p className="mb-1 text-xs font-semibold font-display text-muted-foreground">
                                           {field}
                                         </p>
-                                        <pre className="overflow-x-auto rounded-lg border border-border/60 bg-background/60 p-3 text-xs text-foreground">
+                                        <pre className="overflow-x-auto rounded-sm border border-border/60 bg-background/60 p-3 text-xs text-foreground">
                                           {value}
                                         </pre>
                                       </div>

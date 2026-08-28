@@ -91,7 +91,7 @@ export default function SimulationEngineRightPanel({
           <select
             value={selectedRunSource}
             onChange={(event) => onRunSourceChange(event.target.value as RunSource)}
-            className="w-full rounded-md border border-border bg-background px-2 py-1 text-xs"
+            className="w-full rounded-sm border border-border bg-background px-2 py-1 text-xs"
             aria-label="Run Source"
             disabled={!activeCase || activeCase.status === 'running' || activeCase.status === 'queued'}
           >
@@ -150,16 +150,19 @@ export default function SimulationEngineRightPanel({
               return (
                 <div
                   key={run.id}
-                  className={`rounded-md border p-2 text-[10px] ${
+                  className={`rounded-sm border p-2 text-[10px] ${
                     activeRun?.id === run.id
                       ? 'border-accent/60 bg-accent/10'
                       : 'border-border/70 bg-background/60'
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="truncate font-semibold uppercase">{run.source}</span>
+                    {/* run.source is a lowercase enum ('internal' | 'openfoam'),
+                        so it needs casing applied rather than inherited from a
+                        blanket uppercase rule. */}
+                    <span className="truncate font-semibold font-display capitalize">{run.source}</span>
                     <span
-                      className={`rounded px-1.5 py-0.5 text-[9px] font-medium uppercase ${
+                      className={`rounded px-1.5 py-0.5 text-[9px] font-medium font-display ${
                         run.status === 'completed'
                           ? 'bg-emerald-500/10 text-emerald-600'
                           : run.status === 'failed'

@@ -19,8 +19,28 @@ interface Toast {
 
 let toastListeners: ((toast: Toast) => void)[] = [];
 
+/**
+ * Unique id per toast.
+ *
+ * These were `Date.now().toString()`, so two toasts raised in the same
+ * millisecond collided on their React key — which is exactly what a form
+ * reporting several validation failures at once does. React then reconciles
+ * them as one element and a toast silently goes missing.
+ *
+ * randomUUID needs a secure context; the counter keeps ids unique anywhere else
+ * rather than falling back to the collision.
+ */
+let toastSeq = 0;
+function nextToastId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  toastSeq += 1;
+  return `toast-${Date.now()}-${toastSeq}`;
+}
+
 export function showToast(type: ToastType, title: string, message?: string, duration = 4000) {
-  const toast: Toast = { id: Date.now().toString(), type, title, message, duration };
+  const toast: Toast = { id: nextToastId(), type, title, message, duration };
   toastListeners.forEach((listener) => listener(toast));
 }
 
@@ -85,11 +105,11 @@ export function ToastContainer() {
             role="status"
             aria-live="polite"
             className={cn(
-              'pointer-events-auto flex items-start gap-3 rounded-2xl border border-border/70 bg-card/80 p-4 shadow-[var(--panel-shadow)] backdrop-blur-md border-l-4',
+              'pointer-events-auto flex items-start gap-3 rounded-lg border border-border/70 bg-card/80 p-4 shadow-[var(--panel-shadow)] backdrop-blur-md border-l-4',
               borderColors[toast.type]
             )}
           >
-            <div className={cn('mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border', iconCapsules[toast.type])}>
+            <div className={cn('mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-sm border', iconCapsules[toast.type])}>
               {icons[toast.type]}
             </div>
             <div className="flex-1 min-w-0">
@@ -98,7 +118,7 @@ export function ToastContainer() {
             </div>
             <button
               onClick={() => removeToast(toast.id)}
-              className="rounded-xl border border-transparent p-1 text-muted-foreground transition-colors hover:border-border/70 hover:bg-secondary/80 hover:text-foreground"
+              className="rounded-md border border-transparent p-1 text-muted-foreground transition-colors hover:border-border/70 hover:bg-secondary/80 hover:text-foreground"
               aria-label="Dismiss notification"
             >
               <X size={14} />

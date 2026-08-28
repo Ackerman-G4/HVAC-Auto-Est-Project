@@ -25,7 +25,7 @@ import {
   CircleDot,
   TriangleAlert,
 } from 'lucide-react';
-import { microTransition, usePrefersReducedMotion } from '@/lib/ui/motion';
+import { microTransition, pageTransition, usePrefersReducedMotion } from '@/lib/ui/motion';
 import { cn } from '@/lib/utils/cn';
 
 export type StageStatus = 'not_started' | 'in_progress' | 'done' | 'stale';
@@ -105,7 +105,7 @@ export function WorkflowRail({ projectId, stages, activeStage, className }: Work
     <nav
       aria-label="Project workflow"
       className={cn(
-        'panel-glass relative overflow-hidden rounded-2xl border border-border/70 p-3',
+        'panel-glass relative overflow-hidden rounded-lg border border-border/70 p-3',
         className,
       )}
     >
@@ -115,11 +115,11 @@ export function WorkflowRail({ projectId, stages, activeStage, className }: Work
           className="h-full rounded-full bg-accent"
           initial={false}
           animate={{ width: `${progressPct}%` }}
-          transition={reduced ? { duration: 0.001 } : { duration: 0.4, ease: [0.2, 0, 0, 1] }}
+          transition={reduced ? { duration: 0 } : pageTransition}
         />
       </div>
 
-      <ol className="flex items-stretch gap-1.5 overflow-x-auto pb-2" role="list">
+      <ol className="flex items-stretch gap-1.5 overflow-x-auto pb-2">
         {STAGE_DEFS.map((stage, index) => {
           const state = stages[stage.id] ?? { status: 'not_started' as const };
           const meta = STATUS_META[state.status];
@@ -128,7 +128,7 @@ export function WorkflowRail({ projectId, stages, activeStage, className }: Work
           const isActive = activeStage === stage.id;
 
           return (
-            <li key={stage.id} className="flex min-w-0 flex-1 items-center" role="listitem">
+            <li key={stage.id} className="flex min-w-0 flex-1 items-center">
               <motion.button
                 type="button"
                 onClick={() => router.push(stage.href(projectId))}
@@ -138,7 +138,7 @@ export function WorkflowRail({ projectId, stages, activeStage, className }: Work
                 aria-label={`${stage.label}: ${meta.label}${state.detail ? ` — ${state.detail}` : ''}`}
                 title={state.detail}
                 className={cn(
-                  'group flex w-full min-w-[6.5rem] flex-col gap-1.5 rounded-xl border px-3 py-2.5 text-left transition-all duration-150',
+                  'group flex w-full min-w-[6.5rem] flex-col gap-1.5 rounded-md border px-3 py-2.5 text-left transition-all duration-150',
                   isActive
                     ? 'border-accent/50 bg-accent/10 shadow-[0_6px_16px_color-mix(in_oklab,var(--accent)_18%,transparent)]'
                     : 'border-transparent hover:border-border/70 hover:bg-secondary/50',

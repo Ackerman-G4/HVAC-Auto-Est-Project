@@ -15,6 +15,16 @@ Main capabilities:
 
 In short: it takes a project from room data to load results, equipment decisions, and reporting-ready outputs in one app.
 
+## Stack
+
+Next.js 16 (App Router, Turbopack) · React 19 · TypeScript · Zustand 5 ·
+Tailwind CSS 4 · three / @react-three/fiber (3D CFD) · recharts (lazy-loaded) ·
+framer-motion · zod · Firebase Admin (with a local-JSON firestore mock for dev).
+
+See [`docs/architecture-v3.md`](docs/architecture-v3.md) for the directory,
+store, and route maps, and [`docs/engine-invariants.md`](docs/engine-invariants.md)
+for the calculation-engine contract.
+
 ## How To Launch Locally
 
 1. Open a terminal in the project root.
@@ -35,6 +45,17 @@ npm run dev
 ```text
 http://localhost:3000
 ```
+
+## Scripts
+
+| Command | Does |
+|---|---|
+| `npm run dev` | start the dev server (Turbopack) |
+| `npm run build` | production build |
+| `npm run check` | `tsc --noEmit && eslint src && vitest run` — the one-command gate |
+| `npm test` | run the vitest suite |
+| `npm run lint` | ESLint |
+
 ## Notes
 
 1. For local development, the app supports local auth/data fallback when Firebase credentials are not configured.

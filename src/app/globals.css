@@ -5,24 +5,38 @@
 
 /* ── Modern Enterprise Design System ─────────────────────── */
 
+/*
+ * Surfaces are opaque.
+ *
+ * These were translucent rgba() values, so 132 surfaces floated over whatever
+ * happened to be behind them. Depth stops carrying meaning when everything
+ * floats, and stacked blurs are a real scroll-jank source over the 3D canvas.
+ *
+ * Each value below is the previous translucent colour composited over the
+ * ground it actually sat on, so the palette reads the same while nothing is
+ * see-through. Translucency now survives only on genuine overlays — see
+ * .overlay-glass at the bottom of this file.
+ */
 :root {
   /* HVAC Studio identity: ink (navy) primary · jade accent · copper for cost. */
-  --background: #f4f7f9;
+  --paper: #f7f8f9;
+  --paper-sunk: #edf0f2;
+  --background: var(--paper);
   --foreground: #0e1a24;
-  --card: rgba(255, 255, 255, 0.82);
+  --card: #ffffff;
   --card-foreground: #0e1a24;
   --primary: #1f3f62;
   --primary-foreground: #ffffff;
-  --secondary: rgba(15, 23, 42, 0.06);
+  --secondary: #e9eaed;
   --secondary-foreground: #1e293b;
-  --muted: rgba(100, 116, 139, 0.18);
-  --muted-foreground: #4a5b6b;
+  --muted: #dde0e5;
+  --muted-foreground: #46586a;
   --accent: #148673;
   --accent-light: #1aa88f;
   --accent-dark: #0f6b5c;
   --accent-foreground: #ffffff;
-  --border: rgba(15, 32, 44, 0.12);
-  --input: rgba(15, 32, 44, 0.12);
+  --border: #dbdee0;
+  --input: #cbd1d6;
   --ring: #1f3f62;
   --destructive: #dc2626;
   --destructive-foreground: #ffffff;
@@ -32,14 +46,20 @@
   --copper: #b3701f;
   --copper-foreground: #ffffff;
 
-  --glass-bg: rgba(255, 255, 255, 0.62);
-  --glass-bg-strong: rgba(255, 255, 255, 0.80);
-  --glass-border: rgba(15, 32, 44, 0.12);
+  /* 3D/canvas well. Set from JS by the viewers, so it must exist in both
+     themes — hardcoding it left a near-black hole in the middle of a light
+     page. Slightly darker than the page so geometry reads against it. */
+  --canvas-bg: #e6eaee;
+
+  /* Overlay-only translucency (dialogs, palette, menus, toasts, drawers). */
+  --overlay-bg: rgba(255, 255, 255, 0.80);
+  --overlay-border: rgba(15, 32, 44, 0.12);
+  --overlay-scrim: rgba(15, 32, 44, 0.32);
   --panel-shadow: 0 18px 42px rgba(15, 32, 44, 0.08);
   --panel-shadow-strong: 0 28px 70px rgba(15, 32, 44, 0.14);
 
-  /* Elevation system (Phase 3): flat = recessed workspace surface,
-     raised = side panels/cards, floating = top nav / overlays. */
+  /* Elevation means one thing: flat = recessed well, raised = cards/panels,
+     floating = overlays only. Nothing that is not overlaying gets floating. */
   --elevation-flat: inset 0 1px 2px rgba(15, 32, 44, 0.05);
   --elevation-raised: 0 4px 14px rgba(15, 32, 44, 0.08);
   --elevation-floating: 0 12px 34px rgba(15, 32, 44, 0.14);
@@ -53,35 +73,35 @@
   --brand-copper: #b3701f;
   --brand-paper: #ffffff;
   --surface-0: var(--background);
-  --surface-1: var(--glass-bg-strong);
-  --surface-2: rgba(255, 255, 255, 0.55);
-  --surface-3: rgba(15, 23, 42, 0.08);
+  --surface-1: #ffffff;
+  --surface-2: #f1f3f5;
+  --surface-3: #e4e6e8;
   --text-subtle: #475569;
 
-  --radius: 1rem;
-  --radius-card: 1.25rem;
   --content-max-width-constrained: var(--content-max-width);
   color-scheme: light;
 }
 
 [data-theme='dark'] {
-  --background: #0a141d;
+  --slate: #0e171f;
+  --slate-sunk: #0a1219;
+  --background: var(--slate);
   --foreground: #e6eef5;
-  --card: rgba(255, 255, 255, 0.05);
+  --card: #1a232a;
   --card-foreground: #e6eef5;
   /* Ink brightened for contrast on the dark ground. */
   --primary: #5b8fc7;
   --primary-foreground: #06121e;
-  --secondary: rgba(148, 163, 184, 0.14);
+  --secondary: #212b34;
   --secondary-foreground: #cbd5e1;
-  --muted: rgba(148, 163, 184, 0.16);
-  --muted-foreground: #9fb1c4;
+  --muted: #232d37;
+  --muted-foreground: #a3b5c7;
   --accent: #2bb89d;
   --accent-light: #46d0b5;
   --accent-dark: #1c8f79;
   --accent-foreground: #04140f;
-  --border: rgba(255, 255, 255, 0.1);
-  --input: rgba(255, 255, 255, 0.16);
+  --border: #262e35;
+  --input: #353c43;
   --ring: #5b8fc7;
   --destructive: #f2555a;
   --destructive-foreground: #fff1f1;
@@ -90,13 +110,14 @@
   --copper: #d99a4e;
   --copper-foreground: #1a0f04;
 
-  --glass-bg: rgba(15, 26, 38, 0.5);
-  --glass-bg-strong: rgba(15, 26, 38, 0.72);
-  --glass-border: rgba(255, 255, 255, 0.14);
+  --canvas-bg: #0b1013;
+  --overlay-bg: rgba(15, 26, 38, 0.82);
+  --overlay-border: rgba(255, 255, 255, 0.14);
+  --overlay-scrim: rgba(0, 0, 0, 0.58);
   --panel-shadow: 0 18px 42px rgba(0, 0, 0, 0.38);
   --panel-shadow-strong: 0 30px 78px rgba(0, 0, 0, 0.52);
 
-  /* Elevation system (Phase 3) — deeper in dark. */
+  /* Elevation system — deeper in dark. */
   --elevation-flat: inset 0 1px 3px rgba(0, 0, 0, 0.4);
   --elevation-raised: 0 6px 18px rgba(0, 0, 0, 0.4);
   --elevation-floating: 0 16px 40px rgba(0, 0, 0, 0.55);
@@ -110,9 +131,9 @@
   --brand-copper: #d99a4e;
   --brand-paper: #16273a;
   --surface-0: var(--background);
-  --surface-1: var(--glass-bg-strong);
-  --surface-2: rgba(255, 255, 255, 0.07);
-  --surface-3: rgba(255, 255, 255, 0.12);
+  --surface-1: #1a232a;
+  --surface-2: #1f272f;
+  --surface-3: #2b333a;
   --text-subtle: #a9b6d6;
 
   color-scheme: dark;
@@ -152,9 +173,21 @@
   --color-surface-1: var(--surface-1);
   --color-surface-2: var(--surface-2);
   --color-surface-3: var(--surface-3);
-  --font-sans: var(--font-jakarta);
-  --font-mono: var(--font-jetbrains-mono);
-  --font-display: var(--font-space-grotesk);
+  /* Map Tailwind's font-* utilities onto the faces loaded in layout.tsx. The
+     loaded faces are --face-*, deliberately distinct from these theme keys:
+     `--font-mono: var(--font-mono)` would be a self-reference, and the only
+     reason it appears to work is that next/font re-declares it lower down. */
+  --font-sans: var(--face-body);
+  --font-mono: var(--face-mono);
+  --font-display: var(--face-display);
+
+  /* Wire the radius tokens to the rounded-* utilities. Without this Tailwind
+     uses its own default scale and the tokens in tokens.css do nothing —
+     which is why 463 radius usages drifted across six values. Only these
+     three (plus rounded-full) exist now; rounded-xl/2xl/3xl are gone. */
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
 }
 
 * {
@@ -164,10 +197,10 @@
 }
 
 body {
-  min-height: 100vh;
-  background: radial-gradient(circle at 20% 12%, color-mix(in oklab, var(--primary) 16%, transparent), transparent 32%),
-    radial-gradient(circle at 82% 84%, color-mix(in oklab, var(--accent) 12%, transparent), transparent 36%),
-    var(--background);
+  min-height: 100dvh;
+  /* Flat. Two radial gradients used to sit behind every dense data table,
+     lowering effective contrast for no informational gain. */
+  background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), 'Segoe UI', sans-serif;
   font-size: 14px;
@@ -255,19 +288,34 @@ h3 {
   background-size: 32px 32px;
 }
 
+/*
+ * Kept as class names because ~127 call sites use them, but they are no longer
+ * glass: opaque fill, 1px border, no backdrop-filter. Renaming them across
+ * every call site is Wave 4's job; changing what they mean is this wave's.
+ */
 .glass-card {
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  -webkit-backdrop-filter: blur(14px);
-  backdrop-filter: blur(14px);
-  box-shadow: var(--panel-shadow);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  box-shadow: var(--elevation-raised);
 }
 
 .panel-glass {
-  background: var(--glass-bg-strong);
+  background: var(--surface-1);
+  box-shadow: var(--elevation-raised);
+}
+
+/*
+ * The only surfaces allowed to stay translucent: dialog scrims, the command
+ * palette, dropdown/popover menus, toasts, and the mobile sidebar drawer.
+ * These genuinely overlay content, so seeing what is behind them tells the
+ * user where they are.
+ */
+.overlay-glass {
+  background: var(--overlay-bg);
+  border: 1px solid var(--overlay-border);
   -webkit-backdrop-filter: blur(16px);
   backdrop-filter: blur(16px);
-  box-shadow: var(--panel-shadow);
+  box-shadow: var(--elevation-floating);
 }
 
 @keyframes fade-rise {
@@ -340,14 +388,10 @@ h3 {
   border-radius: 999px;
 }
 
-/* Pipeline stage indicator pulse */
-@keyframes stage-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-.stage-running {
-  animation: stage-pulse 0.8s ease-in-out infinite;
-}
+/* `stage-pulse` / `.stage-running` lived here with zero call sites — an
+   infinite opacity pulse nothing referenced. Removed. `skeleton-shimmer` below
+   is now the only infinite animation, and it earns it: it means "content is
+   coming here". */
 
 /* ── Phase 1: interaction language ────────────────────────────── */
 
@@ -399,48 +443,36 @@ h3 {
 .elev-raised { box-shadow: var(--elevation-raised); }
 .elev-floating { box-shadow: var(--elevation-floating); }
 
-/* Recessed workspace surface — the main canvas reads as a sunken instrument
-   panel the raised side panels sit above. */
+/* Recessed workspace well. Flat — the accent wash it used to carry tinted
+   every page body for no informational gain. */
 .surface-recessed {
-  background:
-    radial-gradient(120% 120% at 50% 0%, color-mix(in oklab, var(--accent) 5%, transparent) 0%, transparent 60%),
-    var(--background);
+  background: var(--paper-sunk, var(--slate-sunk));
   box-shadow: var(--elevation-flat);
 }
-
-/* Idle glow on the primary action (Run Preview) — a slow jade breathe that
-   draws the eye without shouting. Static ring under reduced motion. */
-@keyframes cta-breathe {
-  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 40%, transparent); }
-  50% { box-shadow: 0 0 0 6px color-mix(in oklab, var(--accent) 0%, transparent); }
+[data-theme='dark'] .surface-recessed {
+  background: var(--slate-sunk);
 }
+
+/*
+ * .cta-glow was a 2.6s jade "breathe" on the primary button. A pulsing glow on
+ * an idle control reads as an alert when nothing is wrong, so it is now a
+ * static ring — the same thing its own reduced-motion branch already fell back
+ * to. Kept as a class because call sites use it.
+ */
 .cta-glow:not(:disabled) {
-  animation: cta-breathe 2.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-@media (prefers-reduced-motion: reduce) {
-  .cta-glow:not(:disabled) {
-    animation: none;
-    box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 30%, transparent);
-  }
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 30%, transparent);
 }
 
-/* ── Phase 4: the canvas ──────────────────────────────────────── */
+/* ── The canvas ───────────────────────────────────────────────── */
 
-/* Ambient gradient-mesh backdrop for the 3D viewer — a slow jade↔ink drift so
-   an empty or transparent canvas reads as a living workspace, not a void. A
-   faint grid sits on top for spatial reference. */
-@keyframes canvas-drift {
-  0% { background-position: 0% 0%, 100% 100%; }
-  100% { background-position: 26% 18%, 74% 82%; }
-}
+/*
+ * .canvas-ambient was a 26s infinite gradient drift behind the 3D viewer — a
+ * background that never stopped moving behind numbers people are reading. The
+ * faint reference grid earns its place and stays; the drift does not.
+ */
 .canvas-ambient {
   position: relative;
   background-color: var(--background);
-  background-image:
-    radial-gradient(58% 52% at 18% 14%, color-mix(in oklab, var(--accent) 18%, transparent), transparent 70%),
-    radial-gradient(54% 56% at 86% 88%, color-mix(in oklab, var(--primary) 22%, transparent), transparent 72%);
-  background-size: 180% 180%, 200% 200%;
-  animation: canvas-drift 26s ease-in-out infinite alternate;
 }
 .canvas-ambient::before {
   content: '';
@@ -453,7 +485,4 @@ h3 {
   background-size: 36px 36px;
   mask-image: radial-gradient(80% 80% at 50% 50%, #000 40%, transparent 100%);
   -webkit-mask-image: radial-gradient(80% 80% at 50% 50%, #000 40%, transparent 100%);
-}
-@media (prefers-reduced-motion: reduce) {
-  .canvas-ambient { animation: none; }
 }

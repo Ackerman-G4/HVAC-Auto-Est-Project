@@ -38,7 +38,7 @@ export function Tabs({ tabs, activeTab, onTabChange, children, className }: Tabs
       <div
         role="tablist"
         aria-orientation="horizontal"
-        className="no-print flex w-fit max-w-full gap-1 overflow-x-auto rounded-2xl border border-border/70 bg-secondary/50 p-1.5 backdrop-blur-sm"
+        className="no-print flex w-fit max-w-full gap-1 overflow-x-auto rounded-lg border border-border/70 bg-secondary/50 p-1.5"
       >
         {tabs.map((tab, idx) => (
           <button
@@ -51,7 +51,7 @@ export function Tabs({ tabs, activeTab, onTabChange, children, className }: Tabs
             onClick={() => onTabChange(tab.id)}
             onKeyDown={(e) => handleKeyDown(e, idx)}
             className={cn(
-              'group relative flex items-center gap-2 whitespace-nowrap rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-150',
+              'group relative flex items-center gap-2 whitespace-nowrap rounded-md border px-4 py-2 text-sm font-medium transition-all duration-150',
               activeTab === tab.id
                 ? 'border-border/80 bg-card text-foreground shadow-sm'
                 : 'border-transparent text-muted-foreground hover:border-border/70 hover:bg-secondary/50 hover:text-foreground'

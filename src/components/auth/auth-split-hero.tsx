@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import { pageTransition } from '@/lib/ui/motion';
 import { Wind, Activity } from 'lucide-react';
 import { HvacLogo } from '@/components/ui/hvac-logo';
 
@@ -16,11 +17,11 @@ export function AuthSplitHero({ heading, subtitle }: AuthSplitHeroProps) {
       <div className="system-grid-bg absolute inset-0 opacity-50" />
 
       <div className="relative z-10 flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-border/80 bg-card/70">
+        <div className="flex h-10 w-10 items-center justify-center rounded-md border border-border/80 bg-card/70">
           <HvacLogo variant="color" size={28} />
         </div>
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">HVAC Studio</p>
+          <p className="text-xs font-semibold font-display tracking-[0.2em] text-muted-foreground">HVAC Studio</p>
           <p className="text-sm font-medium text-foreground">Engineering Command Center</p>
         </div>
       </div>
@@ -29,15 +30,15 @@ export function AuthSplitHero({ heading, subtitle }: AuthSplitHeroProps) {
         <motion.p
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45 }}
-          className="text-xs font-semibold uppercase tracking-[0.2em] text-primary"
+          transition={pageTransition}
+          className="text-xs font-semibold font-display tracking-[0.2em] text-primary"
         >
           Precision Cooling. Intelligent Design.
         </motion.p>
         <motion.h1
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.05 }}
+          transition={{ ...pageTransition, delay: 0.05 }}
           className="mt-3 text-4xl font-semibold tracking-tight text-white"
         >
           {heading}
@@ -45,7 +46,7 @@ export function AuthSplitHero({ heading, subtitle }: AuthSplitHeroProps) {
         <motion.p
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
+          transition={{ ...pageTransition, delay: 0.1 }}
           className="mt-4 text-sm leading-7 text-slate-200"
         >
           {subtitle}
@@ -53,17 +54,17 @@ export function AuthSplitHero({ heading, subtitle }: AuthSplitHeroProps) {
       </div>
 
       <div className="relative z-10 mt-auto grid gap-3 sm:grid-cols-2">
-        <div className="rounded-2xl border border-border/60 bg-card/35 p-4 backdrop-blur-md">
+        <div className="rounded-lg border border-border/60 bg-card/35 p-4">
           <div className="mb-2 flex items-center gap-2 text-primary">
             <Wind size={16} />
-            <span className="text-xs font-semibold uppercase tracking-[0.14em]">Airflow Sync</span>
+            <span className="text-xs font-semibold font-display tracking-[0.14em]">Airflow Sync</span>
           </div>
           <p className="text-xs text-slate-200">Live load and duct computations are ready for high-precision iteration.</p>
         </div>
-        <div className="rounded-2xl border border-border/60 bg-card/35 p-4 backdrop-blur-md">
+        <div className="rounded-lg border border-border/60 bg-card/35 p-4">
           <div className="mb-2 flex items-center gap-2 text-accent">
             <Activity size={16} />
-            <span className="text-xs font-semibold uppercase tracking-[0.14em]">System Health</span>
+            <span className="text-xs font-semibold font-display tracking-[0.14em]">System Health</span>
           </div>
           <p className="text-xs text-slate-200">Project metrics, equipment fit, and reports are unified in one workflow.</p>
         </div>

@@ -145,7 +145,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
 
       <div className="flex h-auto min-h-[70vh] flex-col gap-4 xl:h-[calc(100vh-200px)] xl:flex-row">
         {/* Toolbar */}
-        <div className="panel-glass flex w-full flex-row gap-1 overflow-x-auto rounded-xl border border-border/70 p-1.5 xl:w-12 xl:flex-col xl:overflow-visible">
+        <div className="panel-glass flex w-full flex-row gap-1 overflow-x-auto rounded-md border border-border/70 p-1.5 xl:w-12 xl:flex-col xl:overflow-visible">
           {([
             { t: 'select' as Tool, icon: MousePointer, label: 'Select' },
             { t: 'draw' as Tool, icon: Square, label: 'Draw Room' },
@@ -158,7 +158,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
               key={t}
               onClick={() => setTool(t)}
               title={label}
-              className={`p-2 rounded-lg transition-colors ${
+              className={`p-2 rounded-sm transition-colors ${
                 tool === t
                   ? 'bg-accent text-white'
                   : 'text-muted-foreground hover:bg-secondary'
@@ -171,14 +171,14 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
           <button
             onClick={() => fileInputRef.current?.click()}
             title="Upload Floor Plan"
-            className="p-2 rounded-lg text-muted-foreground hover:bg-secondary"
+            className="p-2 rounded-sm text-muted-foreground hover:bg-secondary"
           >
             <Upload className="w-4 h-4" />
           </button>
           <button
             onClick={() => setShowGrid(!showGrid)}
             title="Toggle Grid"
-            className={`p-2 rounded-lg transition-colors ${
+            className={`p-2 rounded-sm transition-colors ${
               showGrid ? 'bg-secondary' : ''
             } text-muted-foreground`}
           >
@@ -188,7 +188,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
             <button
               onClick={() => setShowBgOnCanvas(!showBgOnCanvas)}
               title={showBgOnCanvas ? 'Hide Floor Plan Image' : 'Show Floor Plan Image'}
-              className={`p-2 rounded-lg transition-colors ${
+              className={`p-2 rounded-sm transition-colors ${
                 showBgOnCanvas ? 'bg-secondary' : ''
               } text-muted-foreground`}
             >
@@ -199,28 +199,28 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
           <button
             onClick={() => setZoom((z) => Math.min(3, z + 0.25))}
             title="Zoom In"
-            className="p-2 rounded-lg text-muted-foreground hover:bg-secondary"
+            className="p-2 rounded-sm text-muted-foreground hover:bg-secondary"
           >
             <ZoomIn className="w-4 h-4" />
           </button>
           <button
             onClick={() => setZoom((z) => Math.max(0.25, z - 0.25))}
             title="Zoom Out"
-            className="p-2 rounded-lg text-muted-foreground hover:bg-secondary"
+            className="p-2 rounded-sm text-muted-foreground hover:bg-secondary"
           >
             <ZoomOut className="w-4 h-4" />
           </button>
           <button
             onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
             title="Reset View"
-            className="p-2 rounded-lg text-muted-foreground hover:bg-secondary"
+            className="p-2 rounded-sm text-muted-foreground hover:bg-secondary"
           >
             <RotateCcw className="w-4 h-4" />
           </button>
         </div>
 
         {/* Canvas */}
-        <div className="panel-glass relative min-h-112 flex-1 overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm">
+        <div className="panel-glass relative min-h-112 flex-1 overflow-hidden rounded-md border border-border/70 bg-card shadow-sm">
           <canvas
             ref={canvasRef}
             className={`w-full h-full ${
@@ -234,7 +234,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
           />
 
           {/* Status bar */}
-          <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between border-t border-border bg-background px-3 py-1.5 text-xs text-muted-foreground backdrop-blur">
+          <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between border-t border-border bg-background px-3 py-1.5 text-xs text-muted-foreground">
             <div className="flex items-center gap-4">
               <span>Scale: 1m = {scale}px</span>
               <span>Zoom: {(zoom * 100).toFixed(0)}%</span>
@@ -290,7 +290,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
 
           {/* Image info badge */}
           {bgImage && bgFileName && (
-            <div className="absolute top-2 left-2 flex items-center gap-2 rounded-lg bg-[rgba(19,32,51,0.76)] px-2.5 py-1.5 text-xs text-white backdrop-blur-sm">
+            <div className="absolute top-2 left-2 flex items-center gap-2 rounded-sm bg-[rgba(19,32,51,0.76)] px-2.5 py-1.5 text-xs text-white">
               <ImageIcon className="w-3.5 h-3.5" />
               <span className="truncate max-w-45">{bgFileName}</span>
               {bgImageDims && <span className="text-white/60">{bgImageDims.w}×{bgImageDims.h}</span>}
@@ -319,7 +319,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
                     <button
                       key={floor.id}
                       onClick={() => setActiveFloor(idx)}
-                      className={`text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                      className={`text-left px-3 py-2 rounded-sm text-sm transition-colors ${
                         activeFloor === idx
                           ? 'bg-accent text-white'
                           : 'hover:bg-secondary'
@@ -378,7 +378,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
                       <button
                         key={room.id}
                         onClick={() => setSelectedRoom(room)}
-                        className={`text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                        className={`text-left px-3 py-2 rounded-sm text-sm transition-colors ${
                           selectedRoom?.id === room.id
                             ? 'bg-accent/10 border border-accent'
                             : 'hover:bg-secondary'
@@ -415,12 +415,12 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
                 </CardHeader>
                 <CardContent className="p-3 pt-0 space-y-2">
                   {selectedRoom.polygonPoints && selectedRoom.polygonPoints.length >= 3 && (
-                    <p className="rounded-md border border-accent/40 bg-accent/8 px-2 py-1 text-[11px] text-accent">
+                    <p className="rounded-sm border border-accent/40 bg-accent/8 px-2 py-1 text-[11px] text-accent">
                       Polygon room: drag points to reshape, Alt+click edge to insert a vertex, Shift+click point to remove.
                     </p>
                   )}
                   {selectedPolygonValidationIssue && (
-                    <p className="rounded-md border border-destructive/45 bg-destructive/10 px-2 py-1 text-[11px] text-destructive">
+                    <p className="rounded-sm border border-destructive/45 bg-destructive/10 px-2 py-1 text-[11px] text-destructive">
                       {selectedPolygonValidationIssue}
                     </p>
                   )}
@@ -472,10 +472,10 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
               <CardContent className="p-3 pt-0 space-y-2">
                 {layoutHVAC.length > 0 && (
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">HVAC Units ({layoutHVAC.length})</p>
+                    <p className="text-[10px] font-semibold font-display text-muted-foreground mb-1">HVAC Units ({layoutHVAC.length})</p>
                     <div className="flex flex-col gap-1 max-h-30 overflow-y-auto">
                       {layoutHVAC.map((h) => (
-                        <div key={h.id} className="flex items-center justify-between rounded-lg bg-secondary/50 px-2 py-1 text-xs">
+                        <div key={h.id} className="flex items-center justify-between rounded-sm bg-secondary/50 px-2 py-1 text-xs">
                           <span className="font-medium">{h.label}</span>
                           <button
                             onClick={() => setLayoutHVAC(layoutHVAC.filter((x) => x.id !== h.id))}
@@ -490,10 +490,10 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
                 )}
                 {layoutTiles.length > 0 && (
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">Airflow Tiles ({layoutTiles.length})</p>
+                    <p className="text-[10px] font-semibold font-display text-muted-foreground mb-1">Airflow Tiles ({layoutTiles.length})</p>
                     <div className="flex flex-col gap-1 max-h-30 overflow-y-auto">
                       {layoutTiles.map((t) => (
-                        <div key={t.id} className="flex items-center justify-between rounded-lg bg-secondary/50 px-2 py-1 text-xs">
+                        <div key={t.id} className="flex items-center justify-between rounded-sm bg-secondary/50 px-2 py-1 text-xs">
                           <span className="font-medium">({t.x.toFixed(1)}, {t.y.toFixed(1)}) m — {(t.openArea * 100).toFixed(0)}%</span>
                           <button
                             onClick={() => setLayoutTiles(layoutTiles.filter((x) => x.id !== t.id))}
@@ -536,7 +536,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="relative flex max-h-[90vh] max-w-[90vw] flex-col overflow-hidden rounded-xl border border-border bg-background shadow-2xl"
+              className="relative flex max-h-[90vh] max-w-[90vw] flex-col overflow-hidden rounded-md border border-border bg-background shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
@@ -561,7 +561,7 @@ export default function FloorPlanPage({ params }: { params: Promise<{ id: string
                   </Button>
                   <button
                     onClick={() => setShowImagePreview(false)}
-                    className="p-1.5 rounded-lg hover:bg-secondary transition-colors"
+                    className="p-1.5 rounded-sm hover:bg-secondary transition-colors"
                     title="Close preview"
                   >
                     <X className="w-5 h-5" />

@@ -9,6 +9,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { MOTION_DURATION, usePrefersReducedMotion } from '@/lib/ui/motion';
+import { cn } from '@/lib/utils/cn';
 
 interface CountUpProps {
   value: number;
@@ -56,5 +57,8 @@ export function CountUp({ value, format, duration = MOTION_DURATION.page * 2, cl
   }, [value]);
 
   const text = format ? format(display) : String(Math.round(display));
-  return <span className={className}>{text}</span>;
+  // Tabular figures are not optional here: proportional digits change width as
+  // they tick, so the number visibly jitters for the whole animation and shifts
+  // whatever sits beside it.
+  return <span className={cn('tabular-nums', className)}>{text}</span>;
 }

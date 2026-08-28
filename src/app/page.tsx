@@ -23,9 +23,13 @@ import {
   Thermometer,
   Wind,
   Clock,
+  FolderKanban,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { PageHeader } from '@/components/ui/page-wrapper';
 import { StatCard } from '@/components/ui/stat-card';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Button } from '@/components/ui/button';
 import { useLoadWorkspaceStore } from '@/stores/load-workspace-store';
 import { useEquipmentWorkspaceStore } from '@/stores/equipment-workspace-store';
 import { useProjectStore } from '@/stores/project-store';
@@ -98,6 +102,10 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-(--space-section-gap)">
+      <PageHeader
+        title={user?.name ? `Welcome back, ${user.name.split(' ')[0]}` : 'Dashboard'}
+        description="Your latest load, equipment, and project activity at a glance."
+      />
       {/* KPI Row */}
       <section className="grid gap-(--space-component-gap) sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
@@ -127,7 +135,7 @@ export default function DashboardPage() {
         {/* Load Distribution Chart */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            <CardTitle className="text-xs font-medium font-display text-muted-foreground">
               Load Distribution
             </CardTitle>
           </CardHeader>
@@ -155,7 +163,7 @@ export default function DashboardPage() {
         {/* Cost Breakdown Chart */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            <CardTitle className="text-xs font-medium font-display text-muted-foreground">
               Cost Breakdown
             </CardTitle>
           </CardHeader>
@@ -177,7 +185,7 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <CardTitle className="text-xs font-medium font-display text-muted-foreground">
                 Recent Activity
               </CardTitle>
               <Link href="/projects" className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors">
@@ -192,9 +200,9 @@ export default function DashboardPage() {
                 <li key={project.id}>
                   <Link
                     href={`/projects/${project.id}`}
-                    className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm transition-colors hover:bg-secondary/60"
+                    className="flex items-center gap-3 rounded-md px-3 py-3 text-sm transition-colors hover:bg-secondary/60"
                   >
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-primary/10 text-primary">
                       <Clock size={14} />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -211,9 +219,17 @@ export default function DashboardPage() {
               ))}
             </ul>
           ) : (
-            <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
-              No recent activity
-            </div>
+            <EmptyState
+              icon={<FolderKanban size={24} />}
+              title="No projects yet"
+              description="Start one to track load calculations, equipment and BOQ."
+              action={
+                <Button asChild size="sm" variant="accent">
+                  <Link href="/projects/new">Create your first project</Link>
+                </Button>
+              }
+              className="h-48"
+            />
           )}
           </CardContent>
         </Card>
@@ -222,26 +238,26 @@ export default function DashboardPage() {
         <div className="grid gap-(--space-component-gap)">
           <Card>
             <CardHeader>
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <CardTitle className="text-xs font-medium font-display text-muted-foreground">
                 Environment Snapshot
               </CardTitle>
             </CardHeader>
             <CardContent>
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-border/70 bg-secondary/45 p-4">
-                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Outdoor Temperature</p>
+              <div className="rounded-lg border border-border/70 bg-secondary/45 p-4">
+                <p className="text-[11px] font-display text-muted-foreground">Outdoor Temperature</p>
                 <p className="mt-2 text-2xl font-semibold text-foreground">{ambientTemp} °C</p>
               </div>
-              <div className="rounded-2xl border border-border/70 bg-secondary/45 p-4">
-                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Indoor Setpoint</p>
+              <div className="rounded-lg border border-border/70 bg-secondary/45 p-4">
+                <p className="text-[11px] font-display text-muted-foreground">Indoor Setpoint</p>
                 <p className="mt-2 text-2xl font-semibold text-foreground">{indoorSetpoint} °C</p>
               </div>
-              <div className="rounded-2xl border border-border/70 bg-secondary/45 p-4">
-                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Ventilation Rate</p>
+              <div className="rounded-lg border border-border/70 bg-secondary/45 p-4">
+                <p className="text-[11px] font-display text-muted-foreground">Ventilation Rate</p>
                 <p className="mt-2 text-2xl font-semibold text-foreground">{ventilation} CFM/P</p>
               </div>
-              <div className="rounded-2xl border border-border/70 bg-secondary/45 p-4">
-                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Safety Margin</p>
+              <div className="rounded-lg border border-border/70 bg-secondary/45 p-4">
+                <p className="text-[11px] font-display text-muted-foreground">Safety Margin</p>
                 <p className="mt-2 text-2xl font-semibold text-accent">{safetyMargin}</p>
               </div>
             </div>
@@ -250,7 +266,7 @@ export default function DashboardPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <CardTitle className="text-xs font-medium font-display text-muted-foreground">
                 System Status
               </CardTitle>
             </CardHeader>

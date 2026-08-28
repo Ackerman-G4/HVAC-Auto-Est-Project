@@ -26,7 +26,7 @@ export default function TierBadge({
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider',
+        'inline-flex items-center rounded-sm px-1.5 py-0.5 text-[10px] font-semibold font-display',
         isEngineering
           ? 'bg-accent/15 text-accent-dark ring-1 ring-accent/30'
           : 'bg-muted/60 text-muted-foreground ring-1 ring-border/60',

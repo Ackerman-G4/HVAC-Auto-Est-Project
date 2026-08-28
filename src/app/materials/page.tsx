@@ -29,7 +29,7 @@ export default function MaterialsPage() {
       />
 
       {!c.canManageCatalog && (
-        <Card className="mb-6 border-[rgba(206,161,74,0.45)] bg-[rgba(206,161,74,0.12)]">
+        <Card className="mb-6 border-warning/45 bg-warning/10">
           <CardContent className="py-3">
             <div className="flex items-start gap-2 text-sm text-foreground">
               <ShieldAlert className="mt-0.5 h-4 w-4 text-accent" />
@@ -46,7 +46,7 @@ export default function MaterialsPage() {
           <CardContent className="py-4">
             <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Catalog Workspace</p>
+                <p className="text-[11px] font-semibold font-display text-muted-foreground">Catalog Workspace</p>
                 <p className="text-sm text-foreground font-medium mt-0.5">
                   Keep material pricing and supplier options aligned for faster project costing.
                 </p>

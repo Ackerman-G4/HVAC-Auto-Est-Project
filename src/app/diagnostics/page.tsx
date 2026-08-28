@@ -3,11 +3,14 @@
 import { useState, useCallback, useEffect } from 'react';
 import { PageWrapper, PageHeader } from '@/components/ui/page-wrapper';
 import { Card, CardContent } from '@/components/ui/card';
+import { SystemHealthCard } from '@/components/diagnostics/SystemHealthCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { showToast } from '@/components/ui/toast';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Skeleton, SkeletonList } from '@/components/ui/skeleton';
 import {
   Stethoscope,
   Play,
@@ -130,6 +133,52 @@ const defaultInput: DiagnosticInput = {
 
 // ── Page ─────────────────────────────────────────────────────────────────
 
+// ── Field controls ───────────────────────────────────────────────────────
+//
+// Hoisted to module scope. Defined inside DiagnosticsPage these were rebuilt
+// on every render, so React remounted them each time — which made NumField's
+// <Input> lose focus after a single keystroke.
+
+function Pill({ label, field, icon: I, input, onToggle }: {
+  label: string;
+  field: keyof DiagnosticInput;
+  icon: React.ComponentType<{ size?: number }>;
+  input: DiagnosticInput;
+  onToggle: (field: keyof DiagnosticInput) => void;
+}) {
+  return (
+    <button type="button" onClick={() => onToggle(field)}
+      className={cn('inline-flex items-center gap-2 rounded-sm border px-3.5 py-2 text-sm font-medium transition-all',
+        input[field] ? 'bg-accent/12 border-accent/30 text-accent' : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-border')}>
+      <I size={14} />{label}
+    </button>
+  );
+}
+
+function NumField({ label, field, unit, ph, input, onValueChange }: {
+  label: string;
+  field: keyof DiagnosticInput;
+  unit: string;
+  ph?: string;
+  input: DiagnosticInput;
+  onValueChange: (field: keyof DiagnosticInput, raw: string) => void;
+}) {
+  // Field controls render their own label (Input's built-in one carries
+  // different styling), so wire htmlFor/id explicitly — otherwise the label is
+  // announced by nothing and clicking it does not focus the field.
+  const inputId = `diagnostic-${field}`;
+
+  return (
+    <div>
+      <label htmlFor={inputId} className="mb-1 block text-xs font-medium text-muted-foreground">{label}</label>
+      <div className="relative">
+        <Input id={inputId} type="number" step="any" value={input[field] != null ? String(input[field]) : ''} onChange={(e) => onValueChange(field, e.target.value)} placeholder={ph ?? '—'} className="h-11 pr-11 text-sm" />
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{unit}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function DiagnosticsPage() {
   const [input, setInput] = useState<DiagnosticInput>({ ...defaultInput });
   const [result, setResult] = useState<DiagnosticResult | null>(null);
@@ -230,25 +279,6 @@ export default function DiagnosticsPage() {
     setShowMeasurements(false);
   };
 
-  // helpers
-  const Pill = ({ label, field, icon: I }: { label: string; field: keyof DiagnosticInput; icon: React.ComponentType<{ size?: number }> }) => (
-    <button type="button" onClick={() => toggleSym(field)}
-      className={cn('inline-flex items-center gap-2 rounded-lg border px-3.5 py-2 text-sm font-medium transition-all',
-        input[field] ? 'bg-accent/12 border-accent/30 text-accent' : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-border')}>
-      <I size={14} />{label}
-    </button>
-  );
-
-  const NumField = ({ label, field, unit, ph }: { label: string; field: keyof DiagnosticInput; unit: string; ph?: string }) => (
-    <div>
-      <label className="mb-1 block text-xs font-medium text-muted-foreground">{label}</label>
-      <div className="relative">
-        <Input type="number" step="any" value={input[field] != null ? String(input[field]) : ''} onChange={(e) => updateNum(field, e.target.value)} placeholder={ph ?? '—'} className="h-11 pr-11 text-sm" />
-        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{unit}</span>
-      </div>
-    </div>
-  );
-
   return (
     <PageWrapper>
       <PageHeader
@@ -257,23 +287,25 @@ export default function DiagnosticsPage() {
         actions={
           <div className="flex gap-2">
             <Button variant="ghost" size="md" onClick={reset}><RotateCcw size={15} className="mr-1.5" />Reset</Button>
-            <Button size="md" onClick={run} disabled={loading}>
-              {loading ? <span className="animate-pulse text-sm">Analysing…</span> : <><Play size={15} className="mr-1.5" />Diagnose</>}
+            <Button size="md" onClick={run} disabled={loading} isLoading={loading}>
+              <Play size={15} className="mr-1.5" />Diagnose
             </Button>
           </div>
         }
       />
 
+      <SystemHealthCard />
+
       <Card className="panel-glass border-border/70 bg-primary/5 shadow-sm">
         <CardContent className="py-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Diagnostics Command Deck</p>
+              <p className="text-[11px] font-semibold font-display text-muted-foreground">Diagnostics Command Deck</p>
               <p className="mt-0.5 text-sm text-foreground">
                 Capture symptoms, blend optional field readings, and generate ranked root-cause guidance.
               </p>
             </div>
-            <div className="rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
+            <div className="rounded-sm border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
               {result ? `${result.faults.length} fault candidates` : 'Awaiting analysis run'}
             </div>
           </div>
@@ -310,15 +342,15 @@ export default function DiagnosticsPage() {
         {/* Row 2: Symptoms */}
         <Card className="panel-glass border-border/70 bg-card shadow-sm">
           <CardContent className="px-5 py-5">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Symptoms</p>
+            <p className="mb-3 text-xs font-semibold font-display text-muted-foreground">Symptoms</p>
             <div className="flex flex-wrap gap-2">
-              <Pill label="Uneven Cooling" field="unevenCooling" icon={Thermometer} />
-              <Pill label="Weak Airflow" field="weakAirflow" icon={Wind} />
-              <Pill label="High Humidity" field="highHumidity" icon={Droplets} />
-              <Pill label="Noisy" field="noisyOperation" icon={Zap} />
-              <Pill label="Ice Formation" field="iceFormation" icon={Droplets} />
-              <Pill label="Short Cycling" field="shortCycling" icon={Clock} />
-              <Pill label="High Energy" field="highEnergyBills" icon={CircleDollarSign} />
+              <Pill label="Uneven Cooling" field="unevenCooling" icon={Thermometer} input={input} onToggle={toggleSym} />
+              <Pill label="Weak Airflow" field="weakAirflow" icon={Wind} input={input} onToggle={toggleSym} />
+              <Pill label="High Humidity" field="highHumidity" icon={Droplets} input={input} onToggle={toggleSym} />
+              <Pill label="Noisy" field="noisyOperation" icon={Zap} input={input} onToggle={toggleSym} />
+              <Pill label="Ice Formation" field="iceFormation" icon={Droplets} input={input} onToggle={toggleSym} />
+              <Pill label="Short Cycling" field="shortCycling" icon={Clock} input={input} onToggle={toggleSym} />
+              <Pill label="High Energy" field="highEnergyBills" icon={CircleDollarSign} input={input} onToggle={toggleSym} />
             </div>
           </CardContent>
         </Card>
@@ -336,18 +368,18 @@ export default function DiagnosticsPage() {
           <Card className="panel-glass border-border/70 bg-card shadow-sm">
             <CardContent className="px-5 py-5">
               <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-                <NumField label="Supply (cold)" field="supplyTempCold" unit="°C" ph="14" />
-                <NumField label="Supply (warm)" field="supplyTempWarm" unit="°C" ph="22" />
-                <NumField label="Return air" field="returnAirTemp" unit="°C" ph="26" />
-                <NumField label="Outdoor" field="outdoorTemp" unit="°C" ph="35" />
-                <NumField label="Indoor RH" field="indoorRH" unit="%" ph="65" />
-                <NumField label="Suction" field="suctionPressure" unit="psi" />
-                <NumField label="Discharge" field="dischargePressure" unit="psi" />
-                <NumField label="Superheat" field="superheat" unit="°F" />
-                <NumField label="Sub-cool" field="subcooling" unit="°F" />
-                <NumField label="Motor A" field="motorAmps" unit="A" />
-                <NumField label="Rated A" field="ratedAmps" unit="A" />
-                <NumField label="CFM meas." field="cfmMeasured" unit="CFM" />
+                <NumField label="Supply (cold)" field="supplyTempCold" unit="°C" ph="14" input={input} onValueChange={updateNum} />
+                <NumField label="Supply (warm)" field="supplyTempWarm" unit="°C" ph="22" input={input} onValueChange={updateNum} />
+                <NumField label="Return air" field="returnAirTemp" unit="°C" ph="26" input={input} onValueChange={updateNum} />
+                <NumField label="Outdoor" field="outdoorTemp" unit="°C" ph="35" input={input} onValueChange={updateNum} />
+                <NumField label="Indoor RH" field="indoorRH" unit="%" ph="65" input={input} onValueChange={updateNum} />
+                <NumField label="Suction" field="suctionPressure" unit="psi" input={input} onValueChange={updateNum} />
+                <NumField label="Discharge" field="dischargePressure" unit="psi" input={input} onValueChange={updateNum} />
+                <NumField label="Superheat" field="superheat" unit="°F" input={input} onValueChange={updateNum} />
+                <NumField label="Sub-cool" field="subcooling" unit="°F" input={input} onValueChange={updateNum} />
+                <NumField label="Motor A" field="motorAmps" unit="A" input={input} onValueChange={updateNum} />
+                <NumField label="Rated A" field="ratedAmps" unit="A" input={input} onValueChange={updateNum} />
+                <NumField label="CFM meas." field="cfmMeasured" unit="CFM" input={input} onValueChange={updateNum} />
               </div>
             </CardContent>
           </Card>
@@ -360,7 +392,7 @@ export default function DiagnosticsPage() {
           {/* Divider */}
           <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-border/60" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Analysis Results</span>
+            <span className="text-xs font-semibold font-display text-muted-foreground">Analysis Results</span>
             <div className="h-px flex-1 bg-border/60" />
           </div>
 
@@ -370,7 +402,7 @@ export default function DiagnosticsPage() {
               <CardContent className="px-5 py-5">
                 <p className="text-sm font-semibold text-foreground">{result.summaryTitle}</p>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{result.summaryDescription}</p>
-                <div className="mt-3 rounded-lg border border-border bg-secondary/50 p-3">
+                <div className="mt-3 rounded-sm border border-border bg-secondary/50 p-3">
                   <p className="mb-1 text-xs font-medium text-muted-foreground">Client Explanation</p>
                   <p className="text-sm leading-relaxed text-foreground">{result.clientExplanation}</p>
                 </div>
@@ -412,7 +444,7 @@ export default function DiagnosticsPage() {
           {/* Immediate actions */}
           <Card className="panel-glass border-border/70 bg-card shadow-sm">
             <CardContent className="px-5 py-4">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Immediate Actions</p>
+              <p className="mb-2 text-xs font-semibold font-display text-muted-foreground">Immediate Actions</p>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {result.immediateActions.map((a, i) => (
                   <div key={i} className="flex items-start gap-2 text-sm">
@@ -437,7 +469,7 @@ export default function DiagnosticsPage() {
           {/* Preventive */}
           <Card className="panel-glass border-border/70 bg-card shadow-sm">
             <CardContent className="px-5 py-4">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Preventive Maintenance</p>
+              <p className="mb-2 text-xs font-semibold font-display text-muted-foreground">Preventive Maintenance</p>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {result.preventiveActions.map((a, i) => (
                   <div key={i} className="flex items-start gap-2 text-sm">
@@ -451,12 +483,34 @@ export default function DiagnosticsPage() {
         </div>
       )}
 
-      {/* Empty state */}
-      {!result && (
-        <div className="mt-8 flex flex-col items-center text-center text-muted-foreground">
-          <Stethoscope size={36} className="mb-2 opacity-30" />
-          <p className="text-sm">Select symptoms and click <strong>Diagnose</strong></p>
+      {/* Analysis in flight — mirror the results layout instead of leaving the
+          "click Diagnose" prompt up while it's already running. */}
+      {loading && !result && (
+        <div role="status" aria-busy="true" aria-label="Running analysis" className="mt-8 space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-border/60" />
+            <span className="text-xs font-semibold font-display text-muted-foreground">
+              Analysing…
+            </span>
+            <div className="h-px flex-1 bg-border/60" />
+          </div>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <Skeleton className="h-40 lg:col-span-2" />
+            <Skeleton className="h-40" />
+          </div>
+          <SkeletonList count={3} />
+          <span className="sr-only">Running diagnostic analysis…</span>
         </div>
+      )}
+
+      {/* Empty state */}
+      {!result && !loading && (
+        <EmptyState
+          className="mt-8"
+          icon={<Stethoscope size={28} />}
+          title="No analysis yet"
+          description="Select symptoms and click Diagnose to generate ranked root-cause guidance."
+        />
       )}
     </PageWrapper>
   );
@@ -490,14 +544,14 @@ function FaultRow({ fault, expanded, onToggle }: { fault: DiagnosticFault; expan
         <div className="space-y-4 border-t border-border px-4 py-4 text-sm">
           {/* Root cause */}
           <div>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Root Cause</p>
+            <p className="mb-1 text-xs font-semibold font-display text-muted-foreground">Root Cause</p>
             <p className="text-foreground leading-relaxed">{fault.mechanismDescription}</p>
             <p className="text-muted-foreground mt-1"><strong className="text-foreground">Uneven cooling:</strong> {fault.whyCoolingIsUneven}</p>
           </div>
 
           {/* Symptoms */}
           <div>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Symptoms</p>
+            <p className="mb-1 text-xs font-semibold font-display text-muted-foreground">Symptoms</p>
             <div className="flex flex-wrap gap-1">
               {fault.symptoms.map((s, i) => (
                 <span key={i} className="inline-flex items-center gap-1 rounded bg-secondary/50 px-2 py-1 text-xs text-foreground">
@@ -513,7 +567,7 @@ function FaultRow({ fault, expanded, onToggle }: { fault: DiagnosticFault; expan
 
           {/* Steps */}
           <div>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Diagnostic Steps</p>
+            <p className="mb-1 text-xs font-semibold font-display text-muted-foreground">Diagnostic Steps</p>
             <ol className="space-y-1">
               {fault.diagnosticSteps.map((st) => (
                 <li key={st.order} className="flex gap-2">
@@ -529,7 +583,7 @@ function FaultRow({ fault, expanded, onToggle }: { fault: DiagnosticFault; expan
 
           {/* Fixes */}
           <div>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Corrective Actions</p>
+            <p className="mb-1 text-xs font-semibold font-display text-muted-foreground">Corrective Actions</p>
             <div className="space-y-1.5">
               {fault.correctiveActions.map((ca, i) => (
                 <div key={i} className="flex items-start gap-2">

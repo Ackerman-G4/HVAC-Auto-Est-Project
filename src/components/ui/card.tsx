@@ -8,7 +8,7 @@ const Card = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "glass-card rounded-2xl border border-border/70 bg-card text-card-foreground shadow-[var(--panel-shadow)]",
+      "glass-card rounded-lg border border-border/70 bg-card text-card-foreground shadow-[var(--panel-shadow)]",
       className
     )}
     {...props}
@@ -31,7 +31,10 @@ CardHeader.displayName = "CardHeader"
 const CardTitle = React.forwardRef<
   HTMLParagraphElement,
   React.HTMLAttributes<HTMLHeadingElement>
->(({ className, ...props }, ref) => (
+>(({ className, children, ...props }, ref) => (
+  // children is destructured and placed explicitly rather than arriving through
+  // the spread, so a heading rendered with no content is a visible mistake here
+  // instead of an empty <h3> shipped to screen readers.
   <h3
     ref={ref}
     className={cn(
@@ -39,7 +42,9 @@ const CardTitle = React.forwardRef<
       className
     )}
     {...props}
-  />
+  >
+    {children}
+  </h3>
 ))
 CardTitle.displayName = "CardTitle"
 

@@ -60,9 +60,6 @@ function RegisterPageContent() {
     });
 
     if (ok) {
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem('hvac-show-welcome', '1');
-      }
       router.replace(nextTarget);
     }
   };
@@ -84,7 +81,7 @@ function RegisterPageContent() {
               <UserRoundPlus size={12} className="text-primary" />
               Create Engineering Access
             </div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            <p className="text-xs font-semibold font-display tracking-[0.18em] text-muted-foreground">
               HVAC Studio
             </p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground">
@@ -95,7 +92,7 @@ function RegisterPageContent() {
             </p>
           </div>
 
-          <Card className="rounded-3xl border-border/75 p-8 shadow-(--panel-shadow-strong) sm:p-10">
+          <Card className="rounded-lg border-border/75 p-8 shadow-(--panel-shadow-strong) sm:p-10">
             <CardContent className="p-0">
               <form className="space-y-5" onSubmit={handleSubmit}>
                 <Input
@@ -127,7 +124,7 @@ function RegisterPageContent() {
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   error={fieldErrors.password}
-                  hint="At least 8 characters with uppercase, lowercase, and number"
+                  hint="At least 8 characters with font-display, lowercase, and number"
                   placeholder="Create a secure password"
                 />
                 <Input
@@ -141,7 +138,7 @@ function RegisterPageContent() {
                 />
 
                 {serverError && (
-                  <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">
+                  <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">
                     {serverError}
                   </p>
                 )}
@@ -154,7 +151,7 @@ function RegisterPageContent() {
               {googleEnabled && (
                 <div className="my-6 flex items-center gap-3">
                   <div className="h-px flex-1 bg-border" />
-                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <span className="text-xs font-semibold font-display text-muted-foreground">
                     or
                   </span>
                   <div className="h-px flex-1 bg-border" />
@@ -173,9 +170,6 @@ function RegisterPageContent() {
                       clearError();
                       const ok = await loginWithGoogle(credentialResponse.credential);
                       if (ok) {
-                        if (typeof window !== 'undefined') {
-                          window.sessionStorage.setItem('hvac-show-welcome', '1');
-                        }
                         router.replace(nextTarget);
                       }
                     }}
