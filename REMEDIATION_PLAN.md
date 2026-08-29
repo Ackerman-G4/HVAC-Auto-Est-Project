@@ -395,9 +395,40 @@ safe, and none of them was verifiable before:
 53 new tests. `tsc` 0 · `eslint src` 0 errors, 58 warnings · `vitest` 48 files,
 535 tests.
 
-**☐ TASK 3.3 — Enforce the ceiling**
+**☑ TASK 3.3 — Enforce the ceiling**
 Add a lint rule or a CI step that fails when any file under `src/app/api` exceeds 120 lines.
 Gate: rule active and passing.
+
+**Closed 2026-08-29.** `scripts/check-handler-size.mjs`, wired into
+`frontend-gates.yml` as a `Handler size ceiling` step and available as
+`npm run check:handler-size`.
+
+**Implemented as a ratchet, not a flat 120, and that is deliberate.** Measured
+after TASK 3.2: **26 of 47 handlers still exceed 120 lines**, the largest at 254.
+A flat ceiling would fail CI on 26 files the day it lands, and TASK 5.2 already
+made the argument — a gate that is red on arrival is one people learn to route
+around, which is worse than no gate.
+
+The rule instead enforces:
+
+1. Any handler **not** in the baseline must be at or under 120 lines. That is
+   every new route, and every route decomposed below the line.
+2. Any handler **in** the baseline must not exceed its recorded size. Existing
+   debt is frozen: it can shrink, never grow.
+3. A baseline entry that has fallen to 120 or below is reported as `READY` to
+   delete, so the list drains instead of becoming permanent.
+
+This is binding immediately and converges on the flat 120 the task names,
+without a day of red CI in between. `--update` regenerates the baseline after a
+decomposition.
+
+Proven load-bearing on both halves, by exit code rather than by output:
+
+| Probe | Exit |
+|---|---|
+| New 201-line handler added | **1** — over the 120 ceiling |
+| Baseline handler grown 123 → 184 | **1** — debt may shrink, never grow |
+| Clean tree | 0 |
 
 ---
 

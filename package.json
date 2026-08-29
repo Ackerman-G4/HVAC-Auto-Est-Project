@@ -23,6 +23,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "check:handler-size": "node scripts/check-handler-size.mjs",
     "validate:cfd:export": "vitest run src/lib/engine/simulation/__tests__/openfoam-export.smoke.test.ts",
     "validate:boq:sections": "vitest run src/lib/engine/cost/__tests__/boq-sections.smoke.test.ts",
     "validate:price-override": "vitest run src/lib/functions/__tests__/equipment-pricing.test.ts",

@@ -39,6 +39,13 @@ jobs:
       - name: Coverage thresholds
         run: npm run test:coverage
 
+      # REMEDIATION_PLAN.md TASK 3.3. A ratchet rather than a flat 120: applied
+      # flatly today it fails 26 of 47 handlers, and a gate that is red on
+      # arrival is one people route around. New handlers must meet 120; the
+      # existing 27 are frozen at their current size and may only shrink.
+      - name: Handler size ceiling
+        run: npm run check:handler-size
+
       - name: Build
         run: npx next build
 
