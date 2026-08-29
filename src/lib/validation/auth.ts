@@ -193,10 +193,30 @@ export const forgotPasswordRequestSchema = z
   })
   .strict();
 
+/**
+ * Bounded because the value is forwarded verbatim to Google's securetoken
+ * endpoint. This route is unauthenticated by construction — a refresh token is
+ * the only credential it has — so an unbounded string from an anonymous caller
+ * would otherwise become an outbound request body. Real tokens sit far below
+ * this ceiling.
+ */
+const REFRESH_TOKEN_MAX_LENGTH = 4096;
+
+export const refreshRequestSchema = z
+  .object({
+    refreshToken: z
+      .string()
+      .trim()
+      .min(1, 'Refresh token is required')
+      .max(REFRESH_TOKEN_MAX_LENGTH, 'Refresh token is too long'),
+  })
+  .strict();
+
 export type LoginRequest = z.infer<typeof loginRequestSchema>;
 export type RegisterRequest = z.infer<typeof registerRequestSchema>;
 export type RegisterFormRequest = z.infer<typeof registerFormSchema>;
 export type GoogleLoginRequest = z.infer<typeof googleLoginRequestSchema>;
+export type RefreshRequest = z.infer<typeof refreshRequestSchema>;
 
 export function getFirstZodErrorMessage(error: z.ZodError): string {
   return error.issues[0]?.message || 'Invalid request payload';

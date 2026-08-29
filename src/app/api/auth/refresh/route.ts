@@ -6,6 +6,8 @@ import { lookupAccountByIdToken } from '@/lib/firebase/auth-rest';
 import { resolveLocalFallbackRole } from '@/lib/auth/fallback-role';
 import { isLocalAuthMode, localRefreshToken } from '@/lib/auth/local-auth';
 import { requireJsonRequest } from '@/lib/utils/api-helpers';
+import { parseJsonBody } from '@/lib/validation/http';
+import { refreshRequestSchema } from '@/lib/validation/auth';
 
 const REFRESH_RATE_LIMIT = {
 	windowMs: 10 * 60_000,
@@ -44,12 +46,9 @@ export async function POST(req: NextRequest) {
 			);
 		}
 
-		const body = await req.json();
-		const refreshToken = typeof body.refreshToken === 'string' ? body.refreshToken.trim() : '';
-
-		if (!refreshToken) {
-			return NextResponse.json({ error: 'Missing refresh token' }, { status: 400 });
-		}
+		const parsed = await parseJsonBody(req, refreshRequestSchema);
+		if (!parsed.ok) return parsed.response;
+		const { refreshToken } = parsed.data;
 
 		// Use local auth when Firebase is not configured
 		if (isLocalAuthMode()) {

@@ -9,13 +9,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
 import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import { getProjectRecord } from '@/lib/firebase/projects-store';
-import type { SimulationEngineeringReport } from '@/lib/reports/simulation-report';
 import {
   clearSimulationReportHistoryForOwner,
   createSimulationReportHistoryRecord,
   listSimulationReportHistoryForOwner,
-  type SimulationReportExportFormat,
-  type SimulationReportExportSource,
 } from '@/lib/firebase/simulation-report-history-store';
 import {
   errorResponse,
@@ -23,6 +20,11 @@ import {
   parseBoundedInt,
   requireJsonRequest,
 } from '@/lib/utils/api-helpers';
+import { parseJsonBody, parseValue } from '@/lib/validation/http';
+import {
+  createReportHistorySchema,
+  projectScopedRequestSchema,
+} from '@/lib/validation/simulation-reports';
 
 const REPORT_HISTORY_GET_RATE_LIMIT = {
   windowMs: 60_000,
@@ -40,22 +42,6 @@ function isProjectOwnerOrAdmin(
 ): boolean {
   if (user.role === 'admin') return true;
   return !!project.createdBy && project.createdBy === user.id;
-}
-
-function isValidFormat(value: unknown): value is SimulationReportExportFormat {
-  return value === 'pdf' || value === 'csv' || value === 'json';
-}
-
-function isValidSource(value: unknown): value is SimulationReportExportSource {
-  return value === 'viewer' || value === 'workspace' || value === 'engine';
-}
-
-function parseReportPayload(value: unknown): SimulationEngineeringReport | undefined {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return undefined;
-  }
-
-  return value as SimulationEngineeringReport;
 }
 
 export async function GET(request: NextRequest) {
@@ -110,19 +96,10 @@ export async function POST(request: NextRequest) {
       return auth.response;
     }
 
-    const body = await request.json();
-
-    if (!isValidFormat(body.format)) {
-      return errorResponse(400, 'Invalid format', 'format must be one of: pdf, csv, json.', 'INVALID_FORMAT');
-    }
-
-    if (!isValidSource(body.source)) {
-      return errorResponse(400, 'Invalid source', 'source must be one of: viewer, workspace.', 'INVALID_SOURCE');
-    }
-
-    const projectId = typeof body.projectId === 'string' && body.projectId.trim().length > 0
-      ? body.projectId.trim()
-      : 'unknown-project';
+    const parsed = await parseJsonBody(request, createReportHistorySchema);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
+    const projectId = body.projectId;
 
     if (projectId !== 'unknown-project' && projectId !== 'workspace') {
       const project = await getProjectRecord(projectId);
@@ -140,21 +117,15 @@ export async function POST(request: NextRequest) {
       format: body.format,
       source: body.source,
       projectId,
-      projectName: typeof body.projectName === 'string' && body.projectName.trim().length > 0
-        ? body.projectName.trim()
-        : 'Simulation Project',
-      floorId: typeof body.floorId === 'string' && body.floorId.trim().length > 0
-        ? body.floorId.trim()
-        : 'unknown-floor',
-      runtimeMode: typeof body.runtimeMode === 'string' && body.runtimeMode.trim().length > 0
-        ? body.runtimeMode.trim()
-        : 'worker',
-      converged: body.converged === true,
-      maxTemperatureC: typeof body.maxTemperatureC === 'number' ? body.maxTemperatureC : 0,
-      pue: typeof body.pue === 'number' ? body.pue : 0,
-      hotspotCount: typeof body.hotspotCount === 'number' ? Math.max(0, Math.trunc(body.hotspotCount)) : 0,
-      report: parseReportPayload(body.report),
-      generatedAt: typeof body.generatedAt === 'string' ? body.generatedAt : undefined,
+      projectName: body.projectName,
+      floorId: body.floorId,
+      runtimeMode: body.runtimeMode,
+      converged: body.converged,
+      maxTemperatureC: body.maxTemperatureC,
+      pue: body.pue,
+      hotspotCount: body.hotspotCount,
+      report: body.report,
+      generatedAt: body.generatedAt,
     });
 
     return NextResponse.json({ entry }, { status: 201 });
@@ -180,12 +151,17 @@ export async function DELETE(request: NextRequest) {
       return auth.response;
     }
 
-    let projectId = request.nextUrl.searchParams.get('projectId') || undefined;
+    let projectId = request.nextUrl.searchParams.get('projectId')?.trim() || undefined;
 
     if (!projectId) {
-      const body = await request.json().catch(() => null);
-      if (body && typeof body.projectId === 'string' && body.projectId.trim().length > 0) {
-        projectId = body.projectId.trim();
+      // A DELETE may legitimately carry no body, so an unreadable body means
+      // "no scope" rather than a client error. A body that is present and wrong
+      // is still rejected instead of being ignored.
+      const raw = await request.json().catch(() => null);
+      if (raw !== null) {
+        const parsed = parseValue(raw, projectScopedRequestSchema);
+        if (!parsed.ok) return parsed.response;
+        projectId = parsed.data.projectId;
       }
     }
 

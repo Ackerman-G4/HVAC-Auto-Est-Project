@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
 import { evaluateRateLimit } from '@/lib/auth/rate-limit';
-import { AdminMutationError, assertAdminMutationAllowed, type AdminMutation } from '@/lib/auth/admin-user-mutations';
+import { AdminMutationError, assertAdminMutationAllowed } from '@/lib/auth/admin-user-mutations';
 import {
   AdminUserNotFoundError,
   getAdminUserById,
@@ -18,6 +18,8 @@ import {
 } from '@/lib/firebase/admin-users-store';
 import { writeAuditLog } from '@/lib/firebase/projects-store';
 import { errorResponse, getErrorDetails, requireJsonRequest, resourceNotFound } from '@/lib/utils/api-helpers';
+import { parseJsonBody } from '@/lib/validation/http';
+import { adminUserMutationSchema } from '@/lib/validation/admin';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -25,22 +27,6 @@ const ADMIN_USERS_MUTATION_RATE_LIMIT = {
   windowMs: 60_000,
   maxRequests: 20,
 } as const;
-
-function parseMutation(body: unknown): AdminMutation | null {
-  if (!body || typeof body !== 'object') return null;
-  const action = (body as Record<string, unknown>).action;
-
-  if (action === 'disable') return { type: 'disable' };
-  if (action === 'enable') return { type: 'enable' };
-  if (action === 'setRole') {
-    const role = (body as Record<string, unknown>).role;
-    if (role === 'admin' || role === 'engineer') {
-      return { type: 'setRole', role };
-    }
-    return null;
-  }
-  return null;
-}
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
@@ -63,16 +49,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     }
 
     const { id } = await context.params;
-    const body = await request.json();
-    const mutation = parseMutation(body);
-    if (!mutation) {
-      return errorResponse(
-        400,
-        'Invalid mutation',
-        'action must be "disable", "enable", or "setRole" (with role: "admin" | "engineer").',
-        'INVALID_ADMIN_MUTATION',
-      );
-    }
+    const parsed = await parseJsonBody(request, adminUserMutationSchema);
+    if (!parsed.ok) return parsed.response;
+    const mutation = parsed.data;
 
     const target = await getAdminUserById(id);
     if (!target) {

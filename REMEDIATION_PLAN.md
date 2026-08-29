@@ -142,7 +142,7 @@ Mechanism: TypeScript types are erased at runtime. `Response.json()` is declared
 Create `src/lib/validation/http.ts` exporting a single generic helper that accepts a Zod schema and a `Request`, parses the body, and returns a discriminated union of success with the inferred type or failure with a typed validation error. The failure branch must map to HTTP 400 with a machine readable error code and a field level detail array. Never throw across the boundary.
 Gate: `npx tsc --noEmit` returns 0 errors. New unit test covers valid body, malformed JSON, missing required field and wrong scalar type.
 
-**◐ TASK 1.2 through 1.5 — Apply schemas by domain slice**
+**☑ TASK 1.2 through 1.5 — Apply schemas by domain slice**
 Work one slice at a time. Do not attempt all 36 handlers in one change.
 
 Slice A, projects and floors, 5 handlers: `projects/route.ts`, `projects/[id]/route.ts`, `projects/[id]/floors/route.ts`, `projects/[id]/floors/[floorId]/route.ts`, `projects/[id]/calculate/route.ts`.
@@ -155,6 +155,44 @@ Slice D, admin and auth remainder, 8 handlers under `admin` and `auth`.
 
 For each handler the sequence is fixed: define the schema in `src/lib/validation`, replace the raw `await request.json()` call, delete any defensive defaulting such as `body.floorNumber || 1` because the schema now owns defaults, and add a route test asserting the 400 response for an invalid body.
 Gate per slice: all three gates green, and every touched handler contains no reference to a property accessed off an unparsed body.
+
+**Closed 2026-08-29.** Measured on `main-backup2`: 47 route handlers, 0 of which
+reach a property off an unparsed body. Every remaining `await request.json()`
+call passes its result into a schema on the following statement.
+
+Slice D closed two handlers that still read an `any`:
+
+- `auth/refresh/route.ts` read `body.refreshToken` directly and coerced any
+  non-string to `''`, then reported that as "Missing refresh token" — a false
+  statement about the request. Now `refreshRequestSchema`, bounded at 4096
+  characters because the value is forwarded verbatim to Google's securetoken
+  endpoint from an unauthenticated route.
+- `admin/users/[id]/route.ts` used a hand-rolled `parseMutation` that collapsed
+  every rejection to `null`. It also **accepted `{ action: 'disable', role: 'admin' }`
+  and silently discarded the role**, which reads back to the caller as an accepted
+  privilege instruction that never ran. Now a `z.discriminatedUnion` on `action`
+  that parses straight to the domain `AdminMutation` type.
+
+Two further handlers fell outside the four slice definitions and were closed to
+finish the phase — `simulation/reports/route.ts` and
+`simulation/reports/backfill/route.ts`, neither of which sits under
+`projects/[id]/simulations`:
+
+- The report body was admitted by `value as SimulationEngineeringReport` — a cast,
+  not a check — and written to Firestore under a name claiming structure it had
+  never been shown to have. `simulationEngineeringReportSchema` now mirrors that
+  interface.
+- Every scalar was defaulted in place, so a wrong type was indistinguishable from
+  an absent field: `maxTemperatureC: "31.4"` stored 0 and returned 201. Note that
+  `typeof NaN === 'number'` is true, so the replaced guards admitted NaN into
+  persisted columns; the schema requires finite.
+
+Sentinel semantics are preserved deliberately: a **blank** label still collapses to
+`unknown-project` / `Simulation Project` / `unknown-floor` / `worker`, because it
+means the workspace was never named. A **wrongly typed** label is now a 400.
+
+Gates: `tsc` 0 errors · `eslint src` 0 errors, 77 warnings · `vitest` 40 files,
+413 tests passing (from 37 files, 374 tests).
 
 ---
 

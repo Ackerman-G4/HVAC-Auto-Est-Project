@@ -9,6 +9,8 @@ import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import { getProjectRecord } from '@/lib/firebase/projects-store';
 import { backfillLegacySimulationReportHistoryForOwner } from '@/lib/firebase/simulation-report-history-store';
 import { errorResponse, getErrorDetails, requireJsonRequest } from '@/lib/utils/api-helpers';
+import { parseValue } from '@/lib/validation/http';
+import { projectScopedRequestSchema } from '@/lib/validation/simulation-reports';
 
 const REPORT_BACKFILL_RATE_LIMIT = {
   windowMs: 60_000,
@@ -43,10 +45,11 @@ export async function POST(request: NextRequest) {
       return auth.response;
     }
 
-    const body = await request.json().catch(() => ({} as Record<string, unknown>));
-    const requestedProjectId = typeof body.projectId === 'string' && body.projectId.trim().length > 0
-      ? body.projectId.trim()
-      : undefined;
+    // An absent body means "every project owned by the caller".
+    const raw = await request.json().catch(() => ({}));
+    const parsed = parseValue(raw, projectScopedRequestSchema);
+    if (!parsed.ok) return parsed.response;
+    const requestedProjectId = parsed.data.projectId;
 
     if (requestedProjectId && requestedProjectId !== 'unknown-project' && requestedProjectId !== 'workspace') {
       const project = await getProjectRecord(requestedProjectId);
