@@ -12,6 +12,24 @@
  * PMV ≈ 1.6, not the placeholder's 2.1).
  */
 
+import { assertFinite, safeDivide } from '../numeric-guards';
+
+/**
+ * CLAUDE.md §8.6: a temperature below absolute zero is a physical
+ * impossibility and is rejected at the boundary rather than propagated.
+ */
+const ABSOLUTE_ZERO_C = -273.15;
+
+function assertPhysicalTemperature(tempC: number, context: string): number {
+  assertFinite(tempC, context, 'NON_PHYSICAL_TEMPERATURE');
+  if (tempC <= ABSOLUTE_ZERO_C) {
+    throw new RangeError(
+      context + ': ' + tempC + ' degC is at or below absolute zero.',
+    );
+  }
+  return tempC;
+}
+
 export interface PmvInput {
   /** Air (dry-bulb) temperature, °C. */
   ta: number;
@@ -45,9 +63,21 @@ export function ppdFromPmv(pmv: number): number {
   return 100 - 95 * Math.exp(-0.03353 * pmv ** 4 - 0.2179 * pmv ** 2);
 }
 
-/** Saturation water-vapour pressure over liquid water, Pa (Magnus form). */
+/**
+ * Saturation water-vapour pressure over liquid water, Pa (Magnus form).
+ *
+ * The Magnus denominator vanishes at -243.04 degC, which is above absolute zero
+ * and therefore reachable by an unvalidated input. Guarded at the division
+ * rather than by a range check, so the failure is typed instead of Infinity.
+ */
 export function saturationVaporPressurePa(tempC: number): number {
-  return 610.94 * Math.exp((17.625 * tempC) / (tempC + 243.04));
+  assertPhysicalTemperature(tempC, 'saturationVaporPressurePa.tempC');
+  const exponent = safeDivide(
+    17.625 * tempC,
+    tempC + 243.04,
+    'saturationVaporPressurePa.magnusDenominator',
+  );
+  return 610.94 * Math.exp(exponent);
 }
 
 /**
@@ -59,6 +89,9 @@ export function humidityRatioToRH(
   tempC: number,
   pressurePa = 101325,
 ): number {
+  assertFinite(humidityRatio, 'humidityRatioToRH.humidityRatio');
+  assertFinite(pressurePa, 'humidityRatioToRH.pressurePa');
+  // Math.max(0, NaN) is NaN, so the clamp below is not itself a guard.
   const w = Math.max(0, humidityRatio);
   const pw = (w * pressurePa) / (0.62198 + w); // partial vapour pressure, Pa
   const pws = saturationVaporPressurePa(tempC);
@@ -72,16 +105,22 @@ export function humidityRatioToRH(
  * the body.
  */
 export function pmvPpd(input: PmvInput): PmvResult {
-  const ta = input.ta;
-  const tr = input.tr ?? input.ta;
+  const ta = assertPhysicalTemperature(input.ta, 'pmvPpd.ta');
+  const tr = assertPhysicalTemperature(input.tr ?? input.ta, 'pmvPpd.tr');
   const vel = Math.max(0, input.vel);
   const rh = Math.max(0, Math.min(100, input.rh));
-  const met = input.met;
-  const clo = input.clo;
-  const wme = input.wme ?? 0;
+  const met = assertFinite(input.met, 'pmvPpd.met');
+  // clo drives icl, and icl sets the denominators at the clothing-surface
+  // solve. A negative clo has no physical meaning and can zero them.
+  const clo = assertFinite(input.clo, 'pmvPpd.clo');
+  if (clo < 0) {
+    throw new RangeError('pmvPpd.clo: clothing insulation cannot be negative, received ' + clo + '.');
+  }
+  const wme = assertFinite(input.wme ?? 0, 'pmvPpd.wme');
 
   // Water-vapour partial pressure in air, Pa.
-  const pa = rh * 10 * Math.exp(16.6536 - 4030.183 / (ta + 235));
+  // Denominator vanishes at -235 degC, above absolute zero and so reachable.
+  const pa = rh * 10 * Math.exp(16.6536 - safeDivide(4030.183, ta + 235, 'pmvPpd.paDenominator'));
 
   const icl = 0.155 * clo;          // clothing insulation, m²·K/W
   const m = met * 58.15;            // metabolic rate, W/m²
@@ -94,7 +133,9 @@ export function pmvPpd(input: PmvInput): PmvResult {
   const tra = tr + 273;
 
   // Iterative solve for clothing surface temperature.
-  const tcla = taa + (35.5 - ta) / (3.5 * icl + 0.1);
+  // icl >= 0 is enforced above, so this denominator is >= 0.1. Routed through
+  // the guard anyway: the invariant lives three statements away from its use.
+  const tcla = taa + safeDivide(35.5 - ta, 3.5 * icl + 0.1, 'pmvPpd.clothingSurfaceSolve');
   const p1 = icl * fcl;
   const p2 = p1 * 3.96;
   const p3 = p1 * 100;

@@ -226,7 +226,13 @@ function calculateBreakdown(inputs: LoadCalculationInputs, overrides: ManualOver
     ? overrides.manualTotalBtu
     : adjustedByFactor;
 
-  const trRequired = totalBtuAfterFactors / btuPerTr;
+  // btuPerTr comes from the rule set, which is loaded data rather than a
+  // literal. getConstant throws only when the key is absent; a rule set
+  // supplying 0 returns 0, and Infinity tons here becomes an unbounded
+  // equipment quantity and a corrupt bill of quantities total.
+  const trRequired = safeDivide(totalBtuAfterFactors, btuPerTr, 'loadCalculation.trRequired', {
+    requirePositive: true,
+  });
   const computedCfm = evaluateFromRuleSet(rules, 'cfm_from_btu_formula', {
     total_btu: totalBtuAfterFactors,
     cfm_constant: cfmConst,

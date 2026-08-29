@@ -208,9 +208,57 @@ Gate: unit tests cover zero, negative, `NaN`, `Infinity` and valid input.
 Apply the guard at `src/lib/engine/hvac/load-calculation-engine.ts` line 257 and at every division in `src/lib/engine/pricing-engine.ts` and `src/lib/engine/cost`. Extend `src/lib/engine/__tests__/golden-money-path.test.ts` with a case supplying a catalogue record of zero capacity and asserting a typed error rather than a numeric result.
 Gate: golden money path test suite passes with the new case. Confirm the new case fails before the guard is applied, to prove the test is load bearing.
 
-**☐ TASK 2.3 — Sweep the remaining engine divisions**
+**☑ TASK 2.3 — Sweep the remaining engine divisions**
 Enumerate all 197 division operations under `src/lib/engine`. Classify each as guarded already, denominator is a compile time constant and therefore safe, or requires a guard. Produce the classification table in `docs/audit/division-audit.md`, then apply guards to the third category.
 Gate: table complete, all three gates green.
+
+**Closed 2026-08-29.** Table at `docs/audit/division-audit.md`. **Phase 2 is now
+complete.**
+
+**The 197 figure does not reproduce.** Tokenized rather than grepped — a bare
+grep for `/` also matches comments, regex literals and import paths — the real
+count under `src/lib/engine` is **74**. For reference: 485 lines contain a `/`
+character, and `src/lib` overall holds 471 genuine division operators.
+
+Classification: 34 already guarded, 27 compile-time constant denominators, **13
+requiring a guard**. All 13 are now guarded, in consequence order:
+
+1. **Money path.** `trRequired = totalBtuAfterFactors / btuPerTr`, where
+   `btuPerTr` resolves from the **rule set** — loaded data, not a literal.
+   `getConstant` throws only when the key is absent, so a rule document carrying
+   `btu_per_tr: 0` returned 0 and produced Infinity tons, which propagates to
+   equipment quantity and the currency total. This is finding F2's failure mode
+   reached from a second direction. Now `safeDivide` with `requirePositive`.
+2. **Comfort model, three temperature- and clothing-dependent denominators** that
+   vanish at −243.04 °C, −235 °C and clo ≈ −0.184. The two temperature
+   singularities sit *above* absolute zero, so a physical-validity range check
+   alone would not catch them.
+3. **Seven unvalidated inputs** into the comfort model. `humidityRatioToRH`
+   clamped with `Math.max(0, humidityRatio)`, which is not a guard —
+   `Math.max(0, NaN)` is `NaN`. Reachable in production:
+   `building-cfd-simulation.ts` passes a solved `avgTemperature` straight in.
+4. **Grid dimensions.** `clampCellSize` bounds the cell size with `Math.max` and
+   `Math.min`, and both propagate `NaN`, so a non-finite room dimension made all
+   21 downstream `/ cs` divisions return `NaN`. The grid came back structurally
+   intact and numerically void.
+
+Evidence: `src/lib/engine/__tests__/division-guards.test.ts`, 21 tests driving
+zero, negative and non-finite denominators. The money-path guard was verified
+load-bearing — reverting it to the raw division fails 2 of those tests, then
+restored green.
+
+**Two items raised, not silently absorbed.** First, the task scope
+(`src/lib/engine`, 74 divisions) is narrower than the risk surface:
+`src/lib/functions` holds **312** more, including `cfd-simulation.ts` at 119 and
+`psychrometric.ts` at 15, and CLAUDE.md §3 calls that directory domain
+calculation. A follow-up sweep there is the natural successor and is now scoped
+from measurement. Second, eleven Category A sites are safe only because of
+`Math.max(1, x)`-style clamping, which `numeric-guards.ts` argues is strictly
+worse than failing: it substitutes an invented denominator for a bad one.
+Converting them changes calculation output, so it is a decision, not a cleanup.
+
+Gates: `tsc` 0 errors · `eslint src` 0 errors, 77 warnings · `vitest` 41 files,
+434 tests passing.
 
 **☑ TASK 2.4 — Centralise unit conversion**
 Create `src/lib/engine/units.ts` holding every conversion as a named function with the coefficient declared once and its source stated. Minimum set: tons of refrigeration to British thermal units per hour, square metres to square feet, metric temperature difference to imperial temperature difference, litres per second to cubic feet per minute, watts to British thermal units per hour. Replace every inline conversion coefficient in the engine with a call. Do not change the field names on `LoadCalculationInputs`, since encoding the unit in the identifier is already correct and renaming would create churn without benefit.

@@ -18,6 +18,8 @@ import type {
   RoomObstruction,
 } from '@/types/simulation';
 
+import { assertPositive } from '../numeric-guards';
+
 // ─── Configuration ──────────────────────────────────────────────────
 
 /** Minimum cell size in meters (prevents excessively fine grids) */
@@ -87,6 +89,7 @@ export function buildStructuredGrid(input: GeometryInput, cellSize: number): Str
  * total cell budget.
  */
 export function recommendCellSize(input: GeometryInput, targetCellBudget = 500_000): number {
+  assertPositive(targetCellBudget, 'recommendCellSize.targetCellBudget');
   const volume = input.lengthM * input.widthM * input.heightM;
   const rawSize = Math.cbrt(volume / targetCellBudget);
   return clampCellSize(rawSize, input);
@@ -410,6 +413,12 @@ function buildHVACPatches(
 // ─── Utilities ──────────────────────────────────────────────────────
 
 function clampCellSize(raw: number, input: GeometryInput): number {
+  // Every cell index downstream divides by the returned size. Math.min and
+  // Math.max both propagate NaN, so without this the whole grid silently
+  // becomes NaN rather than failing.
+  assertPositive(input.lengthM, 'geometry.lengthM');
+  assertPositive(input.widthM, 'geometry.widthM');
+  assertPositive(input.heightM, 'geometry.heightM');
   const minDim = Math.min(input.lengthM, input.widthM, input.heightM);
   const maxFromAxis = minDim / 2; // At least 2 cells along smallest dimension
   const clamped = Math.max(MIN_CELL_SIZE, Math.min(raw, maxFromAxis));
