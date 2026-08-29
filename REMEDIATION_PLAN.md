@@ -475,9 +475,31 @@ Gate after each flag: `npx tsc --noEmit` returns 0 errors.
 Replace the 141 console statements with a single logger module supporting level control and a request correlation identifier. Add a lint rule banning bare console usage in `src`.
 Gate: lint rule active, all gates green.
 
-**☐ TASK 5.6 — Convert the bundle budget from advisory to binding**
+**☑ TASK 5.6 — Convert the bundle budget from advisory to binding**
 Measure the current gzipped total, set the budget slightly above it, and remove the wording that marks it advisory.
 Gate: workflow fails on a deliberate bundle increase.
+
+**Closed 2026-08-29.** Measured from a real `next build`: 79 chunk files,
+8,283 KB raw, **2,641 KB gzipped**, largest chunk 951 KB raw.
+
+Budget tightened **2800 KB → 2700 KB**: 59 KB of headroom, about 2 %. Enough to
+absorb build-to-build variance, far too little to absorb a new library. The old
+2800 KB left 159 KB of slack — roughly a charting dependency's worth of room to
+regress into unnoticed, at 94 % of budget already consumed.
+
+**The wording was the only advisory thing about it.** The step already ran
+`exit 1` on breach, so the gate was binding and its comment said otherwise. That
+is worse than either state on its own, because it tells a reviewer a red build is
+ignorable. Comment corrected to match the behaviour.
+
+Gate proven binding by injecting a 2,502 KB pseudo-random chunk into
+`.next/static/chunks` — random so gzip cannot collapse it, i.e. behaving like a
+real new dependency:
+
+| State | Gzipped | Result |
+|---|---:|---|
+| Injected regression | 3,890 KB | **exit 1** |
+| Chunk removed | 2,641 KB | exit 0 |
 
 ---
 

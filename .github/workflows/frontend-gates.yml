@@ -42,9 +42,16 @@ jobs:
       - name: Build
         run: npx next build
 
-      # Advisory rather than blocking: the budget is above today's figure so it
-      # catches a regression, not the existing debt the overhaul is working
-      # through. Tighten it as the waves land.
+      # Binding. REMEDIATION_PLAN.md TASK 5.6.
+      #
+      # 2700KB against a measured 2641KB: 59KB of headroom, about 2%. Enough to
+      # absorb build-to-build variance, far too little to absorb a new library.
+      # The previous 2800KB left 159KB of slack, which is roughly a charting
+      # dependency's worth of room to regress into unnoticed.
+      #
+      # The wording was the only advisory thing here — the step already exited 1
+      # on breach. A comment describing a blocking gate as advisory is worse
+      # than either, because it tells a reviewer the red build is ignorable.
       - name: Bundle budget
         run: |
           RAW=$(find .next/static/chunks -name '*.js' -exec cat {} \; | wc -c)
@@ -54,7 +61,7 @@ jobs:
           echo "gzipped: $(( GZ / 1024 )) KB"
           echo "largest: $(( LARGEST / 1024 )) KB"
 
-          BUDGET_GZ=$(( 2800 * 1024 ))
+          BUDGET_GZ=$(( 2700 * 1024 ))
           if [ "$GZ" -gt "$BUDGET_GZ" ]; then
             echo "::error::gzipped JS $(( GZ / 1024 ))KB exceeds the $(( BUDGET_GZ / 1024 ))KB budget"
             exit 1
