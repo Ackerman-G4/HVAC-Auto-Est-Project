@@ -18,10 +18,8 @@ import {
   updateProjectRecord,
   writeAuditLog,
 } from '@/lib/firebase/projects-store';
-import { wetBulb as calcWetBulb } from '@/lib/functions/psychrometric';
+import { buildProjectUpdate } from '@/lib/projects/project-update';
 import {
-  toNumber,
-  toInt,
   errorResponse,
   getErrorDetails,
   requireJsonRequest,
@@ -39,13 +37,6 @@ const PROJECT_GET_RATE_LIMIT = {
   windowMs: 60_000,
   maxRequests: 40,
 } as const;
-
-function toNullableNumber(value: unknown, fallback: number | null): number | null {
-  if (value === null) return null;
-  if (value === undefined) return fallback;
-  const parsed = toNumber(value, NaN);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
 
 async function logProjectAccessDenied(id: string, uid: string, method: string): Promise<void> {
   await writeAuditLog({
@@ -139,64 +130,8 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       return projectAccessDenied();
     }
 
-    const finalOutdoorDB = toNumber(body.outdoorDB, existing.outdoorDB);
-    const finalOutdoorRH = toNumber(body.outdoorRH, existing.outdoorRH);
-    const computedWB = calcWetBulb(finalOutdoorDB, finalOutdoorRH);
-
-    const nextSuggestedLaborMultiplier = toNumber(body.suggestedLaborMultiplier, existing.suggestedLaborMultiplier);
-    const nextLaborMultiplierOverride = toNullableNumber(body.laborMultiplierOverride, existing.laborMultiplierOverride);
-    const nextSuggestedOverheadPercent = toNumber(body.suggestedOverheadPercent, existing.suggestedOverheadPercent);
-    const nextOverheadPercentOverride = toNullableNumber(body.overheadPercentOverride, existing.overheadPercentOverride);
-    const nextSuggestedContingencyPercent = toNumber(
-      body.suggestedContingencyPercent,
-      existing.suggestedContingencyPercent,
-    );
-    const nextContingencyPercentOverride = toNullableNumber(
-      body.contingencyPercentOverride,
-      existing.contingencyPercentOverride,
-    );
-    const nextSuggestedVatRate = toNumber(body.suggestedVatRate, existing.suggestedVatRate);
-    const nextVatRateOverride = toNullableNumber(body.vatRateOverride, existing.vatRateOverride);
-
-    const pricingChanged =
-      nextSuggestedLaborMultiplier !== existing.suggestedLaborMultiplier ||
-      nextLaborMultiplierOverride !== existing.laborMultiplierOverride ||
-      nextSuggestedOverheadPercent !== existing.suggestedOverheadPercent ||
-      nextOverheadPercentOverride !== existing.overheadPercentOverride ||
-      nextSuggestedContingencyPercent !== existing.suggestedContingencyPercent ||
-      nextContingencyPercentOverride !== existing.contingencyPercentOverride ||
-      nextSuggestedVatRate !== existing.suggestedVatRate ||
-      nextVatRateOverride !== existing.vatRateOverride;
-
-    await updateProjectRecord(id, {
-      name: body.name ?? existing.name,
-      clientName: body.clientName ?? existing.clientName,
-      buildingType: body.buildingType ?? existing.buildingType,
-      location: body.location ?? existing.location,
-      city: body.city ?? existing.city,
-      totalFloorArea: toNumber(body.totalFloorArea, existing.totalFloorArea),
-      floorsAboveGrade: toInt(body.floorsAboveGrade, existing.floorsAboveGrade),
-      floorsBelowGrade: toInt(body.floorsBelowGrade, existing.floorsBelowGrade),
-      outdoorDB: finalOutdoorDB,
-      outdoorWB: Math.round(computedWB * 100) / 100,
-      outdoorRH: finalOutdoorRH,
-      indoorDB: toNumber(body.indoorDB, existing.indoorDB),
-      indoorRH: toNumber(body.indoorRH, existing.indoorRH),
-      safetyFactor: toNumber(body.safetyFactor, existing.safetyFactor),
-      diversityFactor: toNumber(body.diversityFactor, existing.diversityFactor),
-      suggestedLaborMultiplier: nextSuggestedLaborMultiplier,
-      laborMultiplierOverride: nextLaborMultiplierOverride,
-      suggestedOverheadPercent: nextSuggestedOverheadPercent,
-      overheadPercentOverride: nextOverheadPercentOverride,
-      suggestedContingencyPercent: nextSuggestedContingencyPercent,
-      contingencyPercentOverride: nextContingencyPercentOverride,
-      suggestedVatRate: nextSuggestedVatRate,
-      vatRateOverride: nextVatRateOverride,
-      isBoqStale: pricingChanged ? true : existing.isBoqStale,
-      lastBoqGeneratedAt: pricingChanged ? null : existing.lastBoqGeneratedAt,
-      notes: body.notes ?? existing.notes,
-      status: body.status ?? existing.status,
-    });
+    const { patch } = buildProjectUpdate(body, existing);
+    await updateProjectRecord(id, patch);
 
     await writeAuditLog({
       projectId: id,

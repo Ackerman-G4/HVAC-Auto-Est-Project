@@ -348,9 +348,52 @@ decision and not part of extracting a function.
 Gates: `tsc` 0 · `eslint src` 0 errors, 77 warnings · `vitest` 43 files,
 463 tests · coverage thresholds pass.
 
-**☐ TASK 3.2 — Repeat for the next four handlers**
+**☑ TASK 3.2 — Repeat for the next four handlers**
 In order: `projects/[id]/boq/route.ts` at 469 lines, `projects/[id]/route.ts` at 278, `simulations/[simId]/runs/route.ts` at 256, `projects/[id]/equipment/route.ts` at 255.
 Gate per handler: under 80 lines, extracted module unit tested, all gates green.
+
+**Closed 2026-08-29.** All four done. Handler bodies, against the 80-line gate:
+
+| Route | File | Largest handler |
+|---|---:|---:|
+| `projects/[id]/boq` | 469 → **105** | POST 22, GET 34 |
+| `projects/[id]` | 282 → **217** | PUT 67, DELETE 57, GET 41 |
+| `simulations/[simId]/runs` | 260 → **165** | GET 46, POST 37 |
+| `projects/[id]/equipment` | 259 → **122** | POST 42, GET 27 |
+
+Extracted, each with tests: `engine/cost/boq-pricing-policy`,
+`engine/cost/boq-summary`, `engine/cost/boq-inputs`, `boq/generate-boq`,
+`projects/project-update`, `simulation/dispatch-engineering-run`,
+`equipment/select-equipment`, plus a deps module for each orchestrator.
+
+**Moving `buildBOQInputs` into `src/lib/engine` surfaced a TASK 2.4 violation.**
+It multiplied `capacityBTU` by a bare `0.000293` to reach kW — the Btu/h to kW
+conversion, which `units.ts` already owns as `btuPerHourToKilowatts` at full
+precision. Now centralised; the engine holds no executable conversion literal.
+Electrical sizing input moves by 0.024 %, far inside the tabulated wire-size
+steps it feeds.
+
+Four duplications the large handlers were hiding, each now written once:
+
+1. The **BOQ staleness rule** — selecting equipment invalidates a generated bill
+   — lived in two hand-copied blocks in the equipment route. If either drifted,
+   a quotation keeps being served against equipment that has since changed.
+2. The **pricing policy resolution** was inlined in both BOQ entry points.
+3. **Owner-or-admin** access was re-implemented per route.
+4. The **rate-limit 429** block was copied into every handler.
+
+Three orderings are now pinned by tests because they are what makes the writes
+safe, and none of them was verifiable before:
+
+- BOQ generation refuses `NO_EQUIPMENT` **before** `replaceBoqItemsForProject`,
+  which is a replace: an empty compile would wipe a real bill and report success.
+- The BOQ hash is taken from the rows read **back** from the store, not from what
+  was compiled, so the snapshot attests to what a reader will actually get.
+- Engineering dispatch builds the case package and checks provisioning **before**
+  creating a run job, so neither failure leaves a dangling queued job.
+
+53 new tests. `tsc` 0 · `eslint src` 0 errors, 58 warnings · `vitest` 48 files,
+535 tests.
 
 **☐ TASK 3.3 — Enforce the ceiling**
 Add a lint rule or a CI step that fails when any file under `src/app/api` exceeds 120 lines.
