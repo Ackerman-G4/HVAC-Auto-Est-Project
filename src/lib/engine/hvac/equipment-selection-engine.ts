@@ -5,9 +5,8 @@ import { constantFromRuleSet, lookupFromRuleSet } from '@/lib/engine/rules/rule-
 import type { EquipmentType } from '@/types/equipment';
 
 import { safeDivide } from '../numeric-guards';
+import { tonsToBtuPerHour } from '../units';
 
-/** CLAUDE.md §8.2: 12000 Btu/h per ton of refrigeration, defined once. */
-const BTU_PER_HOUR_PER_TON = 12000;
 const WATTS_PER_KILOWATT = 1000;
 
 export type BudgetBand = 'economy' | 'balanced' | 'premium';
@@ -190,7 +189,7 @@ export function calculateEquipmentSelection(
         }) * 100;
       const capexPhp = qty * item.capexPhp;
       const annualEnergyKwh = safeDivide(
-        providedTr * BTU_PER_HOUR_PER_TON * inputs.operatingHoursPerYear,
+        tonsToBtuPerHour(providedTr) * inputs.operatingHoursPerYear,
         item.eer * WATTS_PER_KILOWATT,
         `annualEnergy[${item.model}]`,
         { requirePositive: true },

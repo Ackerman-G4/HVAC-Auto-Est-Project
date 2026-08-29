@@ -212,9 +212,39 @@ Gate: golden money path test suite passes with the new case. Confirm the new cas
 Enumerate all 197 division operations under `src/lib/engine`. Classify each as guarded already, denominator is a compile time constant and therefore safe, or requires a guard. Produce the classification table in `docs/audit/division-audit.md`, then apply guards to the third category.
 Gate: table complete, all three gates green.
 
-**◐ TASK 2.4 — Centralise unit conversion**
+**☑ TASK 2.4 — Centralise unit conversion**
 Create `src/lib/engine/units.ts` holding every conversion as a named function with the coefficient declared once and its source stated. Minimum set: tons of refrigeration to British thermal units per hour, square metres to square feet, metric temperature difference to imperial temperature difference, litres per second to cubic feet per minute, watts to British thermal units per hour. Replace every inline conversion coefficient in the engine with a call. Do not change the field names on `LoadCalculationInputs`, since encoding the unit in the identifier is already correct and renaming would create churn without benefit.
 Gate: no numeric conversion literal such as 12000, 3.412 or 2.119 appears anywhere in `src/lib/engine` outside `units.ts`. All gates green.
+
+**Closed 2026-08-29.** `units.ts` already existed with all five conversions; three
+executable duplicates outside it remained:
+
+- `load-calculation-engine.ts` declared its own `BTU_PER_HOUR_PER_TON = 12000`.
+- `equipment-selection-engine.ts` declared the same constant again.
+- `load-calculation-engine.ts` defined a local `celsiusDeltaToFahrenheit` returning
+  `deltaC * 1.8`, used at two call sites.
+
+All three now call `tonsToBtuPerHour` and `celsiusDeltaToFahrenheitDelta`. The
+coefficients are identical to the ones they replaced, so the substitution is
+arithmetically exact — the golden money path is unchanged at 10 passing tests,
+which is the evidence rather than the claim.
+
+Remaining literals in `src/lib/engine` are classified, not overlooked:
+
+- `openfoam-exporter.ts` `mu 1.8e-05` is the dynamic viscosity of air written
+  into an OpenFOAM dictionary. A physical property, not a unit conversion.
+- Four `expression:` / `value:` provenance strings display `3.412` and `12000` to
+  the engineer. Verified against the rule set: these match the values that
+  actually run, so they are accurate provenance and were left alone.
+
+**Open discrepancy, deliberately not changed.** The watt to Btu/h coefficient has
+two values in the system: `units.ts` declares 3.412142 (derived from
+1 Btu = 1055.05585262 J exactly) while `src/constants/rules/cooling-load-rules.json`
+declares 3.412, and the load path uses the rule set, not `units.ts`. The relative
+difference is 4e-5 and numerically negligible, but it means "one definition" is
+not yet literally true. The rule set is deliberately configurable engineering
+data, so reconciling it changes calculation output and is a decision rather than
+a cleanup. Raised here rather than silently resolved.
 
 ---
 

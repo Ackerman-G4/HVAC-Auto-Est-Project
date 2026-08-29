@@ -7,12 +7,8 @@ import {
 import { humidityRatio } from '@/lib/functions/psychrometric';
 
 import { safeDivide } from '../numeric-guards';
+import { celsiusDeltaToFahrenheitDelta, tonsToBtuPerHour } from '../units';
 
-/**
- * CLAUDE.md §8.2: 12000 Btu/h per ton of refrigeration. Named here rather than
- * inlined so the coefficient has one definition and one place to be checked.
- */
-const BTU_PER_HOUR_PER_TON = 12000;
 const WATTS_PER_KILOWATT = 1000;
 
 export type SpaceType =
@@ -162,11 +158,6 @@ function round(value: number, digits = 2) {
   return Math.round(value * factor) / factor;
 }
 
-/** Convert a Celsius temperature DIFFERENCE to Fahrenheit difference (no +32 offset). */
-function celsiusDeltaToFahrenheit(deltaC: number) {
-  return deltaC * 1.8;
-}
-
 function calculateBreakdown(inputs: LoadCalculationInputs, overrides: ManualOverrides): LoadBreakdown {
   const rules = getLoadRules();
   const cfmConst = CFM_CONSTANT();
@@ -179,7 +170,7 @@ function calculateBreakdown(inputs: LoadCalculationInputs, overrides: ManualOver
   if (inputs.occupants < 0) throw new Error('Occupants cannot be negative');
   if (inputs.ceilingHeightM <= 0) throw new Error('Ceiling height must be positive');
 
-  const deltaTF = Math.max(1, celsiusDeltaToFahrenheit(inputs.outdoorTempC - inputs.indoorTempC));
+  const deltaTF = Math.max(1, celsiusDeltaToFahrenheitDelta(inputs.outdoorTempC - inputs.indoorTempC));
 
   // ── Sensible loads ──────────────────────────────────────────────
   const envelopeBtu = evaluateFromRuleSet(rules, 'envelope_load_formula', {
@@ -286,7 +277,7 @@ function buildEquipmentOptions(trRequired: number): EquipmentOption[] {
       160,
     );
     const annualEnergyKwh = safeDivide(
-      providedTr * BTU_PER_HOUR_PER_TON * operatingHours,
+      tonsToBtuPerHour(providedTr) * operatingHours,
       item.efficiencyEer * WATTS_PER_KILOWATT,
       `annualEnergy[${item.model}]`,
       { requirePositive: true },
@@ -321,7 +312,7 @@ function buildAirflowMap(cfm: number): AirflowNode[] {
 
 function buildFormulas(inputs: LoadCalculationInputs, breakdown: LoadBreakdown): FormulaRow[] {
   const airflow = inputs.occupants * inputs.ventilationCfmPerPerson;
-  const deltaTF = Math.max(1, celsiusDeltaToFahrenheit(inputs.outdoorTempC - inputs.indoorTempC));
+  const deltaTF = Math.max(1, celsiusDeltaToFahrenheitDelta(inputs.outdoorTempC - inputs.indoorTempC));
   const envelopeFactor = getEnvelopeFactor(inputs.spaceType);
 
   return [
