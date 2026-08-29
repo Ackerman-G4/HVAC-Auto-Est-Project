@@ -454,9 +454,40 @@ Gate: workflow fails on a deliberate bundle increase.
 
 ### PHASE 6 — Hygiene
 
-**☐ TASK 6.1** Delete the duplicate `sync-firebase-web-key.ps1` and update the referencing script entry.
-**☐ TASK 6.2** Keep one planning document. Delete `plan.md` from the root and retain the `docs` copy, or the reverse, but not both.
-**☐ TASK 6.3** Restore the collapsed Python block at `plan.md` line 582 to proper line breaks, or extract it to a real `.py` file under `services/cfd-solver` where it can be linted.
+**⊘ TASK 6.1** Delete the duplicate `sync-firebase-web-key.ps1` and update the referencing script entry.
+**Superseded 2026-08-29 — the premise is wrong.** `scripts/sync-firebase-web-key.ps1`
+is not a duplicate. It is a 138-byte forwarder:
+`$target = Join-Path ... 'powershell/sync-firebase-web-key.ps1'; & $target @args`.
+All **18** scripts in `scripts/*.ps1` follow that exact pattern against
+`scripts/powershell/*.ps1` — 124 to 148 bytes each against 0.6 to 25 KB targets.
+It is a deliberate, uniform indirection layer that keeps the `./scripts/foo.ps1`
+paths stable, not an accident. Deleting one of the eighteen would break the
+pattern and leave the tree less consistent than it is now. Finding F15 is
+withdrawn. Whether to collapse the whole layer belongs to TASK 5.3, which
+rewrites these entries for cross-platform use anyway; doing it here would
+conflict with that work.
+**☑ TASK 6.2** Keep one planning document. Delete `plan.md` from the root and retain the `docs` copy, or the reverse, but not both.
+**Closed 2026-08-29.** The two copies had **diverged**, so neither was a safe
+delete: 15 lines existed only at the root and 6 only under `docs`. A blind
+`rm` either way would have destroyed content.
+
+Resolved by merging rather than choosing. The root copy is newer and larger, and
+its error-budget row is strictly the more complete of the two
+("Adaptive mesh + k-ε turbulence **+ SMOKE validation**" against
+"Adaptive mesh + k-ε turbulence"). The four-gap Executive Summary that existed
+only under `docs` was spliced into the root copy, which now reads as both the
+accuracy-gap statement and the CFD SMOKE roadmap. Verified a true superset
+line-by-line before deleting `docs/plan.md`.
+**☑ TASK 6.3** Restore the collapsed Python block at `plan.md` line 582 to proper line breaks, or extract it to a real `.py` file under `services/cfd-solver` where it can be linted.
+**Closed 2026-08-29.** 1,664 characters on one line, restored to 44 and the
+fence tagged ```python. Longest line in the file is now 384 characters.
+
+Restored in place rather than extracted to `services/cfd-solver`, which the task
+offered as the alternative. `AdaptiveCFDSolver` is an illustrative design sketch
+calling nine methods that do not exist; placing it beside `run_solve.py` would
+put non-functional code where a reader reasonably expects a working service
+module. Readable and diffable in the roadmap is the whole benefit; lintable is
+not worth that confusion.
 **☐ TASK 6.4** Resolve the 77 lint warnings, starting with the set state inside effect warning at `src/lib/ui/use-theme-color.ts` line 27, then change the lint gate to `eslint src --max-warnings=0`.
 
 ---

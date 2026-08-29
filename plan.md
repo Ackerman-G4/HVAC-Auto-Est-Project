@@ -16,6 +16,13 @@ Status: Production (Firebase + Next.js + Python Calc Engine)
 
 ## Executive Summary
 
+This plan addresses four critical accuracy gaps identified in the codebase:
+
+- CFD Simulation (cfd-simulation.ts) — Uses a simplified explicit solver on a uniform voxel grid with significant numerical diffusion, no turbulence modeling, and coarse boundary treatment
+- 3D Building Visualization (BuildingViewer3D.tsx, AirflowViewer3D.tsx) — Renders rooms as axis-aligned bounding boxes with no actual wall geometry, window cutouts, or HVAC element detail
+- Load Calculations (load-calculation-engine.ts) — Uses flat per-m² envelope factors instead of orientation-specific CLTD/CLF methods or RTS calculations
+- Geometry Representation (room-polygon.ts, floorplan) — Stores rooms as 2D rectangles with no volumetric data, wall thickness, or spatial relationships
+
 This plan now includes a dedicated CFD SMOKE validation roadmap:
 
 - **CFD Physics Validation**: Automated script (`validate:cfd:physics`) for reference case, convergence, and mass/energy balance checks.
@@ -578,8 +585,51 @@ function solveConjugateHeatTransfer(
 Current: Python calc engine (services/calc-engine/main.py) is 14,580 bytes but appears disconnected from CFD.
 New Architecture:
 
-```
-# services/calc-engine/cfd/solver.pyimport numpy as npfrom scipy.sparse import csr_matrixfrom scipy.sparse.linalg import spsolveimport pyamg  # Algebraic Multigrid for pressure Poissonclass AdaptiveCFDSolver:    def __init__(self, mesh: OctreeMesh, config: CFDConfig):        self.mesh = mesh        self.config = config        self.u = np.zeros(mesh.n_cells)  # x-velocity        self.v = np.zeros(mesh.n_cells)  # y-velocity        self.w = np.zeros(mesh.n_cells)  # z-velocity        self.p = np.ones(mesh.n_cells) * 101325  # pressure        self.T = np.ones(mesh.n_cells) * config.ambient_temp  # temperature        self.k = np.ones(mesh.n_cells) * 0.1  # TKE        self.epsilon = np.ones(mesh.n_cells) * 0.1  # dissipation    def solve_steady_state(self, max_iter: int = 1000, tol: float = 1e-6):        for iteration in range(max_iter):            # 1. Momentum prediction (with turbulence)            self._predict_velocity()            # 2. Pressure correction (AMG solver)            self._correct_pressure()            # 3. Velocity correction            self._correct_velocity()            # 4. Energy equation            self._solve_energy()            # 5. Turbulence equations            self._solve_turbulence()            # 6. Check convergence            residual = self._compute_residual()            if residual < tol:                break        return self._extract_results()    def _correct_pressure(self):        # Build Poisson matrix A·p = b        # Use AMG for fast convergence        A = self._build_poisson_matrix()        b = self._compute_divergence()        ml = pyamg.ruge_stuben_solver(A)        self.p = ml.solve(b, tol=1e-10)
+```python
+# services/calc-engine/cfd/solver.py
+import numpy as np
+from scipy.sparse import csr_matrix
+from scipy.sparse.linalg import spsolve
+import pyamg  # Algebraic Multigrid for pressure Poisson
+
+
+class AdaptiveCFDSolver:
+    def __init__(self, mesh: OctreeMesh, config: CFDConfig):
+        self.mesh = mesh
+        self.config = config
+        self.u = np.zeros(mesh.n_cells)  # x-velocity
+        self.v = np.zeros(mesh.n_cells)  # y-velocity
+        self.w = np.zeros(mesh.n_cells)  # z-velocity
+        self.p = np.ones(mesh.n_cells) * 101325  # pressure
+        self.T = np.ones(mesh.n_cells) * config.ambient_temp  # temperature
+        self.k = np.ones(mesh.n_cells) * 0.1  # TKE
+        self.epsilon = np.ones(mesh.n_cells) * 0.1  # dissipation
+
+    def solve_steady_state(self, max_iter: int = 1000, tol: float = 1e-6):
+        for iteration in range(max_iter):
+            # 1. Momentum prediction (with turbulence)
+            self._predict_velocity()
+            # 2. Pressure correction (AMG solver)
+            self._correct_pressure()
+            # 3. Velocity correction
+            self._correct_velocity()
+            # 4. Energy equation
+            self._solve_energy()
+            # 5. Turbulence equations
+            self._solve_turbulence()
+            # 6. Check convergence
+            residual = self._compute_residual()
+            if residual < tol:
+                break
+        return self._extract_results()
+
+    def _correct_pressure(self):
+        # Build Poisson matrix A - p = b
+        # Use AMG for fast convergence
+        A = self._build_poisson_matrix()
+        b = self._compute_divergence()
+        ml = pyamg.ruge_stuben_solver(A)
+        self.p = ml.solve(b, tol=1e-10)
 ```
 
 API Integration:
