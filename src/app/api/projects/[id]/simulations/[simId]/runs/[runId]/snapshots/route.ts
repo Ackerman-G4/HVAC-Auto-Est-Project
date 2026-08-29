@@ -13,6 +13,7 @@ import {
   listRunFieldSnapshots,
 } from '@/lib/firebase/simulation-cases-store';
 import { errorResponse, getErrorDetails, parseBoundedInt } from '@/lib/utils/api-helpers';
+import { logger } from '@/lib/observability/logger';
 
 type RouteContext = { params: Promise<{ id: string; simId: string; runId: string }> };
 
@@ -83,7 +84,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       activeRunId: simCase.activeRunId ?? null,
     });
   } catch (error) {
-    console.error('GET .../runs/[runId]/snapshots error:', error);
+    logger.error('GET .../runs/[runId]/snapshots error', error);
     const d = getErrorDetails(error, 'Failed to list run snapshots');
     return errorResponse(500, d.error, d.description, d.code);
   }

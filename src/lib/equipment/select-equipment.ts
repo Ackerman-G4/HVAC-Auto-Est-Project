@@ -21,6 +21,7 @@ import type { getFloorsWithRooms, updateProjectRecord } from '@/lib/firebase/pro
 import type { sizeEquipment } from '@/lib/functions/equipment-sizing';
 import type { resolveManualSelection, resolveUnitPrice } from '@/lib/functions/equipment-pricing';
 import { toNumber } from '@/lib/utils/api-helpers';
+import { logger } from '@/lib/observability/logger';
 
 export interface SelectEquipmentDeps {
   readonly getFloorsWithRooms: typeof getFloorsWithRooms;
@@ -88,7 +89,7 @@ async function loadOverridesOrEmpty(
   try {
     return await deps.getPriceOverridesByModel();
   } catch (overrideError) {
-    console.error(`${context} price override lookup failed:`, overrideError);
+    logger.error(`${context} price override lookup failed`, overrideError);
     return new Map<string, PriceOverrideRecord>();
   }
 }

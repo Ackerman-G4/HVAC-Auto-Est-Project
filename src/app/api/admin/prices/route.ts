@@ -27,6 +27,7 @@ import {
   getAdminValidationError,
   priceOverrideRequestSchema,
 } from '@/lib/validation/admin';
+import { logger } from '@/lib/observability/logger';
 
 const PRICE_CAP_RATIO = 0.5;
 
@@ -79,7 +80,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ prices });
   } catch (error) {
-    console.error('GET /api/admin/prices error:', error);
+    logger.error('GET /api/admin/prices error', error);
     const d = getErrorDetails(error, 'Failed to fetch equipment prices');
     return errorResponse(500, d.error, d.description, d.code);
   }
@@ -168,7 +169,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ override });
   } catch (error) {
-    console.error('POST /api/admin/prices error:', error);
+    logger.error('POST /api/admin/prices error', error);
     const d = getErrorDetails(error, 'Failed to set price override');
     return errorResponse(500, d.error, d.description, d.code);
   }
@@ -239,7 +240,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ cleared: true, model: removed.model });
   } catch (error) {
-    console.error('DELETE /api/admin/prices error:', error);
+    logger.error('DELETE /api/admin/prices error', error);
     const d = getErrorDetails(error, 'Failed to clear price override');
     return errorResponse(500, d.error, d.description, d.code);
   }

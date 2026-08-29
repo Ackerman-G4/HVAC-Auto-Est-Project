@@ -19,6 +19,7 @@ import {
   getCatalogValidationError,
   materialUpdateSchema,
 } from '@/lib/validation/catalog';
+import { logger } from '@/lib/observability/logger';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -93,7 +94,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json({ material });
   } catch (error) {
-    console.error('PUT material error:', error);
+    logger.error('PUT material error', error);
     const d = getErrorDetails(error, 'Failed to update material');
     return errorResponse(500, d.error, d.description, d.code);
   }
@@ -137,7 +138,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json({ message: 'Material deleted' });
   } catch (error) {
-    console.error('DELETE material error:', error);
+    logger.error('DELETE material error', error);
     const d = getErrorDetails(error, 'Failed to delete material');
     return errorResponse(500, d.error, d.description, d.code);
   }

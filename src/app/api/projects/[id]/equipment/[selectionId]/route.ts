@@ -17,6 +17,7 @@ import {
 } from '@/lib/firebase/project-estimation-store';
 import { updateProjectRecord, writeAuditLog } from '@/lib/firebase/projects-store';
 import { errorResponse, getErrorDetails, requireJsonRequest, resourceNotFound, toInt, toNumber } from '@/lib/utils/api-helpers';
+import { logger } from '@/lib/observability/logger';
 
 type RouteContext = { params: Promise<{ id: string; selectionId: string }> };
 
@@ -122,7 +123,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json({ equipment: toApiEquipment(updated) });
   } catch (error) {
-    console.error('PUT equipment selection error:', error);
+    logger.error('PUT equipment selection error', error);
     const d = getErrorDetails(error, 'Failed to update equipment selection');
     return errorResponse(500, d.error, d.description, d.code);
   }
@@ -154,7 +155,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json({ message: 'Equipment selection removed' });
   } catch (error) {
-    console.error('DELETE equipment selection error:', error);
+    logger.error('DELETE equipment selection error', error);
     const d = getErrorDetails(error, 'Failed to delete equipment selection');
     return errorResponse(500, d.error, d.description, d.code);
   }

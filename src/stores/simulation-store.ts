@@ -31,6 +31,7 @@ import type {
 } from '@/types/simulation';
 import { DEFAULT_CALIBRATION_COEFFICIENTS } from '@/types/simulation';
 import { createSimulationEngineSlice, type SimulationEngineSlice } from './simulation-engine-slice';
+import { logger } from '@/lib/observability/logger';
 
 interface SimulationStore {
   // Equipment
@@ -346,7 +347,7 @@ export const useSimulationStore = create<SimulationStoreState>((set, get, api) =
       showToast('success', `Detected ${newRacks.length} rack(s), ${newHvac.length} HVAC unit(s), ${result.tiles.length} tile(s)`);
       return result.summary;
     } catch (error) {
-      console.error('Auto-detect failed:', error);
+      logger.error('Auto-detect failed', error);
       showToast('error', 'Auto-detect failed — check project data');
       return ['Auto-detect failed'];
     }
@@ -425,7 +426,7 @@ export const useSimulationStore = create<SimulationStoreState>((set, get, api) =
         error instanceof Error &&
         (error.name === 'AbortError' || /abort/i.test(error.message));
 
-      console.error(error);
+      logger.error('Unhandled error', error);
       set((state) => ({
         isRunning: false,
         activeAbortController: null,
@@ -477,7 +478,7 @@ export const useSimulationStore = create<SimulationStoreState>((set, get, api) =
           data.report.overallPass ? 'ASHRAE compliance passed' : 'ASHRAE compliance issues found');
       });
     } catch (error) {
-      console.error(error);
+      logger.error('Compliance check failed', error);
       showToast('error', 'Compliance check failed');
     }
   },
@@ -504,7 +505,7 @@ export const useSimulationStore = create<SimulationStoreState>((set, get, api) =
       set({ failureResult: data.result, isRunning: false });
       showToast('success', 'Failure simulation completed');
     } catch (error) {
-      console.error(error);
+      logger.error('Failure simulation failed', error);
       set({ isRunning: false });
       showToast('error', 'Failure simulation failed');
     }
@@ -523,7 +524,7 @@ export const useSimulationStore = create<SimulationStoreState>((set, get, api) =
       set({ pueAnalysis: data.analysis });
       showToast('success', `PUE: ${data.analysis.pue}`);
     }).catch((error) => {
-      console.error(error);
+      logger.error('PUE calculation failed', error);
       showToast('error', 'PUE calculation failed');
     });
   },
@@ -548,7 +549,7 @@ export const useSimulationStore = create<SimulationStoreState>((set, get, api) =
       set({ optimizationResult: data.result, isRunning: false });
       showToast('success', `Optimization complete: ${data.result.improvement}% improvement`);
     } catch (error) {
-      console.error(error);
+      logger.error('Optimization failed', error);
       set({ isRunning: false });
       showToast('error', 'Optimization failed');
     }
@@ -773,7 +774,7 @@ export const useSimulationStore = create<SimulationStoreState>((set, get, api) =
         showToast('success', 'Comparison complete');
       }
     } catch (error) {
-      console.error(error);
+      logger.error('Calibration failed', error);
       set({ isCalibrating: false });
       showToast('error', 'Calibration failed');
     }

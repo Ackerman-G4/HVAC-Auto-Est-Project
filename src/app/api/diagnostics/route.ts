@@ -14,6 +14,7 @@ import {
   getDiagnosticsValidationError,
 } from '@/lib/validation/diagnostics';
 import type { DiagnosticInput } from '@/types/diagnostic';
+import { logger } from '@/lib/observability/logger';
 
 const DIAGNOSTICS_RATE_LIMIT = {
   windowMs: 60_000,
@@ -105,13 +106,13 @@ export async function POST(request: NextRequest) {
         maxSeverity: result.faults?.[0]?.severity ?? 'info',
       });
     } catch (persistError) {
-      console.warn('Failed to persist diagnostic history:', persistError);
+      logger.warn('Failed to persist diagnostic history', { cause: persistError });
       // Non-blocking — still return result
     }
 
     return NextResponse.json({ result });
   } catch (error) {
-    console.error('POST /api/diagnostics error:', error);
+    logger.error('POST /api/diagnostics error', error);
     return internalServerError('Diagnostic analysis failed');
   }
 }

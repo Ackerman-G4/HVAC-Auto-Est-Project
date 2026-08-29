@@ -25,6 +25,7 @@ import {
   createReportHistorySchema,
   projectScopedRequestSchema,
 } from '@/lib/validation/simulation-reports';
+import { logger } from '@/lib/observability/logger';
 
 const REPORT_HISTORY_GET_RATE_LIMIT = {
   windowMs: 60_000,
@@ -70,7 +71,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ history });
   } catch (error) {
-    console.error('GET /api/simulation/reports error:', error);
+    logger.error('GET /api/simulation/reports error', error);
     const d = getErrorDetails(error, 'Failed to fetch simulation report history');
     return errorResponse(500, d.error, d.description, d.code);
   }
@@ -130,7 +131,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ entry }, { status: 201 });
   } catch (error) {
-    console.error('POST /api/simulation/reports error:', error);
+    logger.error('POST /api/simulation/reports error', error);
     const d = getErrorDetails(error, 'Failed to record simulation report export');
     return errorResponse(500, d.error, d.description, d.code);
   }
@@ -168,7 +169,7 @@ export async function DELETE(request: NextRequest) {
     const deletedCount = await clearSimulationReportHistoryForOwner(auth.user.id, projectId);
     return NextResponse.json({ deletedCount });
   } catch (error) {
-    console.error('DELETE /api/simulation/reports error:', error);
+    logger.error('DELETE /api/simulation/reports error', error);
     const d = getErrorDetails(error, 'Failed to clear simulation report history');
     return errorResponse(500, d.error, d.description, d.code);
   }

@@ -8,6 +8,7 @@ import { requireAuth } from '@/lib/auth/guard';
 import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import { listDiagnosticHistory } from '@/lib/firebase/catalog-store';
 import { errorResponse, getErrorDetails, parseBoundedInt } from '@/lib/utils/api-helpers';
+import { logger } from '@/lib/observability/logger';
 
 const DIAGNOSTICS_HISTORY_RATE_LIMIT = {
   windowMs: 60_000,
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ history });
   } catch (error) {
-    console.error('GET /api/diagnostics/history error:', error);
+    logger.error('GET /api/diagnostics/history error', error);
     const d = getErrorDetails(error, 'Failed to fetch diagnostic history');
     return errorResponse(500, d.error, d.description, d.code);
   }

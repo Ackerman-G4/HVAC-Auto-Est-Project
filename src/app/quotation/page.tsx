@@ -26,6 +26,7 @@ import { Skeleton, TableSkeleton } from '@/components/ui/skeleton';
 import { formatPHP } from '@/lib/utils/format-currency';
 import Link from 'next/link';
 import { authFetch } from '@/lib/api-client';
+import { logger } from '@/lib/observability/logger';
 
 interface ProjectListItem {
 	id: string;
@@ -373,7 +374,7 @@ export default function QuotationPage() {
 			showToast('success', 'Quotation PDF exported');
 		} catch (err) {
 			showToast('error', 'Failed to generate quotation PDF');
-			console.error(err);
+			logger.error('Failed to generate quotation PDF', err);
 		}
 		setGenerating(false);
 	};

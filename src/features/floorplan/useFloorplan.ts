@@ -23,6 +23,7 @@ import {
   getRoomLabelCenter,
 } from './geometry';
 import type { CanvasRoom, FloorData, Tool, WallSegment } from './types';
+import { logger } from '@/lib/observability/logger';
 
 /**
  * Owns all Floor Plan editor state, canvas rendering, pointer/drawing
@@ -990,7 +991,7 @@ export function useFloorplan(id: string) {
       );
       showToast('success', 'PDF exported with floor plan and room schedule');
     } catch (err) {
-      console.error(err);
+      logger.error('Failed to export PDF', err);
       showToast('error', 'Failed to export PDF');
     }
     setExporting(false);

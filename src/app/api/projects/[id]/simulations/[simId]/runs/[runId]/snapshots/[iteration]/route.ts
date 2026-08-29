@@ -17,6 +17,7 @@ import {
 } from '@/lib/firebase/simulation-cases-store';
 import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
 import type { FieldName, FieldPayload } from '@/types/simulation';
+import { logger } from '@/lib/observability/logger';
 
 type RouteContext = {
   params: Promise<{ id: string; simId: string; runId: string; iteration: string }>;
@@ -159,7 +160,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       snapshot,
     });
   } catch (error) {
-    console.error('GET .../runs/[runId]/snapshots/[iteration] error:', error);
+    logger.error('GET .../runs/[runId]/snapshots/[iteration] error', error);
     const d = getErrorDetails(error, 'Failed to fetch run snapshot');
     return errorResponse(500, d.error, d.description, d.code);
   }

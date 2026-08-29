@@ -15,6 +15,7 @@ import {
   updateFloorRecord,
 } from '@/lib/firebase/projects-store';
 import { errorResponse, getErrorDetails, requireJsonRequest, resourceNotFound } from '@/lib/utils/api-helpers';
+import { logger } from '@/lib/observability/logger';
 
 type RouteContext = { params: Promise<{ id: string; floorId: string }> };
 
@@ -69,7 +70,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json({ floor });
   } catch (error) {
-    console.error('PUT floor error:', error);
+    logger.error('PUT floor error', error);
     const d = getErrorDetails(error, 'Failed to update floor');
     return errorResponse(500, d.error, d.description, d.code);
   }
@@ -101,7 +102,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json({ message: 'Floor deleted successfully' });
   } catch (error) {
-    console.error('DELETE floor error:', error);
+    logger.error('DELETE floor error', error);
     const d = getErrorDetails(error, 'Failed to delete floor');
     return errorResponse(500, d.error, d.description, d.code);
   }

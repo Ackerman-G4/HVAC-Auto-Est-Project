@@ -11,6 +11,7 @@ import { backfillLegacySimulationReportHistoryForOwner } from '@/lib/firebase/si
 import { errorResponse, getErrorDetails, requireJsonRequest } from '@/lib/utils/api-helpers';
 import { parseValue } from '@/lib/validation/http';
 import { projectScopedRequestSchema } from '@/lib/validation/simulation-reports';
+import { logger } from '@/lib/observability/logger';
 
 const REPORT_BACKFILL_RATE_LIMIT = {
   windowMs: 60_000,
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error('POST /api/simulation/reports/backfill error:', error);
+    logger.error('POST /api/simulation/reports/backfill error', error);
     const d = getErrorDetails(error, 'Failed to backfill simulation report history');
     return errorResponse(500, d.error, d.description, d.code);
   }

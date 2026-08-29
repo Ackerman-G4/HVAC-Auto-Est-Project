@@ -19,6 +19,7 @@ import {
 import { buildStructuredGrid } from '@/lib/engine/simulation/geometry-builder';
 import { errorResponse, getErrorDetails, requireJsonRequest } from '@/lib/utils/api-helpers';
 import { buildProjectBuildingGeometry, toFallbackGeometry } from '@/lib/simulation/building-case';
+import { logger } from '@/lib/observability/logger';
 
 type RouteContext = { params: Promise<{ id: string; simId: string }> };
 
@@ -70,7 +71,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json({ case: simCase });
   } catch (error) {
-    console.error('GET /api/projects/[id]/simulations/[simId] error:', error);
+    logger.error('GET /api/projects/[id]/simulations/[simId] error', error);
     const d = getErrorDetails(error, 'Failed to fetch simulation case');
     return errorResponse(500, d.error, d.description, d.code);
   }
@@ -148,7 +149,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     const updated = await getSimulationCase(projectId, simId);
     return NextResponse.json({ case: updated });
   } catch (error) {
-    console.error('PUT /api/projects/[id]/simulations/[simId] error:', error);
+    logger.error('PUT /api/projects/[id]/simulations/[simId] error', error);
     const d = getErrorDetails(error, 'Failed to update simulation case');
     return errorResponse(500, d.error, d.description, d.code);
   }
@@ -189,7 +190,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     await deleteSimulationCase(projectId, simId);
     return NextResponse.json({ deleted: true });
   } catch (error) {
-    console.error('DELETE /api/projects/[id]/simulations/[simId] error:', error);
+    logger.error('DELETE /api/projects/[id]/simulations/[simId] error', error);
     const d = getErrorDetails(error, 'Failed to delete simulation case');
     return errorResponse(500, d.error, d.description, d.code);
   }

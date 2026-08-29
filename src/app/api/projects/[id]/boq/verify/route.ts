@@ -11,6 +11,7 @@ import { listBoqItemsForProject } from '@/lib/firebase/project-estimation-store'
 import { getProjectRecord, writeAuditLog } from '@/lib/firebase/projects-store';
 import { buildBoqVerification } from '@/lib/functions/boq-integrity';
 import { errorResponse, getErrorDetails, resourceNotFound } from '@/lib/utils/api-helpers';
+import { logger } from '@/lib/observability/logger';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -68,7 +69,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json({ verification });
   } catch (error) {
-    console.error('GET BOQ verify error:', error);
+    logger.error('GET BOQ verify error', error);
     const d = getErrorDetails(error, 'Failed to verify BOQ');
     return errorResponse(500, d.error, d.description, d.code);
   }

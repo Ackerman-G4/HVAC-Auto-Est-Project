@@ -31,6 +31,7 @@ import {
   parseRoomPolygon,
   validateRoomPolygon,
 } from '@/lib/utils/room-polygon';
+import { logger } from '@/lib/observability/logger';
 
 type RouteContext = { params: Promise<{ id: string; roomId: string }> };
 
@@ -208,7 +209,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json({ room: updatedRoom });
   } catch (error) {
-    console.error('PUT room error:', error);
+    logger.error('PUT room error', error);
     const d = getErrorDetails(error, 'Failed to update room');
     return errorResponse(500, d.error, d.description, d.code);
   }
@@ -247,7 +248,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json({ message: 'Room deleted successfully' });
   } catch (error) {
-    console.error('DELETE room error:', error);
+    logger.error('DELETE room error', error);
     const d = getErrorDetails(error, 'Failed to delete room');
     return errorResponse(500, d.error, d.description, d.code);
   }

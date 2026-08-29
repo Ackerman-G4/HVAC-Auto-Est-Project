@@ -53,6 +53,29 @@ const eslintConfig = defineConfig([
       // during render in the diagnostics page, which was remounting an <Input>
       // and eating keystrokes.
       'react-hooks/set-state-in-effect': 'warn',
+
+      // REMEDIATION_PLAN.md TASK 5.5. An error, not a warning: the 135 bare
+      // console calls this replaced were unstructured, unfilterable and
+      // uncorrelated, and the only way that stays true is if adding one back
+      // fails the build.
+      //
+      // src/lib/observability/logger.ts is the sole exemption below, because
+      // console is what both runtimes actually give us to write to.
+      'no-console': 'error',
+    },
+  },
+  {
+    // The logger is the one place allowed to reach the console.
+    files: ['src/lib/observability/logger.ts'],
+    rules: {
+      'no-console': 'off',
+    },
+  },
+  {
+    // Tests assert on captured output and use console for diagnostics.
+    files: ['**/__tests__/**', '**/*.test.ts', '**/*.test.tsx'],
+    rules: {
+      'no-console': 'off',
     },
   },
   // Override default ignores of eslint-config-next.

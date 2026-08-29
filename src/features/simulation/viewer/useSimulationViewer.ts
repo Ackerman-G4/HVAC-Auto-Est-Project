@@ -38,6 +38,7 @@ import {
   exportSimulationReportPdf,
 } from '@/lib/reports/simulation-report';
 import { appendSimulationReportHistory } from '@/lib/reports/simulation-report-history';
+import { logger } from '@/lib/observability/logger';
 
 export function useSimulationViewer() {
   const [simError, setSimError] = useState<string | null>(null);
@@ -460,12 +461,12 @@ export function useSimulationViewer() {
       try {
         await appendSimulationReportHistory(report, format, 'viewer');
       } catch (historyError) {
-        console.warn('Failed to persist simulation report history:', historyError);
+        logger.warn('Failed to persist simulation report history', { cause: historyError });
       }
 
       showToast('success', `${format.toUpperCase()} report exported`);
     } catch (error) {
-      console.error(error);
+      logger.error('Failed to export report', error);
       showToast('error', 'Failed to export report');
     } finally {
       setReportExporting(null);

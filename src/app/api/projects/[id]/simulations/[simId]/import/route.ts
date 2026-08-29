@@ -21,6 +21,7 @@ import {
 import { importFieldData } from '@/lib/engine/simulation/result-importer';
 import { errorResponse, getErrorDetails, requireJsonRequest } from '@/lib/utils/api-helpers';
 import type { RunSource } from '@/types/simulation';
+import { logger } from '@/lib/observability/logger';
 
 type RouteContext = { params: Promise<{ id: string; simId: string }> };
 
@@ -135,7 +136,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       );
     }
   } catch (error) {
-    console.error('POST .../import error:', error);
+    logger.error('POST .../import error', error);
     const d = getErrorDetails(error, 'Failed to import simulation results');
     return errorResponse(500, d.error, d.description, d.code);
   }

@@ -14,6 +14,7 @@ import {
   getCatalogValidationError,
   supplierCreateSchema,
 } from '@/lib/validation/catalog';
+import { logger } from '@/lib/observability/logger';
 
 const SUPPLIER_MUTATION_RATE_LIMIT = {
   windowMs: 60_000,
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(payload);
   } catch (error) {
-    console.error('GET /api/suppliers error:', error);
+    logger.error('GET /api/suppliers error', error);
     const d = getErrorDetails(error, 'Failed to fetch suppliers');
     return errorResponse(500, d.error, d.description, d.code);
   }
@@ -108,7 +109,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ supplier }, { status: 201 });
   } catch (error) {
-    console.error('POST /api/suppliers error:', error);
+    logger.error('POST /api/suppliers error', error);
     const d = getErrorDetails(error, 'Failed to create supplier');
     return errorResponse(500, d.error, d.description, d.code);
   }

@@ -15,6 +15,7 @@ import {
 } from '@/lib/firebase/simulation-cases-store';
 import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
 import type { FieldName } from '@/types/simulation';
+import { logger } from '@/lib/observability/logger';
 
 type RouteContext = {
   params: Promise<{
@@ -134,7 +135,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       field,
     });
   } catch (error) {
-    console.error('GET .../snapshots/[iteration]/fields/[fieldName] error:', error);
+    logger.error('GET .../snapshots/[iteration]/fields/[fieldName] error', error);
     const d = getErrorDetails(error, 'Failed to fetch snapshot field');
     return errorResponse(500, d.error, d.description, d.code);
   }

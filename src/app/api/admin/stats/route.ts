@@ -15,6 +15,7 @@ import {
 import { listProjectsForApi } from '@/lib/firebase/projects-store';
 import { toNumberValue, toStringValue } from '@/lib/firebase/value-utils';
 import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
+import { logger } from '@/lib/observability/logger';
 
 const ADMIN_STATS_RATE_LIMIT = {
   windowMs: 60_000,
@@ -129,7 +130,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('GET /api/admin/stats error:', error);
+    logger.error('GET /api/admin/stats error', error);
     const d = getErrorDetails(error, 'Failed to load admin stats');
     return errorResponse(500, d.error, d.description, d.code);
   }

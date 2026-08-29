@@ -20,6 +20,7 @@ import {
 } from '@/lib/equipment/select-equipment';
 import { productionEquipmentDeps } from '@/lib/equipment/select-equipment-deps';
 import { errorResponse, getErrorDetails, requireJsonRequest, resourceNotFound } from '@/lib/utils/api-helpers';
+import { logger } from '@/lib/observability/logger';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -55,7 +56,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json({ equipment });
   } catch (error) {
-    console.error('GET equipment error:', error);
+    logger.error('GET equipment error', error);
     const d = getErrorDetails(error, 'Failed to fetch equipment');
     return errorResponse(500, d.error, d.description, d.code);
   }
@@ -115,7 +116,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     if (!result.ok) return selectionRefusalResponse(result);
     return NextResponse.json({ equipment: result.equipment }, { status: 201 });
   } catch (error) {
-    console.error('POST equipment error:', error);
+    logger.error('POST equipment error', error);
     const d = getErrorDetails(error, 'Failed to select equipment');
     return errorResponse(500, d.error, d.description, d.code);
   }

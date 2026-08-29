@@ -29,6 +29,7 @@ import { getCallbackSecret } from '@/lib/engine/simulation/cfd-cloud';
 import { errorResponse, getErrorDetails, requireJsonRequest } from '@/lib/utils/api-helpers';
 import { parseJsonBody } from '@/lib/validation/http';
 import { openFoamCallbackSchema } from '@/lib/validation/simulation-callback';
+import { logger } from '@/lib/observability/logger';
 
 type RouteContext = { params: Promise<{ id: string; simId: string; runId: string }> };
 
@@ -132,7 +133,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         });
         await saveRunFieldSnapshot(projectId, simId, runId, snapshot);
       } catch (snapshotError) {
-        console.warn('openfoam-callback: failed to persist run field snapshot:', snapshotError);
+        logger.warn('openfoam-callback: failed to persist run field snapshot', { cause: snapshotError });
       }
 
       await updateRunJobStatus(projectId, simId, runId, 'completed', {
@@ -162,7 +163,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return errorResponse(422, 'Import error', errorMessage, 'IMPORT_ERROR');
     }
   } catch (error) {
-    console.error('POST .../openfoam-callback error:', error);
+    logger.error('POST .../openfoam-callback error', error);
     const d = getErrorDetails(error, 'Failed to process solver callback');
     return errorResponse(500, d.error, d.description, d.code);
   }

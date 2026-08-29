@@ -9,6 +9,7 @@ import { join } from 'path';
 import { randomBytes } from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { logger } from '@/lib/observability/logger';
 
 const USERS_FILE = join(process.cwd(), '.local-users.json');
 const LOCAL_DEV_JWT_SECRET_KEY = '__hvacLocalDevJwtSecret';
@@ -29,7 +30,7 @@ function resolveJwtSecret(): string {
 
   if (!globalScope[LOCAL_DEV_JWT_SECRET_KEY]) {
     globalScope[LOCAL_DEV_JWT_SECRET_KEY] = randomBytes(48).toString('hex');
-    console.warn('JWT_SECRET not configured; using an ephemeral local development secret.');
+    logger.warn('JWT_SECRET not configured; using an ephemeral local development secret.');
   }
 
   return globalScope[LOCAL_DEV_JWT_SECRET_KEY]!;

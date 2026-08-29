@@ -16,6 +16,7 @@ import type {
   ProjectData,
   RoomLoadDraftState,
 } from './types';
+import { logger } from '@/lib/observability/logger';
 
 /**
  * Owns all Project Detail state, data fetching, local-snapshot persistence,
@@ -173,7 +174,7 @@ export function useProjectDetail(id: string) {
         setLoading(false);
       })
       .catch((err) => {
-        console.error('Fetch project error:', err);
+        logger.error('Fetch project error', err);
         showToast('error', 'Failed to load project', 'Network error or server unreachable.');
         setLoading(false);
       });
@@ -356,7 +357,7 @@ export function useProjectDetail(id: string) {
         showToast('error', data.error || 'Failed to add room', data.description || 'Check the room parameters and try again.');
       }
     } catch (err) {
-      console.error('Add room error:', err);
+      logger.error('Add room error', err);
       showToast('error', 'Failed to add room', 'Network error or server unreachable.');
     }
   };
@@ -373,7 +374,7 @@ export function useProjectDetail(id: string) {
         showToast('error', data.error || 'Calculation failed', data.description || 'The server returned an error.');
       }
     } catch (err) {
-      console.error('Calculate error:', err);
+      logger.error('Calculate error', err);
       showToast('error', 'Calculation failed', 'Network error or server unreachable.');
     } finally {
       setCalculating(false);
@@ -397,7 +398,7 @@ export function useProjectDetail(id: string) {
         showToast('error', data.error || 'Equipment sizing failed', data.description || 'The server returned an error. Make sure rooms have cooling loads calculated first.');
       }
     } catch (err) {
-      console.error('Auto-size error:', err);
+      logger.error('Auto-size error', err);
       showToast('error', 'Equipment sizing failed', 'Network error or server unreachable.');
     } finally {
       setAutoSizing(false);
@@ -417,7 +418,7 @@ export function useProjectDetail(id: string) {
         showToast('error', data.error || 'BOQ generation failed', data.description || 'Make sure equipment is selected before generating BOQ.');
       }
     } catch (err) {
-      console.error('BOQ error:', err);
+      logger.error('BOQ error', err);
       showToast('error', 'BOQ generation failed', 'Network error or server unreachable.');
     } finally {
       setGeneratingBOQ(false);
@@ -458,7 +459,7 @@ export function useProjectDetail(id: string) {
       fetchProject();
       fetchBoqVerification();
     } catch (error) {
-      console.error('BOQ item save error:', error);
+      logger.error('BOQ item save error', error);
       showToast('error', 'Failed to save BOQ item', 'Network error or server unreachable.');
     } finally {
       setBoqSavingItemId(null);
@@ -487,7 +488,7 @@ export function useProjectDetail(id: string) {
       fetchProject();
       fetchBoqVerification();
     } catch (error) {
-      console.error('BOQ item reset error:', error);
+      logger.error('BOQ item reset error', error);
       showToast('error', 'Failed to reset BOQ item', 'Network error or server unreachable.');
     } finally {
       setBoqSavingItemId(null);
@@ -545,7 +546,7 @@ export function useProjectDetail(id: string) {
       showToast('success', 'Pricing overrides saved', 'Regenerate BOQ to apply updated pricing policy totals.');
       fetchProject();
     } catch (error) {
-      console.error('Pricing override save error:', error);
+      logger.error('Pricing override save error', error);
       showToast('error', 'Failed to save pricing overrides', 'Network error or server unreachable.');
     } finally {
       setPricingSaving(false);
@@ -587,7 +588,7 @@ export function useProjectDetail(id: string) {
       showToast('success', successMessage, 'Equipment and BOQ are now marked stale until refreshed.');
       fetchProject();
     } catch (error) {
-      console.error('Cooling load override save error:', error);
+      logger.error('Cooling load override save error', error);
       showToast('error', 'Failed to save cooling load override', 'Network error or server unreachable.');
     } finally {
       setRoomLoadSavingId(null);
@@ -685,7 +686,7 @@ export function useProjectDetail(id: string) {
       showToast('success', 'Equipment override saved', 'BOQ is now marked stale until regenerated.');
       fetchProject();
     } catch (error) {
-      console.error('Equipment override save error:', error);
+      logger.error('Equipment override save error', error);
       showToast('error', 'Failed to save equipment override', 'Network error or server unreachable.');
     } finally {
       setEquipmentSavingId(null);
@@ -729,7 +730,7 @@ export function useProjectDetail(id: string) {
       showToast('success', 'Equipment reset to suggested values', 'BOQ is now marked stale until regenerated.');
       fetchProject();
     } catch (error) {
-      console.error('Equipment override reset error:', error);
+      logger.error('Equipment override reset error', error);
       showToast('error', 'Failed to reset equipment override', 'Network error or server unreachable.');
     } finally {
       setEquipmentSavingId(null);

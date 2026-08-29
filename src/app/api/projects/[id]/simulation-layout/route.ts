@@ -20,6 +20,7 @@ import {
   requireJsonRequest,
   resourceNotFound,
 } from '@/lib/utils/api-helpers';
+import { logger } from '@/lib/observability/logger';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -69,7 +70,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const layout = await getSimulationLayout(projectId, floorId);
     return NextResponse.json({ layout });
   } catch (error) {
-    console.error('GET /api/projects/[id]/simulation-layout error:', error);
+    logger.error('GET /api/projects/[id]/simulation-layout error', error);
     const d = getErrorDetails(error, 'Failed to fetch simulation layout');
     return errorResponse(500, d.error, d.description, d.code);
   }
@@ -119,7 +120,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('PUT /api/projects/[id]/simulation-layout error:', error);
+    logger.error('PUT /api/projects/[id]/simulation-layout error', error);
     const d = getErrorDetails(error, 'Failed to save simulation layout');
     return errorResponse(500, d.error, d.description, d.code);
   }

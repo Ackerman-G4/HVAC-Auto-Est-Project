@@ -28,6 +28,7 @@ import {
   normalizeBackfillRunStatus,
   type BackfillRunStatus,
 } from './backfill-status';
+import { logger } from '@/lib/observability/logger';
 
 /**
  * Owns all reporting state, cross-module store wiring, derived chart data,
@@ -183,7 +184,7 @@ export function useReportsWorkspace() {
       );
       showToast('success', 'JSON exported', 'Report payload downloaded successfully.');
     } catch (error) {
-      console.error(error);
+      logger.error('JSON export failed', error);
       showToast('error', 'JSON export failed');
     } finally {
       setExporting(null);
@@ -209,7 +210,7 @@ export function useReportsWorkspace() {
       );
       showToast('success', 'Workspace snapshot exported', 'Use this file to restore this workspace on another device.');
     } catch (error) {
-      console.error(error);
+      logger.error('Snapshot export failed', error);
       showToast('error', 'Snapshot export failed');
     } finally {
       setSnapshotTransfer(null);
@@ -222,7 +223,7 @@ export function useReportsWorkspace() {
       const history = await listSimulationReportHistory({ limit: 100 });
       setSimulationReportHistory(history);
     } catch (error) {
-      console.error(error);
+      logger.error('Failed to load simulation export history', error);
       showToast('error', 'Failed to load simulation export history');
     } finally {
       setHistoryAction(null);
@@ -246,7 +247,7 @@ export function useReportsWorkspace() {
       setSimulationReportHistory([]);
       showToast('success', 'Simulation export history cleared', `${deletedCount} ${plural} removed.`);
     } catch (error) {
-      console.error(error);
+      logger.error('Failed to clear simulation export history', error);
       showToast('error', 'Failed to clear simulation export history');
     } finally {
       setHistoryAction(null);
@@ -290,7 +291,7 @@ export function useReportsWorkspace() {
         ok: false,
         message: error instanceof Error ? error.message : 'Unknown backfill error',
       });
-      console.error(error);
+      logger.error('Failed to backfill legacy export history', error);
       showToast('error', 'Failed to backfill legacy export history');
     } finally {
       setHistoryAction(null);
@@ -322,7 +323,7 @@ export function useReportsWorkspace() {
 
       showToast('success', `${format.toUpperCase()} exported`, `Re-exported ${entry.projectName}.`);
     } catch (error) {
-      console.error(error);
+      logger.error('Failed to export history report', error);
       showToast('error', 'Failed to export history report');
     } finally {
       setHistoryExporting(null);
@@ -365,7 +366,7 @@ export function useReportsWorkspace() {
         `Module inputs and overrides restored from snapshot (${importedAt}).`,
       );
     } catch (error) {
-      console.error(error);
+      logger.error('Snapshot import failed', error);
       showToast('error', 'Snapshot import failed');
     } finally {
       setSnapshotTransfer(null);
@@ -418,7 +419,7 @@ export function useReportsWorkspace() {
       );
       showToast('success', 'CSV exported', 'Summary matrix downloaded successfully.');
     } catch (error) {
-      console.error(error);
+      logger.error('CSV export failed', error);
       showToast('error', 'CSV export failed');
     } finally {
       setExporting(null);
@@ -527,7 +528,7 @@ export function useReportsWorkspace() {
 
       showToast('success', 'PDF exported', 'Engineering report PDF downloaded successfully.');
     } catch (error) {
-      console.error(error);
+      logger.error('PDF export failed', error);
       showToast('error', 'PDF export failed');
     } finally {
       setExporting(null);
@@ -638,7 +639,7 @@ export function useReportsWorkspace() {
 
       showToast('success', 'Excel exported', 'Multi-sheet engineering workbook downloaded.');
     } catch (error) {
-      console.error(error);
+      logger.error('Excel export failed', error);
       showToast('error', 'Excel export failed');
     } finally {
       setExporting(null);

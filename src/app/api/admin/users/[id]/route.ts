@@ -20,6 +20,7 @@ import { writeAuditLog } from '@/lib/firebase/projects-store';
 import { errorResponse, getErrorDetails, requireJsonRequest, resourceNotFound } from '@/lib/utils/api-helpers';
 import { parseJsonBody } from '@/lib/validation/http';
 import { adminUserMutationSchema } from '@/lib/validation/admin';
+import { logger } from '@/lib/observability/logger';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -96,7 +97,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     if (error instanceof AdminUserNotFoundError) {
       return resourceNotFound('User', error.message);
     }
-    console.error('PATCH /api/admin/users/[id] error:', error);
+    logger.error('PATCH /api/admin/users/[id] error', error);
     const d = getErrorDetails(error, 'Failed to update user');
     return errorResponse(500, d.error, d.description, d.code);
   }

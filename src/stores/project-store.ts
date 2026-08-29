@@ -8,6 +8,7 @@ import {
   setApiClientToken,
   setRefreshToken,
 } from '@/lib/api-client';
+import { logger } from '@/lib/observability/logger';
 
 interface ProjectStore {
   projects: Project[];
@@ -66,7 +67,7 @@ export const useProjectStore = create<ProjectStore>((set) => ({
 
         showToast('error', 'Failed to load projects', describeApiError(error));
       } else {
-        console.error(error);
+        logger.error('Failed to load projects', error);
         set({ isLoading: false });
         showToast('error', 'Failed to load projects');
       }
@@ -90,7 +91,7 @@ export const useProjectStore = create<ProjectStore>((set) => ({
 
         showToast('error', 'Failed to load project', describeApiError(error));
       } else {
-        console.error(error);
+        logger.error('Failed to load project', error);
         set({ isLoading: false });
         showToast('error', 'Failed to load project');
       }
@@ -105,7 +106,7 @@ export const useProjectStore = create<ProjectStore>((set) => ({
       showToast('success', 'Project created', project.name);
       return project;
     } catch (error) {
-      console.error(error);
+      logger.error('Failed to create project', error);
       showToast('error', 'Failed to create project');
       return null;
     }
@@ -121,7 +122,7 @@ export const useProjectStore = create<ProjectStore>((set) => ({
       }));
       showToast('success', 'Project updated');
     } catch (error) {
-      console.error(error);
+      logger.error('Failed to update project', error);
       showToast('error', 'Failed to update project');
     }
   },
@@ -136,7 +137,7 @@ export const useProjectStore = create<ProjectStore>((set) => ({
       }));
       showToast('success', 'Project archived');
     } catch (error) {
-      console.error(error);
+      logger.error('Failed to archive project', error);
       showToast('error', 'Failed to archive project');
     }
   },
@@ -151,7 +152,7 @@ export const useProjectStore = create<ProjectStore>((set) => ({
       }));
       showToast('success', 'Project restored');
     } catch (error) {
-      console.error(error);
+      logger.error('Failed to restore project', error);
       showToast('error', 'Failed to restore project');
     }
   },
@@ -165,7 +166,7 @@ export const useProjectStore = create<ProjectStore>((set) => ({
       }));
       showToast('success', 'Project deleted');
     } catch (error) {
-      console.error(error);
+      logger.error('Failed to delete project', error);
       showToast('error', 'Failed to delete project');
     }
   },

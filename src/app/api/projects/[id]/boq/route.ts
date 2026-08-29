@@ -23,6 +23,7 @@ import { computeBoqTotals, roundTotals, serialiseBoqRow } from '@/lib/engine/cos
 import { generateBoqForProject, type GenerateBoqRefusal } from '@/lib/boq/generate-boq';
 import { productionBoqDeps } from '@/lib/boq/generate-boq-deps';
 import { errorResponse, getErrorDetails, resourceNotFound } from '@/lib/utils/api-helpers';
+import { logger } from '@/lib/observability/logger';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -75,7 +76,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       verification: buildBoqVerification(items, latestSnapshot),
     });
   } catch (error) {
-    console.error('GET BOQ error:', error);
+    logger.error('GET BOQ error', error);
     const d = getErrorDetails(error, 'Failed to fetch BOQ');
     return errorResponse(500, d.error, d.description, d.code);
   }
@@ -98,7 +99,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json({ boq: result.boq }, { status: 201 });
   } catch (error) {
-    console.error('POST BOQ error:', error);
+    logger.error('POST BOQ error', error);
     const d = getErrorDetails(error, 'Failed to generate BOQ');
     return errorResponse(500, d.error, d.description, d.code);
   }

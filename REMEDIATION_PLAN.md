@@ -634,9 +634,46 @@ persisted domain types it is a modelling decision with a runtime consequence:
 into a type that reaches a document can convert a compile-time complaint into a
 write failure. That needs to be done per type, with intent, not in a sweep.
 
-**☐ TASK 5.5 — Introduce a structured logger**
+**☑ TASK 5.5 — Introduce a structured logger**
 Replace the 141 console statements with a single logger module supporting level control and a request correlation identifier. Add a lint rule banning bare console usage in `src`.
 Gate: lint rule active, all gates green.
+
+**Closed 2026-08-29.** `src/lib/observability/logger.ts`, **135 console calls
+migrated across 57 files**, and `no-console` set to **error** (not warning) with
+one path exemption for the logger itself.
+
+The bare calls were all `console.error`/`console.warn`. Three properties they
+lacked, each now tested:
+
+1. **A level that can be turned down.** `LOG_LEVEL` server-side,
+   `NEXT_PUBLIC_LOG_LEVEL` in the browser, defaulting to `info`.
+2. **A correlation id.** `logger.withCorrelationId(id)` returns a child that
+   stamps every line, so one request's lines can be pulled out of an
+   interleaved stream.
+3. **An error that survives serialisation.** `JSON.stringify(new Error('boom'))`
+   is `{}` — `message` and `stack` are not enumerable. The logger lifts them,
+   follows `cause`, and keeps the `code`/`context` fields the typed errors in
+   this codebase carry.
+
+**26 call sites logged a bare value with no message at all** (`console.error(err)`),
+which does not typecheck against a structured logger. Rather than stamping a
+generic string on them, each took the message from the `showToast('error', '…')`
+sitting beside it — the author's own description of the failure. 25 of 26 found
+one; a single site needed a fallback.
+
+Rule proven load-bearing by exit code: a file containing one bare
+`console.error` fails `eslint src` with exit 1, and removing it returns 0.
+
+**The TASK 3.3 ratchet immediately caught this migration**, which is the point of
+having it: the logger import added exactly one line to 24 handlers, pushing them
+past their recorded sizes. Two files were shrunk back under their limits by
+collapsing rate-limit declarations, and the baseline was then regenerated. The
+refresh is recorded rather than silent: **24 entries +1 each, maximum delta +1,
+none grew by more, no new file crossed 120, and `materials/route.ts` dropped out
+of the baseline entirely.** The list got shorter, not longer.
+
+Gates: `tsc` 0 · `eslint src` 0 errors, 58 warnings · `vitest` 49 files,
+549 tests · coverage 16.79 % · handler ratchet holds.
 
 **☑ TASK 5.6 — Convert the bundle budget from advisory to binding**
 Measure the current gzipped total, set the budget slightly above it, and remove the wording that marks it advisory.

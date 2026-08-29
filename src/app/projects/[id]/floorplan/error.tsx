@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { AlertTriangle, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { logger } from '@/lib/observability/logger';
 
 export default function SegmentError({
   error,
@@ -12,7 +13,7 @@ export default function SegmentError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error('[segment-error]', error);
+    logger.error('[segment-error]', error);
   }, [error]);
 
   return (

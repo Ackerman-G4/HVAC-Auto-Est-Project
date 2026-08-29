@@ -13,6 +13,7 @@ import {
 	recordFailedLogin,
 	writeLoginEvent,
 } from '@/lib/firebase/security-store';
+import { logger } from '@/lib/observability/logger';
 
 const LOGIN_RATE_LIMIT = {
 	windowMs: 60_000,
@@ -63,7 +64,7 @@ async function writeLoginEventSafely(input: {
 	try {
 		await writeLoginEvent(input);
 	} catch (error) {
-		console.error('Failed to write login event', error);
+		logger.error('Failed to write login event', error);
 	}
 }
 
@@ -77,7 +78,7 @@ async function recordLoginSuccessSafely(input: {
 		try {
 			await clearFailedLogins(input.email);
 		} catch (error) {
-			console.error('Failed to clear login lockout state', error);
+			logger.error('Failed to clear login lockout state', error);
 		}
 	}
 
@@ -95,7 +96,7 @@ async function recordLoginFailureSafely(input: {
 		try {
 			await recordFailedLogin(input.email, input.ip);
 		} catch (error) {
-			console.error('Failed to record failed login attempt', error);
+			logger.error('Failed to record failed login attempt', error);
 		}
 	}
 
@@ -146,7 +147,7 @@ export async function POST(req: NextRequest) {
 			try {
 				lockout = await isLockedOut(email, ip);
 			} catch (error) {
-				console.error('Failed to check login lockout state', error);
+				logger.error('Failed to check login lockout state', error);
 			}
 
 			if (lockout.locked) {

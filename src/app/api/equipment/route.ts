@@ -12,6 +12,7 @@ import {
   type PriceOverrideRecord,
 } from '@/lib/firebase/price-override-store';
 import { parseBoundedInt } from '@/lib/utils/api-helpers';
+import { logger } from '@/lib/observability/logger';
 
 const EQUIPMENT_CATALOG_GET_RATE_LIMIT = {
   windowMs: 60_000,
@@ -95,7 +96,7 @@ export async function GET(request: NextRequest) {
     try {
       overrides = await getPriceOverridesByModel();
     } catch (overrideError) {
-      console.error('GET /api/equipment price override lookup failed:', overrideError);
+      logger.error('GET /api/equipment price override lookup failed', overrideError);
     }
 
     const equipmentWithPricing = equipment.map((e) => {
@@ -117,7 +118,7 @@ export async function GET(request: NextRequest) {
       totalCount: equipmentWithPricing.length,
     });
   } catch (error) {
-    console.error('GET /api/equipment error:', error);
+    logger.error('GET /api/equipment error', error);
     return NextResponse.json(
       { error: 'Failed to fetch equipment catalog' },
       { status: 500 }

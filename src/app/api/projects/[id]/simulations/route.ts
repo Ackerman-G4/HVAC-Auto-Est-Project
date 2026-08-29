@@ -23,6 +23,7 @@ import {
 import type { GeometryInput } from '@/types/simulation';
 import { isBuildingSimulationEnabled } from '@/lib/simulation/feature-flags';
 import { buildProjectBuildingGeometry, toFallbackGeometry } from '@/lib/simulation/building-case';
+import { logger } from '@/lib/observability/logger';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -70,7 +71,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const cases = await listSimulationCases(projectId);
     return NextResponse.json({ cases });
   } catch (error) {
-    console.error('GET /api/projects/[id]/simulations error:', error);
+    logger.error('GET /api/projects/[id]/simulations error', error);
     const d = getErrorDetails(error, 'Failed to list simulation cases');
     return errorResponse(500, d.error, d.description, d.code);
   }
@@ -168,7 +169,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json({ case: simCase }, { status: 201 });
   } catch (error) {
-    console.error('POST /api/projects/[id]/simulations error:', error);
+    logger.error('POST /api/projects/[id]/simulations error', error);
     const d = getErrorDetails(error, 'Failed to create simulation case');
     return errorResponse(500, d.error, d.description, d.code);
   }

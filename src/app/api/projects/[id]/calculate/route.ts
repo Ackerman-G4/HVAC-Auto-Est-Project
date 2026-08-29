@@ -22,6 +22,7 @@ import {
   resourceNotFound,
 } from '@/lib/utils/api-helpers';
 import { finalizeDualValue } from '@/lib/utils/dual-control';
+import { logger } from '@/lib/observability/logger';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -144,7 +145,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       },
     });
   } catch (error) {
-    console.error('POST calculate error:', error);
+    logger.error('POST calculate error', error);
     const d = getErrorDetails(error, 'Failed to calculate cooling loads');
     return errorResponse(500, d.error, d.description, d.code);
   }

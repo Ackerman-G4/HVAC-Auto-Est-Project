@@ -18,6 +18,7 @@ import {
   type RunRefusal,
 } from '@/lib/simulation/run-orchestrator';
 import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
+import { logger } from '@/lib/observability/logger';
 
 type RouteContext = { params: Promise<{ id: string; simId: string }> };
 
@@ -66,7 +67,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       fieldEnvelope: result.manifest?.fieldEnvelope ?? null,
     });
   } catch (error) {
-    console.error('GET .../run error:', error);
+    logger.error('GET .../run error', error);
     const d = getErrorDetails(error, 'Failed to poll run status');
     return errorResponse(500, d.error, d.description, d.code);
   }
@@ -102,7 +103,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       { status: 201 },
     );
   } catch (error) {
-    console.error('POST .../run error:', error);
+    logger.error('POST .../run error', error);
     const d = getErrorDetails(error, 'Failed to start simulation run');
     return errorResponse(500, d.error, d.description, d.code);
   }

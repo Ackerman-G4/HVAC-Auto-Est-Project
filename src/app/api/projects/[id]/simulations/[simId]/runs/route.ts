@@ -22,6 +22,7 @@ import {
 } from '@/lib/simulation/dispatch-engineering-run';
 import { productionDispatchDeps } from '@/lib/simulation/dispatch-engineering-run-deps';
 import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
+import { logger } from '@/lib/observability/logger';
 
 type RouteContext = { params: Promise<{ id: string; simId: string }> };
 
@@ -86,7 +87,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       status: simCase.status,
     });
   } catch (error) {
-    console.error('GET .../runs error:', error);
+    logger.error('GET .../runs error', error);
     const d = getErrorDetails(error, 'Failed to list run history');
     return errorResponse(500, d.error, d.description, d.code);
   }
@@ -158,7 +159,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       { status: 202 },
     );
   } catch (error) {
-    console.error('POST .../runs error:', error);
+    logger.error('POST .../runs error', error);
     const d = getErrorDetails(error, 'Failed to start Engineering simulation run');
     return errorResponse(500, d.error, d.description, d.code);
   }

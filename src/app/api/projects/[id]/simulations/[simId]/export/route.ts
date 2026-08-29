@@ -12,6 +12,7 @@ import { buildOpenFOAMConfig, generateCaseFiles } from '@/lib/engine/simulation/
 import { buildStructuredGrid, recommendCellSize } from '@/lib/engine/simulation/geometry-builder';
 import { toFallbackGeometry } from '@/lib/simulation/building-case';
 import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
+import { logger } from '@/lib/observability/logger';
 
 type RouteContext = { params: Promise<{ id: string; simId: string }> };
 
@@ -83,7 +84,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       config,
     });
   } catch (error) {
-    console.error('GET .../export error:', error);
+    logger.error('GET .../export error', error);
     const d = getErrorDetails(error, 'Failed to export simulation case');
     return errorResponse(500, d.error, d.description, d.code);
   }

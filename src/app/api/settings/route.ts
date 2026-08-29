@@ -14,6 +14,7 @@ import {
   getCatalogValidationError,
   settingsUpdateSchema,
 } from '@/lib/validation/catalog';
+import { logger } from '@/lib/observability/logger';
 
 const DEFAULT_SETTINGS = {
   companyName: '',
@@ -31,15 +32,8 @@ const DEFAULT_SETTINGS = {
   vatPercent: 12,
 };
 
-const SETTINGS_MUTATION_RATE_LIMIT = {
-  windowMs: 60_000,
-  maxRequests: 15,
-} as const;
-
-const SETTINGS_GET_RATE_LIMIT = {
-  windowMs: 60_000,
-  maxRequests: 60,
-} as const;
+const SETTINGS_MUTATION_RATE_LIMIT = { windowMs: 60_000, maxRequests: 15 } as const;
+const SETTINGS_GET_RATE_LIMIT = { windowMs: 60_000, maxRequests: 60 } as const;
 
 export async function GET(request: NextRequest) {
   try {
@@ -60,7 +54,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ settings });
   } catch (error) {
-    console.error('GET /api/settings error:', error);
+    logger.error('GET /api/settings error', error);
     const d = getErrorDetails(error, 'Failed to fetch settings');
     return errorResponse(500, d.error, d.description, d.code);
   }
@@ -112,7 +106,7 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({ settings });
   } catch (error) {
-    console.error('PUT /api/settings error:', error);
+    logger.error('PUT /api/settings error', error);
     const d = getErrorDetails(error, 'Failed to update settings');
     return errorResponse(500, d.error, d.description, d.code);
   }

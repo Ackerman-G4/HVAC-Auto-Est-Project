@@ -25,6 +25,7 @@ import {
   requireJsonRequest,
   resourceNotFound,
 } from '@/lib/utils/api-helpers';
+import { logger } from '@/lib/observability/logger';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -84,7 +85,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       project,
     });
   } catch (error) {
-    console.error('GET /api/projects/[id] error:', error);
+    logger.error('GET /api/projects/[id] error', error);
     const d = getErrorDetails(error, 'Failed to fetch project');
     return errorResponse(500, d.error, d.description, d.code);
   }
@@ -152,7 +153,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json({ project });
   } catch (error) {
-    console.error('PUT /api/projects/[id] error:', error);
+    logger.error('PUT /api/projects/[id] error', error);
     const d = getErrorDetails(error, 'Failed to update project');
     return errorResponse(500, d.error, d.description, d.code);
   }
@@ -210,7 +211,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('DELETE /api/projects/[id] error:', error);
+    logger.error('DELETE /api/projects/[id] error', error);
     const d = getErrorDetails(error, 'Failed to delete project');
     return errorResponse(500, d.error, d.description, d.code);
   }

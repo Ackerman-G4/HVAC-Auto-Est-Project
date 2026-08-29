@@ -43,6 +43,7 @@ import type {
   SimulationCase,
   SimulationInput,
 } from '@/types/simulation';
+import { logger } from '@/lib/observability/logger';
 
 // ─── Injected dependencies ───────────────────────────────────
 
@@ -307,7 +308,7 @@ async function executeInternalRun(
       });
       await deps.saveRunFieldSnapshot(projectId, caseId, jobId, snapshot);
     } catch (snapshotError) {
-      console.warn('Failed to persist run field snapshot:', snapshotError);
+      logger.warn('Failed to persist run field snapshot', { cause: snapshotError });
     }
 
     await deps.updateRunJobStatus(projectId, caseId, jobId, 'completed', {

@@ -9,6 +9,7 @@
 import { useEffect } from 'react';
 import { AlertTriangle, RotateCcw, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { logger } from '@/lib/observability/logger';
 
 export default function RouteError({
   error,
@@ -19,7 +20,7 @@ export default function RouteError({
 }) {
   useEffect(() => {
     // Surface in console for diagnostics; digest links to server logs.
-    console.error('[route-error]', error);
+    logger.error('[route-error]', error);
   }, [error]);
 
   return (

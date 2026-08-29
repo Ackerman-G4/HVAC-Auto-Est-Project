@@ -20,6 +20,7 @@ import { getProjectRecord, writeAuditLog } from '@/lib/firebase/projects-store';
 import { computeBoqGrandTotal, computeBoqHash } from '@/lib/functions/boq-integrity';
 import { errorResponse, getErrorDetails, requireJsonRequest, resourceNotFound } from '@/lib/utils/api-helpers';
 import { finalizeDualValue } from '@/lib/utils/dual-control';
+import { logger } from '@/lib/observability/logger';
 
 type RouteContext = { params: Promise<{ id: string; itemId: string }> };
 
@@ -160,7 +161,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json({ item });
   } catch (error) {
-    console.error('PUT BOQ item error:', error);
+    logger.error('PUT BOQ item error', error);
     const d = getErrorDetails(error, 'Failed to update BOQ item');
     return errorResponse(500, d.error, d.description, d.code);
   }
@@ -192,7 +193,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json({ message: 'BOQ item deleted' });
   } catch (error) {
-    console.error('DELETE BOQ item error:', error);
+    logger.error('DELETE BOQ item error', error);
     const d = getErrorDetails(error, 'Failed to delete BOQ item');
     return errorResponse(500, d.error, d.description, d.code);
   }

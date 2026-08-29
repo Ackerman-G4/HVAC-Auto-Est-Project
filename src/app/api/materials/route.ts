@@ -18,16 +18,10 @@ import {
   getCatalogValidationError,
   materialCreateSchema,
 } from '@/lib/validation/catalog';
+import { logger } from '@/lib/observability/logger';
 
-const MATERIAL_MUTATION_RATE_LIMIT = {
-  windowMs: 60_000,
-  maxRequests: 20,
-} as const;
-
-const MATERIAL_GET_RATE_LIMIT = {
-  windowMs: 60_000,
-  maxRequests: 60,
-} as const;
+const MATERIAL_MUTATION_RATE_LIMIT = { windowMs: 60_000, maxRequests: 20 } as const;
+const MATERIAL_GET_RATE_LIMIT = { windowMs: 60_000, maxRequests: 60 } as const;
 
 export async function GET(request: NextRequest) {
   try {
@@ -52,7 +46,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(payload);
   } catch (error) {
-    console.error('GET /api/materials error:', error);
+    logger.error('GET /api/materials error', error);
     const d = getErrorDetails(error, 'Failed to fetch materials');
     return errorResponse(500, d.error, d.description, d.code);
   }
@@ -114,7 +108,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ material }, { status: 201 });
   } catch (error) {
-    console.error('POST /api/materials error:', error);
+    logger.error('POST /api/materials error', error);
     const d = getErrorDetails(error, 'Failed to create material');
     return errorResponse(500, d.error, d.description, d.code);
   }

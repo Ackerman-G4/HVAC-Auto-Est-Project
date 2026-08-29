@@ -8,6 +8,7 @@ import { requireAuth } from '@/lib/auth/guard';
 import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import { listAdminUsers } from '@/lib/firebase/admin-users-store';
 import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
+import { logger } from '@/lib/observability/logger';
 
 const ADMIN_USERS_RATE_LIMIT = {
   windowMs: 60_000,
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
     const result = await listAdminUsers();
     return NextResponse.json(result);
   } catch (error) {
-    console.error('GET /api/admin/users error:', error);
+    logger.error('GET /api/admin/users error', error);
     const d = getErrorDetails(error, 'Failed to list users');
     return errorResponse(500, d.error, d.description, d.code);
   }

@@ -25,6 +25,7 @@ import type {
   RunSource,
 } from '@/types/simulation';
 import type { SimulationStoreState } from './simulation-store';
+import { logger } from '@/lib/observability/logger';
 
 const SNAPSHOT_PREFETCH_FIELDS: FieldName[] = ['temperature', 'velocity'];
 const SNAPSHOT_STREAMLINE_SEED_LIMIT = 48;
@@ -225,7 +226,7 @@ export const createSimulationEngineSlice: StateCreator<
       const data = await res.json();
       set({ cases: data.cases || [], isLoadingCases: false });
     } catch (error) {
-      console.error('loadCases error:', error);
+      logger.error('loadCases error', error);
       set({ isLoadingCases: false });
       showToast('error', 'Failed to load simulation cases');
     }
@@ -259,7 +260,7 @@ export const createSimulationEngineSlice: StateCreator<
       showToast('success', `Case "${newCase.name}" created`);
       return newCase;
     } catch (error) {
-      console.error('createCase error:', error);
+      logger.error('createCase error', error);
       showToast('error', error instanceof Error ? error.message : 'Failed to create case');
       return null;
     }
@@ -326,7 +327,7 @@ export const createSimulationEngineSlice: StateCreator<
 
       showToast('success', 'Case updated');
     } catch (error) {
-      console.error('updateCase error:', error);
+      logger.error('updateCase error', error);
       showToast('error', 'Failed to update case');
     }
   },
@@ -349,7 +350,7 @@ export const createSimulationEngineSlice: StateCreator<
 
       showToast('success', 'Case deleted');
     } catch (error) {
-      console.error('deleteCase error:', error);
+      logger.error('deleteCase error', error);
       showToast('error', 'Failed to delete case');
     }
   },
@@ -432,7 +433,7 @@ export const createSimulationEngineSlice: StateCreator<
         get().startPolling();
         showToast('success', 'Engineering run dispatched to OpenFOAM');
       } catch (error) {
-        console.error('startRun (engineering) error:', error);
+        logger.error('startRun (engineering) error', error);
         showToast('error', error instanceof Error ? error.message : 'Failed to start Engineering run');
       }
       return;
@@ -477,7 +478,7 @@ export const createSimulationEngineSlice: StateCreator<
         showToast('success', 'Simulation completed');
       }
     } catch (error) {
-      console.error('startRun error:', error);
+      logger.error('startRun error', error);
       showToast('error', error instanceof Error ? error.message : 'Failed to start run');
     }
   },
@@ -522,7 +523,7 @@ export const createSimulationEngineSlice: StateCreator<
         });
       }
     } catch (error) {
-      console.error('loadRunHistory error:', error);
+      logger.error('loadRunHistory error', error);
       showToast('error', 'Failed to load run history');
     }
   },
@@ -591,7 +592,7 @@ export const createSimulationEngineSlice: StateCreator<
         await get().loadSnapshotIteration(nextIteration, SNAPSHOT_PREFETCH_FIELDS);
       }
     } catch (error) {
-      console.error('loadRunSnapshots error:', error);
+      logger.error('loadRunSnapshots error', error);
       set({ isLoadingSnapshots: false });
       showToast('error', 'Failed to load run snapshots');
     }
@@ -658,7 +659,7 @@ export const createSimulationEngineSlice: StateCreator<
         };
       });
     } catch (error) {
-      console.error('loadSnapshotIteration error:', error);
+      logger.error('loadSnapshotIteration error', error);
       set({ isLoadingSnapshotDetail: false });
       showToast('error', error instanceof Error ? error.message : 'Failed to load snapshot detail');
     }
@@ -733,7 +734,7 @@ export const createSimulationEngineSlice: StateCreator<
 
       return resolvedField;
     } catch (error) {
-      console.error('loadSnapshotField error:', error);
+      logger.error('loadSnapshotField error', error);
       set({ isLoadingSnapshotDetail: false });
       showToast('error', 'Failed to load snapshot field');
       return null;
@@ -786,7 +787,7 @@ export const createSimulationEngineSlice: StateCreator<
         }
       }
     } catch (error) {
-      console.error('pollRunStatus error:', error);
+      logger.error('pollRunStatus error', error);
     }
   },
 
@@ -829,7 +830,7 @@ export const createSimulationEngineSlice: StateCreator<
       showToast('success', `OpenFOAM case "${data.caseName}" exported`);
       return data.files as Record<string, string>;
     } catch (error) {
-      console.error('exportOpenFOAM error:', error);
+      logger.error('exportOpenFOAM error', error);
       set({ isExporting: false });
       showToast('error', 'Export failed');
       return null;
@@ -865,7 +866,7 @@ export const createSimulationEngineSlice: StateCreator<
       await get().selectCase(activeCase.id);
       showToast('success', `Imported ${data.fieldsImported?.length || 0} field(s)`);
     } catch (error) {
-      console.error('importResults error:', error);
+      logger.error('importResults error', error);
       set({ isImporting: false });
       showToast('error', error instanceof Error ? error.message : 'Import failed');
     }

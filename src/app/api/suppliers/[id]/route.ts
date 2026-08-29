@@ -18,6 +18,7 @@ import {
   getCatalogValidationError,
   supplierUpdateSchema,
 } from '@/lib/validation/catalog';
+import { logger } from '@/lib/observability/logger';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -92,7 +93,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json({ supplier });
   } catch (error) {
-    console.error('PUT supplier error:', error);
+    logger.error('PUT supplier error', error);
     const d = getErrorDetails(error, 'Failed to update supplier');
     return errorResponse(500, d.error, d.description, d.code);
   }
@@ -136,7 +137,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json({ message: 'Supplier deleted' });
   } catch (error) {
-    console.error('DELETE supplier error:', error);
+    logger.error('DELETE supplier error', error);
     const d = getErrorDetails(error, 'Failed to delete supplier');
     return errorResponse(500, d.error, d.description, d.code);
   }

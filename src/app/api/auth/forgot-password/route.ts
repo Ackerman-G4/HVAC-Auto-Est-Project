@@ -13,6 +13,7 @@ import { sendPasswordResetEmail } from '@/lib/firebase/auth-rest';
 import { writeAuditLog } from '@/lib/firebase/projects-store';
 import { forgotPasswordRequestSchema, getFirstZodErrorMessage } from '@/lib/validation/auth';
 import { errorResponse, getErrorDetails, requireJsonRequest } from '@/lib/utils/api-helpers';
+import { logger } from '@/lib/observability/logger';
 
 const FORGOT_PASSWORD_RATE_LIMIT = {
   windowMs: 60 * 60 * 1000,
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest) {
       } catch (error) {
         const message = error instanceof Error ? error.message : '';
         if (message !== 'Account not found') {
-          console.error('Password reset dispatch error:', message);
+          logger.error('Password reset dispatch error', message);
         }
       }
     }
@@ -66,7 +67,7 @@ export async function POST(req: NextRequest) {
         entityId: email.toLowerCase(),
       });
     } catch (error) {
-      console.error('Failed to write password reset audit log', error);
+      logger.error('Failed to write password reset audit log', error);
     }
 
     return NextResponse.json({ message: GENERIC_MESSAGE });

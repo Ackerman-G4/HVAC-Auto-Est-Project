@@ -22,6 +22,7 @@ import {
   missingOpenFOAMCloudConfig,
 } from '@/lib/engine/simulation/cfd-cloud';
 import { internalServerError } from '@/lib/utils/api-helpers';
+import { logger } from '@/lib/observability/logger';
 
 const CAPABILITIES_RATE_LIMIT = {
   windowMs: 60_000,
@@ -59,7 +60,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('GET /api/simulation/capabilities error:', error);
+    logger.error('GET /api/simulation/capabilities error', error);
     return internalServerError('Failed to read simulation capabilities');
   }
 }

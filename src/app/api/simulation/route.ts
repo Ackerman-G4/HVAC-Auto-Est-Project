@@ -30,6 +30,7 @@ import type {
   SensorReading,
   OptimizationConfig,
 } from '@/types/simulation';
+import { logger } from '@/lib/observability/logger';
 
 type SimAction = 'cfd' | 'compliance' | 'failure' | 'pue' | 'optimize' | 'calibrate';
 
@@ -199,7 +200,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });
     }
   } catch (error) {
-    console.error('[Simulation API Error]', error);
+    logger.error('[Simulation API Error]', error);
     return internalServerError('Simulation error');
   }
 }

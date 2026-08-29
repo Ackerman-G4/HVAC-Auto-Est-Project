@@ -15,6 +15,7 @@ import {
   getProjectRecord,
 } from '@/lib/firebase/projects-store';
 import { errorResponse, getErrorDetails, requireJsonRequest, resourceNotFound } from '@/lib/utils/api-helpers';
+import { logger } from '@/lib/observability/logger';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -52,7 +53,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json({ floors });
   } catch (error) {
-    console.error('GET floors error:', error);
+    logger.error('GET floors error', error);
     const d = getErrorDetails(error, 'Failed to fetch floors');
     return errorResponse(500, d.error, d.description, d.code);
   }
@@ -101,7 +102,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json({ floor }, { status: 201 });
   } catch (error) {
-    console.error('POST floor error:', error);
+    logger.error('POST floor error', error);
     const d = getErrorDetails(error, 'Failed to create floor');
     return errorResponse(500, d.error, d.description, d.code);
   }

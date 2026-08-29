@@ -23,6 +23,7 @@ import {
   getErrorDetails,
   requireJsonRequest,
 } from '@/lib/utils/api-helpers';
+import { logger } from '@/lib/observability/logger';
 
 const CREATE_PROJECT_RATE_LIMIT = {
   windowMs: 60_000,
@@ -69,7 +70,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ projects });
   } catch (error) {
-    console.error('GET /api/projects error:', error);
+    logger.error('GET /api/projects error', error);
     const d = getErrorDetails(error, 'Failed to fetch projects', {
       classifySyntaxErrorAsInvalidJson: false,
     });
@@ -149,7 +150,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ project: { ...project, floors: [] } }, { status: 201 });
   } catch (error) {
-    console.error('POST /api/projects error:', error);
+    logger.error('POST /api/projects error', error);
     const d = getErrorDetails(error, 'Failed to create project', {
       classifySyntaxErrorAsInvalidJson: false,
     });
