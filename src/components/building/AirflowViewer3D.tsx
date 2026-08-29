@@ -95,7 +95,6 @@ function AutoFitCamera({
       // setter API to move the modification into.
       // eslint-disable-next-line react-hooks/immutability
       controls.minDistance = fit.minDistance;
-      // eslint-disable-next-line react-hooks/immutability
       controls.maxDistance = fit.maxDistance;
       controls.update();
     } else {

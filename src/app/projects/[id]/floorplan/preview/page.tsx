@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback, useMemo, use } from 'react';
-import { motion } from 'framer-motion';
 import {
   ArrowLeft,
   Printer,

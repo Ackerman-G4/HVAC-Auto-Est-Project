@@ -1,6 +1,5 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Plus,
@@ -10,7 +9,6 @@ import {
   Trash2,
   RotateCcw,
   Pencil,
-  Save,
   FolderKanban,
   ClipboardList,
 } from 'lucide-react';
@@ -18,27 +16,15 @@ import { PageWrapper, PageHeader } from '@/components/ui/page-wrapper';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Dialog, ConfirmDialog } from '@/components/ui/dialog';
-import { showToast } from '@/components/ui/toast';
-import { getCityOptions } from '@/constants/climate-data';
-import { psychrometricState } from '@/lib/functions/psychrometric';
+import { ConfirmDialog } from '@/components/ui/dialog';
 import { cardGridVariants, cardItemVariants } from '@/animations/list-variants';
-import { safeJsonParse } from '@/lib/utils/safe-json';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { authFetch } from '@/lib/api-client';
 import { useProjectsDashboard } from '@/features/projects/useProjectsDashboard';
 import { ProjectEditDialog } from '@/features/projects/components/ProjectEditDialog';
-import type { ProjectListItem } from '@/features/projects/types';
 
-
-
-const DASHBOARD_PREFS_KEY = 'hvac-projects-dashboard:v1';
-const DASHBOARD_STATUSES = ['all', 'draft', 'active', 'completed', 'archived', 'deleted'] as const;
 const DASHBOARD_SORT_FIELDS = [
   { value: 'updatedAt', label: 'Last Updated' },
   { value: 'createdAt', label: 'Created Date' },
@@ -69,7 +55,6 @@ export default function ProjectsPage() {
     loading,
     openEdit,
     projects,
-    router,
     search,
     setDeleteTarget,
     setEditTarget,

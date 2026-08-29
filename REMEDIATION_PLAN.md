@@ -613,7 +613,44 @@ calling nine methods that do not exist; placing it beside `run_solve.py` would
 put non-functional code where a reader reasonably expects a working service
 module. Readable and diffable in the roadmap is the whole benefit; lintable is
 not worth that confusion.
-**☐ TASK 6.4** Resolve the 77 lint warnings, starting with the set state inside effect warning at `src/lib/ui/use-theme-color.ts` line 27, then change the lint gate to `eslint src --max-warnings=0`.
+**◐ TASK 6.4** Resolve the 77 lint warnings, starting with the set state inside effect warning at `src/lib/ui/use-theme-color.ts` line 27, then change the lint gate to `eslint src --max-warnings=0`.
+**Partially closed 2026-08-29. 77 → 58.** Categorised first, because "77
+warnings" is four different jobs:
+
+| Rule | Count | Disposition |
+|---|---:|---|
+| `@typescript-eslint/no-unused-vars` | 18 → **0** | fixed |
+| unused `eslint-disable` directive | 1 → **0** | fixed |
+| `jsx-a11y/label-has-associated-control` | 24 | mechanical, not attempted |
+| `react-hooks/set-state-in-effect` | 32 | behavioural, not attempted |
+| `react-hooks/exhaustive-deps` | 1 | behavioural |
+| `react-hooks/incompatible-library` | 1 | third-party, not actionable |
+
+The 19 fixed were dead symbols. 16 of the 18 unused imports were in
+`app/projects/page.tsx` alone — leftovers from the wave-6 decomposition that
+moved the page's logic into `useProjectsDashboard`. Removing symbols, not
+behaviour.
+
+**The finding's premise for `use-theme-color.ts` is wrong.** F19 calls it a set
+state inside effect "that causes cascading renders". It does not cascade. The
+effect's dependencies are `[name, fallback, theme]`, all stable strings, so it
+runs once on mount and once per theme toggle; `setColor` with an equal string is
+dropped by React's `Object.is` bail-out. It is one render per theme change.
+
+More importantly the effect is **deliberate and load-bearing**: the hook's own
+comment records that resolution must happen after the stylesheet applies, and
+that returning the SSR-safe fallback until then is what avoids a hydration
+mismatch. Rewriting it with `useSyncExternalStore` would reintroduce exactly
+that mismatch across every 3D viewer unless the server and client snapshots are
+made to agree. That is not a lint cleanup; it is a hydration change, and it was
+not made on the strength of an inaccurate finding.
+
+**`--max-warnings=0` is therefore not reachable yet,** and the gate was left
+alone rather than the count being forced down. The 24 a11y warnings are the
+tractable remainder: each is a `<label>` with no `htmlFor` beside a control with
+no `id`, across 10 files. They need per-row unique ids where the control is
+list-rendered, so a careless sweep would trade this warning for duplicate DOM
+ids — a real accessibility defect that this rule does not catch.
 
 ---
 
