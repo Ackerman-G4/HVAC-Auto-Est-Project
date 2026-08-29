@@ -338,9 +338,55 @@ Gate: no existing rules test regresses.
 
 ### PHASE 5 — Gate hardening and portability
 
-**☐ TASK 5.1 — Install coverage measurement**
+**☑ TASK 5.1 — Install coverage measurement**
 Add `@vitest/coverage-v8`. Configure the v8 provider in `vitest.config.ts`. Record the true baseline percentage without setting a threshold yet, because a threshold chosen before the baseline is known is arbitrary.
 Gate: `npx vitest run --coverage` executes and reports a figure.
+
+**Closed 2026-08-29.** `@vitest/coverage-v8@3.2.7` added as a **devDependency**,
+pinned to the installed vitest. Size cost 117 KB unpacked, 13 transitive deps,
+zero production bundle cost. `@vitest/coverage-istanbul` was the rejected
+alternative: smaller at 15 KB, but it instruments by rewriting sources through
+Babel, so it reports on transformed output and slows every run. `npm audit`
+remains at 0 vulnerabilities. Run with `npm run test:coverage`.
+
+No thresholds set, per the task. The measured baseline:
+
+| Metric | Baseline | Covered / total |
+|---|---:|---|
+| Statements | **14.12 %** | 7,160 / 50,706 |
+| Lines | **14.12 %** | 7,160 / 50,706 |
+| Functions | 55.01 % | 483 / 878 |
+| Branches | 75.43 % | 1,213 / 1,608 |
+
+**The branch figure is not a valid threshold basis and TASK 5.2 must not use
+it.** V8 emits a single placeholder branch for a file it never loaded: the 245
+files at 0 % statement coverage contribute 38,060 statements but exactly 245
+branches, one apiece. The branch denominator therefore describes only the
+already-tested subset, and a 75 % branch gate would be measuring nothing.
+Statements and lines are the honest global figures.
+
+Coverage by directory, which is the argument for graduating the thresholds
+rather than setting one global number:
+
+| Directory | Statements | Stmt count |
+|---|---:|---:|
+| `lib/engine` | **74.5 %** | 2,526 |
+| `lib/validation` | **71.1 %** | 1,077 |
+| `lib/simulation` | 35.4 % | 1,322 |
+| `lib/functions` | 21.8 % | 4,671 |
+| `lib/firebase` | 5.2 % | 3,157 |
+| `app/api` | **0.0 %** | 6,836 |
+
+Two observations that shape later tasks:
+
+1. The two directories carrying the correctness guarantees are already near
+   75 %, five times the global figure. The 14 % headline is dominated by
+   untested UI and route code, not by untested calculation.
+2. **`app/api` is 0 % across 6,836 statements** — the largest single block in
+   the repository and entirely unexercised. The schemas are tested; the handlers
+   around them are not. This is the concrete measurement behind Phase 3's
+   rationale: a 560-line handler cannot be unit tested without an HTTP harness,
+   so its branches are reachable only through the Windows smoke scripts.
 
 **☐ TASK 5.2 — Set graduated thresholds**
 Set a global threshold at the measured baseline so coverage cannot fall. Set a stricter threshold on `src/lib/engine` and `src/lib/validation`, since those directories carry the calculation correctness and boundary safety guarantees. Wire both into `frontend-gates.yml`.
