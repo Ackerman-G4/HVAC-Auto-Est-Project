@@ -14,8 +14,13 @@ Do not assume the codebase is broken. As of the audit these gates pass:
 | Gate | Command | Result |
 |---|---|---|
 | Types | `npx tsc --noEmit` | 0 errors |
-| Lint | `npx eslint src` | 0 errors, 77 warnings |
-| Tests | `npx vitest run` | 28 files, 200 tests, all passing |
+| Lint | `npx eslint src` | 0 errors, 58 warnings |
+| Tests | `npx vitest run` | 43 files, 463 tests, all passing |
+| Coverage | `npm run test:coverage` | 14.12 % statements; thresholds enforced |
+
+Baseline refreshed 2026-08-29. Warnings fell 77 → 58 with the dead-symbol
+sweep; tests rose 200 → 463 across Phases 1 to 3. Coverage thresholds are
+graduated: 14 % globally, 74 % on `src/lib/engine`, 71 % on `src/lib/validation`.
 
 Any change that turns one of these red is a regression and must be reverted or fixed before the task is considered complete. Never report a task complete without running all three.
 

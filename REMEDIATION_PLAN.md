@@ -362,7 +362,22 @@ Gate: rule active and passing.
 
 Mechanism: a Firestore rule containing `get` charges a document read per evaluation. On a list query of N documents the rule executes N times, so the effective cost is 2N. Denormalising the owner identifier onto the child document removes the `get` entirely and reduces the cost to N. This is the standard denormalisation tradeoff: write amplification on ownership change against read reduction on every subsequent query, and since ownership changes are rare while reads are constant, the tradeoff is strongly favourable.
 
-**☐ TASK 4.1 — Denormalise the owner identifier**
+**⊘ TASK 4.1 — Denormalise the owner identifier** — **BLOCKED, not attempted.**
+The gate requires rules unit tests and a read-count measurement "in the
+emulator". The Firestore emulator needs a JVM and `java` is not on PATH in this
+environment, so neither half of the gate can be executed here.
+
+The change itself is a rewrite of four rule blocks plus a backfill over live
+documents. Shipping an edit to `config/firebase/firestore.rules` that has never
+been run against the emulator risks locking owners out of their own data, and
+CLAUDE.md §7.3 forbids touching that file without a matching rules test — which
+would be unrunnable. Authoring it blind would satisfy the letter of the task and
+defeat its purpose.
+
+Unblock by installing a JDK, then `npm run test:rules`, which already exists and
+wraps `vitest.rules.config.ts` in `firebase emulators:exec`. The suite at
+`src/lib/firebase/__tests__/firestore-rules.test.ts` is present and is where the
+owner/non-owner cases belong.
 Add `ownerId` to documents in the top level `floors`, `rooms`, `selectedEquipment` and `boqItems` collections. Write a backfill script under `scripts/ts`. Rewrite the four rule blocks to compare `resource.data.ownerId` directly and delete the `isProjectOwner` `get` call from those paths.
 Gate: rules unit tests confirm an owner reads and a non owner is denied. Read count for a fifty room list query drops from approximately 100 to 50, measured in the emulator.
 
