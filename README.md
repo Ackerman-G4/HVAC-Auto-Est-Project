@@ -48,13 +48,23 @@ http://localhost:3000
 
 ## Scripts
 
+Every command in this table runs on Linux, macOS and Windows.
+
 | Command | Does |
 |---|---|
 | `npm run dev` | start the dev server (Turbopack) |
 | `npm run build` | production build |
 | `npm run check` | `tsc --noEmit && eslint src && vitest run` — the one-command gate |
 | `npm test` | run the vitest suite |
+| `npm run test:coverage` | vitest with v8 coverage and thresholds |
 | `npm run lint` | ESLint |
+| `npm run clean` | remove `.next`, `tsconfig.tsbuildinfo` and `coverage` |
+
+The Windows-only helpers are kept under their own names. `npm run dev:windows`
+wraps the dev server in `scripts/dev-app.ps1`, and `dev:stack`, `dev:emulator`
+and the `validate:*` suite orchestrate the Firestore emulator and the smoke
+tests through PowerShell. They are unchanged; they simply no longer sit on the
+path a contributor has to take to start the app.
 
 ## Notes
 

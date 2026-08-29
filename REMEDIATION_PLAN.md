@@ -434,9 +434,38 @@ The coverage step runs the suite a second time rather than replacing
 stay identical. TASK 0.5 reconciled those gates; re-diverging them to save
 seconds would undo it.
 
-**☐ TASK 5.3 — Restore cross platform development**
+**☑ TASK 5.3 — Restore cross platform development**
 Add plain Node equivalents for the daily commands so `dev`, `clean` and `check` run on any operating system. Retain the PowerShell scripts as separately named aliases for the existing Windows system validation suite rather than deleting them.
 Gate: `npm run dev` and `npm run clean` execute on Linux.
+
+**Closed 2026-08-29.** The three daily commands no longer touch PowerShell:
+
+| Command | Was | Now |
+|---|---|---|
+| `dev` | `powershell … dev-app.ps1` | `next dev --turbopack` |
+| `dev:no-turbo` | `powershell … -NoTurbo` | `next dev` |
+| `clean` | `Remove-Item -Recurse -Force .next` | `node scripts/clean.mjs` |
+| `check` | already portable | unchanged |
+
+`clean` is a file rather than a `node -e` one-liner because the one-liner needs
+shell-specific quote escaping, which is the other half of how these scripts
+became Windows-only in the first place. It now also clears
+`tsconfig.tsbuildinfo` and `coverage`, never `node_modules` — that is `npm ci`.
+
+**The PowerShell suite is retained, not deleted,** as the task requires. The
+former `dev` is now `dev:windows`, and `dev:stack`, `dev:emulator` and the 27
+`validate:*` entries are untouched: they orchestrate the Firestore emulator,
+Java and the smoke suite, and rewriting those is a far larger job than restoring
+daily development. 30 of 54 scripts remain PowerShell-bound by design; the point
+is that none of them is now on the path a contributor takes to start the app.
+
+The redundant `dev:raw` and `dev:raw:no-turbo` aliases were folded into `dev`
+and `dev:no-turbo`, since those names existed only to escape the PowerShell
+wrapper that is no longer the default.
+
+Verified: `npm run clean` executes and reports its three removals; `npm run dev`
+resolves to Next.js 16.2.11 with no shell dependency. `validate-system-strict.yml`
+still requires `windows-latest`, which is correct — it runs the PowerShell suite.
 
 **☐ TASK 5.4 — Raise compiler strictness incrementally**
 Enable `noUncheckedIndexedAccess` alone and resolve the resulting errors. This flag has the highest defect yield of the three because it forces explicit handling of catalogue and array lookups, which is the same failure mode as finding F2. Then enable `noImplicitOverride`, then `exactOptionalPropertyTypes`, each as a separate change.
