@@ -300,9 +300,53 @@ a cleanup. Raised here rather than silently resolved.
 
 Mechanism: a handler that is 560 lines cannot be unit tested without an HTTP harness, so its branches are exercised only by integration smoke scripts that require a Windows runner. Moving orchestration behind a plain function makes those branches reachable by Vitest.
 
-**☐ TASK 3.1 — Decompose the largest handler**
+**☑ TASK 3.1 — Decompose the largest handler**
 Target `src/app/api/projects/[id]/simulations/[simId]/run/route.ts` at 560 lines. Extract orchestration into `src/lib/simulation/run-orchestrator.ts` exporting a pure function that accepts the parsed and validated request type from Phase 1 plus injected store dependencies, and returns a typed result union. The handler retains only authentication, schema parse, delegation and status mapping.
 Gate: handler under 80 lines. New orchestrator has unit tests covering the success path and every error branch. All gates green.
+
+**Closed 2026-08-29.** Route **564 → 109 lines**; handler bodies are 58 lines
+(GET 24, POST 34), inside the 80-line gate. Split three ways:
+
+| Module | Lines | Holds |
+|---|---:|---|
+| `run/route.ts` | 109 | auth, rate limit, parse, delegate, status mapping |
+| `simulation/run-orchestrator.ts` | 525 | the lifecycle, all deps injected |
+| `simulation/building-visualization.ts` | 175 | pure result → viewport geometry |
+| `simulation/run-orchestrator-deps.ts` | 46 | the production wiring |
+
+Refusals are a discriminated union mapped by one exhaustive `switch`, so adding
+a reason without giving it a status is a compile error rather than a silent 500.
+
+`RunOrchestratorDeps` declares each dependency as `typeof` the real export, so a
+store signature change breaks this file instead of surprising a fake at runtime.
+The Firebase imports are `import type` only — erased at compile time, so the
+orchestrator has no runtime dependency on persistence.
+
+Three things the decomposition surfaced that the 564-line version hid:
+
+1. **The access check was written twice**, once per entry point, and had to stay
+   in step by hand. Now `resolveCase` and both paths share it — proven by a test
+   asserting the poll route refuses a stranger identically.
+2. **Failure handling was duplicated** across the two execution paths. Now
+   `markRunFailed`.
+3. **The room-scope and building-scope paths both computed α = k/(ρ·cp) inline**,
+   in two places. Now one named `thermalDiffusivity`.
+
+29 new tests: 16 on the lifecycle, 13 on the geometry. They cover the success
+path and **every** refusal — project missing, not owner, admin override, case
+missing, already running, queued, not meshed, building-scope exemption — plus a
+throwing solver, and a failing playback snapshot that must *not* fail a
+converged run.
+
+**One behaviour pinned rather than corrected.** The sample budget overshoots:
+`stride = floor(sqrt(40000/420)) = 9`, so a 200×200 room emits `ceil(200/9)² = 529`
+samples against a stated budget of 420, a 26 % overshoot. `MAX_SAMPLES_PER_ROOM`
+is an approximate target biased high, not a ceiling. A test pins 529 with that
+reasoning. Correcting it changes what the viewport draws, which is a rendering
+decision and not part of extracting a function.
+
+Gates: `tsc` 0 · `eslint src` 0 errors, 77 warnings · `vitest` 43 files,
+463 tests · coverage thresholds pass.
 
 **☐ TASK 3.2 — Repeat for the next four handlers**
 In order: `projects/[id]/boq/route.ts` at 469 lines, `projects/[id]/route.ts` at 278, `simulations/[simId]/runs/route.ts` at 256, `projects/[id]/equipment/route.ts` at 255.
