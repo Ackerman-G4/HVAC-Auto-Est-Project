@@ -511,9 +511,39 @@ Verified: `npm run clean` executes and reports its three removals; `npm run dev`
 resolves to Next.js 16.2.11 with no shell dependency. `validate-system-strict.yml`
 still requires `windows-latest`, which is correct — it runs the PowerShell suite.
 
-**☐ TASK 5.4 — Raise compiler strictness incrementally**
+**◐ TASK 5.4 — Raise compiler strictness incrementally**
 Enable `noUncheckedIndexedAccess` alone and resolve the resulting errors. This flag has the highest defect yield of the three because it forces explicit handling of catalogue and array lookups, which is the same failure mode as finding F2. Then enable `noImplicitOverride`, then `exactOptionalPropertyTypes`, each as a separate change.
 Gate after each flag: `npx tsc --noEmit` returns 0 errors.
+
+**Partially closed 2026-08-29. One of three flags landed.** Blast radius measured
+before touching anything, which changes the task's stated order:
+
+| Flag | Errors if enabled | Status |
+|---|---:|---|
+| `noImplicitOverride` | **0** | **enabled** |
+| `exactOptionalPropertyTypes` | 92 | measured, not attempted |
+| `noUncheckedIndexedAccess` | **1,313** | measured, not attempted |
+
+`noImplicitOverride` is enabled and `tsc` returns 0. It was free.
+
+**`noUncheckedIndexedAccess` is a 1,313-error job, not a flag flip.** 582 of those
+are in `lib/functions/cfd-simulation.ts` alone, with 64 in `BuildingViewer3D.tsx`
+and 59 in `building-cfd-simulation.ts` — solver code doing dense array indexing.
+The flag exists to force each of those lookups to admit it can return
+`undefined`. Clearing them with `!` would satisfy the compiler while erasing
+exactly the signal the flag produces, and CLAUDE.md §7.4 counts a suppression as
+weakening a gate. Done properly this is a phase of its own, and it should be
+sequenced per file with the tests to prove each lookup.
+
+**`exactOptionalPropertyTypes` at 92 is riskier than its count suggests.** The
+errors are not one shared cause — they land against `string`, `number`,
+`InputFieldProps`, `WallSegment`, `GeometryInput`, `StructuredGrid` and others, so
+there is no single interface to widen. For component props, widening
+`prop?: string` to `prop?: string | undefined` is correct and mechanical. For the
+persisted domain types it is a modelling decision with a runtime consequence:
+**Firestore rejects an explicit `undefined` on write**, so admitting `| undefined`
+into a type that reaches a document can convert a compile-time complaint into a
+write failure. That needs to be done per type, with intent, not in a sweep.
 
 **☐ TASK 5.5 — Introduce a structured logger**
 Replace the 141 console statements with a single logger module supporting level control and a request correlation identifier. Add a lint rule banning bare console usage in `src`.
