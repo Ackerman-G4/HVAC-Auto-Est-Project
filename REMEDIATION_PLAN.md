@@ -388,9 +388,51 @@ Two observations that shape later tasks:
    rationale: a 560-line handler cannot be unit tested without an HTTP harness,
    so its branches are reachable only through the Windows smoke scripts.
 
-**☐ TASK 5.2 — Set graduated thresholds**
+**☑ TASK 5.2 — Set graduated thresholds**
 Set a global threshold at the measured baseline so coverage cannot fall. Set a stricter threshold on `src/lib/engine` and `src/lib/validation`, since those directories carry the calculation correctness and boundary safety guarantees. Wire both into `frontend-gates.yml`.
 Gate: workflow fails on a deliberate coverage reduction and passes on `main`.
+
+**Closed 2026-08-29.** Thresholds in `vitest.config.ts`, wired into
+`frontend-gates.yml` as a `Coverage thresholds` step.
+
+| Scope | Threshold | Measured |
+|---|---:|---:|
+| Global | 14 % | 14.12 % |
+| `src/lib/engine/**` | 74 % | 74.5 % |
+| `src/lib/validation/**` | 71 % | 71.1 % |
+
+Floors, not targets: each sits at the integer below its measured figure, so
+coverage cannot fall while a refactor moving the number a tenth of a point does
+not turn CI red. Nothing was set above its baseline — a gate that is red on
+arrival is one people learn to route around.
+
+**Only statements and lines are gated, and this is deliberate.** V8 emits a
+single placeholder branch *and a single placeholder function* for any file it
+never loads. Measured: the 245 files at 0 % statement coverage contribute 38,060
+statements but exactly 245 branches and 245 functions, one apiece. So the 75.43 %
+branch and 55.01 % function figures describe only the already-tested subset. A
+threshold on either would gate nothing while appearing to gate a lot, which is
+worse than no gate at all.
+
+**Gate proven load-bearing, both halves.** Passing on the real tree is not
+evidence a gate works; only failing on a real reduction is.
+
+| Deliberate reduction | Result |
+|---|---|
+| Skip `src/lib/engine` tests | global 9.11 % < 14 %, engine 21.85 % < 74 % — **exit 1** |
+| Skip `src/lib/validation` tests | global 12.6 % < 14 %, validation 0 % < 71 % — **exit 1** |
+| No reduction | **exit 0** |
+
+Both the global floor and each graduated glob fire independently.
+
+Also corrected here: the workflow triggered on `push`/`pull_request` to
+`overhaul-v3`, a branch that no longer exists after the branch cleanup, so those
+triggers were dead. Now `main` and `main-backup2`.
+
+The coverage step runs the suite a second time rather than replacing
+`npm run check`, so the command CI runs and the command a developer runs locally
+stay identical. TASK 0.5 reconciled those gates; re-diverging them to save
+seconds would undo it.
 
 **☐ TASK 5.3 — Restore cross platform development**
 Add plain Node equivalents for the daily commands so `dev`, `clean` and `check` run on any operating system. Retain the PowerShell scripts as separately named aliases for the existing Windows system validation suite rather than deleting them.

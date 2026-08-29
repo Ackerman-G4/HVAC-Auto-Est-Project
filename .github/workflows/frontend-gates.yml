@@ -6,9 +6,9 @@ name: Frontend gates
 
 on:
   push:
-    branches: [main, overhaul-v3]
+    branches: [main, main-backup2]
   pull_request:
-    branches: [main, overhaul-v3]
+    branches: [main, main-backup2]
 
 jobs:
   gate:
@@ -26,6 +26,18 @@ jobs:
       # tsc --noEmit && eslint src && vitest run
       - name: Check (types, lint, tests)
         run: npm run check
+
+      # REMEDIATION_PLAN.md TASK 5.2. Floors set at the measured baseline, so
+      # this fails on a reduction rather than demanding an improvement.
+      # Graduated: 14% globally, 74% on src/lib/engine, 71% on
+      # src/lib/validation, because one number would either let the
+      # correctness-critical directories rot or fail the other forty.
+      #
+      # Runs the suite a second time rather than replacing 'npm run check'
+      # above, so that what CI runs and what a developer runs locally stay the
+      # same command. The duplicate run costs seconds; gate drift costs trust.
+      - name: Coverage thresholds
+        run: npm run test:coverage
 
       - name: Build
         run: npx next build
