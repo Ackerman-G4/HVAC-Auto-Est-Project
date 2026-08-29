@@ -15,12 +15,20 @@ Do not assume the codebase is broken. As of the audit these gates pass:
 |---|---|---|
 | Types | `npx tsc --noEmit` | 0 errors |
 | Lint | `npx eslint src` | 0 errors, 58 warnings |
-| Tests | `npx vitest run` | 43 files, 463 tests, all passing |
-| Coverage | `npm run test:coverage` | 14.12 % statements; thresholds enforced |
+| Tests | `npx vitest run` | 49 files, 549 tests, all passing |
+| Coverage | `npm run test:coverage` | 16.79 % statements; thresholds enforced |
+| Handler size | `npm run check:handler-size` | ratchet holds, 26 over the 120 ceiling |
 
-Baseline refreshed 2026-08-29. Warnings fell 77 → 58 with the dead-symbol
-sweep; tests rose 200 → 463 across Phases 1 to 3. Coverage thresholds are
-graduated: 14 % globally, 74 % on `src/lib/engine`, 71 % on `src/lib/validation`.
+Baseline refreshed 2026-08-29. Warnings fell 77 → 58; tests rose 200 → 549
+across Phases 1 to 3 and 5. Coverage thresholds are graduated: 14 % globally,
+74 % on `src/lib/engine`, 71 % on `src/lib/validation`.
+
+Two rules now enforced that were previously conventions:
+
+- `no-console` is an **error**. All logging goes through
+  `src/lib/observability/logger.ts`, which is the only file exempt.
+- Route handlers under `src/app/api` are size-ratcheted. A new handler must be
+  at or under 120 lines; the 26 existing ones over it may shrink, never grow.
 
 Any change that turns one of these red is a regression and must be reverted or fixed before the task is considered complete. Never report a task complete without running all three.
 
