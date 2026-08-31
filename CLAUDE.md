@@ -14,7 +14,7 @@ Do not assume the codebase is broken. As of the audit these gates pass:
 | Gate | Command | Result |
 |---|---|---|
 | Types | `npx tsc --noEmit` | 0 errors |
-| Lint | `npx eslint src` | 0 errors, 58 warnings |
+| Lint | `npx eslint src` | 0 errors, 34 warnings |
 | Tests | `npx vitest run` | 49 files, 549 tests, all passing |
 | Coverage | `npm run test:coverage` | 16.79 % statements; thresholds enforced |
 | Handler size | `npm run check:handler-size` | ratchet holds, 26 over the 120 ceiling |
@@ -22,6 +22,11 @@ Do not assume the codebase is broken. As of the audit these gates pass:
 Baseline refreshed 2026-08-29. Warnings fell 77 → 58; tests rose 200 → 549
 across Phases 1 to 3 and 5. Coverage thresholds are graduated: 14 % globally,
 74 % on `src/lib/engine`, 71 % on `src/lib/validation`.
+
+`tsconfig.json` carries `strict`, plus `noImplicitOverride` and
+`exactOptionalPropertyTypes`. The third flag, `noUncheckedIndexedAccess`, is
+deliberately off: 66 % of its 1,343 errors are dense solver grids where the loop
+already bounds the index. See REMEDIATION_PLAN.md TASK 5.4.
 
 Two rules now enforced that were previously conventions:
 
