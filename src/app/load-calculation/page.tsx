@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useId } from 'react';
 import dynamic from 'next/dynamic';
 import { ChartSkeleton } from '@/components/charts/ChartSkeleton';
 // Keep recharts out of this route's first-load JS.
@@ -63,6 +63,8 @@ const equipmentColumns: DenseColumn<EquipmentRow>[] = [
 ];
 
 export default function LoadCalculationPage() {
+  // One base id per page; each control derives from it.
+  const fieldId = useId();
   const [chartsReady, setChartsReady] = React.useState(false);
   const [location, setLocation] = React.useState('');
 
@@ -139,10 +141,11 @@ export default function LoadCalculationPage() {
                   onValueChange={(next) => setInput('projectName', String(next))}
                 />
                 <div className="space-y-2">
-                  <label className="text-xs font-medium font-display text-muted-foreground">
+                  <label htmlFor={`${fieldId}-space-type`} className="text-xs font-medium font-display text-muted-foreground">
                     Space Type
                   </label>
                   <select
+                    id={`${fieldId}-space-type`}
                     value={inputs.spaceType}
                     onChange={(event) => setSpaceType(event.target.value as SpaceType)}
                     className="h-10 w-full rounded-sm border border-input bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20"
@@ -157,12 +160,13 @@ export default function LoadCalculationPage() {
                 </div>
                 <div className="sm:col-span-2">
                   <div className="space-y-2">
-                    <label className="text-xs font-medium font-display text-muted-foreground">
+                    <label htmlFor={`${fieldId}-location`} className="text-xs font-medium font-display text-muted-foreground">
                       Location
                     </label>
                     <div className="relative">
                       <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                       <input
+                        id={`${fieldId}-location`}
                         type="text"
                         value={location}
                         onChange={(e) => setLocation(e.target.value)}

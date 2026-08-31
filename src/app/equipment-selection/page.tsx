@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useId } from 'react';
 import dynamic from 'next/dynamic';
 import { ChartSkeleton } from '@/components/charts/ChartSkeleton';
 // Keep recharts out of this route's first-load JS.
@@ -65,6 +65,8 @@ const columns: DenseColumn<EquipmentCandidate>[] = [
 ];
 
 export default function EquipmentSelectionPage() {
+  // One base id per page; each control derives from it.
+  const fieldId = useId();
   const [chartsReady, setChartsReady] = React.useState(false);
 
   React.useEffect(() => {
@@ -154,8 +156,9 @@ export default function EquipmentSelectionPage() {
               <InputField label="Required Capacity" value={inputs.requiredTr} onValueChange={(next) => setInput('requiredTr', Number(next))} unit="TR" min={0.5} max={200} step={0.1} />
 
               <div className="space-y-2">
-                <label className="text-xs font-medium font-display text-muted-foreground">Budget Band</label>
+                <label htmlFor={`${fieldId}-budget-band`} className="text-xs font-medium font-display text-muted-foreground">Budget Band</label>
                 <select
+                  id={`${fieldId}-budget-band`}
                   value={inputs.budgetBand}
                   onChange={(event) => setInput('budgetBand', event.target.value as typeof inputs.budgetBand)}
                   className="h-10 w-full rounded-sm border border-input bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20"
@@ -168,8 +171,9 @@ export default function EquipmentSelectionPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-medium font-display text-muted-foreground">Optimization</label>
+                <label htmlFor={`${fieldId}-optimization`} className="text-xs font-medium font-display text-muted-foreground">Optimization</label>
                 <select
+                  id={`${fieldId}-optimization`}
                   value={inputs.optimizationPriority}
                   onChange={(event) => setInput('optimizationPriority', event.target.value as typeof inputs.optimizationPriority)}
                   className="h-10 w-full rounded-sm border border-input bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20"

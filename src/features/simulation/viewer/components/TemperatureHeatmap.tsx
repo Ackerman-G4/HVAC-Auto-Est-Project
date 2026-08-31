@@ -1,12 +1,14 @@
 'use client';
 
-import React from 'react';
+import React, { useId } from 'react';
 import { useSimulationStore } from '@/stores/simulation-store';
 
 // ─── Temperature Heatmap Component ──────────────────────────────────
 
 export function TemperatureHeatmap() {
   const { result, selectedSliceZ, setSelectedSliceZ, config } = useSimulationStore();
+  // useId, not a literal: a duplicated id points every label at the first control.
+  const sliceId = useId();
 
   if (!result) {
     return (
@@ -41,8 +43,9 @@ export function TemperatureHeatmap() {
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-semibold text-foreground">Temperature Distribution (Z = {selectedSliceZ})</h3>
         <div className="flex items-center gap-2">
-          <label className="text-sm font-medium text-muted-foreground">Height Layer:</label>
+          <label htmlFor={sliceId} className="text-sm font-medium text-muted-foreground">Height Layer:</label>
           <input
+            id={sliceId}
             type="range"
             min={0}
             max={config.gridSizeZ - 1}

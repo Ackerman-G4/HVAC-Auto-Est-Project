@@ -1,7 +1,7 @@
 'use client';
 
 import { AirVent, Building2, Grid3x3, Plus, RotateCcw, Server, Trash2, Wand2 } from 'lucide-react';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useSimulationStore } from '@/stores/simulation-store';
 import { showToast } from '@/components/ui/toast';
 import { HVAC_TYPE_DEFAULTS } from '../constants';
@@ -20,6 +20,8 @@ export function EquipmentPanel({ floors, selectedFloorId, roomBoundaries, onFloo
   isDetecting: boolean;
 }) {
   const { racks, hvacUnits, tiles, addRack, removeRack, addHVACUnit, removeHVACUnit, addTile, removeTile } = useSimulationStore();
+  // useId, not a literal: a duplicated id points every label at the first control.
+  const floorSelectId = useId();
 
   const selectedFloor = floors.find(f => f.id === selectedFloorId);
   const roomSummary = selectedFloor?.rooms ?? [];
@@ -112,8 +114,9 @@ export function EquipmentPanel({ floors, selectedFloorId, roomBoundaries, onFloo
             {/* Floor Selector */}
             <div className="flex flex-wrap items-end gap-4">
               <div className="flex-1 min-w-50">
-                <label className="mb-1.5 block text-[11px] font-semibold font-display text-muted-foreground">Select Floor</label>
+                <label htmlFor={floorSelectId} className="mb-1.5 block text-[11px] font-semibold font-display text-muted-foreground">Select Floor</label>
                 <select
+                  id={floorSelectId}
                   className="w-full rounded-md border border-border bg-background px-3.5 py-2.5 text-sm"
                   value={selectedFloorId}
                   onChange={e => onFloorChange(e.target.value)}

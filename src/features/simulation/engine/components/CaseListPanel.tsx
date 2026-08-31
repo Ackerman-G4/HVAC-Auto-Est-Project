@@ -1,5 +1,6 @@
 import type { useSimulationEngine } from '../useSimulationEngine';
 import { Plus, RefreshCw } from 'lucide-react';
+import { useId } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -48,13 +49,17 @@ export function CaseListPanel({
   handleLoadProject,
   handleCreateCase,
 }: CaseListPanelProps) {
+  // One base id; each control derives from it. useId rather than literals so
+  // two mounted panels cannot claim the same id.
+  const fieldId = useId();
   return (
       <div className="flex w-full shrink-0 flex-col gap-3 xl:w-80 xl:overflow-y-auto">
         {/* Project Selector */}
         <Card className="p-3">
-          <label className="text-xs font-medium text-muted-foreground">Select Project</label>
+          <label htmlFor={`${fieldId}-project`} className="text-xs font-medium text-muted-foreground">Select Project</label>
           <div className="mt-1 flex gap-2">
             <select
+              id={`${fieldId}-project`}
               value={selectedProjectId}
               onChange={(e) => setSelectedProjectId(e.target.value)}
               className="flex-1 rounded-sm border border-border bg-background px-2 py-1 text-sm"
@@ -134,8 +139,9 @@ export function CaseListPanel({
               />
               <div className="grid grid-cols-3 gap-1.5">
                 <div>
-                  <label className="text-[10px] text-muted-foreground">Length (m)</label>
+                  <label htmlFor={`${fieldId}-length`} className="text-[10px] text-muted-foreground">Length (m)</label>
                   <input
+                    id={`${fieldId}-length`}
                     type="number"
                     value={geometry.lengthM}
                     onChange={(e) => setGeometry({ ...geometry, lengthM: Number(e.target.value) || 1 })}
@@ -143,8 +149,9 @@ export function CaseListPanel({
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] text-muted-foreground">Width (m)</label>
+                  <label htmlFor={`${fieldId}-width`} className="text-[10px] text-muted-foreground">Width (m)</label>
                   <input
+                    id={`${fieldId}-width`}
                     type="number"
                     value={geometry.widthM}
                     onChange={(e) => setGeometry({ ...geometry, widthM: Number(e.target.value) || 1 })}
@@ -152,8 +159,9 @@ export function CaseListPanel({
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] text-muted-foreground">Height (m)</label>
+                  <label htmlFor={`${fieldId}-height`} className="text-[10px] text-muted-foreground">Height (m)</label>
                   <input
+                    id={`${fieldId}-height`}
                     type="number"
                     value={geometry.heightM}
                     onChange={(e) => setGeometry({ ...geometry, heightM: Number(e.target.value) || 1 })}
@@ -163,8 +171,9 @@ export function CaseListPanel({
               </div>
               <div className="grid grid-cols-2 gap-1.5">
                 <div>
-                  <label className="text-[10px] text-muted-foreground">Raised Floor (m)</label>
+                  <label htmlFor={`${fieldId}-raised-floor`} className="text-[10px] text-muted-foreground">Raised Floor (m)</label>
                   <input
+                    id={`${fieldId}-raised-floor`}
                     type="number"
                     step="0.05"
                     value={geometry.raisedFloorHeightM}
@@ -173,8 +182,9 @@ export function CaseListPanel({
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] text-muted-foreground">Ceiling Plenum (m)</label>
+                  <label htmlFor={`${fieldId}-ceiling-plenum`} className="text-[10px] text-muted-foreground">Ceiling Plenum (m)</label>
                   <input
+                    id={`${fieldId}-ceiling-plenum`}
                     type="number"
                     step="0.05"
                     value={geometry.ceilingPlenumHeightM}

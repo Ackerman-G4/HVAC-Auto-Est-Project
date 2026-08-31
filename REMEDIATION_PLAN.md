@@ -747,7 +747,7 @@ warnings" is four different jobs:
 |---|---:|---|
 | `@typescript-eslint/no-unused-vars` | 18 → **0** | fixed |
 | unused `eslint-disable` directive | 1 → **0** | fixed |
-| `jsx-a11y/label-has-associated-control` | 24 | mechanical, not attempted |
+| `jsx-a11y/label-has-associated-control` | 24 → **0** | fixed |
 | `react-hooks/set-state-in-effect` | 32 | behavioural, not attempted |
 | `react-hooks/exhaustive-deps` | 1 | behavioural |
 | `react-hooks/incompatible-library` | 1 | third-party, not actionable |
@@ -771,12 +771,31 @@ that mismatch across every 3D viewer unless the server and client snapshots are
 made to agree. That is not a lint cleanup; it is a hydration change, and it was
 not made on the strength of an inaccurate finding.
 
-**`--max-warnings=0` is therefore not reachable yet,** and the gate was left
-alone rather than the count being forced down. The 24 a11y warnings are the
-tractable remainder: each is a `<label>` with no `htmlFor` beside a control with
-no `id`, across 10 files. They need per-row unique ids where the control is
-list-rendered, so a careless sweep would trade this warning for duplicate DOM
-ids — a real accessibility defect that this rule does not catch.
+**The 24 a11y warnings are now closed. 77 → 34.** Every `<label>` was given a
+`htmlFor` and its control a matching `id`, across 10 files. Ids come from
+React's `useId()` rather than string literals, because several of these panels
+can be mounted more than once and a duplicated id silently points every label at
+the first control — trading this warning for a defect the rule does not catch.
+Two list-rendered inputs in `RoomsTab` derive from `room.id` instead.
+
+**Two of the 24 were not label problems at all.** `RoomsTab` used `<label>` to
+caption a toggle button, and again over a read-only computed area. A `<label>`
+must label a form control; neither of those is one. Both became `<span>`, which
+is the correct element and removes the false association rather than inventing
+one.
+
+This is a real behavioural improvement, not just a quieter build: several of
+these controls had an `aria-label` and so read correctly to a screen reader, but
+clicking the visible label did nothing. It now focuses the control.
+
+**`--max-warnings=0` is still not reachable, and the gate is still left alone.**
+The remaining 34 are 32 `react-hooks/set-state-in-effect`, one
+`exhaustive-deps`, and one `incompatible-library` in a third-party table. The
+eslint config already records why the 32 are warnings: each is a mount effect
+whose async fetch flips `loading` before its first `await`, which the rule
+cannot see past. Silencing them properly means restructuring data fetching
+across ~20 files for one extra render on mount, which is a data-fetching change
+and not a lint cleanup.
 
 ---
 

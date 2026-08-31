@@ -3,6 +3,7 @@
 import type { useSimulationViewer } from '../useSimulationViewer';
 import dynamic from 'next/dynamic';
 import { Layers } from 'lucide-react';
+import { useId } from 'react';
 import { EmptyState } from '@/components/ui/empty-state';
 const AirflowViewer3D = dynamic(() => import('@/components/building/AirflowViewer3D').then(m => m.default), { ssr: false, loading: () => <div className="panel-glass flex h-125 items-center justify-center rounded-md border border-border/70 bg-card text-sm font-medium text-muted-foreground shadow-sm">Loading 3D viewer...</div> });
 const TileFlowDashboard = dynamic(() => import('@/components/building/TileFlowDashboard').then(m => m.default), { ssr: false, loading: () => <div className="panel-glass flex h-64 items-center justify-center rounded-md border border-border/70 bg-card text-sm font-medium text-muted-foreground shadow-sm">Loading dashboard...</div> });
@@ -39,6 +40,9 @@ export function TileFlowTabContent({
   tileAirflowData,
   viewerRoomBoundaries,
 }: TileFlowTabContentProps) {
+  // useId, not a literal: a duplicated id points every label at the first control.
+  const fogOpacityId = useId();
+
   return (
     <>
           {result ? (
@@ -63,8 +67,9 @@ export function TileFlowTabContent({
                     </label>
                   ))}
                   <div className="ml-auto flex items-center gap-2">
-                    <label className="text-xs text-muted-foreground">Fog Opacity</label>
+                    <label htmlFor={fogOpacityId} className="text-xs text-muted-foreground">Fog Opacity</label>
                     <input
+                      id={fogOpacityId}
                       type="range"
                       min={0.05}
                       max={0.8}

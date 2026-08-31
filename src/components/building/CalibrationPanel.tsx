@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useId, useState, useMemo } from 'react';
 import {
   Crosshair,
   Activity,
@@ -120,6 +120,9 @@ export default function CalibrationPanel() {
 
   const [mode, setMode] = useState<CalibrationMode>('compare');
   const [localCoeffs, setLocalCoeffs] = useState<CalibrationCoefficients>(calibrationCoefficients);
+  // One base id for the sensor form; each field derives from it. useId rather
+  // than literals because this panel can be mounted more than once.
+  const sensorFieldId = useId();
   const [sensorForm, setSensorForm] = useState({
     x: 0, y: 0, z: 0,
     type: 'temperature' as SensorReading['type'],
@@ -311,29 +314,33 @@ export default function CalibrationPanel() {
 
         <div className="mb-3 flex flex-wrap items-end gap-2">
           <div>
-            <label className="mb-0.5 block text-xs text-muted-foreground">X</label>
+            <label htmlFor={`${sensorFieldId}-x`} className="mb-0.5 block text-xs text-muted-foreground">X</label>
             <input
+              id={`${sensorFieldId}-x`}
               type="number" value={sensorForm.x} onChange={(e) => setSensorForm(s => ({ ...s, x: +e.target.value }))}
               className="w-20 rounded border border-border bg-card px-2 py-1.5 text-sm text-foreground"
             />
           </div>
           <div>
-            <label className="mb-0.5 block text-xs text-muted-foreground">Y</label>
+            <label htmlFor={`${sensorFieldId}-y`} className="mb-0.5 block text-xs text-muted-foreground">Y</label>
             <input
+              id={`${sensorFieldId}-y`}
               type="number" value={sensorForm.y} onChange={(e) => setSensorForm(s => ({ ...s, y: +e.target.value }))}
               className="w-20 rounded border border-border bg-card px-2 py-1.5 text-sm text-foreground"
             />
           </div>
           <div>
-            <label className="mb-0.5 block text-xs text-muted-foreground">Z</label>
+            <label htmlFor={`${sensorFieldId}-z`} className="mb-0.5 block text-xs text-muted-foreground">Z</label>
             <input
+              id={`${sensorFieldId}-z`}
               type="number" value={sensorForm.z} onChange={(e) => setSensorForm(s => ({ ...s, z: +e.target.value }))}
               className="w-20 rounded border border-border bg-card px-2 py-1.5 text-sm text-foreground"
             />
           </div>
           <div>
-            <label className="mb-0.5 block text-xs text-muted-foreground">Type</label>
+            <label htmlFor={`${sensorFieldId}-type`} className="mb-0.5 block text-xs text-muted-foreground">Type</label>
             <select
+              id={`${sensorFieldId}-type`}
               value={sensorForm.type}
               onChange={(e) => setSensorForm(s => ({ ...s, type: e.target.value as SensorReading['type'] }))}
               className="rounded border border-border bg-card px-2 py-1.5 text-sm text-foreground"
@@ -344,8 +351,9 @@ export default function CalibrationPanel() {
             </select>
           </div>
           <div>
-            <label className="mb-0.5 block text-xs text-muted-foreground">Value</label>
+            <label htmlFor={`${sensorFieldId}-value`} className="mb-0.5 block text-xs text-muted-foreground">Value</label>
             <input
+              id={`${sensorFieldId}-value`}
               type="number" step="0.1" value={sensorForm.value}
               onChange={(e) => setSensorForm(s => ({ ...s, value: +e.target.value }))}
               className="w-24 rounded border border-border bg-card px-2 py-1.5 text-sm text-foreground"

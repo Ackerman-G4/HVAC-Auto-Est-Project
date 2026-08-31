@@ -90,7 +90,7 @@ export function RoomsTab({
               <form onSubmit={handleAddRoom} className="space-y-5">
                 {/* Unit toggle */}
                 <div className="flex items-center gap-4 border-b border-border pb-3">
-                  <label className="text-sm font-medium font-display text-muted-foreground">Input Unit:</label>
+                  <span className="text-sm font-medium font-display text-muted-foreground">Input Unit:</span>
                   <button
                     type="button"
                     onClick={() => setRoomForm({ ...roomForm, useFootInput: !roomForm.useFootInput })}
@@ -118,7 +118,7 @@ export function RoomsTab({
                       <Input label="Room Length (ft) *" type="number" step={0.1} min={0} max={1000} unit="ft" value={numVal(roomForm.lengthFt) || ''} onChange={(e) => handleRoomNumChange('lengthFt', e.target.value)} onBlur={() => handleRoomNumBlur('lengthFt', 0)} hint={numVal(roomForm.lengthFt) > 0 ? `= ${feetToMeters(numVal(roomForm.lengthFt)).toFixed(2)} m` : ''} />
                       <Input label="Room Width (ft) *" type="number" step={0.1} min={0} max={1000} unit="ft" value={numVal(roomForm.widthFt) || ''} onChange={(e) => handleRoomNumChange('widthFt', e.target.value)} onBlur={() => handleRoomNumBlur('widthFt', 0)} hint={numVal(roomForm.widthFt) > 0 ? `= ${feetToMeters(numVal(roomForm.widthFt)).toFixed(2)} m` : ''} />
                       <div>
-                        <label className="mb-1.5 block text-sm font-medium text-foreground">Area (auto)</label>
+                        <span className="mb-1.5 block text-sm font-medium text-foreground">Area (auto)</span>
                         <div className="flex h-10 items-center rounded-sm border border-border bg-secondary/50 px-3.5 text-sm tabular-nums">
                           {computedAreaSqft > 0 ? (
                             <span>{computedAreaSqft.toFixed(1)} ft² <span className="text-muted-foreground">({computedAreaSqm.toFixed(1)} m²)</span></span>
@@ -333,8 +333,9 @@ export function RoomsTab({
                                 <p className="mb-2 text-xs font-display text-muted-foreground">Cooling Load Overrides</p>
                                 <div className="grid grid-cols-2 gap-2">
                                   <div>
-                                    <label className="mb-1 block text-xs text-muted-foreground">TR Override</label>
+                                    <label htmlFor={`room-${room.id}-tr-override`} className="mb-1 block text-xs text-muted-foreground">TR Override</label>
                                     <input
+                                      id={`room-${room.id}-tr-override`}
                                       type="number"
                                       min={0}
                                       step="0.01"
@@ -345,8 +346,9 @@ export function RoomsTab({
                                     />
                                   </div>
                                   <div>
-                                    <label className="mb-1 block text-xs text-muted-foreground">BTU/h Override</label>
+                                    <label htmlFor={`room-${room.id}-btu-override`} className="mb-1 block text-xs text-muted-foreground">BTU/h Override</label>
                                     <input
+                                      id={`room-${room.id}-btu-override`}
                                       type="number"
                                       min={0}
                                       step="1"

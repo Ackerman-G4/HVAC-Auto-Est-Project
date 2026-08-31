@@ -3,6 +3,7 @@
 import type { useSimulationViewer } from '../useSimulationViewer';
 import dynamic from 'next/dynamic';
 import { Box } from 'lucide-react';
+import { useId } from 'react';
 const AirflowViewer3D = dynamic(() => import('@/components/building/AirflowViewer3D').then(m => m.default), { ssr: false, loading: () => <div className="panel-glass flex h-125 items-center justify-center rounded-md border border-border/70 bg-card text-sm font-medium text-muted-foreground shadow-sm">Loading 3D viewer...</div> });
 
 type ThreeDTabContentProps = Pick<
@@ -55,6 +56,9 @@ export function ThreeDTabContent({
   layoutSaveStatusText,
   canEditHVACIn3D,
 }: ThreeDTabContentProps) {
+  // useId, not a literal: a duplicated id points every label at the first control.
+  const sliceZId = useId();
+
   return (
     <>
           {result ? (
@@ -81,10 +85,11 @@ export function ThreeDTabContent({
 
                 <div className="mt-4 flex flex-wrap items-center gap-4">
                   <div className="flex min-w-65 flex-1 items-center gap-3">
-                    <label className="text-[11px] font-semibold font-display text-muted-foreground">
+                    <label htmlFor={sliceZId} className="text-[11px] font-semibold font-display text-muted-foreground">
                       Slice Z
                     </label>
                     <input
+                      id={sliceZId}
                       type="range"
                       min={0}
                       max={Math.max(0, result.config.gridSizeZ - 1)}
