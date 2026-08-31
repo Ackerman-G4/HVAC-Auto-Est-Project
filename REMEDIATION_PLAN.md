@@ -611,18 +611,49 @@ before touching anything, which changes the task's stated order:
 |---|---:|---|
 | `noImplicitOverride` | **0** | **enabled** |
 | `exactOptionalPropertyTypes` | 92 → **0** | **enabled** |
-| `noUncheckedIndexedAccess` | **1,313** | measured, not attempted |
+| `noUncheckedIndexedAccess` | **1,343** | **not recommended — see below** |
 
 `noImplicitOverride` is enabled and `tsc` returns 0. It was free.
 
-**`noUncheckedIndexedAccess` is a 1,313-error job, not a flag flip.** 582 of those
-are in `lib/functions/cfd-simulation.ts` alone, with 64 in `BuildingViewer3D.tsx`
-and 59 in `building-cfd-simulation.ts` — solver code doing dense array indexing.
-The flag exists to force each of those lookups to admit it can return
-`undefined`. Clearing them with `!` would satisfy the compiler while erasing
-exactly the signal the flag produces, and CLAUDE.md §7.4 counts a suppression as
-weakening a gate. Done properly this is a phase of its own, and it should be
-sequenced per file with the tests to prove each lookup.
+**`noUncheckedIndexedAccess` is not recommended for this codebase, and that is a
+measured conclusion rather than a deferral.** 1,343 errors, categorised:
+
+| Category | Errors | Share |
+|---|---:|---:|
+| Dense solver / grid arrays | 890 | 66 % |
+| mathjs dependency maps (third-party) | 29 | 2 % |
+| Grid serialisation in stores and importers | ~50 | 4 % |
+| Everything else | ~374 | 28 % |
+
+The dominant shape is `cells[x][y][z] = …` inside `for` loops bounded by the
+grid's own dimensions — the index is provably in range and the compiler cannot
+see it. There are three ways to clear those and all three are worse than the
+warning: `!` is a suppression, which CLAUDE.md §7.4 forbids; a per-iteration
+`if (!plane) continue` adds a branch to a CFD inner loop; and restructuring to
+iterate values is a rewrite of a numerical solver for no correctness gain.
+
+`rule-evaluator.ts` illustrates the point from the other side: its 29 errors are
+mathjs's own `*Dependencies` exports, not our code at all.
+
+**The flag did earn its keep before that conclusion was reached.** Four genuine
+defects it surfaced are fixed and kept, independent of whether the flag is ever
+enabled:
+
+1. **Money path.** `boq-summary.ts` computed `parseFloat(match[1])` on a regex
+   capture. A capture group is `string | undefined`, `parseFloat(undefined)` is
+   `NaN`, and that `NaN` propagates through `totalCapacityTr` into cost per ton
+   without raising. Now guarded on both the group and the parse.
+2. `validation/http.ts` read `details[0].path` behind `details.length === 1`,
+   which is true but unnarrowable through an index.
+3. `validation/auth.ts` read six slices off a regex capture that the compiler
+   considers optional.
+4. `local-firestore.ts` wrote `if (!store[c]) store[c] = {}` and then indexed
+   `store[c]` again on the next line. Naming the collection once fixes the
+   narrowing and removes eight repeated index expressions.
+
+The recommendation for the remaining value is targeted work on keyed lookups —
+catalogue-by-model, record-by-id — which is where the F2 defect class actually
+lives, not a global flag whose output is two-thirds solver noise.
 
 **`exactOptionalPropertyTypes` is now enabled, 95 → 0.** It was done per
 declaration rather than per call site: the errors clustered onto about forty

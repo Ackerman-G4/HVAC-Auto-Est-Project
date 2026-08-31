@@ -67,8 +67,15 @@ export function totalCapacityTr(rows: readonly BoqSummaryRow[]): number {
   let total = 0;
   for (const row of rows) {
     if (row.category !== 'equipment') continue;
-    const match = CAPACITY_TR_PATTERN.exec(row.description);
-    if (match) total += parseFloat(match[1]) * row.quantity;
+    const capacity = CAPACITY_TR_PATTERN.exec(row.description)?.[1];
+    if (capacity === undefined) continue;
+
+    const parsed = parseFloat(capacity);
+    // parseFloat returns NaN for anything it cannot read, and NaN would
+    // propagate through the total into cost per ton without raising.
+    if (!Number.isFinite(parsed)) continue;
+
+    total += parsed * row.quantity;
   }
   return total;
 }

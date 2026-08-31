@@ -148,7 +148,7 @@ export function parseValue<S extends z.ZodType>(
   return {
     ok: false,
     response: validationResponse(
-      details.length === 1 && details[0].path
+      details.length === 1 && details[0]?.path
         ? `${details[0].path}: ${details[0].message}`
         : `Request failed validation (${details.length} ${details.length === 1 ? 'issue' : 'issues'}).`,
       VALIDATION_ERROR_CODE,

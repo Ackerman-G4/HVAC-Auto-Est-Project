@@ -89,6 +89,7 @@ function isDateLikePassword(password: string): boolean {
   }
 
   const digits = match[1];
+  if (digits === undefined) return false;
   const asYyyymmdd = isValidDateParts(
     Number(digits.slice(0, 4)),
     Number(digits.slice(4, 6)),

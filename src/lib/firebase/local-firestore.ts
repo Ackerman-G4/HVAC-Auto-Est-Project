@@ -329,26 +329,26 @@ class LocalDocRef {
 
   async set(data: DocData, options?: { merge?: boolean }): Promise<void> {
     const store = readStore();
-    if (!store[this.colName]) store[this.colName] = {};
-    if (options?.merge && store[this.colName][this.id]) {
-      store[this.colName][this.id] = { ...store[this.colName][this.id], ...data };
-    } else {
-      store[this.colName][this.id] = { ...data };
-    }
+    const collection = (store[this.colName] ??= {});
+    const existing = collection[this.id];
+
+    collection[this.id] =
+      options?.merge && existing ? { ...existing, ...data } : { ...data };
     writeStore(store);
   }
 
   async update(data: DocData): Promise<void> {
     const store = readStore();
-    if (!store[this.colName]) store[this.colName] = {};
-    store[this.colName][this.id] = { ...store[this.colName][this.id], ...data };
+    const collection = (store[this.colName] ??= {});
+    collection[this.id] = { ...collection[this.id], ...data };
     writeStore(store);
   }
 
   async delete(): Promise<void> {
     const store = readStore();
-    if (store[this.colName]) {
-      delete store[this.colName][this.id];
+    const collection = store[this.colName];
+    if (collection) {
+      delete collection[this.id];
       writeStore(store);
     }
   }
@@ -388,15 +388,13 @@ class LocalBatch {
   async commit(): Promise<void> {
     const store = readStore();
     for (const op of this.ops) {
-      if (!store[op.colName]) store[op.colName] = {};
+      const collection = (store[op.colName] ??= {});
       if (op.type === 'set' && op.data) {
-        if (op.options?.merge && store[op.colName][op.docId]) {
-          store[op.colName][op.docId] = { ...store[op.colName][op.docId], ...op.data };
-        } else {
-          store[op.colName][op.docId] = { ...op.data };
-        }
+        const existing = collection[op.docId];
+        collection[op.docId] =
+          op.options?.merge && existing ? { ...existing, ...op.data } : { ...op.data };
       } else if (op.type === 'delete') {
-        delete store[op.colName][op.docId];
+        delete collection[op.docId];
       }
     }
     writeStore(store);
