@@ -610,7 +610,7 @@ before touching anything, which changes the task's stated order:
 | Flag | Errors if enabled | Status |
 |---|---:|---|
 | `noImplicitOverride` | **0** | **enabled** |
-| `exactOptionalPropertyTypes` | 92 | measured, not attempted |
+| `exactOptionalPropertyTypes` | 92 → **0** | **enabled** |
 | `noUncheckedIndexedAccess` | **1,313** | measured, not attempted |
 
 `noImplicitOverride` is enabled and `tsc` returns 0. It was free.
@@ -624,15 +624,38 @@ exactly the signal the flag produces, and CLAUDE.md §7.4 counts a suppression a
 weakening a gate. Done properly this is a phase of its own, and it should be
 sequenced per file with the tests to prove each lookup.
 
-**`exactOptionalPropertyTypes` at 92 is riskier than its count suggests.** The
-errors are not one shared cause — they land against `string`, `number`,
-`InputFieldProps`, `WallSegment`, `GeometryInput`, `StructuredGrid` and others, so
-there is no single interface to widen. For component props, widening
-`prop?: string` to `prop?: string | undefined` is correct and mechanical. For the
-persisted domain types it is a modelling decision with a runtime consequence:
-**Firestore rejects an explicit `undefined` on write**, so admitting `| undefined`
-into a type that reaches a document can convert a compile-time complaint into a
-write failure. That needs to be done per type, with intent, not in a sweep.
+**`exactOptionalPropertyTypes` is now enabled, 95 → 0.** It was done per
+declaration rather than per call site: the errors clustered onto about forty
+shared types, so widening `InputFieldProps` alone cleared nine.
+
+Four real defects surfaced that had nothing to do with the flag itself:
+
+1. `AirflowViewer3D` passed `font={undefined}` to drei's `<Text>` **six times**.
+   Deleting the prop is strictly better code; nothing was ever reading it.
+2. `worker-client` declared `onProgress?: (p) => void | undefined`. The union was
+   on the **return type**, not the property — so the handler was typed as
+   possibly returning undefined while the property stayed strict. The parens
+   were missing.
+3. `wall-generator` called `options.generateWindows ? options.generateWindows(x) : []`,
+   which is what `?.() ?? []` says in one evaluation instead of two.
+4. `firebase.ts` built its client config by assigning eight `process.env` reads
+   directly, so an unset variable became `apiKey: undefined` — "configured with
+   nothing" reported as configured. It now omits absent keys.
+
+**A mistake worth recording:** the widening helper first wrote
+`generateWindows?: (w) => WindowOpening[] | undefined`, which parses as a
+*looser return type*, not an optional property. That silently weakened the
+contract for every implementer. Caught by grepping the diff for
+`?:.*=>.*| undefined` without parentheses; only those two were affected, and
+`worker-client` above was the same class of bug already in the codebase.
+
+Third-party types cannot be widened, so those became conditional spreads —
+react-three-fiber pointer handlers, TanStack `getRowId`, framer-motion
+`whileTap`, and Firebase `AppOptions`. Omitting the key is what "not set"
+actually means, and it is what those libraries' types are asking for.
+
+Proven live: a file assigning `{ name: undefined }` to `{ name?: string }` now
+fails `tsc` and passes once removed.
 
 **☑ TASK 5.5 — Introduce a structured logger**
 Replace the 141 console statements with a single logger module supporting level control and a request correlation identifier. Add a lint rule banning bare console usage in `src`.

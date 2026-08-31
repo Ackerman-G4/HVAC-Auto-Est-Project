@@ -65,7 +65,9 @@ export function useSimulationEngine() {
   const [isSnapshotPrefsHydrated, setIsSnapshotPrefsHydrated] = useState(false);
   const [snapshotPrefsSaveStatus, setSnapshotPrefsSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle');
   const [snapshotFieldLoadingMap, setSnapshotFieldLoadingMap] = useState<Partial<Record<FieldName, boolean>>>({});
-  const [snapshotFieldErrorMap, setSnapshotFieldErrorMap] = useState<Partial<Record<FieldName, string>>>({});
+  const [snapshotFieldErrorMap, setSnapshotFieldErrorMap] = useState<
+    Partial<Record<FieldName, string | undefined>>
+  >({});
   const hasInteractedWithSnapshotPrefsRef = useRef(false);
 
   const { projects, fetchProjects } = useProjectStore();
@@ -377,7 +379,7 @@ export function useSimulationEngine() {
     const loadedFieldSet = new Set(activeSnapshot.fields.map((field) => field.name));
     setSnapshotFieldErrorMap((state) => {
       let changed = false;
-      const next: Partial<Record<FieldName, string>> = { ...state };
+      const next: Partial<Record<FieldName, string | undefined>> = { ...state };
       for (const fieldName of Object.keys(next) as FieldName[]) {
         if (loadedFieldSet.has(fieldName) && next[fieldName]) {
           next[fieldName] = undefined;

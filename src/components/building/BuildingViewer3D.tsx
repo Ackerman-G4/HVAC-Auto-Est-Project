@@ -15,19 +15,19 @@ interface ViewerWallSegment {
     width: number;
     height: number;
     sillHeight: number;
-    centerOffsetM?: number;
-    frameThicknessM?: number;
-    mullionCount?: number;
-    frameStyle?: 'minimal' | 'standard' | 'thermally_broken';
+    centerOffsetM?: number | undefined;
+    frameThicknessM?: number | undefined;
+    mullionCount?: number | undefined;
+    frameStyle?: 'minimal' | 'standard' | 'thermally_broken' | undefined;
   }>;
   doors: Array<{
     id: string;
     width: number;
     height: number;
     sillHeight: number;
-    centerOffsetM?: number;
-    frameThicknessM?: number;
-    leafStyle?: 'flush' | 'glazed' | 'double_leaf' | 'sliding_panel';
+    centerOffsetM?: number | undefined;
+    frameThicknessM?: number | undefined;
+    leafStyle?: 'flush' | 'glazed' | 'double_leaf' | 'sliding_panel' | undefined;
   }>;
 }
 
@@ -179,8 +179,8 @@ interface Face {
   fill: string;
   depth: number;
   roomId: string;
-  label?: string;
-  dimLabel?: string;
+  label?: string | undefined;
+  dimLabel?: string | undefined;
   isSlab: boolean;
   isWall: boolean;
 }
@@ -815,7 +815,7 @@ export default function BuildingViewer3D({ floors, buildingType, projectName }: 
       const transformed = corners.map(xf);
       const projected = corners.map(c2 => pj(xf(c2)));
       const isSlab = room.id.startsWith('slab-');
-      const defs: { idx: number[]; col: string; lbl?: string; dim?: string; wall: boolean }[] = [
+      const defs: { idx: number[]; col: string; lbl?: string | undefined; dim?: string | undefined; wall: boolean }[] = [
         { idx: [0, 1, 2, 3], col: pal.front, wall: true },
         { idx: [5, 4, 7, 6], col: pal.front, wall: true },
         { idx: [4, 0, 3, 7], col: pal.side, wall: true },

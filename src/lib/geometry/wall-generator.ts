@@ -20,11 +20,11 @@ const DEFAULT_WALL_UVALUE: Record<string, number> = {
 
 export interface GenerateWallOptions {
   wallHeightM: number;
-  construction?: string;
-  thicknessM?: number;
-  uValue?: number;
-  generateWindows?: (wall: { start: Point3D; end: Point3D; orientation: number; index: number }) => WindowOpening[];
-  generateDoors?: (wall: { start: Point3D; end: Point3D; orientation: number; index: number }) => DoorOpening[];
+  construction?: string | undefined;
+  thicknessM?: number | undefined;
+  uValue?: number | undefined;
+  generateWindows?: ((wall: { start: Point3D; end: Point3D; orientation: number; index: number }) => WindowOpening[]) | undefined;
+  generateDoors?: ((wall: { start: Point3D; end: Point3D; orientation: number; index: number }) => DoorOpening[]) | undefined;
 }
 
 function normalizeFootprint(footprint: Point3D[]): Point3D[] {
@@ -105,8 +105,8 @@ export function generateWallSegments(
       construction,
       uValue,
       orientation,
-      windows: options.generateWindows ? options.generateWindows(wallContext) : [],
-      doors: options.generateDoors ? options.generateDoors(wallContext) : [],
+      windows: options.generateWindows?.(wallContext) ?? [],
+      doors: options.generateDoors?.(wallContext) ?? [],
     });
   }
 

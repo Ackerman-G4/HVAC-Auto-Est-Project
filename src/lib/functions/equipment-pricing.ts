@@ -61,17 +61,17 @@ export interface ResolvedEquipmentPricing {
 }
 
 export interface ManualSelectionInput {
-  model?: string;
-  brand?: string;
-  type?: string;
-  capacityBTU?: number;
-  capacityTR?: number;
-  eer?: number;
-  refrigerant?: string;
+  model?: string | undefined;
+  brand?: string | undefined;
+  type?: string | undefined;
+  capacityBTU?: number | undefined;
+  capacityTR?: number | undefined;
+  eer?: number | undefined;
+  refrigerant?: string | undefined;
   /** Client-supplied price — honoured ONLY for genuine off-catalog custom items. */
-  unitPrice?: number;
+  unitPrice?: number | undefined;
   /** Explicit opt-in for a custom (off-catalog) line item. */
-  custom?: boolean;
+  custom?: boolean | undefined;
 }
 
 /**

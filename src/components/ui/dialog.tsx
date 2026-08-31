@@ -11,11 +11,11 @@ import { Z } from '@/lib/utils/z-indexes';
 interface DialogProps {
   open: boolean;
   onClose: () => void;
-  title?: string;
-  description?: string;
+  title?: string | undefined;
+  description?: string | undefined;
   children: React.ReactNode;
-  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
-  className?: string;
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full' | undefined;
+  className?: string | undefined;
 }
 
 const FOCUSABLE_SELECTOR = 'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])';

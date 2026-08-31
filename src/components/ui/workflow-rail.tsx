@@ -42,7 +42,7 @@ export type WorkflowStageId =
 export interface WorkflowStageState {
   status: StageStatus;
   /** Optional one-line detail, e.g. "12 rooms traced" or "Loads changed after selection". */
-  detail?: string;
+  detail?: string | undefined;
 }
 
 interface WorkflowRailProps {
@@ -132,7 +132,7 @@ export function WorkflowRail({ projectId, stages, activeStage, className }: Work
               <motion.button
                 type="button"
                 onClick={() => router.push(stage.href(projectId))}
-                whileTap={reduced ? undefined : { scale: 0.98 }}
+                {...(reduced ? {} : { whileTap: { scale: 0.98 } })}
                 transition={microTransition}
                 aria-current={isActive ? 'step' : undefined}
                 aria-label={`${stage.label}: ${meta.label}${state.detail ? ` — ${state.detail}` : ''}`}
@@ -194,7 +194,7 @@ export function deriveWorkflowStages(input: {
   quotationGenerated: boolean;
   reportsGenerated: boolean;
   /** Set when upstream data changed after a downstream stage last ran. */
-  staleStages?: WorkflowStageId[];
+  staleStages?: WorkflowStageId[] | undefined;
 }): Partial<Record<WorkflowStageId, WorkflowStageState>> {
   const stale = new Set(input.staleStages ?? []);
   const s = (id: WorkflowStageId, done: boolean, started: boolean, detail?: string): WorkflowStageState => ({

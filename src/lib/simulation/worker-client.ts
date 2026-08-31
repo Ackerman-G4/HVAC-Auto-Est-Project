@@ -18,7 +18,7 @@ interface WorkerRunOptions {
 interface PendingRun {
   resolve: (result: SimulationResult) => void;
   reject: (error: Error) => void;
-  onProgress?: (progress: SimulationRunProgress) => void;
+  onProgress?: ((progress: SimulationRunProgress) => void) | undefined;
 }
 
 export class CFDWorkerClient {

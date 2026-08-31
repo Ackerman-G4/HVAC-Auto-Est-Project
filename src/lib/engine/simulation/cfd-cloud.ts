@@ -30,7 +30,7 @@ export interface OpenFOAMCloudConfig {
   /** Shared secret the solver echoes back in X-Callback-Secret on the callback. */
   callbackSecret: string;
   /** Public base URL of this app, used to build the solver callback URL. */
-  callbackBaseUrl?: string;
+  callbackBaseUrl?: string | undefined;
 }
 
 export class OpenFOAMCloudNotConfiguredError extends Error {

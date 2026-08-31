@@ -28,7 +28,10 @@ const metrics = {
   turbulenceResidual: 4e-5,
 };
 
-function makeCase(over: Partial<SimulationCase> = {}): SimulationCase {
+/** Explicit undefined is meaningful here: it models a field absent from the document. */
+type Overrides<T> = { [K in keyof T]?: T[K] | undefined };
+
+function makeCase(over: Overrides<SimulationCase> = {}): SimulationCase {
   return {
     id: 'c1', projectId: 'p1', ownerId: OWNER.id, name: 'Case', description: '',
     status: 'ready', runSource: 'internal',
@@ -44,7 +47,7 @@ function makeCase(over: Partial<SimulationCase> = {}): SimulationCase {
   } as SimulationCase;
 }
 
-function makeJob(over: Partial<RunJob> = {}): RunJob {
+function makeJob(over: Overrides<RunJob> = {}): RunJob {
   return {
     id: 'job-1', caseId: 'c1', projectId: 'p1', ownerId: OWNER.id,
     source: 'internal', status: 'pending', totalIterations: 100, currentIteration: 0,
@@ -55,7 +58,7 @@ function makeJob(over: Partial<RunJob> = {}): RunJob {
 
 /** Fakes that record what happened, so status transitions are assertable. */
 function makeDeps(over: Partial<RunOrchestratorDeps> = {}) {
-  const jobStatuses: Array<{ status: string; errorMessage?: string }> = [];
+  const jobStatuses: Array<{ status: string; errorMessage?: string | undefined }> = [];
   const caseStatuses: string[] = [];
 
   const deps = {

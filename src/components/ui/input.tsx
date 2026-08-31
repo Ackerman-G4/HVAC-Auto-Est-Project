@@ -4,13 +4,13 @@ import React from 'react';
 import { cn } from '@/lib/utils/cn';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  label?: string;
-  error?: string;
-  hint?: string;
-  unit?: string;
-  prefix?: string;
-  showRangeHint?: boolean;
-  ref?: React.Ref<HTMLInputElement>;
+  label?: string | undefined;
+  error?: string | undefined;
+  hint?: string | undefined;
+  unit?: string | undefined;
+  prefix?: string | undefined;
+  showRangeHint?: boolean | undefined;
+  ref?: React.Ref<HTMLInputElement> | undefined;
 }
 
 function toFiniteNumber(value: unknown): number | null {

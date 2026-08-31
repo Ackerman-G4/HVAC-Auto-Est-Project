@@ -19,7 +19,10 @@ import { groupByFloor, requiresDuctwork, type SelectedEquipment } from '../boq-i
  * of it could previously be exercised without an HTTP request against Firestore.
  */
 
-function row(over: Partial<BoqSummaryRow> = {}): BoqSummaryRow {
+/** Explicit undefined models a column absent from the stored row. */
+type Overrides<T> = { [K in keyof T]?: T[K] | undefined };
+
+function row(over: Overrides<BoqSummaryRow> = {}): BoqSummaryRow {
   return {
     id: 'i1', section: 'A', description: 'Unit', quantity: 1, unit: 'set',
     category: 'equipment', unitPrice: 100, suggestedUnitPrice: 100,
@@ -27,7 +30,7 @@ function row(over: Partial<BoqSummaryRow> = {}): BoqSummaryRow {
     finalUnitPrice: 100, finalTotalPrice: 100, sourceState: 'suggested',
     isOverridden: false, overrideReason: '',
     ...over,
-  };
+  } as BoqSummaryRow;
 }
 
 describe('pricing policy resolution', () => {

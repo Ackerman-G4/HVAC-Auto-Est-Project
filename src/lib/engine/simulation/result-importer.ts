@@ -18,10 +18,10 @@ import type {
 // ─── Public API ─────────────────────────────────────────────
 
 export interface ImportedFieldData {
-  temperature?: number[][][];
-  velocity?: Vec3[][][];
-  pressure?: number[][][];
-  humidity?: number[][][];
+  temperature?: number[][][] | undefined;
+  velocity?: Vec3[][][] | undefined;
+  pressure?: number[][][] | undefined;
+  humidity?: number[][][] | undefined;
 }
 
 export interface ImportResult {

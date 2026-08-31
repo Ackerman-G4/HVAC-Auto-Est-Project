@@ -360,8 +360,8 @@ interface BatchOp {
   type: 'set' | 'delete';
   colName: string;
   docId: string;
-  data?: DocData;
-  options?: { merge?: boolean };
+  data?: DocData | undefined;
+  options?: { merge?: boolean } | undefined;
 }
 
 class LocalBatch {

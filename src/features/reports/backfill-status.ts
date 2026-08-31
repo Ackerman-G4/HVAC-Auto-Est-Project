@@ -6,7 +6,7 @@ export interface BackfillRunStatus {
   updatedCount: number;
   skippedCount: number;
   ok: boolean;
-  message?: string;
+  message?: string | undefined;
 }
 
 export function normalizeBackfillRunStatus(value: unknown): BackfillRunStatus | null {

@@ -106,7 +106,7 @@ export function buildRunFieldSnapshotFromFields(input: {
   source: RunSource;
   dimensions: { nx: number; ny: number; nz: number };
   fields: FieldPayload[];
-  iteration?: number;
+  iteration?: number | undefined;
   maxCells?: number;
 }): RunFieldSnapshot {
   const { caseId, runJobId, source, fields: sourceFields } = input;

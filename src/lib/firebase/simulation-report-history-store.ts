@@ -45,8 +45,8 @@ interface CreateSimulationReportHistoryInput {
   maxTemperatureC: number;
   pue: number;
   hotspotCount: number;
-  report?: SimulationEngineeringReport;
-  generatedAt?: string;
+  report?: SimulationEngineeringReport | undefined;
+  generatedAt?: string | undefined;
 }
 
 function inferPueRating(pue: number): string {

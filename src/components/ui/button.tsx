@@ -4,10 +4,10 @@ import React from 'react';
 import { cn } from '@/lib/utils/cn';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'destructive' | 'accent' | 'outline';
-  size?: 'sm' | 'md' | 'lg' | 'icon';
-  isLoading?: boolean;
-  ref?: React.Ref<HTMLButtonElement>;
+  variant?: 'primary' | 'secondary' | 'ghost' | 'destructive' | 'accent' | 'outline' | undefined;
+  size?: 'sm' | 'md' | 'lg' | 'icon' | undefined;
+  isLoading?: boolean | undefined;
+  ref?: React.Ref<HTMLButtonElement> | undefined;
   /**
    * Render the single child element with the button's styling instead of
    * emitting a `<button>`.
@@ -19,7 +19,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
    *
    * `isLoading` is ignored here — the spinner and `disabled` are button-only.
    */
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }
 
 export function Button({ className, variant = 'primary', size = 'md', isLoading, children, disabled, ref, asChild, ...props }: ButtonProps) {

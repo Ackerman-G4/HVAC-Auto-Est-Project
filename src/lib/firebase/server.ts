@@ -161,8 +161,8 @@ function initFirebaseAdminApp(): App {
   if (serviceAccount) {
     return initializeApp({
       credential: cert(serviceAccount),
-      projectId: serviceAccount.projectId,
-      databaseURL,
+      ...(serviceAccount.projectId !== undefined ? { projectId: serviceAccount.projectId } : {}),
+      ...(databaseURL !== undefined ? { databaseURL } : {}),
     });
   }
 
@@ -173,14 +173,14 @@ function initFirebaseAdminApp(): App {
     return initializeApp({
       credential: cert(emulatorServiceAccount),
       projectId: emulatorProjectId,
-      databaseURL,
+      ...(databaseURL !== undefined ? { databaseURL } : {}),
     });
   }
 
   return initializeApp({
     credential: applicationDefault(),
-    projectId,
-    databaseURL,
+    ...(projectId !== undefined ? { projectId } : {}),
+    ...(databaseURL !== undefined ? { databaseURL } : {}),
   });
 }
 

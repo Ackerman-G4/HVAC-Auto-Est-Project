@@ -6,14 +6,14 @@ interface InputFieldProps {
   label: string;
   value: number | string;
   onValueChange: (next: number | string) => void;
-  type?: 'number' | 'text';
-  unit?: string;
-  min?: number;
-  max?: number;
-  step?: number;
-  helperText?: string;
-  required?: boolean;
-  disabled?: boolean;
+  type?: 'number' | 'text' | undefined;
+  unit?: string | undefined;
+  min?: number | undefined;
+  max?: number | undefined;
+  step?: number | undefined;
+  helperText?: string | undefined;
+  required?: boolean | undefined;
+  disabled?: boolean | undefined;
 }
 
 function parseNumber(value: number | string): number | null {

@@ -6,9 +6,9 @@ type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'destructive';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: ButtonVariant;
-  size?: ButtonSize;
-  loading?: boolean;
+  variant?: ButtonVariant | undefined;
+  size?: ButtonSize | undefined;
+  loading?: boolean | undefined;
 }
 
 const variantClasses: Record<ButtonVariant, string> = {

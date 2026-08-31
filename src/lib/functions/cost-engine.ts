@@ -79,14 +79,14 @@ export interface CostInputs {
 /** One diffuser / grille line for BOQ Section E. */
 export interface DiffuserInput {
   /** Space type this device serves (drives default selection). */
-  spaceType?: string;
+  spaceType?: string | undefined;
   /** Device kind. */
-  kind?: 'supply_diffuser' | 'return_grille' | 'exhaust_grille';
+  kind?: 'supply_diffuser' | 'return_grille' | 'exhaust_grille' | undefined;
   /** Nominal size label, e.g. "600x600". */
-  sizeLabel?: string;
+  sizeLabel?: string | undefined;
   quantity: number;
   /** Override unit price (PHP); else catalog/default is used. */
-  unitPrice?: number;
+  unitPrice?: number | undefined;
 }
 
 /** Controls & BMS quantities for BOQ Section G. */

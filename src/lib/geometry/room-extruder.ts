@@ -11,17 +11,17 @@ export interface RoomExtrusionInput {
 }
 
 export interface RoomExtrusionOptions {
-  floorElevationM?: number;
-  floorThicknessM?: number;
-  ceilingThicknessM?: number;
-  wallConstruction?: string;
-  wallThicknessM?: number;
-  wallUValue?: number;
-  obstructionVolumeM3?: number;
-  windowAreaM2?: number;
-  windowType?: string;
-  windowOrientation?: string;
-  spaceType?: string;
+  floorElevationM?: number | undefined;
+  floorThicknessM?: number | undefined;
+  ceilingThicknessM?: number | undefined;
+  wallConstruction?: string | undefined;
+  wallThicknessM?: number | undefined;
+  wallUValue?: number | undefined;
+  obstructionVolumeM3?: number | undefined;
+  windowAreaM2?: number | undefined;
+  windowType?: string | undefined;
+  windowOrientation?: string | undefined;
+  spaceType?: string | undefined;
 }
 
 interface WallDescriptor {

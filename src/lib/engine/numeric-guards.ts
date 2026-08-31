@@ -24,7 +24,7 @@ export class CalculationError extends Error {
   /** Where it happened, e.g. `equipmentQuantity` or `pricing.unitTotal`. */
   readonly context: string;
   /** The offending value, when there is a single one worth reporting. */
-  readonly value?: number;
+  readonly value?: number | undefined;
 
   constructor(message: string, context: string, code = 'CALCULATION_ERROR', value?: number) {
     super(message);

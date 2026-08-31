@@ -20,10 +20,10 @@ export interface WindowOpening {
   width: number;
   height: number;
   sillHeight: number;
-  centerOffsetM?: number;
-  frameThicknessM?: number;
-  mullionCount?: number;
-  frameStyle?: 'minimal' | 'standard' | 'thermally_broken';
+  centerOffsetM?: number | undefined;
+  frameThicknessM?: number | undefined;
+  mullionCount?: number | undefined;
+  frameStyle?: 'minimal' | 'standard' | 'thermally_broken' | undefined;
   glassType: string;
   shadingCoefficient: number;
   orientation: number;
@@ -34,9 +34,9 @@ export interface DoorOpening {
   width: number;
   height: number;
   sillHeight: number;
-  centerOffsetM?: number;
-  frameThicknessM?: number;
-  leafStyle?: 'flush' | 'glazed' | 'double_leaf' | 'sliding_panel';
+  centerOffsetM?: number | undefined;
+  frameThicknessM?: number | undefined;
+  leafStyle?: 'flush' | 'glazed' | 'double_leaf' | 'sliding_panel' | undefined;
   swingDirection: 'left' | 'right' | 'double' | 'sliding';
 }
 

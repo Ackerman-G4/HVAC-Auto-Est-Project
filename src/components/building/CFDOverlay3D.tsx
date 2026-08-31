@@ -547,7 +547,7 @@ interface StreamlinesProps {
   result: SimulationResult;
   config: StreamlineConfig;
   sliceZ: number;
-  seedPoints?: Vec3[];
+  seedPoints?: Vec3[] | undefined;
 }
 
 export function Streamlines({ result, config: slCfg, sliceZ, seedPoints }: StreamlinesProps) {

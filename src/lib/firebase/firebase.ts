@@ -1,16 +1,32 @@
-import { getApp, getApps, initializeApp, type FirebaseApp } from 'firebase/app';
+import { getApp, getApps, initializeApp, type FirebaseApp, type FirebaseOptions } from 'firebase/app';
 import type { Analytics } from 'firebase/analytics';
 
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
-};
+/**
+ * An unset environment variable means the key is absent, not present-as-undefined.
+ * FirebaseOptions declares each field as required-if-present, so passing an
+ * explicit undefined is refused — and would in any case misreport "configured
+ * with nothing" as "configured".
+ */
+function buildFirebaseConfig(): FirebaseOptions {
+  const entries: Array<[keyof FirebaseOptions, string | undefined]> = [
+    ['apiKey', process.env.NEXT_PUBLIC_FIREBASE_API_KEY],
+    ['authDomain', process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN],
+    ['databaseURL', process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL],
+    ['projectId', process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID],
+    ['storageBucket', process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET],
+    ['messagingSenderId', process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID],
+    ['appId', process.env.NEXT_PUBLIC_FIREBASE_APP_ID],
+    ['measurementId', process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID],
+  ];
+
+  const config: Record<string, string> = {};
+  for (const [key, value] of entries) {
+    if (value !== undefined && value.trim() !== '') config[key] = value;
+  }
+  return config as FirebaseOptions;
+}
+
+const firebaseConfig = buildFirebaseConfig();
 
 const requiredEnvVars = [
   'NEXT_PUBLIC_FIREBASE_API_KEY',

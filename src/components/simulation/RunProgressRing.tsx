@@ -26,10 +26,10 @@ const PHASE_ORDER: RunPhase[] = ['queued', 'meshing', 'solving', 'post', 'done']
 
 interface RunProgressRingProps {
   /** 0–100. When omitted, the ring shows indeterminate motion for the phase. */
-  percent?: number;
+  percent?: number | undefined;
   phase: RunPhase;
-  size?: number;
-  className?: string;
+  size?: number | undefined;
+  className?: string | undefined;
 }
 
 export function RunProgressRing({ percent, phase, size = 88, className }: RunProgressRingProps) {

@@ -111,7 +111,7 @@ export default function SimulationRunProgressCard({
   const percent = normalizePercent(iteration, totalIterations);
   const isOpenFOAM = source === 'openfoam';
 
-  const residualFields: Array<{ key: string; label: string; value?: number }> = [
+  const residualFields: Array<{ key: string; label: string; value?: number | undefined }> = [
     { key: 'continuity', label: 'Cont', value: residual?.continuity },
     { key: 'momentumX', label: 'Mom-X', value: residual?.momentumX ?? residual?.momentum },
     { key: 'momentumY', label: 'Mom-Y', value: residual?.momentumY ?? residual?.momentum },

@@ -17,8 +17,8 @@ export interface DiagnosticInput {
   // System info
   systemType: SystemType;
   applicationType: ApplicationType;
-  refrigerantType?: string;           // R32, R410A, R22 etc.
-  systemAgeDays?: number;
+  refrigerantType?: string | undefined;           // R32, R410A, R22 etc.
+  systemAgeDays?: number | undefined;
 
   // Symptom description
   symptomDescription: string;
@@ -31,30 +31,30 @@ export interface DiagnosticInput {
   highEnergyBills: boolean;
 
   // Measurements (optional — field technician data)
-  supplyTempCold?: number;            // °C at cold side
-  supplyTempWarm?: number;            // °C at warm side
-  returnAirTemp?: number;             // °C
-  outdoorTemp?: number;               // °C
-  indoorRH?: number;                  // %
-  suctionPressure?: number;           // psi
-  dischargePressure?: number;         // psi
-  superheat?: number;                 // °F or °C delta
-  subcooling?: number;                // °F or °C delta
-  motorAmps?: number;                 // Amps
-  ratedAmps?: number;                 // Amps (nameplate)
-  capacitorMicrofarads?: number;      // µF measured
-  ratedCapacitorMicrofarads?: number; // µF nameplate
+  supplyTempCold?: number | undefined;            // °C at cold side
+  supplyTempWarm?: number | undefined;            // °C at warm side
+  returnAirTemp?: number | undefined;             // °C
+  outdoorTemp?: number | undefined;               // °C
+  indoorRH?: number | undefined;                  // %
+  suctionPressure?: number | undefined;           // psi
+  dischargePressure?: number | undefined;         // psi
+  superheat?: number | undefined;                 // °F or °C delta
+  subcooling?: number | undefined;                // °F or °C delta
+  motorAmps?: number | undefined;                 // Amps
+  ratedAmps?: number | undefined;                 // Amps (nameplate)
+  capacitorMicrofarads?: number | undefined;      // µF measured
+  ratedCapacitorMicrofarads?: number | undefined; // µF nameplate
 
   // Duct (ducted systems)
-  staticPressureSupply?: number;      // in. w.g.
-  staticPressureReturn?: number;      // in. w.g.
-  cfmMeasured?: number;
-  cfmDesign?: number;
+  staticPressureSupply?: number | undefined;      // in. w.g.
+  staticPressureReturn?: number | undefined;      // in. w.g.
+  cfmMeasured?: number | undefined;
+  cfmDesign?: number | undefined;
 
   // Maintenance history
-  lastFilterChange?: string;          // ISO date
-  lastCoilCleaning?: string;          // ISO date
-  lastRefrigerantService?: string;    // ISO date
+  lastFilterChange?: string | undefined;          // ISO date
+  lastCoilCleaning?: string | undefined;          // ISO date
+  lastRefrigerantService?: string | undefined;    // ISO date
 }
 
 // ── Diagnostic output types ──────────────────────────────────────────────
@@ -123,14 +123,14 @@ export interface DiagnosticResult {
     measured: number;
     expected: { min: number; max: number };
     status: 'normal' | 'low' | 'high';
-  };
+  } | undefined;
 
   // SHR analysis
   sensibleHeatRatio?: {
     value: number;
     status: 'normal' | 'high_latent' | 'low_latent';
     interpretation: string;
-  };
+  } | undefined;
 
   // Ranked faults
   faults: DiagnosticFault[];

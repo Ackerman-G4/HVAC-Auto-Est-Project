@@ -217,12 +217,12 @@ export interface SimulationRunProgress {
   iteration: number;
   totalIterations: number;
   percent: number;
-  continuityResidual?: number;
-  momentumResidual?: number;
-  energyResidual?: number;
-  turbulenceResidual?: number;
-  elapsedMs?: number;
-  message?: string;
+  continuityResidual?: number | undefined;
+  momentumResidual?: number | undefined;
+  energyResidual?: number | undefined;
+  turbulenceResidual?: number | undefined;
+  elapsedMs?: number | undefined;
+  message?: string | undefined;
 }
 
 export type CFDWorkerIncomingMessage =
@@ -282,7 +282,7 @@ export interface ComplianceCheck {
   limit: number;
   unit: string;
   severity: 'info' | 'warning' | 'critical';
-  recommendation?: string;
+  recommendation?: string | undefined;
 }
 
 export interface ComplianceReport {
@@ -392,9 +392,9 @@ export interface WallSegment {
   /** Thermal boundary condition */
   thermalBC: 'adiabatic' | 'fixed_temp' | 'heat_flux';
   /** Fixed temperature in °C (used when thermalBC is 'fixed_temp') */
-  fixedTempC?: number;
+  fixedTempC?: number | undefined;
   /** Heat flux in W/m² (used when thermalBC is 'heat_flux') */
-  heatFluxWm2?: number;
+  heatFluxWm2?: number | undefined;
 }
 
 /** Obstruction inside the room (furniture, columns, etc.) */
@@ -648,8 +648,8 @@ export interface ResidualSnapshot {
   momentumY: number;
   momentumZ: number;
   energy: number;
-  k?: number;
-  epsilon?: number;
+  k?: number | undefined;
+  epsilon?: number | undefined;
 }
 
 /** A single execution run of a simulation case */
@@ -975,7 +975,7 @@ export interface SimulationLayoutDoc {
   floorId: string;
   hvacPlacements: LayoutHVACPlacement[];
   tilePlacements: LayoutTilePlacement[];
-  connectionOverrides?: LayoutConnectionOverride[];
+  connectionOverrides?: LayoutConnectionOverride[] | undefined;
   /** Metres-per-pixel scale used when placing entities */
   canvasScale: number;
   updatedAt: string;
@@ -984,13 +984,13 @@ export interface SimulationLayoutDoc {
 export type AirConnectionType = 'door' | 'shaft' | 'transfer' | 'window' | 'custom';
 
 export interface LayoutConnectionOverride {
-  id?: string;
+  id?: string | undefined;
   fromRoomId: string;
   toRoomId: string;
   type: AirConnectionType | string;
   openingAreaM2: number;
   resistance: number;
-  enabled?: boolean;
+  enabled?: boolean | undefined;
 }
 
 export interface AirConnection {

@@ -13,7 +13,7 @@ export interface RoomPolygonPoint {
 
 export interface RoomPolygonData {
   points: RoomPolygonPoint[];
-  scale?: number;
+  scale?: number | undefined;
 }
 
 export interface RoomPolygonBounds {

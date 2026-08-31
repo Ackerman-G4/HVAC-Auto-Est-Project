@@ -100,8 +100,8 @@ type SizingInput = Parameters<typeof sizeEquipment>[0];
 export interface AutoSizePreferences {
   readonly projectId: string;
   readonly budgetLevel: SizingInput['budgetLevel'];
-  readonly preferredBrand: SizingInput['preferredBrand'];
-  readonly preferredType: SizingInput['preferredType'];
+  readonly preferredBrand: SizingInput['preferredBrand'] | undefined;
+  readonly preferredType: SizingInput['preferredType'] | undefined;
 }
 
 export async function autoSizeProjectEquipment(
@@ -200,16 +200,16 @@ export async function autoSizeProjectEquipment(
 export interface ManualSelectionInput {
   roomId: string;
   quantity: number;
-  model?: string;
-  brand?: string;
-  type?: string;
-  capacityBTU?: number;
-  capacityTR?: number;
-  eer?: number;
-  refrigerant?: string;
-  unitPrice?: number;
-  custom?: boolean;
-  powerSupply?: string;
+  model?: string | undefined;
+  brand?: string | undefined;
+  type?: string | undefined;
+  capacityBTU?: number | undefined;
+  capacityTR?: number | undefined;
+  eer?: number | undefined;
+  refrigerant?: string | undefined;
+  unitPrice?: number | undefined;
+  custom?: boolean | undefined;
+  powerSupply?: string | undefined;
 }
 
 export async function selectEquipmentManually(

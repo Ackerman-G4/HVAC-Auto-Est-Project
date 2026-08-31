@@ -18,15 +18,15 @@ interface FloorRoomSource {
   floorCeilingHeight: number;
   roomName: string;
   spaceType: string;
-  polygon?: string;
+  polygon?: string | undefined;
   area: number;
   perimeter: number;
   ceilingHeight: number;
   equipmentLoad: number;
-  wallConstruction?: string;
+  wallConstruction?: string | undefined;
   windowArea: number;
-  windowOrientation?: string;
-  windowType?: string;
+  windowOrientation?: string | undefined;
+  windowType?: string | undefined;
 }
 
 interface FloorSource {
@@ -37,16 +37,16 @@ interface FloorSource {
   rooms: Array<{
     id: string;
     name: string;
-    spaceType?: string;
-    polygon?: string;
+    spaceType?: string | undefined;
+    polygon?: string | undefined;
     area: number;
     perimeter: number;
     ceilingHeight: number;
     equipmentLoad: number;
-    wallConstruction?: string;
-    windowArea?: number;
-    windowOrientation?: string;
-    windowType?: string;
+    wallConstruction?: string | undefined;
+    windowArea?: number | undefined;
+    windowOrientation?: string | undefined;
+    windowType?: string | undefined;
   }>;
 }
 

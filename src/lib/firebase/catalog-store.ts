@@ -136,7 +136,9 @@ export async function getMergedSettings<T extends Record<string, unknown>>(defau
 
 export async function upsertSettings<T extends Record<string, unknown>>(
   defaults: T,
-  updates: Partial<T>,
+  // Not Partial<T>: clearing a setting means sending an explicit undefined,
+  // which Partial forbids under exactOptionalPropertyTypes.
+  updates: { [K in keyof T]?: T[K] | undefined },
 ): Promise<T> {
   const current = await getMergedSettings(defaults);
   const merged = { ...current, ...updates } as T;

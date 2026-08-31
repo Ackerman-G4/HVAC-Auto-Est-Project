@@ -13,8 +13,8 @@ interface Toast {
   id: string;
   type: ToastType;
   title: string;
-  message?: string;
-  duration?: number;
+  message?: string | undefined;
+  duration?: number | undefined;
 }
 
 let toastListeners: ((toast: Toast) => void)[] = [];

@@ -88,7 +88,7 @@ export async function dispatchEngineeringRun(
     projectId: string;
     caseId: string;
     user: { id: string; role: string };
-    solverBackend?: 'preview' | 'engineering';
+    solverBackend?: 'preview' | 'engineering' | undefined;
     requestOrigin: string;
   },
 ): Promise<DispatchRunResult> {

@@ -149,7 +149,7 @@ export interface NormalizeInput {
   tiles: PerforatedTile[];
   gridResolution: number;
   /** Ceiling height (m) used to size the vertical grid; defaults to 3. */
-  ceilingHeightM?: number;
+  ceilingHeightM?: number | undefined;
 }
 
 export interface NormalizedLayout {

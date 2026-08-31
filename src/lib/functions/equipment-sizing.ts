@@ -17,9 +17,9 @@ interface SizingInput {
   roomArea: number;
   ceilingHeight: number;
   budgetLevel: 'economy' | 'mid-range' | 'premium';
-  preferredBrand?: string;
-  preferredType?: EquipmentType;
-  existingSystem?: EquipmentType;
+  preferredBrand?: string | undefined;
+  preferredType?: EquipmentType | undefined;
+  existingSystem?: EquipmentType | undefined;
 }
 
 export interface EquipmentRecommendation {

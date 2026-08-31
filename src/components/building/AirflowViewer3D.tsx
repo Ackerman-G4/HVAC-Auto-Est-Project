@@ -44,7 +44,7 @@ interface Props {
   tileAirflowData?: TileAirflowData[];
   alerts?: ThermalAlert[];
   /** Bumping this re-fits the camera to the domain (Reset view). */
-  resetToken?: number;
+  resetToken?: number | undefined;
   /**
    * Retain the GPU drawing buffer so `captureSnapshot()` can read the canvas.
    *
@@ -71,7 +71,7 @@ function AutoFitCamera({
   resetToken,
 }: {
   config: { gridSizeX: number; gridSizeY: number; gridSizeZ: number; gridResolution: number };
-  resetToken?: number;
+  resetToken?: number | undefined;
 }) {
   const camera = useThree((s) => s.camera);
   const controls = useThree((s) => s.controls) as {
@@ -116,7 +116,7 @@ export interface RoomBoundaryOverlay {
 export interface HVACDragPreviewResult {
   position: Vec3;
   valid: boolean;
-  reason?: string;
+  reason?: string | undefined;
 }
 
 // ─── Equipment Meshes ───────────────────────────────────────────────
@@ -143,7 +143,6 @@ function RackMesh({ rack, centerX, centerZ }: { rack: ServerRack; centerX: numbe
         color="#e0e7ff"
         anchorX="center"
         anchorY="bottom"
-        font={undefined}
       >
         {rack.name}
       </Text>
@@ -153,7 +152,6 @@ function RackMesh({ rack, centerX, centerZ }: { rack: ServerRack; centerX: numbe
         color="#a5b4fc"
         anchorX="center"
         anchorY="bottom"
-        font={undefined}
       >
         {`${rack.powerKW}kW`}
       </Text>
@@ -175,12 +173,12 @@ function HVACMesh({
   unit: HVACUnit;
   centerX: number;
   centerZ: number;
-  isSelected?: boolean;
-  isDragging?: boolean;
-  isInvalid?: boolean;
-  onPointerDown?: (event: ThreeEvent<PointerEvent>) => void;
-  onPointerMove?: (event: ThreeEvent<PointerEvent>) => void;
-  onPointerUp?: (event: ThreeEvent<PointerEvent>) => void;
+  isSelected?: boolean | undefined;
+  isDragging?: boolean | undefined;
+  isInvalid?: boolean | undefined;
+  onPointerDown?: ((event: ThreeEvent<PointerEvent>) => void) | undefined;
+  onPointerMove?: ((event: ThreeEvent<PointerEvent>) => void) | undefined;
+  onPointerUp?: ((event: ThreeEvent<PointerEvent>) => void) | undefined;
 }) {
   // Solver uses x/y as floor-plane coordinates and z as elevation.
   const x = unit.position.x - centerX + unit.width / 2;
@@ -206,7 +204,11 @@ function HVACMesh({
 
   return (
     <group position={[x, y, z]}>
-      <mesh onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp}>
+      <mesh
+        {...(onPointerDown ? { onPointerDown } : {})}
+        {...(onPointerMove ? { onPointerMove } : {})}
+        {...(onPointerUp ? { onPointerUp } : {})}
+      >
         <boxGeometry args={[unit.width, unit.height, unit.depth]} />
         <meshStandardMaterial color={color} transparent opacity={isDragging ? 0.78 : 0.55} />
       </mesh>
@@ -220,7 +222,6 @@ function HVACMesh({
         color="#d1fae5"
         anchorX="center"
         anchorY="bottom"
-        font={undefined}
       >
         {unit.name}
       </Text>
@@ -260,7 +261,6 @@ function HotspotMarker({ position, temperature, severity }: {
         color="white"
         anchorX="center"
         anchorY="bottom"
-        font={undefined}
       >
         {`${temperature.toFixed(0)}°C`}
       </Text>
@@ -357,7 +357,7 @@ function Scene(props: Props) {
     unitId: string;
     preview: Vec3;
     valid: boolean;
-    reason?: string;
+    reason?: string | undefined;
   } | null>(null);
 
   const dragUnit = useMemo(() => {
@@ -520,7 +520,6 @@ function Scene(props: Props) {
             color="#cbd5e1"
             anchorX="center"
             anchorY="bottom"
-            font={undefined}
           >
             {room.name}
           </Text>
@@ -608,7 +607,6 @@ function Scene(props: Props) {
           color="#fca5a5"
           anchorX="center"
           anchorY="bottom"
-          font={undefined}
         >
           {(dragState.reason ?? 'Invalid placement').slice(0, 84)}
         </Text>

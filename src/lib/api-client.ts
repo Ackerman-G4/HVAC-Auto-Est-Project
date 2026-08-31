@@ -7,8 +7,8 @@ type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
 interface ParsedApiError {
   message: string;
-  details?: string;
-  code?: string;
+  details?: string | undefined;
+  code?: string | undefined;
 }
 
 const AUTH_TOKEN_STORAGE_KEY = 'hvac-auth-token';
@@ -136,9 +136,9 @@ export async function authFetch(url: string, init?: RequestInit): Promise<Respon
 
 class ApiClientError extends Error {
   status: number;
-  details?: string;
-  code?: string;
-  endpoint?: string;
+  details?: string | undefined;
+  code?: string | undefined;
+  endpoint?: string | undefined;
 
   constructor(message: string, status: number, details?: string, code?: string, endpoint?: string) {
     super(message);

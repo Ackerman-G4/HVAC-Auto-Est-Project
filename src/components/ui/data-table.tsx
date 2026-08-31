@@ -88,10 +88,10 @@ export function DataTable<T>({
     state: { sorting, globalFilter },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
+    ...(getRowId ? { getRowId } : {}),
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    getRowId,
   });
 
   const rows = table.getRowModel().rows;

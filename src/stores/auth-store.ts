@@ -22,8 +22,8 @@ interface AuthState {
   registerWithEmail: (input: {
     email: string;
     password: string;
-    name?: string;
-    role?: AuthRole;
+    name?: string | undefined;
+    role?: AuthRole | undefined;
   }) => Promise<boolean>;
   loginWithGoogle: (credential: string) => Promise<boolean>;
   fetchProfile: () => Promise<void>;

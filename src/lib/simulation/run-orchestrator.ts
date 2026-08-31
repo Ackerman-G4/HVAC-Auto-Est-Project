@@ -175,7 +175,7 @@ export async function startSimulationRun(
     projectId: string;
     caseId: string;
     user: RunActor;
-    source?: RunJob['source'];
+    source?: RunJob['source'] | undefined;
   },
 ): Promise<StartRunResult> {
   const resolved = await resolveCase(deps, params.projectId, params.caseId, params.user);

@@ -26,10 +26,10 @@ export interface AuditLogEntry {
 
 export interface ListAuditLogsParams {
   limit: number;
-  entity?: string;
-  action?: string;
-  projectId?: string;
-  search?: string;
+  entity?: string | undefined;
+  action?: string | undefined;
+  projectId?: string | undefined;
+  search?: string | undefined;
 }
 
 function mapAuditLogEntry(id: string, data: Record<string, unknown>): AuditLogEntry {
