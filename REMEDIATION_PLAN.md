@@ -960,3 +960,66 @@ Gates: tsc 0 errors, eslint 0 errors / 77 warnings, vitest 49 files / 587 tests
 
 TASK 3.2's line-count decomposition is still outstanding; this was found while
 reading the first of its four handlers and was worth landing on its own.
+
+
+---
+
+## Execution log — TASK 3.2, BOQ handler decomposition
+
+`projects/[id]/boq/route.ts` went from **470 lines to 80**, meeting the gate.
+Extracted into six modules under `src/lib/boq/`:
+
+| Module | Lines | Holds |
+|---|---|---|
+| `boq-generation.ts` | 250 | the POST pipeline, behind an injected-deps interface |
+| `boq-summary.ts` | 201 | the GET read model: line-price fallbacks and the quotation rollup |
+| `boq-inputs.ts` | 179 | selections to cost-engine inputs, and the sizing assumptions |
+| `pricing-policy.ts` | 99 | the four dual-control rates, resolved once |
+| `boq-read.ts` | 58 | the GET response shape |
+| `boq-deps.ts` | 31 | the only place `lib/boq` is joined to Firestore |
+
+Same mechanism as TASK 3.1: every store call is declared on
+`BoqGenerationDeps` and passed in, so `lib/boq` imports nothing from
+`lib/firebase` and the pipeline runs against plain objects.
+
+**Two defects fixed in the electrical sizing**, both on lines the route had
+inlined:
+
+1. `capacityBTU * 0.000293` was an unnamed Btu/h-to-kW conversion — rule 5, and
+   the same constant recorded earlier in this plan as drifting **0.024%** from
+   exact. Now `btuPerHourToKilowatts` from `engine/units.ts`.
+2. `/ (eer || 10)` silently substituted a plausible efficiency for a missing
+   one. A catalogue row with `eer: 0` produced a wrong input power, and from
+   there a wrong breaker and cable size, with nothing reported — rule 3 and
+   rule 6 together. Now `electricalInputPowerKw`, guarded, code
+   `INVALID_EQUIPMENT_EER`.
+
+**Flagged, not changed.** `costPerTR` derives total capacity by regex over the
+equipment *description strings* (`/(\d+\.?\d*)\s*TR/`). A line described
+"3.5 Ton" contributes zero and the figure silently understates. Capacity belongs
+in a column. Left alone because changing it changes stored data, and this task
+was meant to preserve behaviour; recorded in `boq-summary.ts` and here.
+
+**67 new tests.** 20 on the money rollup (zero-means-not-computed fallbacks,
+the VAT-after-markup ordering, the guarded cost-per-ton), 22 on the inputs, 15
+on the pipeline ordering, plus 19 on `pipe-sizing.ts` — see below. Four
+mutations confirm they bite: VAT on the bare subtotal fails 1; `||` for `??` on
+a price override fails 1; restoring the `eer || 10` fallback fails 6; hashing
+compiled rows instead of stored rows fails 1.
+
+**Two corrections during the work.** First, the deps interface was written with
+`Record<string, unknown>` and the compiler rejected it against the real store
+signatures — the same over-widening as in TASK 3.1, fixed by using the domain
+types and exporting `AuditLogInput`. Second, branch coverage went red (75.35 vs
+76) because `boq-inputs.ts` legitimately pulls the sizing modules into the
+denominator. Unlike the earlier auth case this could not be decoupled — sizing
+is what the module does — so the answer was to cover it: `pipe-sizing.ts` was
+sitting at 4 of 15 branches while feeding pipe diameter, braze-joint labour and
+refrigerant charge straight into the bill. Nineteen tests later, branches are
+76.98.
+
+Gates: tsc 0 errors, eslint 0 errors / 77 warnings, vitest 53 files / 663 tests
+(587 -> 663, +76), next build clean, coverage 36.02 / 76.98 / 62.75.
+
+Remaining in TASK 3.2: `projects/[id]/route.ts` (282), `runs/route.ts` (260),
+`equipment/route.ts` (259).
