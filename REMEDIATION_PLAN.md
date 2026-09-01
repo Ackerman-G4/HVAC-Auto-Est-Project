@@ -900,3 +900,63 @@ that handler's tests rather than as an untested sweep.
 Gates: tsc 0 errors, eslint 0 errors / 77 warnings, vitest 47 files / 551 tests
 (491 -> 551, +60), next build clean. Coverage rose rather than fell:
 statements 31.55 -> 33.6, functions 61.01 -> 64.
+
+
+---
+
+## Execution log — project authorisation gap (found during TASK 3.2)
+
+**Ten route handlers under `projects/[id]` enforced authentication and nothing
+else.** They called `requireAuth`, established who was calling, and never
+compared that against the project's owner:
+
+`boq`, `boq/[itemId]`, `boq/verify`, `calculate`, `equipment`,
+`equipment/[selectionId]`, `floors`, `floors/[floorId]`, `rooms`,
+`rooms/[roomId]`.
+
+This is not a missing second layer. Every store function these call runs through
+the Firebase **Admin SDK, which bypasses Firestore security rules entirely** —
+the same fact recorded under F6, where it meant the read-cost finding did not
+apply. It cuts the other way here: the rules in `config/firebase/firestore.rules`
+do nothing for API traffic, so the handler was the only gate, and it was open.
+
+Any signed-in user could read or overwrite another account's data by guessing a
+project id. `POST /projects/[id]/boq` is the worst of them: it replaces every
+BOQ item on the project, updates the project record, creates a snapshot, and
+writes an audit-log entry attributing the change to the caller.
+
+The odd part is that the fix already existed. `lib/auth/project-access.ts`
+exported `canAccessProject` and `projectAccessDenied` — correct, and used by
+exactly one route out of twenty-three. The defect was not a missing helper but a
+helper nobody called.
+
+**Fix.** Extended `project-access.ts` with `checkProjectAccess`, returning a
+discriminated union so `project` is unreachable without narrowing on `ok` —
+omitting the denial branch is now a compile error rather than an open door. All
+ten routes gated. A missing project is reported 404 and a non-owner 403, since a
+caller may legitimately own a project that has since been deleted.
+
+**A unit test could not have caught this class of defect**, because the helper
+was already correct and simply unused. What failed was coverage across route
+files, so that is what is asserted: a structural test enumerates every route
+under `src/app/api/projects` and requires an ownership marker, with three
+documented exemptions (the collection endpoint, which scopes by `ownerId`; the
+run route, which delegates to the orchestrator; the OpenFOAM callback, which is
+machine-to-machine behind a shared secret). A stale exemption fails the suite, so
+a rename cannot hide a new gap. Verified by mutation: stripping the guard from
+`boq/route.ts` fails it.
+
+**One correction during the work.** Putting `requireProjectAccess` in
+`project-access.ts` dragged `projects-store.ts` and its 69 mostly-untested
+functions into the module graph of every test that touched authorisation, and
+function coverage fell 64 -> 56.28, red against the 62 threshold. Lowering the
+threshold would have been weakening a gate. The real answer was that the pure
+authorisation decision should not import the persistence layer at all: the
+loading variant moved to `require-project-access.ts` and `project-access.ts` now
+imports nothing from `lib/firebase`. Coverage recovered to 62.83.
+
+Gates: tsc 0 errors, eslint 0 errors / 77 warnings, vitest 49 files / 587 tests
+(551 -> 587, +36), next build clean, coverage 34 / 76.97 / 62.83.
+
+TASK 3.2's line-count decomposition is still outstanding; this was found while
+reading the first of its four handlers and was worth landing on its own.
