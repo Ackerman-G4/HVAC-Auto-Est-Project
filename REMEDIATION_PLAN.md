@@ -226,7 +226,7 @@ Gate: no existing rules test regresses.
 Add `@vitest/coverage-v8`. Configure the v8 provider in `vitest.config.ts`. Record the true baseline percentage without setting a threshold yet, because a threshold chosen before the baseline is known is arbitrary.
 Gate: `npx vitest run --coverage` executes and reports a figure.
 
-**☐ TASK 5.2 — Set graduated thresholds**
+**☑ TASK 5.2 — Set graduated thresholds**
 Set a global threshold at the measured baseline so coverage cannot fall. Set a stricter threshold on `src/lib/engine` and `src/lib/validation`, since those directories carry the calculation correctness and boundary safety guarantees. Wire both into `frontend-gates.yml`.
 Gate: workflow fails on a deliberate coverage reduction and passes on `main`.
 
@@ -663,3 +663,56 @@ Worth recording alongside the F2 correction. `buildEquipmentOptions` maps over
 defence-in-depth against a future edit to that constant. Driving it from a test
 would mean exporting internals or mutating the constant — testing the harness
 rather than the product — so the tests exercise the real path instead.
+
+### TASK 5.2 — graduated thresholds ☑
+
+Thresholds live in `vitest.config.ts` and run in CI via a new
+`Coverage thresholds` step in `frontend-gates.yml`.
+
+| Scope | Lines | Branches | Functions |
+|---|---|---|---|
+| Global | 31 | 76 | 62 |
+| `src/lib/engine/**` | 74 | 79 | 80 |
+| `src/lib/validation/**` | 77 | 85 | 75 |
+
+Each sits at the measured figure rounded down a point. That point is not slack —
+it is so a refactor moving a few lines between files does not fail the build
+while coverage is materially unchanged. A real regression drops far more.
+
+**Both halves of the gate were verified, not assumed.** On `main` the run exits
+0. With the load-engine suite removed as a deliberate reduction it exits 1 and
+names four breaches, including `src/lib/engine` lines falling 74 → 60.8.
+
+The global floor is low because `lib/firebase` (5.2%) and `lib/auth` (6.0%) are
+large and mostly untested. Holding engine and validation far above it is the
+"graduated" part the task asks for: the directories carrying calculation
+correctness and boundary safety are gated hard, and raising the global number is
+how the firebase/auth work gets recorded when it happens.
+
+#### Coverage moved 27.4% → 31.3% along the way
+
+Two modules were at 0% and both are worth having:
+
+**`lib/validation/auth.ts` (185 lines).** The password policy — length, case,
+digit, symbol, a common-password blocklist, a date-detector and an
+email-similarity check — with no test at all. It reads as thorough, which is
+probably why nobody checked whether it does what it says. 24 tests now cover it,
+each violating one rule at a time so a failure names the rule that broke.
+
+Four of those failed first time and **all four were my assumptions, not
+defects**:
+
+- `name` is optional on register; I assumed required.
+- The Google credential needs ≥10 characters; my stub was 9.
+- The date rule is `^\D{0,2}(\d{8})\D{0,2}$` — **anchored**. It targets a
+  password that *is* a date, not one that contains one, so `Manila#20260815`
+  passes. That is a deliberate scope (banning every password containing eight
+  digits would be over-broad) and the tests now assert the boundary in both
+  directions rather than implying the rule is wider than it is.
+
+**`lib/validation/simulation-layout.ts`** was at 0% because I wrote it and wired
+it into the handler last night without a test. 18 tests now cover it. Recording
+that plainly: the same coverage gap I was measuring for was one I had just
+created.
+
+Validation is now 77.9%, up from 55.9%.
