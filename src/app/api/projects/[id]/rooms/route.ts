@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { checkProjectAccess } from '@/lib/auth/project-access';
 import { parseJsonBody } from '@/lib/validation/http';
 import { createRoomSchema } from '@/lib/validation/rooms';
 import { evaluateRateLimit } from '@/lib/auth/rate-limit';
@@ -26,7 +27,6 @@ import {
   buildCoolingLoadInput,
   coolingLoadToDbFields,
   requireJsonRequest,
-  resourceNotFound,
 } from '@/lib/utils/api-helpers';
 import { finalizeDualValue } from '@/lib/utils/dual-control';
 import {
@@ -152,10 +152,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
     if (!parsed.ok) return parsed.response;
     const body = parsed.data;
 
-    const project = await getProjectRecord(projectId);
-    if (!project) {
-      return resourceNotFound('Project', 'The project does not exist.', 'PROJECT_NOT_FOUND');
-    }
+    // Ownership, not merely authentication. Every store call below uses the
+    // Admin SDK, which bypasses Firestore rules, so this is the only gate.
+    const access = checkProjectAccess(await getProjectRecord(projectId), auth.user);
+    if (!access.ok) return access.response;
+    const project = access.project;
 
     // Find or create floor
     let floor = await findFloorByProjectAndNumber(projectId, body.floorNumber);

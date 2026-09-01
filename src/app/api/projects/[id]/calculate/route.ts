@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { checkProjectAccess } from '@/lib/auth/project-access';
 import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import {
   getFloorsWithRooms,
@@ -19,7 +20,6 @@ import {
   getErrorDetails,
   buildCoolingLoadInput,
   coolingLoadToDbFields,
-  resourceNotFound,
 } from '@/lib/utils/api-helpers';
 import { finalizeDualValue } from '@/lib/utils/dual-control';
 
@@ -47,15 +47,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     const { id: projectId } = await context.params;
 
-    const project = await getProjectRecord(projectId);
-
-    if (!project) {
-      return resourceNotFound(
-        'Project',
-        'The project ID does not match any existing project.',
-        'PROJECT_NOT_FOUND',
-      );
-    }
+    // Ownership, not merely authentication. Every store call below uses the
+    // Admin SDK, which bypasses Firestore rules, so this is the only gate.
+    const access = checkProjectAccess(await getProjectRecord(projectId), auth.user);
+    if (!access.ok) return access.response;
+    const project = access.project;
 
     const floors = await getFloorsWithRooms(projectId, {
       includeRoomEquipment: false,

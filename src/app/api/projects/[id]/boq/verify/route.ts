@@ -5,12 +5,13 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { checkProjectAccess } from '@/lib/auth/project-access';
 import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import { getLatestBoqSnapshot } from '@/lib/firebase/boq-snapshot-store';
 import { listBoqItemsForProject } from '@/lib/firebase/project-estimation-store';
 import { getProjectRecord, writeAuditLog } from '@/lib/firebase/projects-store';
 import { buildBoqVerification } from '@/lib/functions/boq-integrity';
-import { errorResponse, getErrorDetails, resourceNotFound } from '@/lib/utils/api-helpers';
+import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -36,10 +37,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
     const { id: projectId } = await context.params;
 
-    const project = await getProjectRecord(projectId);
-    if (!project) {
-      return resourceNotFound('Project', 'The project does not exist.', 'PROJECT_NOT_FOUND');
-    }
+    // Ownership, not merely authentication. Every store call below uses the
+    // Admin SDK, which bypasses Firestore rules, so this is the only gate.
+    const access = checkProjectAccess(await getProjectRecord(projectId), auth.user);
+    if (!access.ok) return access.response;
 
     const [items, latestSnapshot] = await Promise.all([
       listBoqItemsForProject(projectId),

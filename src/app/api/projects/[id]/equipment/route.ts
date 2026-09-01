@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { requireProjectAccess } from '@/lib/auth/require-project-access';
 import { parseJsonBody } from '@/lib/validation/http';
 import { createEquipmentSelectionSchema, isAutoSizeRequest } from '@/lib/validation/equipment';
 import { evaluateRateLimit } from '@/lib/auth/rate-limit';
@@ -49,6 +50,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
     }
 
     const { id } = await context.params;
+    // Ownership, not merely authentication. Every store call below uses the
+    // Admin SDK, which bypasses Firestore rules, so this is the only gate.
+    const access = await requireProjectAccess(id, auth.user);
+    if (!access.ok) return access.response;
 
     const selections = await listSelectedEquipmentForProject(id);
     const equipment = selections.map((selection) => toApiEquipment(selection));
@@ -77,6 +82,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     const { id: projectId } = await context.params;
+    // Ownership, not merely authentication. Every store call below uses the
+    // Admin SDK, which bypasses Firestore rules, so this is the only gate.
+    const access = await requireProjectAccess(projectId, auth.user);
+    if (!access.ok) return access.response;
 
     const jsonGuard = requireJsonRequest(request);
     if (jsonGuard) {

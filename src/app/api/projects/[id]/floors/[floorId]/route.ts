@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { requireProjectAccess } from '@/lib/auth/require-project-access';
 import { parseJsonBody } from '@/lib/validation/http';
 import { updateFloorSchema } from '@/lib/validation/projects';
 import { evaluateRateLimit } from '@/lib/auth/rate-limit';
@@ -39,6 +40,10 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     }
 
     const { id: projectId, floorId } = await context.params;
+    // Ownership, not merely authentication. Every store call below uses the
+    // Admin SDK, which bypasses Firestore rules, so this is the only gate.
+    const access = await requireProjectAccess(projectId, auth.user);
+    if (!access.ok) return access.response;
 
     const jsonGuard = requireJsonRequest(request);
     if (jsonGuard) {
@@ -91,6 +96,10 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     }
 
     const { id: projectId, floorId } = await context.params;
+    // Ownership, not merely authentication. Every store call below uses the
+    // Admin SDK, which bypasses Firestore rules, so this is the only gate.
+    const access = await requireProjectAccess(projectId, auth.user);
+    if (!access.ok) return access.response;
 
     const existing = await getFloorRecord(floorId);
     if (!existing || existing.projectId !== projectId) {
