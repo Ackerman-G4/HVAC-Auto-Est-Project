@@ -55,6 +55,20 @@ export function errorResponse(
   );
 }
 
+/**
+ * Return a 429 with the `Retry-After` header set.
+ *
+ * The block this replaces was written out by hand in 41 route files, which is
+ * 41 chances for the header to be forgotten — without it a client has no way to
+ * know when to retry and typically hammers the endpoint.
+ */
+export function rateLimitResponse(retryAfterSec: number) {
+  return NextResponse.json(
+    { error: 'Too many requests. Please try again later.' },
+    { status: 429, headers: { 'Retry-After': String(retryAfterSec) } },
+  );
+}
+
 /** Return true when Content-Type includes application/json. */
 export function isJsonRequest(request: HeaderCarrier): boolean {
   const contentType = request.headers.get('content-type')?.toLowerCase() ?? '';
