@@ -222,7 +222,7 @@ Gate: no existing rules test regresses.
 
 ### PHASE 5 — Gate hardening and portability
 
-**☐ TASK 5.1 — Install coverage measurement**
+**☑ TASK 5.1 — Install coverage measurement**
 Add `@vitest/coverage-v8`. Configure the v8 provider in `vitest.config.ts`. Record the true baseline percentage without setting a threshold yet, because a threshold chosen before the baseline is known is arbitrary.
 Gate: `npx vitest run --coverage` executes and reports a figure.
 
@@ -582,3 +582,84 @@ PUE is now bounded below at 1 as well as being finite — a facility cannot draw
 less total power than its IT load, so a value under 1 is a broken calculation
 rather than an efficient datacentre. Zero remains permitted as the
 "not computed" default the handler already used.
+
+### TASK 5.1 — coverage baseline ☑
+
+`@vitest/coverage-v8` (117 KB, dev-only) installed; `npm run test:coverage`.
+The istanbul provider was the alternative and was rejected — it instruments
+source and runs materially slower for the same answer here.
+
+**Scope is deliberately narrow.** Coverage measures `src/lib/**` only, not all
+of `src`. Including pages, components and the 3D viewers would put ~40k lines of
+browser-only code in the denominator, and the percentage would then track how
+much UI exists rather than how well the calculation and boundary code is tested.
+A number nobody can act on is worse than no number.
+
+**Baseline, measured on `main` before any new tests:**
+
+| | |
+|---|---|
+| Statements / lines | **27.43%** (3,929 / 14,319) |
+| Branches | **75.74%** |
+| Functions | **58.72%** |
+
+Branches at 76% against statements at 27% is the signature of a suite that tests
+its subjects thoroughly and leaves large areas untouched entirely — not one that
+skims everything.
+
+| Directory | Lines | Covered |
+|---|---|---|
+| `lib/engine` | 2,500 | 61.0% |
+| `lib/validation` | 960 | 55.9% |
+| `lib/simulation` | 1,322 | 35.4% |
+| `lib/functions` | 4,671 | 21.8% |
+| `lib/utils` | 1,256 | 15.2% |
+| `lib/auth` | 453 | 6.0% |
+| `lib/firebase` | 3,157 | 5.2% |
+
+No threshold is set yet, per the task: a threshold chosen before the number is
+known is arbitrary. TASK 5.2 sets one against this figure.
+
+#### What the measurement immediately found
+
+**`load-calculation-engine.ts` had 0% coverage** — 295 lines, nine importers,
+and the exact file F2 names. It was reasonable to assume the golden money-path
+test reached it; it does not. That test exercises
+`lib/functions/cooling-load.ts` and `pricing-engine.ts`, which are a different
+path through the product. The `safeDivide` guards added in Phase 2 to this file
+were therefore never executed by any test, against CLAUDE.md §6.2.
+
+24 tests now cover it (0% → **98%** lines). They assert physical relationships
+rather than the numbers the engine currently produces — a test pinning
+`totalBtuAfterFactors` to a literal only proves the code has not changed.
+
+Three of them failed on first run, and two were findings rather than test bugs:
+
+**1. CLAUDE.md §8.5 was not implemented.** The constitution requires that a
+diversity factor above 1 "must be flagged". Nothing flagged it, so a value above
+1 silently inflated the tonnage, the equipment count and the BOQ total with no
+indication on the result. `buildAlerts` now warns — it does not reject, because
+the case is legitimate when documented. Verified by mutation.
+
+**2. Envelope load is independent of ΔT.** `envelope_load_formula` is
+`area × factor(spaceType)`. `deltaTF` is computed two lines above and used for
+ventilation and supply airflow, but never for the envelope — so a Manila design
+day at 40 °C yields the same fabric gain as one at 30 °C.
+
+That is a modelling choice (a W/m² estimator with an assumed ΔT baked into the
+factor), it lives in a configurable rule set, and it is not obviously a defect.
+**It has been pinned by a test and flagged, not changed.** Altering cooling-load
+physics is a domain decision, not one to make from a failing assertion — but it
+is worth a look, because a tool aimed at Philippine projects that does not vary
+fabric gain with outdoor design temperature will under-model the hot cases.
+
+The third failure was mine: a tolerance tighter than the engine's own rounding.
+
+#### The guards in that file are unreachable in production
+
+Worth recording alongside the F2 correction. `buildEquipmentOptions` maps over
+`CATALOG`, a hardcoded module constant whose capacities are all positive, so the
+`safeDivide` on `item.capacityTr` cannot throw as the code stands. It is
+defence-in-depth against a future edit to that constant. Driving it from a test
+would mean exporting internals or mutating the constant — testing the harness
+rather than the product — so the tests exercise the real path instead.

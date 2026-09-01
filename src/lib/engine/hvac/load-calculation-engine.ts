@@ -388,6 +388,20 @@ function buildAlerts(inputs: LoadCalculationInputs, breakdown: LoadBreakdown): s
     alerts.push('High occupant density may require dedicated ventilation strategy.');
   }
 
+  // CLAUDE.md §8.5: a diversity factor above 1 is physically valid only in
+  // specific documented cases and must be flagged. Nothing flagged it, so a
+  // value above 1 silently inflated every downstream figure — the tonnage, the
+  // equipment count and the BOQ total — with no indication on the result that
+  // an unusual assumption was in force.
+  //
+  // This warns rather than rejects: the case is legitimate when documented, and
+  // refusing it would block a valid design.
+  if (inputs.diversityFactor > 1) {
+    alerts.push(
+      `Diversity factor ${inputs.diversityFactor} exceeds 1. This is valid only where simultaneous peak load is documented — confirm before issuing.`,
+    );
+  }
+
   return alerts;
 }
 
