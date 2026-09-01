@@ -142,7 +142,7 @@ Mechanism: TypeScript types are erased at runtime. `Response.json()` is declared
 Create `src/lib/validation/http.ts` exporting a single generic helper that accepts a Zod schema and a `Request`, parses the body, and returns a discriminated union of success with the inferred type or failure with a typed validation error. The failure branch must map to HTTP 400 with a machine readable error code and a field level detail array. Never throw across the boundary.
 Gate: `npx tsc --noEmit` returns 0 errors. New unit test covers valid body, malformed JSON, missing required field and wrong scalar type.
 
-**◐ TASK 1.2 through 1.5 — Apply schemas by domain slice**
+**☑ TASK 1.2 through 1.5 — Apply schemas by domain slice**
 Work one slice at a time. Do not attempt all 36 handlers in one change.
 
 Slice A, projects and floors, 5 handlers: `projects/route.ts`, `projects/[id]/route.ts`, `projects/[id]/floors/route.ts`, `projects/[id]/floors/[floorId]/route.ts`, `projects/[id]/calculate/route.ts`.
@@ -490,3 +490,95 @@ zero or negative.
 Still outstanding in Phase 2: TASK 2.3, the classification table for the
 remaining engine divisions. `cooling-load.ts` and the formula-display strings in
 both HVAC engines still hold inline coefficients.
+
+### Slice D — admin and auth ☑
+
+Slice D was in better shape than F1 implies. F1 counts handlers that "import no
+validation module", which is not the same as unvalidated:
+
+- **Auth was already done.** `login`, `register`, `forgot-password` and `google`
+  all parse through `lib/validation/auth.ts`. `logout`, `profile` and `refresh`
+  read no body at all.
+- **`admin/prices` was already validated**, with Zod schemas and `.strict()`.
+- **`admin/users/[id]` hand-rolled its parse — and did it correctly.**
+  `parseMutation(body: unknown)` narrowed properly and already constrained
+  `role` to `'admin' | 'engineer'`. There was no privilege-escalation hole
+  here, and it is worth saying so plainly rather than implying one was found.
+
+What was actually wrong was narrower: `await request.json()` throws on a
+malformed body, and in all three handlers that throw landed in the outer catch
+and returned **500 for what is a client mistake**. The two error shapes also
+disagreed — `{ error: <message> }` from `getAdminValidationError` against
+`{ error, description, code, details }` from every converted route.
+
+All three now use `parseJsonBody`. The client already read
+`data.description || data.error`, so it handles the new shape and gets a better
+message: a field path instead of the first issue's bare text.
+`getAdminValidationError` had no remaining consumers and is removed rather than
+left as a second way to do the same thing.
+
+One deliberate behaviour change: the mutation schema is `.strict()`, so
+`{ action: 'disable', role: 'admin' }` is now a 400 where the old parser
+silently ignored the role. Checked before making it — `admin-users-panel.tsx`
+sends `{ action: 'setRole', role }` or `{ action: kind }` and never both, so
+nothing that worked stops working. A request that reads as granting a role and
+does not is worth rejecting.
+
+14 tests.
+
+### The boundary is not fully closed, and the slice list is why
+
+Slices A–D are complete: **zero** raw `request.json()` calls remain under
+`api/projects`, `api/admin` or `api/auth`. But the plan's slice enumeration
+does not cover every handler. Nine sit outside it entirely, under
+`diagnostics`, `materials`, `settings`, `suppliers`, `simulation` and
+`simulation/reports`.
+
+Seven of those nine already validate with a schema through the older
+`safeParse` form — same substance, older shape. **Two do not validate at all**:
+`simulation/reports/route.ts` (two bodies) and
+`simulation/reports/backfill/route.ts`.
+
+So finishing the four named slices does not finish F1. Those two are the
+genuine remainder.
+
+### F1 is substantively closed
+
+The two genuinely unvalidated handlers are done. Across all 47 route handlers:
+
+| | |
+|---|---|
+| Read no body at all | 16 |
+| Parse via `parseJsonBody` / `parseValue` | 20 |
+| Parse via the older `safeParse` form | 11 |
+| **Read a body with no schema at all** | **0** |
+
+The 11 on `safeParse` are validated — same substance, older shape. What they
+still carry is the 500-on-malformed-JSON behaviour and a `{ error }` body that
+differs from the other 20. That is a consistency matter, not a safety gap, and
+worth stating as such rather than counted as outstanding risk.
+
+#### Two real defects found in `simulation/reports`
+
+**`typeof x === 'number'` is true for `NaN` and `Infinity`.** Every numeric
+field on the report history record was guarded that way, so a diverged solve
+stored `maxTemperatureC: NaN` and `pue: NaN`, and the history view rendered the
+literal text "NaN" beside real figures. `hotspotCount` was worse:
+`Math.max(0, Math.trunc(NaN))` is `NaN`, so the clamp that looks like it bounds
+the value passed it straight through.
+
+**A parse failure silently widened a delete.** `DELETE /api/simulation/reports`
+read its body with `.catch(() => null)`. A request meaning "clear history for
+project X" whose body failed to parse left `projectId` undefined — and
+`clearSimulationReportHistoryForOwner(ownerId, undefined)` clears **everything
+for that owner**. The backfill route had the same shape. Both now reject a
+malformed body and still accept an absent one, because a body genuinely is
+optional there.
+
+That second one is the more serious of the two, and it is not in the ledger. It
+was found by reading the handler while converting it, not by the audit.
+
+PUE is now bounded below at 1 as well as being finite — a facility cannot draw
+less total power than its IT load, so a value under 1 is a broken calculation
+rather than an efficient datacentre. Zero remains permitted as the
+"not computed" default the handler already used.
