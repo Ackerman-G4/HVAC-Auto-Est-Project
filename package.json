@@ -55,7 +55,8 @@
     "validate:system:strict": "powershell -ExecutionPolicy Bypass -File ./scripts/validate-system-strict.ps1",
     "validate:system:local": "powershell -ExecutionPolicy Bypass -File ./scripts/validate-system-local.ps1",
     "validate:system:strict:local": "powershell -ExecutionPolicy Bypass -File ./scripts/validate-system-local.ps1 -Strict",
-    "test:rules": "firebase emulators:exec --only firestore --project demo-hvac-auto --config firebase.json \"vitest run --config vitest.rules.config.ts\""
+    "test:rules": "firebase emulators:exec --only firestore --project demo-hvac-auto --config firebase.json \"vitest run --config vitest.rules.config.ts\"",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@netlify/next": "1.4.9",
@@ -100,6 +101,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/uuid": "^10.0.0",
+    "@vitest/coverage-v8": "3.2.7",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "jsdom": "27.4.0",
