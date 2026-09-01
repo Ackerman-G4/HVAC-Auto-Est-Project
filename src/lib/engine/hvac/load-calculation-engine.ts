@@ -235,7 +235,16 @@ function calculateBreakdown(inputs: LoadCalculationInputs, overrides: ManualOver
     ? overrides.manualTotalBtu
     : adjustedByFactor;
 
-  const trRequired = totalBtuAfterFactors / btuPerTr;
+  // CLAUDE.md §8.2/§8.4: `btuPerTr` is read from the rules layer, not written
+  // here, so it is an external denominator. It feeds equipment quantity and
+  // from there the BOQ total — an unbounded value corrupts a price rather
+  // than crashing, so it is guarded at the division rather than downstream.
+  const trRequired = safeDivide(
+    totalBtuAfterFactors,
+    btuPerTr,
+    'loadCalculation.trRequired',
+    { requirePositive: true, code: 'INVALID_BTU_PER_TR' },
+  );
   const computedCfm = evaluateFromRuleSet(rules, 'cfm_from_btu_formula', {
     total_btu: totalBtuAfterFactors,
     cfm_constant: cfmConst,

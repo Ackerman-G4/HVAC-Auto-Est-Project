@@ -170,7 +170,7 @@ Gate: unit tests cover zero, negative, `NaN`, `Infinity` and valid input.
 Apply the guard at `src/lib/engine/hvac/load-calculation-engine.ts` line 257 and at every division in `src/lib/engine/pricing-engine.ts` and `src/lib/engine/cost`. Extend `src/lib/engine/__tests__/golden-money-path.test.ts` with a case supplying a catalogue record of zero capacity and asserting a typed error rather than a numeric result.
 Gate: golden money path test suite passes with the new case. Confirm the new case fails before the guard is applied, to prove the test is load bearing.
 
-**☐ TASK 2.3 — Sweep the remaining engine divisions**
+**☑ TASK 2.3 — Sweep the remaining engine divisions**
 Enumerate all 197 division operations under `src/lib/engine`. Classify each as guarded already, denominator is a compile time constant and therefore safe, or requires a guard. Produce the classification table in `docs/audit/division-audit.md`, then apply guards to the third category.
 Gate: table complete, all three gates green.
 
@@ -775,3 +775,62 @@ measured-and-declined rather than outstanding, so it is not re-attempted blind.
 `exactOptionalPropertyTypes` at 88 is tractable, but the sample is dominated by
 React prop passing (`string | undefined` into `helperText?: string`), which is a
 widening exercise rather than a correctness one. Deferred, not declined.
+
+
+---
+
+## Execution log — TASK 2.3, engine division sweep
+
+**The count in F2 does not hold.** The finding records "197 division operations
+and only 13 finite value checks". A `/` search counts line comments, string and
+path literals, regex flags and test files. Excluding those, `src/lib/engine`
+contains **76 division sites** — 19 with a literal denominator, 54 with a
+variable one. Full classification in `docs/audit/division-audit.md`.
+
+Of the 54, **53 were already safe** and the reasons are worth stating, because
+"already safe" is the answer that gets assumed rather than checked:
+
+- 27 have a `Math.max(floor, …)` denominator with a positive floor. The largest
+  group is `geometry-builder`'s cell size, 21 sites fed by one `clampCellSize`
+  that returns `Math.max(MIN_CELL_SIZE, …)`.
+- 10 divide by a module constant or `Math.PI`.
+- 8 carry an explicit guard already — a ternary, an early return, or an `&&`
+  chain whose short-circuit means the division only runs on a positive value.
+- 4 are `pmv.ts` correlations whose denominators carry an additive offset that
+  puts the singularity outside the physical domain (`tempC + 243.04` is zero at
+  −243 °C). A guard there would be unreachable.
+- 3 are `10 ** digits` inside private `round()` helpers.
+- 1 *is* `safeDivide`.
+
+**The one that needed a guard was the worst one to have missed.**
+`trRequired = totalBtuAfterFactors / btuPerTr` in `load-calculation-engine.ts`.
+`btuPerTr` is read from the rules layer rather than written in the function, so
+it is external by rule 6, and it sets equipment quantity and therefore the BOQ
+total (§8.4).
+
+**The upstream cause was larger than the division.** The six bundled rules files
+entered the engine as `coolingLoadRules as unknown as RuleSet`. `RuleSet` is a
+compile-time interface, so that double assertion checked nothing — the same
+escape hatch `any` provides, sitting upstream of every physical constant the
+engine uses. `"btu_per_tr": "12000"` in a checked-in JSON file compiled, linted
+and passed all 472 tests. Fixed in two layers: `rules/rule-schema.ts` validates
+shape and finiteness at load, and `safeDivide` catches the zero the schema
+cannot (zero is legitimate for most constants; the schema has no way to know
+which ones are divisors).
+
+**Both layers were mutation-tested.** Quoting the number in the shipped JSON
+fails 4 schema tests; reverting the guard fails 4 guard tests.
+
+One correction worth recording: the guard tests initially asserted only
+`toThrow(CalculationError)` and **passed with the guard removed**, because a
+corrupt tonnage also trips guards downstream in equipment selection. A test that
+passes under mutation is not a test. They now assert the error `context`, which
+pins the failure to this division.
+
+**Flagged, not changed** (in `docs/audit/division-audit.md`): an inline
+`0.000471947` CFM→m³/s factor in `geometry-builder.ts:372` (rule 5), an
+unguarded caller-supplied `targetCellBudget`, and `getEnvelopeFactor`'s
+`catch { return 120 }` silent fallback (rule 3).
+
+Gates: tsc 0 errors, eslint 0 errors / 77 warnings, vitest 44 files / 491 tests
+(472 → 491, +19).
