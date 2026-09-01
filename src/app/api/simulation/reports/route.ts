@@ -14,8 +14,6 @@ import {
   clearSimulationReportHistoryForOwner,
   createSimulationReportHistoryRecord,
   listSimulationReportHistoryForOwner,
-  type SimulationReportExportFormat,
-  type SimulationReportExportSource,
 } from '@/lib/firebase/simulation-report-history-store';
 import {
   errorResponse,
@@ -23,6 +21,8 @@ import {
   parseBoundedInt,
   requireJsonRequest,
 } from '@/lib/utils/api-helpers';
+import { parseJsonBody, parseValue } from '@/lib/validation/http';
+import { createReportHistorySchema, reportHistoryScopeSchema, isUnscopedProjectId } from '@/lib/validation/simulation-reports';
 
 const REPORT_HISTORY_GET_RATE_LIMIT = {
   windowMs: 60_000,
@@ -42,13 +42,11 @@ function isProjectOwnerOrAdmin(
   return !!project.createdBy && project.createdBy === user.id;
 }
 
-function isValidFormat(value: unknown): value is SimulationReportExportFormat {
-  return value === 'pdf' || value === 'csv' || value === 'json';
-}
-
-function isValidSource(value: unknown): value is SimulationReportExportSource {
-  return value === 'viewer' || value === 'workspace' || value === 'engine';
-}
+// `isValidFormat` and `isValidSource` stood here. Both are now the enums in
+// createReportHistorySchema, which narrows to the same union — and reports the
+// allowed values in the 400 rather than in a hand-written message that had
+// already drifted (it listed "viewer, workspace" while the guard also accepted
+// "engine").
 
 function parseReportPayload(value: unknown): SimulationEngineeringReport | undefined {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -110,21 +108,13 @@ export async function POST(request: NextRequest) {
       return auth.response;
     }
 
-    const body = await request.json();
+    const parsed = await parseJsonBody(request, createReportHistorySchema);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
 
-    if (!isValidFormat(body.format)) {
-      return errorResponse(400, 'Invalid format', 'format must be one of: pdf, csv, json.', 'INVALID_FORMAT');
-    }
+    const projectId = body.projectId;
 
-    if (!isValidSource(body.source)) {
-      return errorResponse(400, 'Invalid source', 'source must be one of: viewer, workspace.', 'INVALID_SOURCE');
-    }
-
-    const projectId = typeof body.projectId === 'string' && body.projectId.trim().length > 0
-      ? body.projectId.trim()
-      : 'unknown-project';
-
-    if (projectId !== 'unknown-project' && projectId !== 'workspace') {
+    if (!isUnscopedProjectId(projectId)) {
       const project = await getProjectRecord(projectId);
       if (!project) {
         return errorResponse(404, 'Project not found', 'No project with this ID.', 'PROJECT_NOT_FOUND');
@@ -140,21 +130,21 @@ export async function POST(request: NextRequest) {
       format: body.format,
       source: body.source,
       projectId,
-      projectName: typeof body.projectName === 'string' && body.projectName.trim().length > 0
-        ? body.projectName.trim()
-        : 'Simulation Project',
-      floorId: typeof body.floorId === 'string' && body.floorId.trim().length > 0
-        ? body.floorId.trim()
-        : 'unknown-floor',
-      runtimeMode: typeof body.runtimeMode === 'string' && body.runtimeMode.trim().length > 0
-        ? body.runtimeMode.trim()
-        : 'worker',
-      converged: body.converged === true,
-      maxTemperatureC: typeof body.maxTemperatureC === 'number' ? body.maxTemperatureC : 0,
-      pue: typeof body.pue === 'number' ? body.pue : 0,
-      hotspotCount: typeof body.hotspotCount === 'number' ? Math.max(0, Math.trunc(body.hotspotCount)) : 0,
+      // Every default and bound now comes from createReportHistorySchema. The
+      // `typeof x === 'number'` guards these replace are true for NaN and
+      // Infinity, so a diverged solve stored NaN into maxTemperatureC and pue
+      // and the history view rendered the literal text "NaN". hotspotCount was
+      // worse: Math.max(0, Math.trunc(NaN)) is NaN, so the clamp that looks
+      // like it bounds the value passed it through.
+      projectName: body.projectName,
+      floorId: body.floorId,
+      runtimeMode: body.runtimeMode,
+      converged: body.converged,
+      maxTemperatureC: body.maxTemperatureC,
+      pue: body.pue,
+      hotspotCount: body.hotspotCount,
       report: parseReportPayload(body.report),
-      generatedAt: typeof body.generatedAt === 'string' ? body.generatedAt : undefined,
+      generatedAt: body.generatedAt,
     });
 
     return NextResponse.json({ entry }, { status: 201 });
@@ -183,9 +173,34 @@ export async function DELETE(request: NextRequest) {
     let projectId = request.nextUrl.searchParams.get('projectId') || undefined;
 
     if (!projectId) {
-      const body = await request.json().catch(() => null);
-      if (body && typeof body.projectId === 'string' && body.projectId.trim().length > 0) {
-        projectId = body.projectId.trim();
+      // A body is optional here: no body means "clear everything for this
+      // owner", which is a legitimate call.
+      //
+      // A body that is *present but malformed* is now rejected. The previous
+      // `.catch(() => null)` swallowed it and left projectId undefined — so a
+      // request that meant "clear history for project X" silently became
+      // "clear this owner's entire history". A parse failure widening a delete
+      // is not a tolerable default.
+      const rawBody = (await request.text()).trim();
+
+      if (rawBody) {
+        let payload: unknown;
+        try {
+          payload = JSON.parse(rawBody);
+        } catch {
+          return errorResponse(
+            400,
+            'Invalid request payload',
+            'The request body is not valid JSON.',
+            'INVALID_JSON',
+          );
+        }
+
+        const parsed = parseValue(payload, reportHistoryScopeSchema);
+        if (!parsed.ok) return parsed.response;
+        if (parsed.data.projectId) {
+          projectId = parsed.data.projectId;
+        }
       }
     }
 

@@ -541,3 +541,44 @@ Seven of those nine already validate with a schema through the older
 
 So finishing the four named slices does not finish F1. Those two are the
 genuine remainder.
+
+### F1 is substantively closed
+
+The two genuinely unvalidated handlers are done. Across all 47 route handlers:
+
+| | |
+|---|---|
+| Read no body at all | 16 |
+| Parse via `parseJsonBody` / `parseValue` | 20 |
+| Parse via the older `safeParse` form | 11 |
+| **Read a body with no schema at all** | **0** |
+
+The 11 on `safeParse` are validated — same substance, older shape. What they
+still carry is the 500-on-malformed-JSON behaviour and a `{ error }` body that
+differs from the other 20. That is a consistency matter, not a safety gap, and
+worth stating as such rather than counted as outstanding risk.
+
+#### Two real defects found in `simulation/reports`
+
+**`typeof x === 'number'` is true for `NaN` and `Infinity`.** Every numeric
+field on the report history record was guarded that way, so a diverged solve
+stored `maxTemperatureC: NaN` and `pue: NaN`, and the history view rendered the
+literal text "NaN" beside real figures. `hotspotCount` was worse:
+`Math.max(0, Math.trunc(NaN))` is `NaN`, so the clamp that looks like it bounds
+the value passed it straight through.
+
+**A parse failure silently widened a delete.** `DELETE /api/simulation/reports`
+read its body with `.catch(() => null)`. A request meaning "clear history for
+project X" whose body failed to parse left `projectId` undefined — and
+`clearSimulationReportHistoryForOwner(ownerId, undefined)` clears **everything
+for that owner**. The backfill route had the same shape. Both now reject a
+malformed body and still accept an absent one, because a body genuinely is
+optional there.
+
+That second one is the more serious of the two, and it is not in the ledger. It
+was found by reading the handler while converting it, not by the audit.
+
+PUE is now bounded below at 1 as well as being finite — a facility cannot draw
+less total power than its IT load, so a value under 1 is a broken calculation
+rather than an efficient datacentre. Zero remains permitted as the
+"not computed" default the handler already used.
