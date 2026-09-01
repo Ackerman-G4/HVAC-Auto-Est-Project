@@ -7,6 +7,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { parseJsonBody } from '@/lib/validation/http';
+import { importResultsSchema } from '@/lib/validation/simulation-cases';
 import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import { getProjectRecord } from '@/lib/firebase/projects-store';
 import {
@@ -71,7 +73,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return errorResponse(400, 'Not meshed', 'Case must have a mesh for result import.', 'NOT_MESHED');
     }
 
-    const body = await request.json();
+    const parsed = await parseJsonBody(request, importResultsSchema);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
 
     if (!body.fields) {
       return errorResponse(400, 'Fields required', 'Provide field data to import.', 'MISSING_FIELDS');

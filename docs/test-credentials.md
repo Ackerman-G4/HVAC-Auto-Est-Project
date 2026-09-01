@@ -1,46 +1,55 @@
-# Test Login Credentials (LOCAL DEV ONLY)
+# Test Login Accounts (LOCAL DEV ONLY)
 
-> ⚠️ These are **local development** accounts for `AUTH_MODE=local`. They live in
-> the gitignored `.local-users.json` (bcrypt-hashed) and have no meaning against a
-> real Firebase project. Do not reuse these passwords anywhere real.
+> This file deliberately contains **no passwords**. It used to print three
+> working password pairs, and this repository is public. The accounts are
+> local-only and carry no authority against a real Firebase project, so the
+> technical blast radius was contained — but a published password invites reuse,
+> and reuse is the actual risk. You choose the values now; nothing is committed.
 
-The app is running in local auth + local Firestore mode (no emulator or Firebase
-needed). Two accounts were seeded:
+These accounts exist for `AUTH_MODE=local`. They live in the gitignored
+`.local-users.json`, bcrypt-hashed, and mean nothing outside your machine.
 
-| Role     | Email                     | Password            |
-| -------- | ------------------------- | ------------------- |
-| Admin    | `admin@hvac-auto.dev`     | `StudioBreeze#7421` |
-| Engineer | `engineer@hvac-auto.dev`  | `JadeAirflow#5093`  |
+| Role     | Email                    | Reaches                                        |
+| -------- | ------------------------ | ---------------------------------------------- |
+| Admin    | `admin@hvac-auto.dev`    | `/admin` (users, audit log, price controls) + all engineer features |
+| Engineer | `engineer@hvac-auto.dev` | Everything except the admin portal — useful for verifying RBAC blocks admin-only routes |
 
-- **Admin** can reach `/admin` (users, audit log, price controls) and all
-  engineer features.
-- **Engineer** is the default role — everything except the admin portal (useful
-  for verifying RBAC blocks admin-only routes).
+## Password policy
 
-## How to use
+Whatever you choose must satisfy the app's own registration rule, or the seed
+will be rejected by the same validator the UI uses:
 
-1. Start the app: `npm run dev`.
-2. Go to `/auth/login` and sign in with either account above.
+- at least 12 characters
+- mixed case
+- at least one digit
+- at least one symbol
 
-Both passwords satisfy the app's registration policy (≥12 chars, mixed case +
-digit + symbol), so you can also change them from the UI later.
+## Seeding the accounts
 
-## Re-seeding
-
-To recreate these accounts (or after deleting `.local-users.json`):
+`SEED_USER_PASSWORD` has no default. The script exits with an explanation if it
+is unset, rather than falling back to a value that would be public by virtue of
+being in this repository.
 
 ```bash
-node -e "const fs=require('fs'),b=require('bcryptjs'),n=new Date().toISOString();\
-const mk=(e,nm,r,p)=>({id:'local_seed_'+Math.random().toString(36).slice(2,10),email:e,name:nm,passwordHash:b.hashSync(p,10),role:r,createdAt:n});\
-fs.writeFileSync('.local-users.json',JSON.stringify({users:[mk('admin@hvac-auto.dev','Studio Admin','admin','StudioBreeze#7421'),mk('engineer@hvac-auto.dev','Studio Engineer','engineer','JadeAirflow#5093')]},null,2))"
+SEED_USER_PASSWORD='<a password you choose>' npm run seed:mock
 ```
 
-Alternatively, `npm run seed:mock` (with the dev server running) creates
-`test@hvac-auto.dev` / `SeedMockPass2026!` (admin) **plus** sample projects.
+That creates `test@hvac-auto.dev` as an admin **plus** sample projects. Override
+the account with `SEED_USER_EMAIL` / `SEED_USER_NAME` if you want the seeded
+projects owned by an account that already exists.
 
-## Note on lockout
+To create the two accounts in the table above without sample data, register
+them through `/auth/register` while the app is running — that path applies the
+same policy and hashing as everything else, so there is no separate script to
+keep in sync.
 
-Five failed attempts for one email in 15 minutes triggers a 15-minute lockout
-(Wave 8 also adds a higher-threshold IP-scoped lockout). A successful login
-clears the email counter. If you get locked out during testing, delete the
-matching doc from `.local-firestore.json` under `loginLockouts`.
+## If you are locked out
+
+Five failed attempts for one email within 15 minutes triggers a 15-minute
+lockout; a successful login clears the counter. To clear it manually, delete the
+matching document under `loginLockouts` in `.local-firestore.json`.
+
+## Rotating a password you no longer want
+
+Sign in and change it from the UI, or delete `.local-users.json` and re-seed.
+Because the store is gitignored, nothing you set here can reach the repository.

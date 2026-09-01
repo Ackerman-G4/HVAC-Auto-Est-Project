@@ -9,6 +9,8 @@ import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import { getProjectRecord } from '@/lib/firebase/projects-store';
 import { backfillLegacySimulationReportHistoryForOwner } from '@/lib/firebase/simulation-report-history-store';
 import { errorResponse, getErrorDetails, requireJsonRequest } from '@/lib/utils/api-helpers';
+import { parseValue } from '@/lib/validation/http';
+import { reportHistoryScopeSchema, isUnscopedProjectId } from '@/lib/validation/simulation-reports';
 
 const REPORT_BACKFILL_RATE_LIMIT = {
   windowMs: 60_000,
@@ -43,12 +45,31 @@ export async function POST(request: NextRequest) {
       return auth.response;
     }
 
-    const body = await request.json().catch(() => ({} as Record<string, unknown>));
-    const requestedProjectId = typeof body.projectId === 'string' && body.projectId.trim().length > 0
-      ? body.projectId.trim()
-      : undefined;
+    // Same shape as DELETE on the parent route: a body is optional, but a
+    // malformed one must not be silently read as "no scope given" — here that
+    // would widen a backfill from one project to every project this owner has.
+    const rawBody = (await request.text()).trim();
+    let requestedProjectId: string | undefined;
 
-    if (requestedProjectId && requestedProjectId !== 'unknown-project' && requestedProjectId !== 'workspace') {
+    if (rawBody) {
+      let payload: unknown;
+      try {
+        payload = JSON.parse(rawBody);
+      } catch {
+        return errorResponse(
+          400,
+          'Invalid request payload',
+          'The request body is not valid JSON.',
+          'INVALID_JSON',
+        );
+      }
+
+      const parsed = parseValue(payload, reportHistoryScopeSchema);
+      if (!parsed.ok) return parsed.response;
+      requestedProjectId = parsed.data.projectId;
+    }
+
+    if (requestedProjectId && !isUnscopedProjectId(requestedProjectId)) {
       const project = await getProjectRecord(requestedProjectId);
       if (!project) {
         return errorResponse(404, 'Project not found', 'No project with this ID.', 'PROJECT_NOT_FOUND');

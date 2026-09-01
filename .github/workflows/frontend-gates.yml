@@ -27,6 +27,15 @@ jobs:
       - name: Check (types, lint, tests)
         run: npm run check
 
+      # Thresholds live in vitest.config.ts and sit at the measured figure
+      # (REMEDIATION_PLAN.md TASK 5.2), so coverage can rise but not fall.
+      # `src/lib/engine` and `src/lib/validation` are held far above the global
+      # floor — they carry the calculation correctness and boundary safety
+      # guarantees, and the global number is dragged down by the mostly-IO
+      # firebase and auth layers.
+      - name: Coverage thresholds
+        run: npm run test:coverage
+
       - name: Build
         run: npx next build
 

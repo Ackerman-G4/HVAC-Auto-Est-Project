@@ -23,10 +23,12 @@ import {
   saveArtifactManifest,
   saveRunFieldSnapshot,
 } from '@/lib/firebase/simulation-cases-store';
-import { importFieldData, type ImportedFieldData } from '@/lib/engine/simulation/result-importer';
+import { importFieldData } from '@/lib/engine/simulation/result-importer';
 import { buildRunFieldSnapshotFromFields } from '@/lib/simulation/field-snapshot';
 import { getCallbackSecret } from '@/lib/engine/simulation/cfd-cloud';
 import { errorResponse, getErrorDetails, requireJsonRequest } from '@/lib/utils/api-helpers';
+import { parseJsonBody } from '@/lib/validation/http';
+import { openFoamCallbackSchema } from '@/lib/validation/simulation-callback';
 
 type RouteContext = { params: Promise<{ id: string; simId: string; runId: string }> };
 
@@ -43,14 +45,9 @@ function secretMatches(provided: string | null, expected: string): boolean {
   return timingSafeEqual(a, b);
 }
 
-interface CallbackBody {
-  status?: 'completed' | 'failed';
-  dimensions?: { nx: number; ny: number; nz: number };
-  data?: ImportedFieldData;
-  iteration?: number;
-  errorMessage?: string;
-  logTail?: string[];
-}
+// The shape is now described by openFoamCallbackSchema. The interface that
+// stood here was applied with `as`, which is a cast rather than a check — every
+// field arrived unverified while looking typed at the call site.
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
@@ -85,8 +82,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ status: job.status, idempotent: true });
     }
 
-    const body = (await request.json()) as CallbackBody;
-    const logTail = Array.isArray(body.logTail) ? body.logTail.slice(-50) : undefined;
+    const parsed = await parseJsonBody(request, openFoamCallbackSchema);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
+
+    // The schema guarantees an array of strings when present.
+    const logTail = body.logTail?.slice(-50);
 
     if (body.status === 'failed') {
       await updateRunJobStatus(projectId, simId, runId, 'failed', {
@@ -98,13 +99,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ status: 'failed' });
     }
 
-    if (body.status !== 'completed') {
-      return errorResponse(400, 'Bad status', 'Callback status must be "completed" or "failed".', 'BAD_CALLBACK_STATUS');
-    }
-
-    if (!body.data) {
-      return errorResponse(400, 'Missing data', 'Completed callback must include field data.', 'MISSING_FIELDS');
-    }
+    // The discriminated union has already established status is 'completed'
+    // and that `data` is present, so the hand-rolled BAD_CALLBACK_STATUS and
+    // MISSING_FIELDS checks that stood here are now unreachable by
+    // construction.
 
     // Resolve dimensions from the payload, falling back to the case mesh.
     let dimensions = body.dimensions;

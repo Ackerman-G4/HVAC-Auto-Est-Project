@@ -6,6 +6,15 @@ import {
 } from '@/lib/engine/rules';
 import { humidityRatio } from '@/lib/functions/psychrometric';
 
+import { safeDivide } from '../numeric-guards';
+
+/**
+ * CLAUDE.md §8.2: 12000 Btu/h per ton of refrigeration. Named here rather than
+ * inlined so the coefficient has one definition and one place to be checked.
+ */
+const BTU_PER_HOUR_PER_TON = 12000;
+const WATTS_PER_KILOWATT = 1000;
+
 export type SpaceType =
   | 'office'
   | 'retail'
@@ -226,7 +235,16 @@ function calculateBreakdown(inputs: LoadCalculationInputs, overrides: ManualOver
     ? overrides.manualTotalBtu
     : adjustedByFactor;
 
-  const trRequired = totalBtuAfterFactors / btuPerTr;
+  // CLAUDE.md §8.2/§8.4: `btuPerTr` is read from the rules layer, not written
+  // here, so it is an external denominator. It feeds equipment quantity and
+  // from there the BOQ total — an unbounded value corrupts a price rather
+  // than crashing, so it is guarded at the division rather than downstream.
+  const trRequired = safeDivide(
+    totalBtuAfterFactors,
+    btuPerTr,
+    'loadCalculation.trRequired',
+    { requirePositive: true, code: 'INVALID_BTU_PER_TR' },
+  );
   const computedCfm = evaluateFromRuleSet(rules, 'cfm_from_btu_formula', {
     total_btu: totalBtuAfterFactors,
     cfm_constant: cfmConst,
@@ -254,10 +272,34 @@ function calculateBreakdown(inputs: LoadCalculationInputs, overrides: ManualOver
 function buildEquipmentOptions(trRequired: number): EquipmentOption[] {
   const operatingHours = 3200; // annual operating hours — matches equipment-selection-engine default
   return CATALOG.map((item) => {
-    const quantity = Math.max(1, Math.ceil(trRequired / item.capacityTr));
+    // CLAUDE.md §8.4: unit capacity of zero or below must be rejected, because
+    // an unbounded quantity propagates into the bill of quantities and corrupts
+    // the price total.
+    const quantity = Math.max(
+      1,
+      Math.ceil(
+        safeDivide(trRequired, item.capacityTr, `equipmentQuantity[${item.model}]`, {
+          requirePositive: true,
+        }),
+      ),
+    );
     const providedTr = quantity * item.capacityTr;
-    const utilization = clamp((trRequired / Math.max(0.1, providedTr)) * 100, 0, 160);
-    const annualEnergyKwh = (providedTr * 12000 * operatingHours) / (item.efficiencyEer * 1000);
+    // Was `trRequired / Math.max(0.1, providedTr)`. That clamp masked a zero
+    // rather than reporting it, turning a detectable fault into a plausible
+    // wrong percentage — the worse of the two outcomes.
+    const utilization = clamp(
+      safeDivide(trRequired, providedTr, `equipmentUtilization[${item.model}]`, {
+        requirePositive: true,
+      }) * 100,
+      0,
+      160,
+    );
+    const annualEnergyKwh = safeDivide(
+      providedTr * BTU_PER_HOUR_PER_TON * operatingHours,
+      item.efficiencyEer * WATTS_PER_KILOWATT,
+      `annualEnergy[${item.model}]`,
+      { requirePositive: true },
+    );
 
     return {
       ...item,
@@ -353,6 +395,20 @@ function buildAlerts(inputs: LoadCalculationInputs, breakdown: LoadBreakdown): s
 
   if (inputs.occupants / Math.max(1, inputs.areaM2) > 0.35) {
     alerts.push('High occupant density may require dedicated ventilation strategy.');
+  }
+
+  // CLAUDE.md §8.5: a diversity factor above 1 is physically valid only in
+  // specific documented cases and must be flagged. Nothing flagged it, so a
+  // value above 1 silently inflated every downstream figure — the tonnage, the
+  // equipment count and the BOQ total — with no indication on the result that
+  // an unusual assumption was in force.
+  //
+  // This warns rather than rejects: the case is legitimate when documented, and
+  // refusing it would block a valid design.
+  if (inputs.diversityFactor > 1) {
+    alerts.push(
+      `Diversity factor ${inputs.diversityFactor} exceeds 1. This is valid only where simultaneous peak load is documented — confirm before issuing.`,
+    );
   }
 
   return alerts;

@@ -6,6 +6,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { parseJsonBody } from '@/lib/validation/http';
+import { createEquipmentSelectionSchema, isAutoSizeRequest } from '@/lib/validation/equipment';
 import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import { sizeEquipment } from '@/lib/functions/equipment-sizing';
 import { resolveUnitPrice, resolveManualSelection } from '@/lib/functions/equipment-pricing';
@@ -81,9 +83,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return jsonGuard;
     }
 
-    const body = await request.json();
+    const parsed = await parseJsonBody(request, createEquipmentSelectionSchema);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
 
-    if (body.autoSize) {
+    if (isAutoSizeRequest(body)) {
       const floors = await getFloorsWithRooms(projectId, {
         includeRoomEquipment: false,
         includeRoomEquipmentCount: false,
@@ -123,7 +127,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
             spaceType: room.spaceType,
             roomArea: room.area,
             ceilingHeight: room.ceilingHeight,
-            budgetLevel: body.budgetLevel || 'mid-range',
+            budgetLevel: body.budgetLevel,
             preferredBrand: body.preferredBrand,
             preferredType: body.preferredType,
           });
@@ -220,8 +224,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const selection = await createSelectedEquipmentRecord({
       projectId,
       roomId: body.roomId,
-      quantity: body.quantity || 1,
-      suggestedQuantity: body.quantity || 1,
+      quantity: body.quantity,
+      suggestedQuantity: body.quantity,
       suggestedUnitPrice: resolved.unitPricePHP,
       finalUnitPrice: resolved.unitPricePHP,
       isOverridden: resolved.overridden,

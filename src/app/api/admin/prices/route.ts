@@ -22,9 +22,9 @@ import {
   requireJsonRequest,
   resourceNotFound,
 } from '@/lib/utils/api-helpers';
+import { parseJsonBody } from '@/lib/validation/http';
 import {
   clearOverrideSchema,
-  getAdminValidationError,
   priceOverrideRequestSchema,
 } from '@/lib/validation/admin';
 
@@ -105,13 +105,8 @@ export async function POST(request: NextRequest) {
       return jsonGuard;
     }
 
-    const body = await request.json();
-    const parsed = priceOverrideRequestSchema.safeParse(body);
-
-    if (!parsed.success) {
-      return NextResponse.json({ error: getAdminValidationError(parsed.error) }, { status: 400 });
-    }
-
+    const parsed = await parseJsonBody(request, priceOverrideRequestSchema);
+    if (!parsed.ok) return parsed.response;
     const payload = parsed.data;
     const catalogEntry = findCatalogEntry(payload.model);
 
@@ -194,12 +189,8 @@ export async function DELETE(request: NextRequest) {
       return jsonGuard;
     }
 
-    const body = await request.json();
-    const parsed = clearOverrideSchema.safeParse(body);
-
-    if (!parsed.success) {
-      return NextResponse.json({ error: getAdminValidationError(parsed.error) }, { status: 400 });
-    }
+    const parsed = await parseJsonBody(request, clearOverrideSchema);
+    if (!parsed.ok) return parsed.response;
 
     const removed = await deletePriceOverride(parsed.data.model);
 

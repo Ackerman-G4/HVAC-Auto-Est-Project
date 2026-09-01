@@ -47,14 +47,16 @@
     "validate:snapshot:playback": "powershell -ExecutionPolicy Bypass -File ./scripts/smoke-snapshot-playback.ps1",
     "validate:catalog:admin": "powershell -ExecutionPolicy Bypass -File ./scripts/smoke-catalog-admin.ps1",
     "validate:catalog:admin:strict": "powershell -ExecutionPolicy Bypass -File ./scripts/smoke-catalog-admin.ps1 -Strict",
-    "validate:quality": "npm run lint && npm run build && npm run audit:check",
+    "validate:quality": "npm run check && npm run build && npm run audit:check",
     "validate:docx:parity": "powershell -ExecutionPolicy Bypass -File ./scripts/validate-docx-parity.ps1",
     "validate:docx:parity:strict": "powershell -ExecutionPolicy Bypass -File ./scripts/validate-docx-parity.ps1 -Strict",
     "validate:system": "npm run validate:preflight && npm run validate:auth && npm run validate:rbac && npm run validate:dual-control && npm run validate:snapshot:playback && npm run validate:building-simulation && npm run validate:catalog:admin && npm run validate:quality",
     "validate:system:strict:raw": "npm run validate:preflight:strict && npm run validate:auth:positive && npm run validate:rbac:positive:strict && npm run validate:dual-control && npm run validate:snapshot:playback && npm run validate:building-simulation && npm run validate:catalog:admin:strict && npm run validate:quality",
     "validate:system:strict": "powershell -ExecutionPolicy Bypass -File ./scripts/validate-system-strict.ps1",
     "validate:system:local": "powershell -ExecutionPolicy Bypass -File ./scripts/validate-system-local.ps1",
-    "validate:system:strict:local": "powershell -ExecutionPolicy Bypass -File ./scripts/validate-system-local.ps1 -Strict"
+    "validate:system:strict:local": "powershell -ExecutionPolicy Bypass -File ./scripts/validate-system-local.ps1 -Strict",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-hvac-auto --config firebase.json \"vitest run --config vitest.rules.config.ts\"",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@netlify/next": "1.4.9",
@@ -87,6 +89,7 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "5.0.1",
     "@netlify/plugin-nextjs": "5.15.9",
     "@next/bundle-analyzer": "16.3.0",
     "@tailwindcss/postcss": "^4",
@@ -98,6 +101,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/uuid": "^10.0.0",
+    "@vitest/coverage-v8": "3.2.7",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "jsdom": "27.4.0",

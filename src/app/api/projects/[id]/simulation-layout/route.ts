@@ -6,6 +6,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { parseJsonBody } from '@/lib/validation/http';
+import { saveSimulationLayoutSchema } from '@/lib/validation/simulation-layout';
 import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import { getProjectRecord } from '@/lib/firebase/projects-store';
 import {
@@ -93,12 +95,9 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       return jsonGuard;
     }
 
-    const body = await request.json();
-    const { floorId, hvacPlacements, tilePlacements, canvasScale, connectionOverrides } = body;
-
-    if (!floorId || typeof floorId !== 'string') {
-      return errorResponse(400, 'Bad Request', 'floorId is required in the request body.', 'MISSING_FLOOR_ID');
-    }
+    const parsed = await parseJsonBody(request, saveSimulationLayoutSchema);
+    if (!parsed.ok) return parsed.response;
+    const { floorId, hvacPlacements, tilePlacements, canvasScale, connectionOverrides } = parsed.data;
 
     const project = await getProjectRecord(projectId);
     if (!project) {
@@ -108,15 +107,14 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       return errorResponse(403, 'Forbidden', 'You do not have permission to modify this project.', 'FORBIDDEN');
     }
 
-    if (!Array.isArray(hvacPlacements) || !Array.isArray(tilePlacements)) {
-      return errorResponse(400, 'Bad Request', 'hvacPlacements and tilePlacements must be arrays.', 'INVALID_PAYLOAD');
-    }
-
+    // The array checks and the canvasScale fallback that stood here are now
+    // in the schema, which also validates the placements themselves rather
+    // than only that they arrived in an array.
     await upsertSimulationLayout(projectId, floorId, {
       hvacPlacements,
       tilePlacements,
-      canvasScale: typeof canvasScale === 'number' ? canvasScale : 50,
-      ...(Array.isArray(connectionOverrides) ? { connectionOverrides } : {}),
+      canvasScale,
+      ...(connectionOverrides ? { connectionOverrides } : {}),
     });
 
     return NextResponse.json({ success: true });

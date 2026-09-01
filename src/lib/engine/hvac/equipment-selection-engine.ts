@@ -4,6 +4,12 @@ import { getRuleSetSync } from '@/lib/engine/rules';
 import { constantFromRuleSet, lookupFromRuleSet } from '@/lib/engine/rules/rule-evaluator';
 import type { EquipmentType } from '@/types/equipment';
 
+import { safeDivide } from '../numeric-guards';
+
+/** CLAUDE.md §8.2: 12000 Btu/h per ton of refrigeration, defined once. */
+const BTU_PER_HOUR_PER_TON = 12000;
+const WATTS_PER_KILOWATT = 1000;
+
 export type BudgetBand = 'economy' | 'balanced' | 'premium';
 export type OptimizationPriority = 'capex' | 'efficiency' | 'balanced';
 
@@ -158,16 +164,37 @@ export function calculateEquipmentSelection(
   const targetTr = inputs.redundancyNPlusOne ? inputs.requiredTr * redundancyMultiplier : inputs.requiredTr;
 
   const candidates: EquipmentCandidate[] = filtered.flatMap((item) => {
-    const minQty = Math.max(1, Math.ceil(targetTr / item.capacityTr));
+    // CLAUDE.md §8.4. A zero unit capacity yields Infinity here, which survives
+    // Math.ceil and Math.max, becomes the quantity, and multiplies into the
+    // BOQ total with nothing downstream to flag it.
+    const minQty = Math.max(
+      1,
+      Math.ceil(
+        safeDivide(targetTr, item.capacityTr, `equipmentQuantity[${item.model}]`, {
+          requirePositive: true,
+        }),
+      ),
+    );
     const maxQty = Math.max(minQty, inputs.maxUnits);
 
     const options: EquipmentCandidate[] = [];
 
     for (let qty = minQty; qty <= maxQty; qty += 1) {
       const providedTr = qty * item.capacityTr;
-      const utilizationPct = (inputs.requiredTr / Math.max(0.1, providedTr)) * 100;
+      // The `Math.max(0.1, providedTr)` this replaces masked a zero rather than
+      // reporting it, converting a detectable fault into a plausible
+      // percentage — the worse of the two failures.
+      const utilizationPct =
+        safeDivide(inputs.requiredTr, providedTr, `equipmentUtilization[${item.model}]`, {
+          requirePositive: true,
+        }) * 100;
       const capexPhp = qty * item.capexPhp;
-      const annualEnergyKwh = (providedTr * 12000 * inputs.operatingHoursPerYear) / (item.eer * 1000);
+      const annualEnergyKwh = safeDivide(
+        providedTr * BTU_PER_HOUR_PER_TON * inputs.operatingHoursPerYear,
+        item.eer * WATTS_PER_KILOWATT,
+        `annualEnergy[${item.model}]`,
+        { requirePositive: true },
+      );
       const annualEnergyCostPhp = annualEnergyKwh * inputs.electricityRatePhpKwh;
       const totalLifecyclePhp = capexPhp + annualEnergyCostPhp * 5;
 
