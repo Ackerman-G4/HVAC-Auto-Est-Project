@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { checkProjectAccess } from '@/lib/auth/project-access';
 import { parseJsonBody } from '@/lib/validation/http';
 import { createFloorSchema } from '@/lib/validation/projects';
 import { evaluateRateLimit } from '@/lib/auth/rate-limit';
@@ -14,7 +15,7 @@ import {
   getFloorsWithRooms,
   getProjectRecord,
 } from '@/lib/firebase/projects-store';
-import { errorResponse, getErrorDetails, requireJsonRequest, resourceNotFound } from '@/lib/utils/api-helpers';
+import { errorResponse, getErrorDetails, requireJsonRequest } from '@/lib/utils/api-helpers';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -84,10 +85,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
     if (!parsed.ok) return parsed.response;
     const body = parsed.data;
 
-    const project = await getProjectRecord(projectId);
-    if (!project) {
-      return resourceNotFound('Project', 'The project does not exist.', 'PROJECT_NOT_FOUND');
-    }
+    // Ownership, not merely authentication. Every store call below uses the
+    // Admin SDK, which bypasses Firestore rules, so this is the only gate.
+    const access = checkProjectAccess(await getProjectRecord(projectId), auth.user);
+    if (!access.ok) return access.response;
 
     // Defaults come from createFloorSchema. `name` is the one field left to the
     // handler, because its default is derived from another field's value.

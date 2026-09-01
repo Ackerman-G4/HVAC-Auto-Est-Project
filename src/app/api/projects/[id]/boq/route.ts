@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guard';
+import { checkProjectAccess } from '@/lib/auth/project-access';
 import { evaluateRateLimit } from '@/lib/auth/rate-limit';
 import {
   listBoqItemsForProject,
@@ -25,7 +26,7 @@ import { sizeRefrigerantPipe, sizeCondensatePipe } from '@/lib/functions/pipe-si
 import { sizeElectrical } from '@/lib/functions/electrical';
 import { sizeDuct } from '@/lib/functions/duct-sizing';
 import { CFM_PER_TR } from '@/lib/utils/constants';
-import { errorResponse, getErrorDetails, resourceNotFound } from '@/lib/utils/api-helpers';
+import { errorResponse, getErrorDetails } from '@/lib/utils/api-helpers';
 import { finalizeDualValue } from '@/lib/utils/dual-control';
 import type { BOQItem } from '@/types/material';
 
@@ -124,11 +125,12 @@ export async function GET(request: NextRequest, context: RouteContext) {
       getLatestBoqSnapshot(id),
     ]);
 
-    if (!project) {
-      return resourceNotFound('Project', 'The project does not exist.', 'PROJECT_NOT_FOUND');
-    }
+    // Ownership, not merely authentication. Every store call here uses the
+    // Admin SDK, which bypasses Firestore rules, so this is the only gate.
+    const access = checkProjectAccess(project, auth.user);
+    if (!access.ok) return access.response;
 
-    const pricingPolicy = resolvePricingPolicy(project);
+    const pricingPolicy = resolvePricingPolicy(access.project);
 
     const getSuggestedUnitPrice = (item: (typeof items)[number]) =>
       item.suggestedUnitPrice === 0 ? item.unitPrice : item.suggestedUnitPrice;
@@ -327,13 +329,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     const { id: projectId } = await context.params;
 
-    const project = await getProjectRecord(projectId);
+    // Ownership, not merely authentication. This verb overwrites every BOQ
+    // item on the project and writes an audit entry naming the caller.
+    const access = checkProjectAccess(await getProjectRecord(projectId), auth.user);
+    if (!access.ok) return access.response;
 
-    if (!project) {
-      return resourceNotFound('Project', 'The project does not exist.', 'PROJECT_NOT_FOUND');
-    }
-
-    const pricingPolicy = resolvePricingPolicy(project);
+    const pricingPolicy = resolvePricingPolicy(access.project);
 
     const [floors, selectedRecords] = await Promise.all([
       getFloorsWithRooms(projectId),
