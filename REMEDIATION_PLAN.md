@@ -234,7 +234,7 @@ Gate: workflow fails on a deliberate coverage reduction and passes on `main`.
 Add plain Node equivalents for the daily commands so `dev`, `clean` and `check` run on any operating system. Retain the PowerShell scripts as separately named aliases for the existing Windows system validation suite rather than deleting them.
 Gate: `npm run dev` and `npm run clean` execute on Linux.
 
-**☐ TASK 5.4 — Raise compiler strictness incrementally**
+**◐ TASK 5.4 — Raise compiler strictness incrementally**
 Enable `noUncheckedIndexedAccess` alone and resolve the resulting errors. This flag has the highest defect yield of the three because it forces explicit handling of catalogue and array lookups, which is the same failure mode as finding F2. Then enable `noImplicitOverride`, then `exactOptionalPropertyTypes`, each as a separate change.
 Gate after each flag: `npx tsc --noEmit` returns 0 errors.
 
@@ -716,3 +716,62 @@ that plainly: the same coverage gap I was measuring for was one I had just
 created.
 
 Validation is now 77.9%, up from 55.9%.
+
+### TASK 5.4 — compiler strictness ◐
+
+All three flags were enabled in isolation and measured before any was adopted.
+
+| Flag | Errors | Adopted |
+|---|---|---|
+| `noImplicitOverride` | **0** | ✅ enabled |
+| `exactOptionalPropertyTypes` | 88 | deferred |
+| `noUncheckedIndexedAccess` | **1,299** | **declined — see below** |
+
+`noImplicitOverride` was free and is on.
+
+#### `noUncheckedIndexedAccess` does not have the yield the task expects
+
+The task states this flag "has the highest defect yield of the three because it
+forces explicit handling of catalogue and array lookups, which is the same
+failure mode as finding F2". On this codebase that is not what it does.
+
+Error distribution across the 1,299:
+
+| Code | Count | Meaning |
+|---|---|---|
+| TS2532 | 697 | Object is possibly undefined |
+| TS18048 | 426 | Value is possibly undefined |
+| TS2345 / TS2322 | 171 | Assignment mismatch from the above |
+| **TS2538** | **1** | **undefined used as an index type** |
+
+TS2538 is the shape that actually corresponds to F2 — an undefined key reaching
+a lookup. There is exactly one, and it is safe:
+`BRAND_TIERS[manufacturer.split(' ')[0]]`, where `split` on a non-empty string
+always yields a first element.
+
+Every sampled TS2532/TS18048 is likewise provably safe but unprovable to the
+compiler:
+
+- `STANDARD_ROUND_DUCT_DIAMETERS_IN[length - 1]` on a non-empty `const` array.
+- `base[0]` and `base[branches - 1]` on an array built two lines earlier with
+  `length: branches`, inside a `branches > 1` branch.
+- `sizing.recommended[0]` immediately after `if (sizing.recommended.length === 0)
+  continue;` — the compiler cannot connect the guard to the index.
+- The bulk of the 766 in `lib/functions` are CFD grid walks (`grid[x][y][z]`)
+  bounded by their own loops.
+
+**Fixing these mechanically would be worse than leaving them.** 1,299 sites take
+either a non-null assertion or a `?? fallback`. The assertion adds noise and
+asserts what the reader already knew; the fallback is the more dangerous of the
+two, because `?? 0` on a lookup that should never miss converts a future genuine
+miss into a silently wrong number. That is precisely the pattern CLAUDE.md §2.3
+forbids and the same shape as the `Math.max(0.1, providedTr)` clamp Phase 2
+removed for masking rather than reporting.
+
+The flag is worth revisiting when a file is being rewritten for other reasons —
+adopted per-file as code is touched, not as a 1,299-site sweep. Recorded as
+measured-and-declined rather than outstanding, so it is not re-attempted blind.
+
+`exactOptionalPropertyTypes` at 88 is tractable, but the sample is dominated by
+React prop passing (`string | undefined` into `helperText?: string`), which is a
+widening exercise rather than a correctness one. Deferred, not declined.
