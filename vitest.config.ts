@@ -46,8 +46,39 @@ export default defineConfig({
       ],
       exclude: ['**/__tests__/**', '**/*.d.ts', '**/types.ts'],
 
-      // No thresholds yet, on purpose. TASK 5.1 says record the baseline
-      // first; a threshold chosen before the number is known is arbitrary.
+      /**
+       * Thresholds sit at the measured figure, rounded down a point.
+       *
+       * The point of headroom is not slack — it is so a refactor that moves a
+       * few lines between files does not fail the build while coverage is
+       * materially unchanged. A real regression drops far more than that.
+       *
+       * `engine` and `validation` are held far higher than the global floor
+       * because they carry the calculation correctness and boundary safety
+       * guarantees. The global number is dragged down by `lib/firebase` (5%)
+       * and `lib/auth` (6%), which are mostly IO and are the next targets —
+       * raising the global floor is how that work gets recorded.
+       */
+      thresholds: {
+        lines: 31,
+        statements: 31,
+        branches: 76,
+        functions: 62,
+
+        'src/lib/engine/**': {
+          // Branches measured 79.8; held at 79 for the same reason as above.
+          lines: 74,
+          statements: 74,
+          branches: 79,
+          functions: 80,
+        },
+        'src/lib/validation/**': {
+          lines: 77,
+          statements: 77,
+          branches: 85,
+          functions: 75,
+        },
+      },
     },
   },
 });
