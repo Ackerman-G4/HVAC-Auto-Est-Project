@@ -183,7 +183,7 @@ export interface FloorWithRooms extends FirebaseFloorRecord {
   rooms: Array<FirebaseRoomRecord & { selectedEquipment?: Array<Record<string, unknown>>; _count?: { selectedEquipment: number } }>;
 }
 
-interface AuditLogInput {
+export interface AuditLogInput {
   projectId: string;
   action: string;
   entity: string;
