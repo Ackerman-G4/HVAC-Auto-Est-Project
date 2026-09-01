@@ -18,6 +18,8 @@ import {
 } from '@/lib/firebase/admin-users-store';
 import { writeAuditLog } from '@/lib/firebase/projects-store';
 import { errorResponse, getErrorDetails, requireJsonRequest, resourceNotFound } from '@/lib/utils/api-helpers';
+import { parseJsonBody } from '@/lib/validation/http';
+import { adminUserMutationSchema, type AdminUserMutationBody } from '@/lib/validation/admin';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -26,20 +28,22 @@ const ADMIN_USERS_MUTATION_RATE_LIMIT = {
   maxRequests: 20,
 } as const;
 
-function parseMutation(body: unknown): AdminMutation | null {
-  if (!body || typeof body !== 'object') return null;
-  const action = (body as Record<string, unknown>).action;
-
-  if (action === 'disable') return { type: 'disable' };
-  if (action === 'enable') return { type: 'enable' };
-  if (action === 'setRole') {
-    const role = (body as Record<string, unknown>).role;
-    if (role === 'admin' || role === 'engineer') {
-      return { type: 'setRole', role };
-    }
-    return null;
+/**
+ * Map the validated request onto the domain mutation.
+ *
+ * The schema speaks the wire vocabulary (`action`) and `AdminMutation` speaks
+ * the domain's (`type`); this is the seam between them. The hand-rolled
+ * `parseMutation` it replaces was correct — it narrowed from `unknown` and
+ * already constrained `role` to the two valid values, so there was never a
+ * privilege-escalation hole here. What it could not do was tell a malformed
+ * body from a server fault: `request.json()` threw into the outer catch and
+ * returned 500 for what is a client mistake.
+ */
+function toAdminMutation(body: AdminUserMutationBody): AdminMutation {
+  if (body.action === 'setRole') {
+    return { type: 'setRole', role: body.role };
   }
-  return null;
+  return { type: body.action };
 }
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
@@ -63,16 +67,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     }
 
     const { id } = await context.params;
-    const body = await request.json();
-    const mutation = parseMutation(body);
-    if (!mutation) {
-      return errorResponse(
-        400,
-        'Invalid mutation',
-        'action must be "disable", "enable", or "setRole" (with role: "admin" | "engineer").',
-        'INVALID_ADMIN_MUTATION',
-      );
-    }
+    const parsed = await parseJsonBody(request, adminUserMutationSchema);
+    if (!parsed.ok) return parsed.response;
+    const mutation = toAdminMutation(parsed.data);
 
     const target = await getAdminUserById(id);
     if (!target) {
