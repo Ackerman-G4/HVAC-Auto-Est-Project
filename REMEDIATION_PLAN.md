@@ -1023,3 +1023,51 @@ Gates: tsc 0 errors, eslint 0 errors / 77 warnings, vitest 53 files / 663 tests
 
 Remaining in TASK 3.2: `projects/[id]/route.ts` (282), `runs/route.ts` (260),
 `equipment/route.ts` (259).
+
+
+---
+
+## Execution log — TASK 3.2, project handler decomposition
+
+`projects/[id]/route.ts`: **282 lines -> 108**. Extracted
+`lib/projects/project-update.ts` (194 lines), which holds the field-by-field
+merge and the staleness rule, and added `checkProjectAccessAudited` to
+`lib/auth/project-access.ts` so the load-check-audit triple is stated once
+rather than in each of three verbs.
+
+**108 is not the 80 the gate names.** Three verbs, each carrying a rate limit,
+an ownership check that audits its denials, and its own store work. GET is 12
+lines, PUT 30, DELETE 25; the rest is imports and the doc comment. The run
+route landed at 91 for the same reason with two verbs. Recorded as
+missed-by-28 rather than reached by deleting documentation.
+
+The audit helper takes the project the caller already loaded, rather than
+fetching its own. GET needs `getProjectWithDetails` and the mutations need
+`getProjectRecord`; a helper that did its own read would have added a second
+one to every request. It also keeps the asymmetry that was already there and is
+correct: a missing project is a silent 404, a denied one is logged then 403 —
+reaching for someone else's project is worth a trail, mistyping an id that
+exists nowhere is not.
+
+**Two rules in the merge decide whether a quotation stays trustworthy**, and
+neither had a test:
+
+1. `pricingRatesChanged` compares resolved rates against stored values rather
+   than asking whether the request mentioned them. The edit form submits the
+   whole project, so treating "mentioned" as "changed" would mark a correct
+   bill stale on every unrelated save.
+2. `toNullableNumber` keeps `null` and `undefined` distinct: `null` clears an
+   override deliberately, `undefined` means the request was silent. Collapsing
+   them to `?? fallback` would make an override impossible to remove.
+
+Wet bulb stays derived from dry bulb and relative humidity rather than accepted
+from the client, so the three cannot drift out of agreement.
+
+18 tests. Three mutations confirm they bite: treating a mentioned rate as
+changed fails 1; collapsing the null/undefined distinction fails 3; keeping
+`lastBoqGeneratedAt` when the bill goes stale fails 1.
+
+Gates: tsc 0 errors, eslint 0 errors / 77 warnings, vitest 54 files / 681 tests
+(663 -> 681, +18), next build clean, coverage 36.19 / 77.17 / 63.43.
+
+Remaining in TASK 3.2: `runs/route.ts` (260), `equipment/route.ts` (268).
