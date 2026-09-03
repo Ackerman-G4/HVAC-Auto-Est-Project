@@ -3,14 +3,16 @@
  * GET    /api/projects/[id]
  * PUT    /api/projects/[id]
  * DELETE /api/projects/[id]
+ *
+ * HTTP boundary only (CLAUDE.md rule 7): guard, check ownership, parse,
+ * delegate to `lib/projects`, map the outcome to a status.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth/guard';
+import { NextResponse, type NextRequest } from 'next/server';
+import { guardRequest, withRouteErrorHandling } from '@/lib/api/boundary';
 import { parseJsonBody } from '@/lib/validation/http';
 import { updateProjectSchema } from '@/lib/validation/projects';
-import { canAccessProject, projectAccessDenied } from '@/lib/auth/project-access';
-import { evaluateRateLimit } from '@/lib/auth/rate-limit';
+import { checkProjectAccessAudited } from '@/lib/auth/project-access';
 import {
   deleteProjectRecordPermanently,
   getProjectRecord,
@@ -18,265 +20,89 @@ import {
   updateProjectRecord,
   writeAuditLog,
 } from '@/lib/firebase/projects-store';
-import { wetBulb as calcWetBulb } from '@/lib/functions/psychrometric';
-import {
-  toNumber,
-  toInt,
-  errorResponse,
-  getErrorDetails,
-  requireJsonRequest,
-  resourceNotFound,
-} from '@/lib/utils/api-helpers';
+import { buildProjectPatch } from '@/lib/projects/project-update';
+import { requireJsonRequest, resourceNotFound } from '@/lib/utils/api-helpers';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-const PROJECT_MUTATION_RATE_LIMIT = {
-  windowMs: 60_000,
-  maxRequests: 30,
-} as const;
+const MUTATION_RATE_LIMIT = { windowMs: 60_000, maxRequests: 30 } as const;
+const GET_RATE_LIMIT = { windowMs: 60_000, maxRequests: 60 } as const;
 
-const PROJECT_GET_RATE_LIMIT = {
-  windowMs: 60_000,
-  maxRequests: 40,
-} as const;
+const notFound = () =>
+  resourceNotFound('Project', 'The project does not exist.', 'PROJECT_NOT_FOUND');
 
-function toNullableNumber(value: unknown, fallback: number | null): number | null {
-  if (value === null) return null;
-  if (value === undefined) return fallback;
-  const parsed = toNumber(value, NaN);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
-
-async function logProjectAccessDenied(id: string, uid: string, method: string): Promise<void> {
-  await writeAuditLog({
-    projectId: id,
-    action: 'access_denied',
-    entity: 'project',
-    entityId: id,
-    details: JSON.stringify({ uid, method }),
-  });
-}
-
-export async function GET(request: NextRequest, context: RouteContext) {
-  try {
-    const rateLimit = evaluateRateLimit(request, 'projects-id-get', PROJECT_GET_RATE_LIMIT);
-    if (!rateLimit.allowed) {
-      return NextResponse.json(
-        { error: 'Too many requests. Please try again later.' },
-        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
-      );
-    }
-
-    const auth = await requireAuth(request);
-    if (!auth.authorized) {
-      return auth.response;
-    }
+export const GET = withRouteErrorHandling(
+  'GET /api/projects/[id]',
+  'Failed to fetch project',
+  async (request: NextRequest, context: RouteContext) => {
+    const guard = await guardRequest(request, 'projects-id-get', GET_RATE_LIMIT);
+    if (!guard.ok) return guard.response;
 
     const { id } = await context.params;
+    const loaded = await getProjectWithDetails(id);
+    const access = await checkProjectAccessAudited(loaded, guard.user, 'GET', writeAuditLog, id);
+    if (!access.ok) return access.response;
 
-    const project = await getProjectWithDetails(id);
+    return NextResponse.json({ project: access.project });
+  },
+);
 
-    if (!project) {
-      return resourceNotFound(
-        'Project',
-        'The project ID does not match any existing project record.',
-        'PROJECT_NOT_FOUND',
-      );
-    }
-
-    if (!canAccessProject(project, auth.user)) {
-      await logProjectAccessDenied(id, auth.user.id, 'GET');
-      return projectAccessDenied();
-    }
-
-    return NextResponse.json({
-      project,
-    });
-  } catch (error) {
-    console.error('GET /api/projects/[id] error:', error);
-    const d = getErrorDetails(error, 'Failed to fetch project');
-    return errorResponse(500, d.error, d.description, d.code);
-  }
-}
-
-export async function PUT(request: NextRequest, context: RouteContext) {
-  try {
-    const rateLimit = evaluateRateLimit(request, 'projects-id-put', PROJECT_MUTATION_RATE_LIMIT);
-    if (!rateLimit.allowed) {
-      return NextResponse.json(
-        { error: 'Too many requests. Please try again later.' },
-        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
-      );
-    }
-
-    const auth = await requireAuth(request);
-    if (!auth.authorized) {
-      return auth.response;
-    }
-
-    const { id } = await context.params;
+export const PUT = withRouteErrorHandling(
+  'PUT /api/projects/[id]',
+  'Failed to update project',
+  async (request: NextRequest, context: RouteContext) => {
+    const guard = await guardRequest(request, 'projects-id-put', MUTATION_RATE_LIMIT);
+    if (!guard.ok) return guard.response;
 
     const jsonGuard = requireJsonRequest(request);
-    if (jsonGuard) {
-      return jsonGuard;
-    }
+    if (jsonGuard) return jsonGuard;
 
     const parsed = await parseJsonBody(request, updateProjectSchema);
     if (!parsed.ok) return parsed.response;
-    const body = parsed.data;
 
+    const { id } = await context.params;
     const existing = await getProjectRecord(id);
-    if (!existing) {
-      return resourceNotFound(
-        'Project',
-        'The project you are trying to update no longer exists.',
-        'PROJECT_NOT_FOUND',
-      );
-    }
+    const access = await checkProjectAccessAudited(existing, guard.user, 'PUT', writeAuditLog, id);
+    if (!access.ok) return access.response;
 
-    if (!canAccessProject(existing, auth.user)) {
-      await logProjectAccessDenied(id, auth.user.id, 'PUT');
-      return projectAccessDenied();
-    }
-
-    const finalOutdoorDB = toNumber(body.outdoorDB, existing.outdoorDB);
-    const finalOutdoorRH = toNumber(body.outdoorRH, existing.outdoorRH);
-    const computedWB = calcWetBulb(finalOutdoorDB, finalOutdoorRH);
-
-    const nextSuggestedLaborMultiplier = toNumber(body.suggestedLaborMultiplier, existing.suggestedLaborMultiplier);
-    const nextLaborMultiplierOverride = toNullableNumber(body.laborMultiplierOverride, existing.laborMultiplierOverride);
-    const nextSuggestedOverheadPercent = toNumber(body.suggestedOverheadPercent, existing.suggestedOverheadPercent);
-    const nextOverheadPercentOverride = toNullableNumber(body.overheadPercentOverride, existing.overheadPercentOverride);
-    const nextSuggestedContingencyPercent = toNumber(
-      body.suggestedContingencyPercent,
-      existing.suggestedContingencyPercent,
-    );
-    const nextContingencyPercentOverride = toNullableNumber(
-      body.contingencyPercentOverride,
-      existing.contingencyPercentOverride,
-    );
-    const nextSuggestedVatRate = toNumber(body.suggestedVatRate, existing.suggestedVatRate);
-    const nextVatRateOverride = toNullableNumber(body.vatRateOverride, existing.vatRateOverride);
-
-    const pricingChanged =
-      nextSuggestedLaborMultiplier !== existing.suggestedLaborMultiplier ||
-      nextLaborMultiplierOverride !== existing.laborMultiplierOverride ||
-      nextSuggestedOverheadPercent !== existing.suggestedOverheadPercent ||
-      nextOverheadPercentOverride !== existing.overheadPercentOverride ||
-      nextSuggestedContingencyPercent !== existing.suggestedContingencyPercent ||
-      nextContingencyPercentOverride !== existing.contingencyPercentOverride ||
-      nextSuggestedVatRate !== existing.suggestedVatRate ||
-      nextVatRateOverride !== existing.vatRateOverride;
-
-    await updateProjectRecord(id, {
-      name: body.name ?? existing.name,
-      clientName: body.clientName ?? existing.clientName,
-      buildingType: body.buildingType ?? existing.buildingType,
-      location: body.location ?? existing.location,
-      city: body.city ?? existing.city,
-      totalFloorArea: toNumber(body.totalFloorArea, existing.totalFloorArea),
-      floorsAboveGrade: toInt(body.floorsAboveGrade, existing.floorsAboveGrade),
-      floorsBelowGrade: toInt(body.floorsBelowGrade, existing.floorsBelowGrade),
-      outdoorDB: finalOutdoorDB,
-      outdoorWB: Math.round(computedWB * 100) / 100,
-      outdoorRH: finalOutdoorRH,
-      indoorDB: toNumber(body.indoorDB, existing.indoorDB),
-      indoorRH: toNumber(body.indoorRH, existing.indoorRH),
-      safetyFactor: toNumber(body.safetyFactor, existing.safetyFactor),
-      diversityFactor: toNumber(body.diversityFactor, existing.diversityFactor),
-      suggestedLaborMultiplier: nextSuggestedLaborMultiplier,
-      laborMultiplierOverride: nextLaborMultiplierOverride,
-      suggestedOverheadPercent: nextSuggestedOverheadPercent,
-      overheadPercentOverride: nextOverheadPercentOverride,
-      suggestedContingencyPercent: nextSuggestedContingencyPercent,
-      contingencyPercentOverride: nextContingencyPercentOverride,
-      suggestedVatRate: nextSuggestedVatRate,
-      vatRateOverride: nextVatRateOverride,
-      isBoqStale: pricingChanged ? true : existing.isBoqStale,
-      lastBoqGeneratedAt: pricingChanged ? null : existing.lastBoqGeneratedAt,
-      notes: body.notes ?? existing.notes,
-      status: body.status ?? existing.status,
-    });
-
+    await updateProjectRecord(id, buildProjectPatch(parsed.data, access.project).patch);
     await writeAuditLog({
       projectId: id,
       action: 'updated',
       entity: 'project',
       entityId: id,
-      details: JSON.stringify(body),
+      details: JSON.stringify(parsed.data),
     });
 
     const project = await getProjectWithDetails(id);
-    if (!project) {
-      return resourceNotFound(
-        'Project',
-        'The project you are trying to update no longer exists.',
-        'PROJECT_NOT_FOUND',
-      );
-    }
+    return project ? NextResponse.json({ project }) : notFound();
+  },
+);
 
-    return NextResponse.json({ project });
-  } catch (error) {
-    console.error('PUT /api/projects/[id] error:', error);
-    const d = getErrorDetails(error, 'Failed to update project');
-    return errorResponse(500, d.error, d.description, d.code);
-  }
-}
-
-export async function DELETE(request: NextRequest, context: RouteContext) {
-  try {
-    const rateLimit = evaluateRateLimit(request, 'projects-id-delete', PROJECT_MUTATION_RATE_LIMIT);
-    if (!rateLimit.allowed) {
-      return NextResponse.json(
-        { error: 'Too many requests. Please try again later.' },
-        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } },
-      );
-    }
-
-    const auth = await requireAuth(request);
-    if (!auth.authorized) {
-      return auth.response;
-    }
+export const DELETE = withRouteErrorHandling(
+  'DELETE /api/projects/[id]',
+  'Failed to delete project',
+  async (request: NextRequest, context: RouteContext) => {
+    const guard = await guardRequest(request, 'projects-id-delete', MUTATION_RATE_LIMIT);
+    if (!guard.ok) return guard.response;
 
     const { id } = await context.params;
-    const permanent = new URL(request.url).searchParams.get('permanent') === 'true';
-
     const existing = await getProjectRecord(id);
-    if (!existing) {
-      return resourceNotFound(
-        'Project',
-        'The project you are trying to delete no longer exists.',
-        'PROJECT_NOT_FOUND',
-      );
-    }
+    const access = await checkProjectAccessAudited(existing, guard.user, 'DELETE', writeAuditLog, id);
+    if (!access.ok) return access.response;
 
-    if (!canAccessProject(existing, auth.user)) {
-      await logProjectAccessDenied(id, auth.user.id, 'DELETE');
-      return projectAccessDenied();
-    }
-
-    if (permanent) {
+    if (new URL(request.url).searchParams.get('permanent') === 'true') {
+      // Audited before the write, not after: once the record is gone there is
+      // nothing left to attach the entry to.
       await writeAuditLog({
-        projectId: id,
-        action: 'permanently_deleted',
-        entity: 'project',
-        entityId: id,
+        projectId: id, action: 'permanently_deleted', entity: 'project', entityId: id,
       });
       await deleteProjectRecordPermanently(id);
     } else {
       await updateProjectRecord(id, { status: 'deleted' });
-      await writeAuditLog({
-        projectId: id,
-        action: 'deleted',
-        entity: 'project',
-        entityId: id,
-      });
+      await writeAuditLog({ projectId: id, action: 'deleted', entity: 'project', entityId: id });
     }
 
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('DELETE /api/projects/[id] error:', error);
-    const d = getErrorDetails(error, 'Failed to delete project');
-    return errorResponse(500, d.error, d.description, d.code);
-  }
-}
+  },
+);
