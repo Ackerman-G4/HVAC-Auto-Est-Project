@@ -96,3 +96,42 @@ export function checkProjectAccess<TProject extends ProjectOwnership>(
 
   return { ok: true, project };
 }
+
+/** A minimal audit-log writer, injected so this module stays free of stores. */
+export type AuditWriter = (entry: {
+  projectId: string;
+  action: string;
+  entity: string;
+  entityId: string;
+  details?: string;
+}) => Promise<unknown>;
+
+/**
+ * Check access against a loaded project, recording a denial.
+ *
+ * Reaching for a project that is not yours is worth a trail; mistyping an id
+ * that exists nowhere is not — so a missing project returns 404 silently while
+ * a denial is logged before the 403. Takes the project the caller already has,
+ * so adding the audit costs no extra read.
+ */
+export async function checkProjectAccessAudited<TProject extends ProjectOwnership>(
+  project: TProject | null,
+  user: AccessActor,
+  method: string,
+  writeAudit: AuditWriter,
+  projectId: string,
+): Promise<ProjectAccessResult<TProject>> {
+  const result = checkProjectAccess(project, user);
+
+  if (!result.ok && result.response.status === 403) {
+    await writeAudit({
+      projectId,
+      action: 'access_denied',
+      entity: 'project',
+      entityId: projectId,
+      details: JSON.stringify({ uid: user.id, method }),
+    });
+  }
+
+  return result;
+}
